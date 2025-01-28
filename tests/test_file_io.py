@@ -1,0 +1,118 @@
+"""Pytest based unit tests for file_io module."""
+
+import pytest
+from cloudpathlib import GSPath
+
+from esp_data.file_io.buckets import Bucket, GSBucket
+from esp_data.file_io.files import File, GSFile
+
+
+def test_bucket_empty():
+    bucket = Bucket("gs://esp-ci-cd-tests/esp-data-tests/keep_empty")
+    assert bucket.list_files() == []
+    assert bucket.list_dirs() == []
+    assert list(bucket.find_files_with_extension(".py")) == []
+    assert list(bucket.find_files_containing("test")) == []
+
+
+def test_bucket_non_empty():
+    bucket = Bucket("gs://esp-ci-cd-tests/esp-data-tests/non_empty")
+    assert len(bucket.list_files(recursive=False)) == 1
+    assert len(bucket.list_dirs(recursive=True)) == 0
+    assert len(list(bucket.find_files_with_extension(".txt"))) == 1
+    assert len(list(bucket.find_files_containing("random"))) == 0
+
+
+def test_bucket_move_create_delete():
+    # Move directories
+    file = File("gs://esp-ci-cd-tests/esp-data-tests/temp_folder/temp_file.txt")
+    file.create()
+    bucket = Bucket("gs://esp-ci-cd-tests/esp-data-tests/")
+    bucket.move_dir("temp_folder", "non_empty", overwrite=True, keep_parent=True)
+    b = bucket.subdir_as_bucket("non_empty/temp_folder")
+    assert b.exists
+    b.delete_dir("", confirm=False)
+    assert not b.exists
+
+
+def test_gcs_bucket_upload():
+    """Test GCSBucket class."""
+    bucket = GSBucket("gs://esp-ci-cd-tests/esp-data-tests/temprandomfolder")
+    assert not bucket.exists
+    bucket.upload_dir("tests/fileio_test_folder")
+    assert bucket.exists
+    assert len(bucket.list_files(recursive=True)) > 0
+    bucket.delete_dir("", confirm=False)
+    assert not bucket.exists
+
+
+def test_gcs_bucket_upload_data_as_str():
+    b = GSBucket("gs://esp-ci-cd-tests/esp-data-tests/test_temp_subfolder")
+    file_names = ["random1.txt", "random2.txt"]
+    file_data = ["hello", "world"]
+    b.upload_data_as_str(file_names, file_data)
+    # confirm they are present
+    uploaded_files = b.list_files(recursive=True)
+    assert len(uploaded_files) == 2
+    assert uploaded_files == [GSPath(f"{str(b)}/{file}") for file in file_names]
+    b.delete_dir("", confirm=False)
+
+
+def test_gcs_bucket_rsync():
+    src = GSBucket("gs://esp-ci-cd-tests/esp-data-tests/non_empty")
+    dest = GSBucket("gs://esp-ci-cd-tests/esp-data-tests/some_subfolder")
+    src.rsync(dest, self_is_source=True, gzip_in_flight="txt")
+
+
+def test_local_file_open():
+    file = File("tests/test_file_io.py")
+    assert file.exists
+    assert file.is_local
+    assert file.read_bytes()[:5] == b'"""Py'
+    fp = file.open("r")
+    assert fp.readline()[:5] == '"""Py'
+
+
+def test_cloud_file():
+    file = File("gs://esp-ci-cd-tests/esp-data-tests/some_subfolder/random.txt")
+    assert file.exists
+    assert not file.is_local
+    file.download_to("tests/fileio_test_folder/random.txt")
+    assert file.size() == 0
+
+
+def test_cloud_file_copy():
+    file = File("gs://esp-ci-cd-tests/esp-data-tests/some_subfolder/random.txt")
+    file.copy_to("gs://esp-ci-cd-tests/esp-data-tests/some_subfolder/random_copy.txt")
+    f = File("gs://esp-ci-cd-tests/esp-data-tests/some_subfolder/random_copy.txt")
+    assert f.exists
+    f.delete(confirm=False)
+
+
+def test_cloud_file_create():
+    file = File("gs://esp-ci-cd-tests/esp-data-tests/some_subfolder/random_new.txt")
+    file.upload_from("tests/fileio_test_folder/random_local.txt")
+    assert file.exists
+    assert file.size() > 0
+    file.delete(confirm=False)
+    file = File("./test_test/test.txt")
+    file.make_parent_dir(exist_ok=True)
+    file.create(exist_ok=True)
+    assert file.exists
+    file.delete(confirm=False)
+
+
+def test_gs_file():
+    with pytest.raises(ValueError):
+        file = GSFile("s3://esp-ci-cd-tests/esp-data-tests/some_subfolder/random.txt")
+    file = GSFile("gs://esp-ci-cd-tests/esp-data-tests/some_subfolder/random.txt")
+    assert file.exists
+    assert not file.is_local
+    file.download_to("tests/fileio_test_folder/random.txt")
+    file = GSFile("gs://esp-ci-cd-tests/esp-data-tests/non_empty/random_for_upload_test.txt")
+    file.upload_from_bytes_or_str("hello")
+    assert file.exists
+    assert file.size() > 0
+    assert file.read_bytes() == b"hello"
+    file.delete(confirm=False)
+    assert not file.exists
