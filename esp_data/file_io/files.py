@@ -12,11 +12,15 @@
 
 import logging
 import os
+import warnings
 
+import numpy as np
 from cloudpathlib import AnyPath, CloudPath
 from google.cloud.storage import Client as GSClient
 
-from ..utils import is_local_path, is_gcs_path
+from ..utils import is_gcs_path, is_local_path
+
+warnings.filterwarnings("ignore", "Your application has authenticated using end user credentials")
 
 logger = logging.getLogger(__name__)
 logger.propagate = True
@@ -51,6 +55,12 @@ class File:
             raise FileNotFoundError(f"File does not exist: {self.file_path}")
         return self.file_path.read_bytes()
 
+    def read_text(self) -> str:
+        """Read the contents of the file as text."""
+        if not self.exists:
+            raise FileNotFoundError(f"File does not exist: {self.file_path}")
+        return self.file_path.read_text()
+
     def make_parent_dir(self, exist_ok: bool = True) -> None:
         self.file_path.parent.mkdir(parents=True, exist_ok=exist_ok)
 
@@ -60,18 +70,21 @@ class File:
                 return
         self.file_path.unlink()
 
+    # TODO: Implement async version
     def download_to(self, file_path: str | os.PathLike | AnyPath) -> None:
         """Download the file to a local path."""
         if not is_local_path(str(file_path)):
             raise ValueError("File path must be a local path.")
         self.file_path.download_to(AnyPath(file_path))
 
+    # TODO: Implement async version
     def upload_from(self, file_path: str | os.PathLike | AnyPath) -> None:
         """Upload a local file to the bucket."""
         if not is_local_path(file_path):
             raise ValueError("File path must be a local path.")
         self.file_path.upload_from(str(file_path))
 
+    # TODO: Implement async version
     def copy_to(self, destination: str | os.PathLike | AnyPath, overwrite: bool = True):
         """Copy the file to another location."""
         if AnyPath(destination).is_dir():
@@ -98,10 +111,11 @@ class GSFile(File):
 
         self.file_path = CloudPath(file_path)
         self.client = GSClient()
-        bucket_path_parts = str(self.file_path).replace("gs://", "").split("/")
-        self.gs_bucket_name = bucket_path_parts[0]
-        self.bucket_subpath = AnyPath("/".join(bucket_path_parts[1:]))
+        file_path_parts = self.file_path.parts[1:]  # remove the gs:// prefix
+        self.gs_bucket_name = file_path_parts[0]
+        self.file_subpath = AnyPath("/".join(file_path_parts[1:]))
 
+    # TODO: Implement async version
     def upload_from_bytes_or_str(self, contents: bytes | str) -> None:
         """Upload content from memory to a file in Google Cloud Storage.
 
@@ -117,7 +131,37 @@ class GSFile(File):
             raise ValueError("File path must be a cloud path for uploading to a bucket.")
 
         bucket = self.client.bucket(self.gs_bucket_name)
-        blob = bucket.blob(str(self.bucket_subpath))
+        blob = bucket.blob(str(self.file_subpath))
 
         blob.upload_from_string(contents)
         logger.info(f"Uploaded content to {self.file_path.name}.")
+
+
+class GSAudioFile(GSFile):
+    def __init__(self, file_path: str | AnyPath):
+        super().__init__(file_path)
+
+    def _read_with_soundfile(self, audio_bytes: bytes) -> tuple[np.ndarray, int]:
+        from .fileio_utils import read_audio_from_bytes_sf
+
+        return read_audio_from_bytes_sf(audio_bytes)
+
+    def _read_with_pydub(self, audio_bytes: bytes) -> tuple[np.ndarray, int]:
+        from .fileio_utils import read_audio_from_bytes_pydub
+
+        return read_audio_from_bytes_pydub(audio_bytes)
+
+    def read_audio(self) -> tuple[np.ndarray, int]:
+        """Read the audio file from Google Cloud Storage."""
+        if not self.exists:
+            raise FileNotFoundError(f"File does not exist: {self.file_path}")
+
+        extension = self.file_path.suffix
+        audio_bytes = self.read_bytes()
+
+        if extension in [".wav", ".flac", ".ogg"]:
+            return self._read_with_soundfile(audio_bytes)
+        elif extension == ".mp3":
+            return self._read_with_pydub(audio_bytes)
+        else:
+            raise ValueError(f"Unsupported audio format: {extension}")
