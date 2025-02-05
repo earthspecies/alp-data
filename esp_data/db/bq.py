@@ -1,9 +1,9 @@
 """CRUD operations for BigQuery."""
 
-import pandas as pd
 import logging
-from google.cloud import bigquery
 
+import pandas as pd
+from google.cloud import bigquery
 
 logger = logging.getLogger(__name__)
 
@@ -53,7 +53,20 @@ def query(
     return_df: bool = True,
     client: bigquery.Client | None = None,
 ) -> pd.DataFrame | list[dict]:
-    """Query a BigQuery table."""
+    """Query a BigQuery table.
+
+    Args:
+        project_id: The project ID.
+        query: The SQL query.
+        return_df: Whether to return the result as a DataFrame.
+        client: The BigQuery client.
+
+    Returns:
+        The query result as a DataFrame or a list of dictionaries.
+
+    Raises:
+        RuntimeError: If there is an error running the query.
+    """
     if client is None:
         client = bigquery.Client(project=project_id)
     query_job = client.query(query)
@@ -96,7 +109,7 @@ def update_row(
     logger.info(f"Updated row in table {table_id} in dataset {dataset_id} in project {project_id}")
 
 
-class BigQueryTable:
+class BQTable:
     def __init__(self, project_id: str, dataset_id: str, table_id: str):
         self.project_id = project_id
         self.dataset_id = dataset_id
