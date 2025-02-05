@@ -1,12 +1,18 @@
+from datetime import datetime
+
 import pytest
+
 from esp_data.utils import (
     increment_version,
+    is_gcs_path,
+    is_local_path,
+    make_id,
     utc_now,
+    validate_datetime,
+    validate_id,
     validate_json_str,
     validate_path_exists,
     validate_version,
-    is_local_path,
-    is_gcs_path,
 )
 
 
@@ -55,3 +61,17 @@ def test_is_gcs_path():
     assert is_gcs_path("gs://bucket/file.txt")
     assert not is_gcs_path("s3://bucket/file.txt")
     assert not is_gcs_path("file.txt")
+
+
+def test_validate_datetime():
+    assert validate_datetime("2021-01-01T00:00:00") == datetime(2021, 1, 1, 0, 0, 0)
+    with pytest.raises(ValueError):
+        validate_datetime("invalid_datetime")
+
+    with pytest.raises(ValueError):
+        validate_datetime("2021-01-1")
+
+
+def test_make_id():
+    id = make_id()
+    assert validate_id(id) == id
