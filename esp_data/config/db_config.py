@@ -1,10 +1,10 @@
 """Pydantic models for ESP data configuration"""
 
 import json
-from datetime import datetime, timezone
+import os
+from datetime import datetime
 from enum import Enum
-from typing import Literal, Optional
-from uuid import UUID, uuid4
+from typing import Optional
 
 from pydantic import (
     BaseModel,
@@ -15,7 +15,15 @@ from pydantic import (
 )
 from typing_extensions import Annotated
 
-from ..utils import increment_version, utc_now, validate_json_str, validate_path_exists, validate_version
+from ..utils import (
+    increment_version,
+    make_id,
+    utc_now,
+    validate_datetime,
+    validate_id,
+    validate_path_exists,
+    validate_version,
+)
 
 
 class LicenseEnum(str, Enum):
@@ -37,19 +45,16 @@ class DataSample(BaseModel):
 
     # required params
     # dataset_name is included in sample because some datasets may be aggregated from multiple sources
-    # e.g. AnimalSpeak or NatureLM dataset.
-    dataset_name: str = Field(min_length=1, description="Name of the dataset. e.g. 'Xeno-canto'")
+    # e.g. AnimalSpeak or NatureLM dataset have component datasets like Xeno-canto, esc-50, etc.
+    source_dataset: str = Field(
+        min_length=1, description="Name of the source dataset. e.g. 'Xeno-canto' or 'esc-50' or 'esc-50v0.1.0"
+    )
 
-    creator: str = Field(min_length=1, description="Creator of the dataset")
-
-    metadata: Annotated[str, BeforeValidator(validate_json_str)] = Field(description="JSON metadata string")
-
-    version: str = Field(description="Version number following semantic versioning")
+    # metadata: Annotated[str, BeforeValidator(validate_json_str)] = Field(description="JSON metadata string")
+    metadata: dict = Field(default_factory=None, description="Metadata for the data sample")
 
     # optional or auto-generated params
-    id: str = Field(
-        default_factory=lambda: str(uuid4()), description="Unique identifier, will be auto-generated if None"
-    )
+    id: str = Field(default_factory=make_id, description="Unique identifier, will be auto-generated if None")
 
     created_at: datetime = Field(
         default_factory=utc_now,
@@ -60,66 +65,78 @@ class DataSample(BaseModel):
         default=None, description="ID of the parent sample if this is derived, maybe a list of IDs if multiple parents"
     )
 
-    license: Optional[str] = Field(default=None, description="License for the data sample, if applicable")
+    license: Optional[str] = Field(
+        default=None,
+        description="License for the data sample, if applicable. For e.g. Xeno-canto can have per recording licenses",
+    )
+
+    version: Optional[str] = Field(
+        default=None,
+        description="Version number following semantic versioning, can be left empty but then the dataset version must be provided",
+    )
 
     # Additional validators
     @field_validator("id", mode="after")
     @classmethod
     def validate_id(cls, v: str) -> str:
-        try:
-            UUID(v)
-            return v
-        except ValueError:
-            raise ValueError("Invalid UUID format")
-
-    @field_validator("version", mode="before")
-    @classmethod
-    def validate_version(cls, v: str) -> str:
-        # raises ValueError if format not like "0.0.0"
-        return validate_version(v)
+        return validate_id(v)
 
     @field_validator("derived_from", mode="after")
     @classmethod
     def validate_derived_from(cls, v: Optional[str]) -> Optional[str]:
         if v is not None:
-            try:
-                if isinstance(v, list):
-                    for item in v:
-                        UUID(item)
-                else:
-                    UUID(v)
-
-            except ValueError:
-                raise ValueError("derived_from must be a valid UUID if provided")
+            if isinstance(v, str):
+                validate_id(v)
+            elif isinstance(v, list):
+                for item in v:
+                    validate_id(item)
+            else:
+                raise ValueError("derived_from must be a string or a list of strings")
         return v
 
-    @field_validator("license", mode="before")
+    # @field_validator("license", mode="before")
+    # @classmethod
+    # def validate_license(cls, v: Optional[str]) -> Optional[str]:
+    #     if v is not None:
+    #         if v not in LicenseEnum.__members__:
+    #             raise ValueError(f"License must be one of: {', '.join(LicenseEnum.__members__)}")
+    #     return v
+
+    @field_validator("version", mode="after")
     @classmethod
-    def validate_license(cls, v: Optional[str]) -> Optional[str]:
+    def validate_version(cls, v: Optional[str]) -> Optional[str]:
         if v is not None:
-            if v not in LicenseEnum.__members__:
-                raise ValueError(f"License must be one of: {', '.join(LicenseEnum.__members__)}")
+            return validate_version(v)
         return v
+
+    @field_validator("created_at", mode="after")
+    @classmethod
+    def validate_created_at(cls, v: datetime | str) -> datetime:
+        return validate_datetime(v)
 
     # Helper methods
-    def created_at_datetime(self) -> datetime:
-        """Return created_at timestamp as a datetime object"""
-        return datetime.fromtimestamp(self.created_at, tz=timezone.utc)
+    def created_at_timestamp(self) -> int:
+        """Return created_at as a Unix timestamp"""
+        return int(self.created_at.timestamp())
 
     def created_at_isoformat(self) -> str:
-        return self.created_at_datetime().isoformat()
+        return self.created_at.isoformat()
 
     def get_metadata_dict(self) -> dict:
         """Return metadata as a Python dictionary"""
-        return json.loads(self.metadata)
+        return self.metadata
 
     def update_metadata(self, new_metadata: dict) -> None:
         """Update metadata with new dictionary"""
-        self.metadata = json.dumps(new_metadata)
+        self.metadata = {**self.metadata, **new_metadata}
 
     def increment_version(self, mode: str = "patch") -> None:
         """Increment the version number following semantic versioning"""
         self.version = increment_version(self.version, mode)
+
+    def copy(self) -> "DataSample":
+        """Return a copy of the data sample"""
+        return self.model_copy(deep=True)
 
     def to_dict(self) -> dict:
         """Convert the data sample to a dictionary"""
@@ -127,7 +144,24 @@ class DataSample(BaseModel):
 
     def to_json(self) -> str:
         """Convert the data sample to a JSON string"""
-        return self.model_dump_json()
+        data = self.to_dict()
+        data["created_at"] = self.created_at_isoformat()
+        return json.dumps(data, indent=2)
+
+    @classmethod
+    def from_json(cls, file_path: str | os.PathLike) -> "DataSample":
+        """Load data sample from a JSON file"""
+        with open(file_path, "r") as f:
+            data = json.load(f)
+        data["created_at"] = datetime.fromisoformat(data["created_at"])
+        return cls(**data)
+
+    def write_json(self, file_path: str | os.PathLike, indent: int = 2) -> None:
+        """Write the data sample to a JSON file"""
+        with open(file_path, "w") as f:
+            d = self.to_dict()
+            d["created_at"] = self.created_at_isoformat()
+            json.dump(d, f, indent=indent)
 
 
 class TextDataSample(DataSample):
@@ -192,23 +226,68 @@ class DatasetConfig(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True, validate_assignment=True, str_strip_whitespace=True)
 
     # required params
-    dataset_name: str = Field(min_length=1, description="Name of the dataset")
+    name: str = Field(min_length=1, description="Name of the dataset")
 
     creator: str = Field(min_length=1, description="Creator of the dataset")
 
-    version: str = Field(min_length=3, description="Version of the dataset, root dataset is 0.0")
+    version: str = Field(min_length=5, description="Version of the dataset, root dataset is 0.0")
 
     description: str = Field(
         min_length=1,
-        description="Description of the dataset, could act as a README, can be markdown format, and include changelog to previous version",
+        description="Description of the dataset, could act as a README, preferably in markdown format, and include changelog to previous version",
     )
 
-    source: str = Field(
+    sources: list[str] | str = Field(
         min_length=1,
         description="Source(s) of the dataset e.g. 'Xeno-canto' or a url to website(s), or multiple sources in a comma-separated list",
     )
 
-    created_at: int = Field(
+    # optional or auto-generated params
+    created_at: datetime = Field(
         default_factory=utc_now,
         description="Datetime of creation in UTC timezone, will be auto-generated if None",
     )
+
+    license: Optional[str] = Field(default=None, description="License for the dataset, if applicable")
+
+    @field_validator("version", mode="before")
+    @classmethod
+    def validate_version(cls, v: str) -> str:
+        # raises ValueError if format not like "0.0.0"
+        return validate_version(v)
+
+    def increment_version(self, mode: str = "patch") -> None:
+        """Increment the version number following semantic versioning"""
+        self.version = increment_version(self.version, mode)
+
+    @classmethod
+    def from_json(cls, file_path: str | os.PathLike) -> None:
+        """Load data sample from a JSON file"""
+        with open(file_path, "r") as f:
+            data = json.load(f)
+        data["created_at"] = datetime.fromisoformat(data["created_at"])
+        return cls(**data)
+
+    def copy(self) -> "DataSample":
+        """Return a copy of the data sample"""
+        return self.model_copy(deep=True)
+
+    def to_dict(self, make_serializable: bool = False) -> dict:
+        """Convert the dataset to a dictionary"""
+        data = self.model_dump()
+        if make_serializable:
+            data["created_at"] = self.created_at.isoformat()
+        return data
+
+    def to_json(self) -> str:
+        """Convert the dataset to a JSON string"""
+        data = self.to_dict()
+        data["created_at"] = self.created_at.isoformat()
+        return json.dumps(data, indent=2)
+
+    def write_json(self, file_path: str | os.PathLike) -> None:
+        """Write the dataset to a JSON file"""
+        with open(file_path, "w") as f:
+            d = self.to_dict()
+            d["created_at"] = self.created_at.isoformat()
+            json.dump(d, f, indent=2)
