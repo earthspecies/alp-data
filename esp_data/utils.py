@@ -1,8 +1,9 @@
+import json
 import os
 import re
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from datetime import datetime, timezone
-import json
+from uuid import UUID, uuid4
 
 from cloudpathlib import AnyPath
 
@@ -30,6 +31,14 @@ def validate_json_str(v: str) -> str:
         raise ValueError(f"Invalid JSON string: {e}")
 
 
+def validate_id(v: str) -> str:
+    try:
+        UUID(v)
+        return v
+    except ValueError:
+        raise ValueError("Invalid UUID format")
+
+
 def validate_version(version: str) -> str:
     # Basic semver validation
     pattern = r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$"
@@ -43,6 +52,20 @@ def validate_path_exists(p: str | os.PathLike) -> str:
     if not path.exists():
         raise ValueError(f"Path does not exist: {p}")
     return str(path)
+
+
+def validate_datetime(v: datetime | str) -> datetime:
+    if isinstance(v, str):
+        return datetime.fromisoformat(v)
+
+    # check that tzinfo is present and is UTC
+    if v.tzinfo is None or v.tzinfo.utcoffset(v) != timedelta(0):
+        raise ValueError("created_at must be a datetime object with UTC timezone")
+    return v
+
+
+def make_id() -> str:
+    return str(uuid4())
 
 
 def increment_version(version: str, mode: str = "patch") -> str:
