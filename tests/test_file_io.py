@@ -4,23 +4,25 @@ import pytest
 from cloudpathlib import GSPath
 
 from esp_data.file_io.buckets import Bucket, GSBucket
-from esp_data.file_io.files import File, GSFile
+from esp_data.file_io.files import File, GSAudioFile, GSFile
 
 
 def test_bucket_empty():
+    # DO NOT CHANGE STUFF IN THIS FOLDER OR TESTS WILL FAIL.
     bucket = Bucket("gs://esp-ci-cd-tests/esp-data-tests/keep_empty")
     assert bucket.list_files() == []
     assert bucket.list_dirs() == []
-    assert list(bucket.find_files_with_extension(".py")) == []
-    assert list(bucket.find_files_containing("test")) == []
+    assert list(bucket.find_paths_with_extension(".py")) == []
+    assert list(bucket.find_paths_containing("test")) == []
 
 
 def test_bucket_non_empty():
+    # DO NOT CHANGE STUFF IN THIS FOLDER OR TESTS WILL FAIL.
     bucket = Bucket("gs://esp-ci-cd-tests/esp-data-tests/non_empty")
-    assert len(bucket.list_files(recursive=False)) == 1
+    assert len(bucket.list_files(recursive=False)) == 2
     assert len(bucket.list_dirs(recursive=True)) == 0
-    assert len(list(bucket.find_files_with_extension(".txt"))) == 1
-    assert len(list(bucket.find_files_containing("random"))) == 0
+    assert len(list(bucket.find_paths_with_extension(".txt"))) == 1
+    assert len(list(bucket.find_paths_containing("random"))) == 0
 
 
 def test_bucket_move_create_delete():
@@ -56,12 +58,25 @@ def test_gcs_bucket_upload_data_as_str():
     assert len(uploaded_files) == 2
     assert uploaded_files == [GSPath(f"{str(b)}/{file}") for file in file_names]
     b.delete_dir("", confirm=False)
+    assert not b.exists
 
 
 def test_gcs_bucket_rsync():
     src = GSBucket("gs://esp-ci-cd-tests/esp-data-tests/non_empty")
     dest = GSBucket("gs://esp-ci-cd-tests/esp-data-tests/some_subfolder")
     src.rsync(dest, self_is_source=True, gzip_in_flight="txt")
+    f = GSFile("gs://esp-ci-cd-tests/esp-data-tests/some_subfolder/test.csv")
+    assert f.exists
+    f.delete(confirm=False)
+
+
+async def test_gcs_bucket_async_rsync():
+    src = GSBucket("gs://esp-ci-cd-tests/esp-data-tests/non_empty")
+    dest = GSBucket("gs://esp-ci-cd-tests/esp-data-tests/some_subfolder")
+    await src.async_rsync(dest, self_is_source=True, gzip_in_flight="txt")
+    f = GSFile("gs://esp-ci-cd-tests/esp-data-tests/some_subfolder/test.csv")
+    assert f.exists
+    f.delete(confirm=False)
 
 
 def test_local_file_open():
@@ -95,11 +110,6 @@ def test_cloud_file_create():
     assert file.exists
     assert file.size() > 0
     file.delete(confirm=False)
-    file = File("./test_test/test.txt")
-    file.make_parent_dir(exist_ok=True)
-    file.create(exist_ok=True)
-    assert file.exists
-    file.delete(confirm=False)
 
 
 def test_gs_file():
@@ -116,3 +126,11 @@ def test_gs_file():
     assert file.read_bytes() == b"hello"
     file.delete(confirm=False)
     assert not file.exists
+
+
+def test_gs_audio_file():
+    file = GSAudioFile("gs://esp-ci-cd-tests/esp-data-tests/some_subfolder/nri-battlesounds.mp3")
+    assert file.exists
+    audio, sr = file.read_audio()
+    assert len(audio) > 0
+    assert sr == 44100
