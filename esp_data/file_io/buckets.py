@@ -1,18 +1,23 @@
-"""Module for storage bucket management and file management.
+"""Module for storage bucket management and file management."""
 
-Usage:
-"""
-
+import asyncio
+import concurrent.futures
 import logging
 import os
-from typing import Generator
 import subprocess
+import warnings
+from typing import Generator
 
 from cloudpathlib import AnyPath, CloudPath
+from gcsfs import GCSFileSystem
 from google.cloud.storage import Client as GSClient
 from google.cloud.storage import transfer_manager
 
 from ..utils import is_cloud_path, is_local_path
+
+# TODO: This is a temporary fix to suppress the warning about using end user credentials
+# see here: https://github.com/googleapis/google-auth-library-python/issues/271 for info
+warnings.filterwarnings("ignore", "Your application has authenticated using end user credentials")
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -21,9 +26,10 @@ logger.propagate = True
 
 
 class Bucket:
-    """Class for managing a storage bucket.
-    NOTE: Even though the name suggests its only used for buckets,
-    this class can also be used to manage dirs in buckets.
+    """Class for managing a storage bucket. Not to be used for local directories, use AnyPath for that.
+
+    NOTE: Even though the name suggests its only used for buckets, this class can also be used to
+    manage dirs in buckets.
 
     Args:
         bucket_path: The path to the bucket.
@@ -69,12 +75,12 @@ class Bucket:
 
         return Bucket(subpath)
 
-    def find_files_with_extension(self, extension: str) -> Generator[CloudPath, None, None]:
+    def find_paths_with_extension(self, extension: str) -> Generator[CloudPath, None, None]:
         assert extension.startswith("."), "Extension must start with a period e.g. .wav"
         for file in self.bucket_path.rglob(f"*{extension}"):
             yield CloudPath(file)
 
-    def find_files_containing(self, substring: str) -> Generator[CloudPath, None, None]:
+    def find_paths_containing(self, substring: str) -> Generator[CloudPath, None, None]:
         for file in self.bucket_path.rglob(f"*{substring}*"):
             yield CloudPath(file)
 
@@ -168,9 +174,15 @@ class GSBucket(Bucket):
     def __init__(self, bucket_path):
         super().__init__(bucket_path)
         self.client = GSClient()
-        bucket_path_parts = str(self.bucket_path).replace("gs://", "").split("/")
+        bucket_path_parts = self.bucket_path.parts[1:]  # remove the gs:// prefix
         self.gs_bucket_name = bucket_path_parts[0]
         self.bucket_subpath = AnyPath("/".join(bucket_path_parts[1:]))
+
+    async def async_upload_dir(self, source_dir: str | os.PathLike, workers: int = 8) -> None:
+        # creates a new event loop for the async operation
+        loop = asyncio.get_running_loop()
+        with concurrent.futures.ThreadPoolExecutor() as pool:
+            await loop.run_in_executor(pool, self.upload_dir, source_dir, workers)
 
     def upload_dir(self, source_dir: str | os.PathLike, workers: int = 8) -> None:
         """Upload every file in source_dir, including all files in subdirs to the bucket.
@@ -216,8 +228,19 @@ class GSBucket(Bucket):
             else:
                 logger.info("Uploaded {} to {}.".format(name, bucket.name))
 
+    async def async_upload_data_as_str(self, file_names: list[str | os.PathLike], contents: list[str | bytes]) -> None:
+        """Upload a list of str | byte data to the bucket.
+
+        Args:
+            file_names: The names of the files to be added to the bucket.
+            contents: The contents of the files.
+        """
+        loop = asyncio.get_running_loop()
+        with concurrent.futures.ThreadPoolExecutor() as pool:
+            await loop.run_in_executor(pool, self.upload_data_as_str, file_names, contents)
+
     def upload_data_as_str(self, file_names: list[str | os.PathLike], contents: list[str | bytes]) -> None:
-        """Upload a list of byte or string data to the bucket.
+        """Upload a list of byte or string data to the bucket. If string, it will be encoded as UTF-8.
 
         Args:
             file_names: The names of the files to be added to the bucket.
@@ -285,6 +308,28 @@ class GSBucket(Bucket):
             else:
                 logger.info("Rsync completed successfully")
 
+    async def async_rsync(
+        self,
+        other: str | os.PathLike | Bucket,
+        self_is_source: bool = True,
+        delete_unmatched: bool = False,
+        continue_on_error: bool = True,
+        recursive: bool = True,
+        gzip_in_flight: str = "",
+    ) -> None:
+        loop = asyncio.get_running_loop()
+        with concurrent.futures.ThreadPoolExecutor() as pool:
+            await loop.run_in_executor(
+                pool,
+                self.rsync,
+                other,
+                self_is_source,
+                delete_unmatched,
+                continue_on_error,
+                recursive,
+                gzip_in_flight,
+            )
+
     def rsync(
         self,
         other: str | os.PathLike | Bucket,
@@ -323,3 +368,14 @@ class GSBucket(Bucket):
                 except ValueError:
                     raise ValueError("Other must be a Bucket object or a valid cloud path.")
             other._rsync(self, delete_unmatched, continue_on_error, recursive, gzip_in_flight)
+
+
+# TODO: Implement a version of GSBucket that uses the GCSFileSystem from gcsfs
+class GSBucketV2(GSBucket):
+    """This version of Google cloud storage uses the GCSFileSystem from gcsfs.
+    It is more efficient than cloudpathlib and google-cloud-storage.
+    """
+
+    def __init__(self, bucket_path):
+        super().__init__(bucket_path)
+        self.fs = GCSFileSystem()
