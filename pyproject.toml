@@ -16,6 +16,7 @@ dependencies = [
     "pydub>=0.25.1",
     "pytest-aio>=1.9.0",
     "python-dotenv>=1.0.1",
+    "s3fs>=2024.9.0",
     "sounddevice>=0.5.1",
     "soundfile>=0.13.1",
 ]
