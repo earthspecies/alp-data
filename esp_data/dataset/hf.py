@@ -4,14 +4,14 @@ import warnings
 from typing import Any, Callable, Iterable, Optional
 
 from cloudpathlib import AnyPath
-from datasets import Dataset, concatenate_datasets, load_from_disk
+from datasets import Dataset, concatenate_datasets, load_dataset, load_from_disk
 
 from esp_data.config.db_config import DataSample, DatasetConfig
 from esp_data.config.project_config import REQUIRED_DATASAMPLE_FIELDS
-from esp_data.dataset.base import BaseMapDataset
 from esp_data.file_io import File
-from esp_data.utils import is_cloud_path, is_local_path
+from esp_data.utils import is_cloud_path, is_local_path, make_id, utc_now
 
+from .base import BaseIterableDataset, BaseMapDataset
 from .ds_utils import generate_random_indices
 
 warnings.filterwarnings("ignore", "Your application has authenticated using end user credentials")
@@ -23,8 +23,10 @@ def wrap_sample_function(
     """Creates a wrapper around a function that transforms each sample in the dataset
       to handle DataSample metadata updates.
 
-      ASSUMPTION: This assumes that your function is a one-to-one map not a one-to-many map, i.e.
-      doesn't create more than one new sample from one sample.
+      ASSUMPTION: This assumes that your function either implements:
+        - A single sample transformation, where the function takes a sample as a dict and returns a transformed dict
+        - A batch transformation, where the function takes a dict with keys = sample_config fields, and values = list of
+            values for each field, length = batch_size, and returns a dict with the same structure.
 
     Args:
         function: The user's function to wrap. It should take a sample as a dict and return a transformed dict
@@ -32,24 +34,52 @@ def wrap_sample_function(
         static_kwargs: Any static kwargs that should always be passed to function
     """
 
-    def wrapped_function(sample: dict) -> dict:
-        # First apply the user's function to get transformed data
-        transformed_sample: dict = function(sample, **function_kwargs)
+    def update_sample(transformed_sample: dict) -> dict:
         # remove the id and created_at fields, as they will be updated
         sample_id = transformed_sample.pop("id", None)
         transformed_sample.pop("created_at", None)
 
-        # Create new sample config with updated metadata
         transformed_sample = sample_config(
-            **transformed_sample,
+            **transformed_sample,  # generates id and created_at
         )
-        # update the derived_from field
+
         transformed_sample.derived_from = sample_id
         if transformed_sample.version is not None:
-            # update the version number of the sample if it was provided
             transformed_sample.increment_version(mode=version_update_mode)
 
         return transformed_sample.to_dict()
+
+    def update_batch(transformed_batch: dict) -> dict:
+        """When batched=True and batch_size > 1 is part of map_kwargs,
+        the function will return a dict with keys = sample_config fields,
+        and values = list of values for each field, length = batch_size.
+        """
+        some_key = list(transformed_batch.keys())[0]
+        batch_size = len(transformed_batch[some_key])  # batch size
+        new_dict = {k: [] for k in transformed_batch.keys()}
+
+        for i in range(batch_size):
+            sample = {k: transformed_batch[k][i] for k in transformed_batch.keys()}
+            transformed_sample: dict = update_sample(sample)
+            for k, v in transformed_sample.items():
+                new_dict[k].append(v)
+
+        return new_dict
+
+    def wrapped_function(sample: dict) -> dict:
+        # First apply the user's function to get transformed data
+        transformed_sample: dict = function(sample, **function_kwargs)
+
+        # Now update the sample metadata, namely id and created_at
+        some_key = list(transformed_sample.keys())[0]
+        if isinstance(transformed_sample[some_key], list):
+            # If the function returns a batch of samples, apply the update_batch function
+            transformed_sample = update_batch(transformed_sample)
+        else:
+            # If the function returns a single sample, apply the update function
+            transformed_sample = update_sample(transformed_sample)
+
+        return transformed_sample
 
     return wrapped_function
 
@@ -65,6 +95,10 @@ class HFDataset(BaseMapDataset):
     @property
     def columns(self):
         return list(self.ds.column_names)
+
+    @property
+    def version(self):
+        return self.config.version
 
     def _set_config(self, dataset_config) -> None:
         if isinstance(dataset_config, dict):
@@ -128,13 +162,20 @@ class HFDataset(BaseMapDataset):
         return new_ds
 
     @classmethod
-    def from_path(cls, path: str | os.PathLike, storage_options: dict = None, sharded: bool = False) -> "HFDataset":
+    def from_path(
+        cls, path: str | os.PathLike, storage_options: dict = None, sharded: bool = False, keep_in_memory: bool = None
+    ) -> "HFDataset":
         """Create a dataset from a path. This uses pyarrow so the dataset is memory-mapped.
 
         Args:
             path: The path to the dataset.
             storage_options: The storage options for cloud paths.
-            sharded: Whether the dataset is sharded. If True, the dataset is concatenated from all shards.
+            sharded: Whether the dataset is sharded, i.e. made of sub-directories called 'shard_1', 'shard_2' etc.
+            If True, the dataset is concatenated from all shards.
+
+            keep_in_memory: Whether to keep the dataset in memory. Default is None, the dataset will be kept in memory,
+            upto datasets.config.IN_MEMORY_MAX_SIZE (which is default = 0 bytes). If True, the entire dataset will be
+            kept in memory. If False, the dataset will be memory-mapped.
 
         Returns:
             The loaded HFDataset.
@@ -163,9 +204,17 @@ class HFDataset(BaseMapDataset):
             # find all *shard_* directories
             b = AnyPath(path)
             shard_paths = list(b.rglob("*shard_*"))
-            ds = concatenate_datasets([load_from_disk(str(p), storage_options=storage_options) for p in shard_paths])
+            if len(shard_paths) == 0:
+                raise FileNotFoundError("No shards found")
+
+            ds = concatenate_datasets(
+                [
+                    load_from_disk(str(p), storage_options=storage_options, keep_in_memory=keep_in_memory)
+                    for p in shard_paths
+                ]
+            )
         else:
-            ds = load_from_disk(str(path), storage_options=storage_options)
+            ds = load_from_disk(str(path), storage_options=storage_options, keep_in_memory=keep_in_memory)
 
         return cls(config, ds)
 
@@ -218,10 +267,21 @@ class HFDataset(BaseMapDataset):
         self,
         other: "HFDataset",
         new_dataset_config: Optional[DatasetConfig | dict] = None,
-        version_update_mode: str = "patch",
+        version_update_mode: str | None = None,
         change_log: str | None = None,
     ) -> "HFDataset":
-        """Concatenate two datasets."""
+        """Concatenate two datasets.
+
+        Args:
+            other: The other dataset to concatenate.
+            new_dataset_config: The config for the new dataset. If None, it will be the same as the first dataset.
+            version_update_mode: The version update mode to use, one of "major", "minor", "patch". Default is None, which
+                will not update the version number.
+            change_log: A change log to add to the dataset description.
+
+        Returns:
+            The new concatenated HFDataset.
+        """
         # check the two datasets have the same features
         if list(set(self.columns)) != list(set(other.columns)):
             raise ValueError("Both datasets need to have the same columns")
@@ -230,7 +290,8 @@ class HFDataset(BaseMapDataset):
             new_ds = HFDataset(new_dataset_config)
         else:
             new_ds = HFDataset(self.config.copy())
-            new_ds.config.increment_version(mode=version_update_mode)
+            if version_update_mode:
+                new_ds.config.increment_version(mode=version_update_mode)
 
         new_ds.set_ds(concatenate_datasets([self.ds, other.ds]))
 
@@ -245,13 +306,23 @@ class HFDataset(BaseMapDataset):
         return new_ds
 
     def filter(
-        self, condition: Callable, version_update_mode: str = "patch", change_log: str | None = None
+        self, condition: Callable, version_update_mode: str | None = None, change_log: str | None = None
     ) -> "HFDataset":
-        """Filter the dataset for samples that meet a condition."""
-        # FIXME: should this lead to a new version ?
+        """Filter the dataset for samples that meet a condition.
+
+        Args:
+            condition: The condition to filter by. This should be a function that takes a sample and returns a boolean.
+            version_update_mode: The version update mode to use. Default is None.
+            change_log: A change log to add to the dataset description.
+
+        Returns:
+            A new HFDataset with the filtered data.
+        """
         new_ds = HFDataset(self.config.copy())
         new_ds.set_ds(self.ds.filter(condition))
-        new_ds.config.increment_version(mode=version_update_mode)
+
+        if version_update_mode:
+            new_ds.config.increment_version(mode=version_update_mode)
 
         if change_log:
             new_ds.config.description += "\n" + change_log
@@ -264,15 +335,24 @@ class HFDataset(BaseMapDataset):
         self,
         column_name: str,
         column_data: list[Any],
-        version_update_mode: str = "patch",
+        version_update_mode: str | None = None,
         change_log: str | None = None,
     ) -> "HFDataset":
-        """Add a column to the dataset."""
+        """Add a column to the dataset.
+
+        Args:
+            column_name: The name of the column to add.
+            column_data: The data to add to the column.
+            version_update_mode: The version update mode to use. Default is None.
+            change_log: A change log to add to the dataset description.
+        """
         # TODO: create a decorated function, so that each sample has a
         # new DataSample config, with new id, and copy other stuff etc.
         new_ds = HFDataset(self.config.copy())
         new_ds.set_ds(self.ds.add_column(column_name, column_data))
-        new_ds.config.increment_version(mode=version_update_mode)
+
+        if version_update_mode:
+            new_ds.config.increment_version(mode=version_update_mode)
 
         if change_log:
             new_ds.config.description += "\n" + change_log
@@ -290,7 +370,7 @@ class HFDataset(BaseMapDataset):
         self,
         function: Callable,
         sample_config: "DataSample" = DataSample,
-        version_update_mode: str = "patch",
+        version_update_mode: str | None = None,
         function_kwargs: dict = None,
         change_log: str | None = None,
         **map_kwargs,
@@ -300,8 +380,9 @@ class HFDataset(BaseMapDataset):
         Args:
             function: The function to apply to each sample
             sample_config: The config class to use for samples. It could be a subclass of DataSample.
-            version_update_mode: The version update mode to use
+            version_update_mode: The version update mode to use. Default is "patch".
             function_kwargs: Any kwargs to pass to the function during mapping
+            change_log: A change log to add to the dataset description.
             map_kwargs: Any kwargs to pass to the map function
 
         Returns:
@@ -314,8 +395,9 @@ class HFDataset(BaseMapDataset):
 
         new_ds = HFDataset(self.config)
         new_ds.set_ds(self.ds.map(wrapped_function, **map_kwargs))
-        # now update the version number of the dataset
-        new_ds.config.increment_version(mode=version_update_mode)
+        if version_update_mode:
+            # now update the version number of the dataset
+            new_ds.config.increment_version(mode=version_update_mode)
 
         # TODO: this is a very rudimentary solution, there are much more elegant ways to do this
         if change_log:
@@ -411,3 +493,129 @@ class HFDataset(BaseMapDataset):
 
         if save_config:
             self.save_config(path)
+
+    def __str__(self):
+        return f"HFDataset: {self.config.name}, version: {self.config.version}, num samples: {len(self)}, columns: {self.columns}"
+
+    def __repr__(self):
+        return self.__str__()
+
+
+class HFStreamingDataset(BaseIterableDataset):
+    def __init__(self, dataset_config: DatasetConfig | dict, ds: Optional[Dataset] = None):
+        self.config = self._set_config(dataset_config)
+        self.ds: Dataset = ds
+
+    def _set_config(self, dataset_config) -> None:
+        if isinstance(dataset_config, dict):
+            return DatasetConfig(**dataset_config)
+        elif isinstance(dataset_config, DatasetConfig):
+            return dataset_config
+
+    def __getitem__(self, idx: int, as_dict: bool = True) -> DataSample | dict:
+        raise TypeError("Cannot access samples in a streaming dataset")
+
+    def __len__(self) -> int:
+        raise TypeError("Cannot get length of a streaming dataset")
+
+    def __iter__(self):
+        return iter(self.ds)
+
+    # TODO:
+    def map(self, function: Callable, **map_kwargs) -> "HFStreamingDataset":
+        pass
+
+    # TODO:
+    def filter(self, condition: Callable) -> "HFStreamingDataset":
+        pass
+
+    # TODO:
+    def save_to_path(self, path: str | os.PathLike | AnyPath) -> None:
+        pass
+
+    @classmethod
+    def from_path(
+        cls, path: str | os.PathLike, storage_options: dict = None, file_format: str = "arrow"
+    ) -> "HFStreamingDataset":
+        """Create a dataset from a path. This uses pyarrow so the dataset is memory-mapped.
+        Uses load_dataset technique
+        Args:
+
+        """
+        if not is_local_path(path) and not is_cloud_path(path):
+            raise ValueError(f"Path {path} must be a local or cloud path")
+
+        path = AnyPath(path)
+
+        if is_cloud_path(path) and not storage_options:
+            raise ValueError("""You need to provide a dict here,
+            e.g. for google it is storage_options={"project": "my-google-project"}
+            see https://huggingface.co/docs/datasets/v3.2.0/en/filesystems#google-cloud-storage for details
+            """)
+
+        # load config from json
+        config_file = File(path / "dataset_config.json")
+        if not config_file.exists:
+            raise FileNotFoundError("No dataset config found")
+
+        with config_file.open("r") as fp:
+            config = json.load(fp)
+
+        # find all files in the directory with the file_format
+        files = [str(s) for s in path.rglob(f"*.{file_format}")]
+        if len(files) == 0:
+            raise FileNotFoundError("No files found")
+
+        ds = load_dataset(path=file_format, data_files=files, storage_options=storage_options, streaming=True)
+
+        return cls(config, ds=ds)
+
+
+def concatenate_hf_datasets(
+    datasets: Iterable[HFDataset],
+    new_dataset_config: DatasetConfig | dict = None,
+    version_update_mode: str | None = "patch",
+) -> HFDataset:
+    """Concatenate multiple HFDatasets and create a new dataset.
+
+    Args:
+        datasets: The datasets to concatenate.
+        new_dataset_config: The config for the new dataset. If None, it will be the same as the first dataset.
+        version_update_mode: The version update mode to use, one of "major", "minor", "patch". Default is "patch".
+            If None, it will not update the version number.
+
+    Returns:
+        The new concatenated HFDataset.
+    """
+    if new_dataset_config:
+        new_ds = HFDataset(new_dataset_config)
+    else:
+        new_ds = HFDataset(datasets[0].config.copy())
+        if version_update_mode:
+            new_ds.config.increment_version(mode="patch")
+
+    new_ds.set_ds(concatenate_datasets([d.ds for d in datasets]))
+
+    s = f"""-> Concatenated multiple datasets. Datasets: {[d.config.name for d in datasets]}
+    """
+    new_ds.config.description += "\n" + s
+
+    return new_ds
+
+
+def build_concatenated_dataset(
+    dataset_paths: str | os.PathLike | AnyPath,
+    storage_options: dict,
+    sharded: bool = False,
+    new_dataset_config: DatasetConfig | dict = None,
+    version_update_mode: str | None = "patch",
+) -> HFDataset:
+    """Build a concatenated dataset from a list of dataset paths."""
+
+    # load all datasets
+    datasets = [HFDataset.from_path(p, storage_options=storage_options, sharded=sharded) for p in dataset_paths]
+    new_ds = concatenate_hf_datasets(
+        datasets, new_dataset_config=new_dataset_config, version_update_mode=version_update_mode
+    )
+
+    return new_ds
