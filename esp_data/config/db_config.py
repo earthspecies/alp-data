@@ -6,13 +6,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Optional
 
-from pydantic import (
-    BaseModel,
-    BeforeValidator,
-    ConfigDict,
-    Field,
-    field_validator,
-)
+from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, field_validator
 from typing_extensions import Annotated
 
 from ..utils import (
@@ -204,17 +198,8 @@ class ImageDataSample(DataSample):
     label: str = Field(min_length=1, description="Label for the image data")
 
 
-class NatureLMDataSample(DataSample):
-    """A Pydantic model for an audio-text data sample configuration. An audio-text data sample is a single
-    row / record in a dataset that contains both audio and text data.
-    """
-
-    # required params
-    audio_path: Annotated[str, BeforeValidator(validate_path_exists)] = Field(
-        description="Path to audio file represented by this sample, maybe a local path or a cloud path"
-    )
-
-    prompt: str = Field(min_length=1, description="Text data represented by this sample")
+# class BatchDataSample(BaseModel):
+#    pass
 
 
 # Dataset Config
