@@ -1,8 +1,9 @@
+import asyncio
 import json
 import os
 import re
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
+from typing import Callable
 from uuid import UUID, uuid4
 
 from cloudpathlib import AnyPath
@@ -88,21 +89,14 @@ def increment_version(version: str, mode: str = "patch") -> str:
     return f"{major}.{minor}.{patch}"
 
 
-def is_gcs_path(path: str | Path | os.PathLike) -> bool:
-    return str(path).startswith("gs://")
+async def run_as_async(func: Callable, *args, **kwargs) -> Callable:
+    """Run the function asynchronously.
 
+    Args:
+        func (Callable): The function to run asynchronously.
 
-def is_s3_path(path: str | Path | os.PathLike) -> bool:
-    return str(path).startswith("s3://")
-
-
-def is_cloudflarer2_path(path: str | Path | os.PathLike) -> bool:
-    return "r2.cloudflarestorage" in str(path)
-
-
-def is_local_path(path: str | Path | os.PathLike) -> bool:
-    return not (is_gcs_path(path) or is_s3_path(path) or is_cloudflarer2_path(path))
-
-
-def is_cloud_path(path: str | Path | os.PathLike) -> bool:
-    return is_gcs_path(path) or is_s3_path(path) or is_cloudflarer2_path(path)
+    Returns:
+        Callable: The function that runs asynchronously.
+    """
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(None, func, *args, **kwargs)
