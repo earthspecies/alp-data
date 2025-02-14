@@ -3,7 +3,7 @@
 import pytest
 from cloudpathlib import GSPath
 
-from esp_data.file_io.buckets import Bucket, GSBucket
+from esp_data.file_io.buckets import Bucket, GSBucket, GSBucketV2, R2Bucket
 from esp_data.file_io.files import File, GSAudioFile, GSFile
 
 
@@ -134,3 +134,45 @@ def test_gs_audio_file():
     audio, sr = file.read_audio()
     assert len(audio) > 0
     assert sr == 44100
+
+
+async def test_gs_bucket_v2():
+    bucket = GSBucketV2("gs://esp-ci-cd-tests/esp-data-tests/temprandomfolder")
+    assert not bucket.exists
+    bucket.upload_dir("tests/fileio_test_folder")
+    assert bucket.exists
+    assert len(bucket.list_files(recursive=True)) > 0
+    bucket.delete_dir("", confirm=False)
+    assert not bucket.exists
+
+    bucket = GSBucketV2("gs://esp-ci-cd-tests/esp-data-tests/temprandomfolder")
+    await bucket.async_upload_dir("tests/fileio_test_folder")
+    await bucket.async_move_dir("tests/fileio_test_folder", "tests/fileio_test_folder2")
+    await bucket.async_download_to("tests/fileio_test_folder2", "tests/fileio_test_folder")
+    assert len(bucket.list_files(recursive=True)) > 0
+    c = bucket.subdir_as_bucket("tests/fileio_test_folder2")
+    assert c.exists
+    c.delete_dir("", confirm=False)
+    assert not c.exists
+    bucket.delete_dir("", confirm=False)
+
+
+def test_r2_bucket():
+    bucket = R2Bucket("r2://esp-ci-cd-tests/esp-data-tests/temprandomfolder")
+    assert not bucket.exists
+    bucket.upload_dir("tests/fileio_test_folder")
+    assert bucket.exists
+    assert len(bucket.list_files(recursive=True)) > 0
+    bucket.delete_dir("", confirm=False)
+    assert not bucket.exists
+
+    bucket = R2Bucket("s3://esp-ci-cd-tests/esp-data-tests/temprandomfolder")
+    bucket.upload_dir("tests/fileio_test_folder")
+    bucket.move_dir("tests/fileio_test_folder", "tests/fileio_test_folder2")
+    bucket.download_to("tests/fileio_test_folder2", "tests/fileio_test_folder")
+    assert len(bucket.list_files(recursive=True)) > 0
+    c = bucket.subdir_as_bucket("tests/fileio_test_folder2")
+    assert c.exists
+    c.delete_dir("", confirm=False)
+    assert not c.exists
+    bucket.delete_dir("", confirm=False)
