@@ -15,10 +15,10 @@ import os
 import warnings
 
 import numpy as np
-from cloudpathlib import AnyPath, CloudPath
 from google.cloud.storage import Client as GSClient
 
-from ..utils import is_gcs_path, is_local_path
+from esp_data.paths import AnyPath, is_gcs_path, is_local_path
+from esp_data.utils import run_as_async
 
 warnings.filterwarnings("ignore", "Your application has authenticated using end user credentials")
 
@@ -70,26 +70,35 @@ class File:
                 return
         self.file_path.unlink()
 
-    # TODO: Implement async version
     def download_to(self, file_path: str | os.PathLike | AnyPath) -> None:
         """Download the file to a local path."""
         if not is_local_path(str(file_path)):
             raise ValueError("File path must be a local path.")
         self.file_path.download_to(AnyPath(file_path))
 
-    # TODO: Implement async version
     def upload_from(self, file_path: str | os.PathLike | AnyPath) -> None:
         """Upload a local file to the bucket."""
         if not is_local_path(file_path):
             raise ValueError("File path must be a local path.")
         self.file_path.upload_from(str(file_path))
 
-    # TODO: Implement async version
     def copy_to(self, destination: str | os.PathLike | AnyPath, overwrite: bool = True):
         """Copy the file to another location."""
         if AnyPath(destination).is_dir():
             destination = AnyPath(destination) / self.file_path.name
-        self.file_path.copy(str(destination), force_overwrite_to_cloud=True)
+        self.file_path.copy(str(destination), force_overwrite_to_cloud=overwrite)
+
+    async def async_copy_to(self, destination: str | os.PathLike | AnyPath, overwrite: bool = True):
+        """Copy the file to another location asynchronously."""
+        await run_as_async(self.copy_to, destination, overwrite)
+
+    async def async_download_to(self, file_path: str | os.PathLike | AnyPath):
+        """Download the file to a local path asynchronously."""
+        await run_as_async(self.download_to, file_path)
+
+    async def async_upload_from(self, file_path: str | os.PathLike | AnyPath):
+        """Upload a local file to the bucket asynchronously."""
+        await run_as_async(self.upload_from, file_path)
 
     def size(self) -> int:
         """Return the size of the file in bytes."""
@@ -109,13 +118,12 @@ class GSFile(File):
         if not is_gcs_path(file_path):
             raise ValueError("File path must be a cloud path for Google Cloud Storage.")
 
-        self.file_path = CloudPath(file_path)
+        self.file_path = AnyPath(file_path)
         self.client = GSClient()
         file_path_parts = self.file_path.parts[1:]  # remove the gs:// prefix
         self.gs_bucket_name = file_path_parts[0]
         self.file_subpath = AnyPath("/".join(file_path_parts[1:]))
 
-    # TODO: Implement async version
     def upload_from_bytes_or_str(self, contents: bytes | str) -> None:
         """Upload content from memory to a file in Google Cloud Storage.
 
@@ -136,18 +144,22 @@ class GSFile(File):
         blob.upload_from_string(contents)
         logger.info(f"Uploaded content to {self.file_path.name}.")
 
+    async def async_upload_from_bytes_or_str(self, contents: bytes | str) -> None:
+        """Upload content from memory to a file in Google Cloud Storage asynchronously."""
+        await run_as_async(self.upload_from_bytes_or_str, contents)
+
 
 class GSAudioFile(GSFile):
     def __init__(self, file_path: str | AnyPath):
         super().__init__(file_path)
 
     def _read_with_soundfile(self, audio_bytes: bytes) -> tuple[np.ndarray, int]:
-        from .fileio_utils import read_audio_from_bytes_sf
+        from .utils import read_audio_from_bytes_sf
 
         return read_audio_from_bytes_sf(audio_bytes)
 
     def _read_with_pydub(self, audio_bytes: bytes) -> tuple[np.ndarray, int]:
-        from .fileio_utils import read_audio_from_bytes_pydub
+        from .utils import read_audio_from_bytes_pydub
 
         return read_audio_from_bytes_pydub(audio_bytes)
 
@@ -165,3 +177,7 @@ class GSAudioFile(GSFile):
             return self._read_with_pydub(audio_bytes)
         else:
             raise ValueError(f"Unsupported audio format: {extension}")
+
+    async def async_read_audio(self) -> tuple[np.ndarray, int]:
+        """Read the audio file from Google Cloud Storage asynchronously."""
+        return await run_as_async(self.read_audio)
