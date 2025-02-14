@@ -3,16 +3,15 @@ import os
 import warnings
 from typing import Any, Callable, Iterable, Optional
 
-from cloudpathlib import AnyPath
 from datasets import Dataset, concatenate_datasets, load_dataset, load_from_disk
 
 from esp_data.config.db_config import DataSample, DatasetConfig
 from esp_data.config.project_config import REQUIRED_DATASAMPLE_FIELDS
 from esp_data.file_io import File
-from esp_data.utils import is_cloud_path, is_local_path, make_id, utc_now
+from esp_data.paths import AnyPath, is_cloud_path, is_local_path
 
 from .base import BaseIterableDataset, BaseMapDataset
-from .ds_utils import generate_random_indices
+from .utils import generate_random_indices
 
 warnings.filterwarnings("ignore", "Your application has authenticated using end user credentials")
 
@@ -619,3 +618,68 @@ def build_concatenated_dataset(
     )
 
     return new_ds
+
+
+def export_hfdataset_as_datafolder(
+    hf_dataset,
+    export_to: str | os.PathLike | AnyPath,
+    rich_media_keys: list[str],
+    metadata_keys: list[str],
+    split: str = None,
+):
+    """The idea is to export an HFDataset to a bucket / directory in the form of a data folder. The idea is that
+    a dataset with the following structure is created:
+        dataset_name/
+            vX.X.X/
+                - train (optional, if no split is provided, then the root directory will contain the dataset)
+                    - rich_media_keys[0] (e.g. audio)
+                        - 1.wav
+                        - 2.wav
+                        - ...
+                    - rich_media_keys[1] (e.g. video)
+                        - 1.mp4
+                        - 2.mp4
+                        - ...
+                - metadata.csv  # Contains all file related metadata, must be same length as number of dataset files
+                - metadata.json  # same as above but saved as json
+                - dataset_config.json # Contains the dataset configuration
+
+    Ref: https://huggingface.co/docs/datasets/audio_load#audiofolder
+    """
+    output_dir = str(export_to) / hf_dataset.config.version
+
+    # create the train directory
+    if split is not None:
+        output_dir = output_dir / split
+
+    # create the rich media directories
+    for key in rich_media_keys:
+        rich_media_dir = output_dir / key
+        rich_media_dir.mkdir(exist_ok=True)
+
+        # copy the rich media files
+        for idx, sample in enumerate(hf_dataset.ds):
+            file_name = f"{idx + 1}.{key}"
+            file_path = rich_media_dir / file_name
+            with file_path.open("wb") as f:
+                f.write(sample[key])
+
+    # create the metadata files
+    metadata_csv = output_dir / "metadata.csv"
+    metadata_json = output_dir / "metadata.json"
+
+    metadata = {k: [] for k in metadata_keys}
+    for sample in hf_dataset.ds:
+        for k in metadata_keys:
+            metadata[k].append(sample[k])
+
+    import pandas as pd
+
+    metadata_df = pd.DataFrame(metadata)
+    metadata_df.to_csv(metadata_csv, index=False)
+    metadata_df.to_json(metadata_json, orient="records")
+
+    # create the dataset config file
+    dataset_config_file = output_dir / "dataset_config.json"
+    with dataset_config_file.open("w") as fp:
+        json.dump(hf_dataset.config.to_dict(make_serializable=True), fp)
