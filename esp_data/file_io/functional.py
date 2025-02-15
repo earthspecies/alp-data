@@ -88,7 +88,7 @@ def open_file(file_path: str | os.PathLike | AnyPath, mode: str, use_fs: bool = 
         raise e
 
 
-def exists(file_path: str | os.PathLike | AnyPath, use_fs: bool = True) -> bool:
+def exists(file_path: str | os.PathLike | AnyPath, use_fs: bool = False) -> bool:
     """Check if the file exists.
 
     Args:
@@ -117,27 +117,33 @@ def exists(file_path: str | os.PathLike | AnyPath, use_fs: bool = True) -> bool:
         raise e
 
 
-def list_files(dir_path: str | os.PathLike | AnyPath, pattern: str = "**") -> list[str]:
+def list_files(dir_path: str | os.PathLike | AnyPath, pattern: str = "**", use_fs: bool = False) -> list[str]:
     """List files in the given directory.
 
     Args:
         dir_path (str | os.PathLike | AnyPath): The path to the directory.
         pattern (str, optional): A pattern to match the files. Defaults to "**" which lists all
         files and dirs recursively.
+        use_fs (bool, optional): If True, use the FileSystem approach. Defaults to False, which is using cloudpathlib.
 
     Returns:
         list[str]: A list of file paths if successful.
     """
     dir_path = AnyPath(dir_path)
-    fs = make_fs(dir_path)
+    fs = None
+    if use_fs:
+        fs = make_fs(dir_path)
 
     if not exists(dir_path):
         logger.warning(f"Directory {dir_path} does not exist, aborting.")
         return []
 
     try:
-        if fs is None:
-            return [str(f) for f in dir_path.rglob(pattern or "*")]
+        if use_fs and fs is None:
+            logger.warning("Using AnyPath method to list files.")
+
+        if not use_fs or fs is None:
+            return [str(f) for f in dir_path.rglob(pattern or "*") if f.is_file() and str(f) != str(dir_path)]
 
         dir_path = strip_cloud_prefix(dir_path / pattern)
 
@@ -324,7 +330,7 @@ def delete_file(file_path: str | os.PathLike | AnyPath, use_fs: bool = False) ->
         raise e
 
 
-def delete_dir(dir_path: str | os.PathLike | AnyPath, use_fs: bool = False) -> bool:
+def delete_dir(dir_path: str | os.PathLike | AnyPath) -> bool:
     """Delete the directory at the given path.
 
     Args:
@@ -399,12 +405,13 @@ def makedirs(dir_path: str | os.PathLike | AnyPath, use_fs: bool = False, exist_
         raise e
 
 
-def upload(source: str | os.PathLike | AnyPath, destination: str | AnyPath) -> bool:
+def upload(source: str | os.PathLike | AnyPath, destination: str | AnyPath, use_fs: bool = False) -> bool:
     """Upload a file / dir to the destination. Please end dirs to upload to with a trailing /.
 
     Args:
         source (str | os.PathLike | AnyPath): The path to the file to upload.
         destination (str | os.PathLike | AnyPath): The destination path, local or cloud.
+        use_fs (bool, optional): If True, use the FileSystem approach. Defaults to False.
 
     Returns:
         bool: True if the file was uploaded successfully.
@@ -418,10 +425,15 @@ def upload(source: str | os.PathLike | AnyPath, destination: str | AnyPath) -> b
     """
     source = AnyPath(source)
     destination = AnyPath(destination)
-    fs = make_fs(destination)
+    fs = None
+    if use_fs:
+        fs = make_fs(destination)
 
     try:
-        if fs is None:
+        if use_fs and fs is None:
+            logger.warning("Using AnyPath method to upload file.")
+
+        if not use_fs or fs is None:
             destination.upload_from(source, force_overwrite_to_cloud=True)
             return True
 
@@ -434,12 +446,13 @@ def upload(source: str | os.PathLike | AnyPath, destination: str | AnyPath) -> b
         raise e
 
 
-def download(source: str | os.PathLike, destination: str | os.PathLike) -> bool:
+def download(source: str | os.PathLike, destination: str | os.PathLike, use_fs: bool = False) -> bool:
     """Download a file / dir to the destination. Please end dirs to download with a trailing /.
 
     Args:
         source (str | os.PathLike): The path to the file / dir to download.
         destination (str | os.PathLike): The destination path, local or cloud.
+        use_fs (bool, optional): If True, use the FileSystem approach. Defaults to False.
 
     Returns:
         bool: True if the file was downloaded successfully.
@@ -453,10 +466,15 @@ def download(source: str | os.PathLike, destination: str | os.PathLike) -> bool:
     """
     source = AnyPath(source)
     destination = AnyPath(destination)
-    fs = make_fs(source)
+    fs = None
+    if use_fs:
+        fs = make_fs(source)
 
     try:
-        if fs is None:
+        if use_fs and fs is None:
+            logger.warning("Using AnyPath method to download")
+
+        if not use_fs or fs is None:
             source.download_to(destination)
             return True
 
@@ -469,12 +487,13 @@ def download(source: str | os.PathLike, destination: str | os.PathLike) -> bool:
         raise e
 
 
-def copy(source: str | os.PathLike | AnyPath, destination: str | os.PathLike | AnyPath) -> bool:
+def copy(source: str | os.PathLike | AnyPath, destination: str | os.PathLike | AnyPath, use_fs: bool = False) -> bool:
     """Copy a file / dir to the destination. Please end dirs to copy with a trailing /.
 
     Args:
         source (str | os.PathLike | AnyPath): The path to the file / dir to copy.
         destination (str | os.PathLike | AnyPath): The destination path, local or cloud.
+        use_fs (bool, optional): If True, use the FileSystem approach. Defaults to False.
 
     Returns:
         bool: True if the file / dir was copied successfully.
@@ -499,10 +518,15 @@ def copy(source: str | os.PathLike | AnyPath, destination: str | os.PathLike | A
         logger.warning(f"Source {source} does not exist, aborting.")
         return False
 
-    fs = make_fs(source)
+    fs = None
+    if use_fs:
+        fs = make_fs(source)
 
     try:
-        if fs is None:
+        if use_fs and fs is None:
+            logger.warning("Using AnyPath method to copy file.")
+
+        if not use_fs or fs is None:
             source.copy_to(destination)
             return True
 
@@ -513,9 +537,7 @@ def copy(source: str | os.PathLike | AnyPath, destination: str | os.PathLike | A
         raise e
 
 
-def write_rows_to_csv(
-    rows: list[dict], *, file_path: str | AnyPath, mode: str = "a", use_fs: bool = False, write_header: bool = False
-) -> None:
+def write_rows_to_csv(rows: list[dict], *, file_path: str | AnyPath, mode: str = "a", use_fs: bool = False) -> None:
     """Write a list of dicts to a CSV file. Allows appending to the file.
 
     Args:
@@ -523,7 +545,6 @@ def write_rows_to_csv(
         file_path (str | AnyPath): The path to the CSV file.
         mode (str, optional): The mode to open the file in. Defaults to "a".
         use_fs (bool, optional): If True, use the FileSystem approach. Defaults to False.
-        write_header (bool, optional): If True, write the header to the CSV file. Defaults to False.
     """
     if not rows:
         logger.warning("No rows to write, aborting.")
@@ -537,7 +558,7 @@ def write_rows_to_csv(
     # Write batch to string buffer
     output = StringIO()
     writer = csv.DictWriter(output, fieldnames=fieldnames)
-    if write_header:
+    if not exists(file_path):
         writer.writeheader()
 
     writer.writerows(rows)
