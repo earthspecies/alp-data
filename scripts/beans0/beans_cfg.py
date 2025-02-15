@@ -23,7 +23,7 @@ DATASET_JSONL_PATHS = {
     "esc50": "gs://foundation-model-data/data/esc50-animal/test_processed.jsonl",
     "watkins": "gs://foundation-model-data/data/watkins-classification/test_processed.jsonl",
     "cbi": "gs://foundation-model-data/data/cbi-classification/test_processed.jsonl",
-    "humbugdb": "gs://foundation-model-data/data/cbi-classification/test_processed.jsonl",
+    "humbugdb": "gs://foundation-model-data/data/humbugdb-classification/test_processed.jsonl",
     "enabirds": "gs://foundation-model-data/data/enabirds-detection/test_processed.jsonl",
     "hiceas": "gs://foundation-model-data/data/hiceas-detection/test_processed.jsonl",
     "rfcx": "gs://foundation-model-data/data/rfcx-detection/test_processed.jsonl",
