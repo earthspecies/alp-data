@@ -6,15 +6,23 @@ import json
 import logging
 import os
 
-from beans_cfg import ALL_DATASET_NAMES, LOCAL_PATHS, Beans0DatasetConfig, Beans0SampleNoAudio
+from beans_cfg import ALL_DATASET_NAMES, LOCAL_PATHS, Beans0SampleNoAudio, beans0_cfg
 from tqdm.asyncio import tqdm_asyncio
 
 from esp_data.file_io import GSAudioFile
-from esp_data.file_io.functional import write_rows_to_csv
+from esp_data.file_io.functional import open_file, write_rows_to_csv
 from esp_data.paths import AnyPath
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
+# add file handler
+fh = logging.FileHandler("beans0_parallel.log")
+fh.setLevel(logging.INFO)
+logger.addHandler(fh)
+# add console handler
+ch = logging.StreamHandler()
+ch.setLevel(logging.INFO)
+logger.addHandler(ch)
 
 
 def read_jsonl(path: str | AnyPath) -> list[dict]:
@@ -126,7 +134,7 @@ async def process_batch(
     batch_data: list[dict], dataset_cfg: dict, output_dir: str | AnyPath, replace_16k: bool, aggregate_dataset: dict
 ):
     """Process a batch of samples in parallel."""
-
+    samples = []
     for row in batch_data:
         # check for duplicates
         path_parts = AnyPath(row["path"]).parts
@@ -149,10 +157,10 @@ async def process_batch(
             aggregate_dataset["not_found"].append(row)
             continue
 
-        aggregate_dataset["batches"].append(sample)
+        samples.append(sample)
 
     # after every batch write to csv
-    await write_rows_to_csv(aggregate_dataset["batches"], output_dir / "metadata.csv")
+    await write_rows_to_csv(samples, output_dir / "metadata.csv")
 
 
 async def make_component_dataset_parallel(
@@ -166,21 +174,21 @@ async def make_component_dataset_parallel(
     rows = read_jsonl(LOCAL_PATHS[dataset_cfg["name"]])
 
     # Split data into chunks for parallel processing
-    chunk_size = (len(rows) // batch_size) + 1
-    chunks = [rows[i : i + chunk_size] for i in range(0, len(rows), chunk_size)]
-    logger.info(f"Processing {len(rows)} samples in {len(chunks)} chunks of chunk size {chunk_size}")
+    num_batches = len(rows) // batch_size + 1
+    batches = [rows[i * batch_size : (i + 1) * batch_size] for i in range(num_batches)]
+    logger.info(f"Processing {len(rows)} samples in {num_batches} batches for {dataset_cfg['name']}")
 
     # Create async tasks for gather
     await tqdm_asyncio.gather(
         *[
             process_batch(
-                chunk,
+                batch,
                 dataset_cfg=dataset_cfg,
                 output_dir=output_dir,
                 replace_16k=replace_16k,
                 aggregate_dataset=aggregate_dataset,
             )
-            for chunk in chunks
+            for batch in batches
         ]
     )
 
@@ -193,7 +201,6 @@ async def main(args):
     output_dir = AnyPath(args.output_dir)
 
     aggregate_dataset = {
-        "batches": [],
         "not_found": [],
         "hashes": set(),
     }
@@ -207,10 +214,9 @@ async def main(args):
     #     results = list(tqdm(pool.imap(process_func, chunks), total=len(chunks), desc=f"Processing {name}"))
 
     for name in args.components_to_process:
-        dataset_cfg: dict = Beans0DatasetConfig.metadata[name]
-
+        dataset_idx_in_cfg = [d["name"] for d in beans0_cfg.metadata["components"]].index(name)
         aggregate_dataset = await make_component_dataset_parallel(
-            dataset_cfg,
+            beans0_cfg.metadata["components"][dataset_idx_in_cfg],
             output_dir,
             args.batch_size,
             args.replace_16k,
@@ -218,6 +224,14 @@ async def main(args):
         )
 
         logger.warning(f"Could not process {len(aggregate_dataset['not_found'])} samples")
+
+    # write aggregate dataset to json
+    with open(output_dir / "aggregate_dataset.json", "w") as f:
+        json.dump(aggregate_dataset, f, indent=4)
+
+    # save Beans0DatasetConfig
+    with open_file(output_dir / "dataset_config.json", "w") as fp:
+        json.dump(beans0_cfg.to_dict(make_serializable=True), fp)
 
 
 if __name__ == "__main__":

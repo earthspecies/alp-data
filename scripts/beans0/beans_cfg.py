@@ -1,7 +1,6 @@
 import os
 from typing import Optional
 
-import yaml
 from pydantic import Field
 
 from esp_data.config import DataSample, DatasetConfig
@@ -14,6 +13,7 @@ G. Narula, gagan at earthspecies dot org;
 M. Alizadeh, milad at earthspecies dot org;
 O. Pietquin, olivier at earthspecies dot org
 """
+VERSION = "0.1.0"  # as of 2025-02-15
 
 STORAGE_OPTIONS = {"project": os.getenv("GCP_DEFAULT_PROJECT")}
 
@@ -36,8 +36,8 @@ DATASET_JSONL_PATHS = {
     "unseen-genus-cmn": "gs://foundation-model-data/data/unseen-species-species-common-classification/v1.32/test_genus_license.jsonl",
     "unseen-genus-sci": "gs://foundation-model-data/data/unseen-species-species-sci-classification/v1.32/test_genus_license.jsonl",
     "unseen-genus-tax": "gs://foundation-model-data/data/unseen-species-taxonomic-classification/v1.32/test_genus_license.jsonl",
-    "captioning": "gs://foundation-model-data/data/animalspeak-caption-common/test_processed.jsonl",
-    "zf-indiv": "gs://foundation-model-data/data/zebra_finch_elie/zebra_finch_nbirds.jsonl",
+    "captioning": "gs://foundation-model-data/data/animalspeak-caption-common/test_processed_license.jsonl",
+    "zf-indiv": "gs://foundation-model-data/data/zebra_finch_elie/zebra_finch_nbirds_1.0_more_balanced.jsonl",
 }
 
 LICENSES = {
@@ -86,27 +86,8 @@ ALL_DATASET_NAMES = list(DATASET_JSONL_PATHS.keys())
 
 
 local_path = "./beans0/jsonl_files"
-LOCAL_PATHS = {k: local_path / (k + ".jsonl") for k in DATASET_JSONL_PATHS.keys()}
+LOCAL_PATHS = {k: os.path.join(local_path, (k + ".jsonl")) for k in DATASET_JSONL_PATHS.keys()}
 
-
-def load_beans_metadata():
-    # load beans dataset config for naturelm
-    beans_cfg_path = "beans_datasets.yml"
-    with open(beans_cfg_path, "r") as f:
-        beans_cfg = yaml.safe_load(f)
-
-    metadata = {b["name"]: b for b in beans_cfg if b["name"] in DATASET_JSONL_PATHS}
-    # HACK, have to add gibbons separately because of naming inconsistency
-    metadata["gibbons"] = [b for b in beans_cfg if "gibbons" in b["name"]][0]
-    # HACK, check with Masato and David
-    # for lifestage and call-type, there are several possible datasets in beans that match
-    metadata["lifestage"] = [b for b in beans_cfg if "lifestage" in b["name"]]
-    metadata["call-type"] = [b for b in beans_cfg if "call-type" in b["name"]]
-
-    return metadata
-
-
-# METADATA = load_beans_metadata()
 
 METADATA = {
     "description": "Metadata for each dataset is available under 'components' key",
@@ -114,6 +95,7 @@ METADATA = {
         {
             "name": "esc50",
             "task": "classification",
+            "license": LICENSES["esc50"],
             "description": """The ESC-50 dataset is a labeled collection of 2000 environmental audio recordings (each 5 seconds long) encompassing 50 classes of common sound events.
                  github: https://github.com/karolpiczak/ESC-50.git
                  DOI: http://dx.doi.org/10.1145/2733373.2806390
@@ -193,6 +175,7 @@ METADATA = {
         {
             "name": "watkins",
             "task": "classification",
+            "license": LICENSES["watkins"],
             "description": """Watkins Marine Mammal Sound Database, Woods Hole Oceanographic Institution and the New Bedford Whaling Museum.
                 https://whoicf2.whoi.edu/science/B/whalesounds/about.cfm#download
                 """,
@@ -270,6 +253,7 @@ METADATA = {
         {
             "name": "cbi",
             "task": "classification",
+            "license": LICENSES["cbi"],
             "description": """Cornell Birdcall Identification.
                 https://www.kaggle.com/competitions/birdsong-recognition/overview
                 """,
@@ -813,6 +797,7 @@ METADATA = {
         {
             "name": "humbugdb",
             "task": "classification",
+            "license": LICENSES["humbugdb"],
             "description": """
                 Large-scale multi-species dataset of acoustic recordings of mosquitoes, with Bayesian convolutional neural network detection and classification models.
                 https://openreview.net/forum?id=vhjsBtq9OxO
@@ -842,6 +827,7 @@ METADATA = {
         {
             "name": "enabirds",
             "task": "detection",
+            "license": LICENSES["enabirds"],
             "description": """Bird dawn chorus detection with 34 labels. https://esajournals.onlinelibrary.wiley.com/doi/full/10.1002/ecy.3329.""",
             "num_labels": 34,
             "labels": [
@@ -924,6 +910,7 @@ METADATA = {
         {
             "name": "hiceas",
             "task": "detection",
+            "license": LICENSES["hiceas"],
             "num_labels": 1,
             "labels": [1],
             "human_labels": ["Minke whale"],
@@ -935,6 +922,7 @@ METADATA = {
         {
             "name": "rfcx",
             "task": "detection",
+            "license": LICENSES["rfcx"],
             "description": """A multi-label CNN was trained for classification of bird and frog vocalizations in soundscape recordings.
                 https://doi.org/10.1016/j.ecoinf.2020.101113
                 """,
@@ -1000,6 +988,7 @@ METADATA = {
         {
             "name": "gibbons",
             "task": "detection",
+            "license": LICENSES["gibbons"],
             "description": """Automated detection of Hainan gibbon calls for passive acoustic monitoring
                 https://doi.org/10.1002/rse2.201
                 """,
@@ -1015,6 +1004,7 @@ METADATA = {
         {
             "name": "lifestage",  # or some other name?
             "description": "A subset of Xeno-canto dataset with lifestage annotations",
+            "license": LICENSES["lifestage"],
             "task": "lifestage",
             "num_labels": 3,
             "labels": ["adult", "juvenile", "nestling"],
@@ -1026,6 +1016,8 @@ METADATA = {
         {
             "name": "call-type",
             "task": "classification",
+            "description": "A subset of Xeno-canto dataset with call type annotations",
+            "license": LICENSES["call-type"],
             "num_labels": 2,
             "labels": ["call", "song"],
             "human_labels": ["call", "song"],
@@ -1037,6 +1029,7 @@ METADATA = {
             "name": "unseen-species-cmn",
             "task": "species-common-classification",
             "num_labels": 2,
+            "license": LICENSES["unseen-species-cmn"],
             "description": "Classifying common names of species unseen during training. Derived from Xeno-canto, iNaturalist, Animal Sound Archive.",
             "labels": [
                 "Long-tailed Starling",
@@ -1249,6 +1242,7 @@ METADATA = {
         {
             "name": "unseen-species-sci",
             "task": "species-sci-classification",
+            "license": LICENSES["unseen-species-sci"],
             "description": "Classifying scientific names of species unseen during training. Derived from Xeno-canto, iNaturalist, Animal Sound Archive.",
             "num_labels": 4,
             "labels": [
@@ -1461,6 +1455,7 @@ METADATA = {
             "name": "unseen-species-tax",
             "task": "taxonomic-classification",
             "num_labels": 4,
+            "license": LICENSES["unseen-species-tax"],
             "description": "Classifying taxonomic names of species unseen during training. Derived from Xeno-canto, iNaturalist, Animal Sound Archive.",
             "labels": [
                 "Chordata Aves Passeriformes Sturnidae Aplonis magna",
@@ -1671,6 +1666,7 @@ METADATA = {
         {
             "name": "unseen-genus-cmn",
             "task": "species-common-classification",
+            "license": LICENSES["unseen-genus-cmn"],
             "num_labels": 4,
             "description": "Classifying common names of genus of species unseen during training. Derived from Xeno-canto, iNaturalist, Animal Sound Archive.",
             "labels": [
@@ -1787,6 +1783,7 @@ METADATA = {
         {
             "name": "unseen-genus-sci",
             "task": "species-sci-classification",
+            "license": LICENSES["unseen-genus-sci"],
             "num_labels": 4,
             "description": "Classifying scientific names of genus of species unseen during training. Derived from Xeno-canto, iNaturalist, Animal Sound Archive.",
             "labels": [
@@ -1899,6 +1896,7 @@ METADATA = {
         {
             "name": "unseen-genus-tax",
             "task": "taxonomic-classification",
+            "license": LICENSES["unseen-genus-tax"],
             "num_labels": 4,
             "description": "Classifying taxonomic names of genus of species unseen during training. Derived from Xeno-canto, iNaturalist, Animal Sound Archive.",
             "labels": [
@@ -2011,15 +2009,17 @@ METADATA = {
         {
             "name": "captioning",
             "task": "caption-common",
-            "description": "Captioning the audio. Derived from XXX.",
+            "license": LICENSES["captioning"],
+            "description": "Captioning the audio. Derived from iNaturalist.",
             "sample_rate": 16000,
             "max_duration_secs": 10,
             "labels": None,
             "unknown_label": None,
         },
         {
-            "name": "zf-num-birds",
+            "name": "zf-indiv",
             "task": "zf-indiv",
+            "license": LICENSES["zf-indiv"],
             "num_labels": 4,
             "description": """Counting the number of birds in a recording. Derived from the Zebra Finches dataset:
                 Elie, Julie; Theunissen, Frédéric E. (2020). Vocal repertoires from adult and chick, male and female zebra finches (Taeniopygia guttata).
@@ -2033,10 +2033,8 @@ METADATA = {
 }
 # fix the num_labels entry of datasets
 for item in METADATA["components"]:
-    if "num_labels" not in item and "labels" in item and len(item["labels"]) > 0:
+    if "labels" in item and item["labels"] is not None:
         item["num_labels"] = len(item["labels"])
-    else:
-        item["num_labels"] = int(item["num_labels"])
 
 
 class Beans0Sample(DataSample):
@@ -2099,8 +2097,23 @@ class Beans0DatasetConfig(DatasetConfig):
 COLUMNS_TO_DROP = ["derived_from"]  # for the huggingface version we dont need this
 
 
-Beans0DatasetConfig(
+beans0_cfg = Beans0DatasetConfig(
     name="Beans0",
+    sources=[
+        "Xeno-canto",
+        "iNaturalist",
+        "Animal Sound Archive",
+        "Elie et al 2020",
+        "Beans",
+        "esc50",
+        "rfcx",
+        "cbi",
+        "humbugdb",
+        "enabirds",
+        "hiceas",
+        "watkins",
+        "gibbons",
+    ],
     description="""A benchmark bioacoustic dataset for zero-shot evaluation tasks.
     This benchmark was introduced in the paper:
     NATURELM-AUDIO: AN AUDIO-LANGUAGE FOUNDATION MODEL FOR BIOACOUSTICS
@@ -2154,5 +2167,6 @@ Beans0DatasetConfig(
     zf-indiv: CC-BY-NC,
     """,
     creator=CREATOR,
-    version="0.1.0",
+    version=VERSION,
+    metadata=METADATA,
 )
