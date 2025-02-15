@@ -324,7 +324,7 @@ def delete_file(file_path: str | os.PathLike | AnyPath, use_fs: bool = False) ->
         raise e
 
 
-def delete_dir(dir_path: str | os.PathLike | AnyPath) -> bool:
+def delete_dir(dir_path: str | os.PathLike | AnyPath, use_fs: bool = False) -> bool:
     """Delete the directory at the given path.
 
     Args:
@@ -357,21 +357,31 @@ def delete_dir(dir_path: str | os.PathLike | AnyPath) -> bool:
         raise e
 
 
-def makedirs(dir_path: str | os.PathLike | AnyPath, exist_ok: bool = True) -> bool:
+def makedirs(dir_path: str | os.PathLike | AnyPath, use_fs: bool = False, exist_ok: bool = True) -> bool:
     """Create a directory at the given path.
+    CAUTION: Most cloud storage services do not allow creation of empty directories
+    (because they are not real filesystems).
+    So, this function will create a temporary file called ".temp" with 0 bytes
+    in the directory to check if it can be created.
 
     Args:
         dir_path (str | os.PathLike | AnyPath): The path to the directory.
+        use_fs (bool, optional): If True, use the FileSystem approach. Defaults to False.
         exist_ok (bool, optional): If True, do not raise an exception if the directory already exists. Defaults to True.
 
     Returns:
         bool: True if the directory was created successfully
     """
     dir_path = AnyPath(dir_path)
-    fs = make_fs(dir_path)
+    fs = None
+    if use_fs:
+        fs = make_fs(dir_path)
 
     try:
-        if fs is None:
+        if use_fs and fs is None:
+            logger.warning("Using AnyPath method to create directory.")
+
+        if not use_fs or fs is None:
             # make a temporary file there
             AnyPath(dir_path / "temp").touch()
             dir_path.mkdir(parents=True, exist_ok=exist_ok)
@@ -379,11 +389,11 @@ def makedirs(dir_path: str | os.PathLike | AnyPath, exist_ok: bool = True) -> bo
             AnyPath(dir_path / "temp").unlink()
             return True
 
-        # make a temporary file there
-        fs.touch(dir_path / "temp")
+        # make a temporary file theret
+        tmp_file = strip_cloud_prefix(dir_path / ".temp")
+        fs.touch(tmp_file)
         fs.mkdirs(strip_cloud_prefix(dir_path), exist_ok=exist_ok)
-        # delete the temporary file
-        fs.rm(dir_path / "temp")
+
         return True
     except Exception as e:
         raise e
