@@ -3,26 +3,44 @@
 import argparse
 import asyncio
 import json
-import logging
 import os
+from collections import deque
+from threading import Lock
 
 from beans_cfg import ALL_DATASET_NAMES, LOCAL_PATHS, Beans0SampleNoAudio, beans0_cfg
-from tqdm.asyncio import tqdm_asyncio
+from tqdm import tqdm
 
+import esp_data.file_io.functional as F
 from esp_data.file_io import GSAudioFile
-from esp_data.file_io.functional import open_file, write_rows_to_csv
 from esp_data.paths import AnyPath
+from esp_data.utils import make_simple_logger, run_as_async
 
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
-# add file handler
-fh = logging.FileHandler("beans0_parallel.log")
-fh.setLevel(logging.INFO)
-logger.addHandler(fh)
-# add console handler
-ch = logging.StreamHandler()
-ch.setLevel(logging.INFO)
-logger.addHandler(ch)
+logger = make_simple_logger("prepare_beans0", add_file_handler=True)
+
+
+class ThreadSafeAggregator:
+    def __init__(self):
+        self._hashes = set()
+        self._not_found = deque()
+        self._lock = Lock()
+
+    def add_hash(self, hash_value):
+        with self._lock:
+            if hash_value in self._hashes:
+                return False
+            self._hashes.add(hash_value)
+            return True
+
+    def add_not_found(self, item):
+        with self._lock:
+            self._not_found.append(item)
+
+    def to_dict(self):
+        with self._lock:
+            return {
+                "hashes": list(self._hashes),  # Convert to list for JSON serialization
+                "not_found": list(self._not_found),
+            }
 
 
 def read_jsonl(path: str | AnyPath) -> list[dict]:
@@ -93,8 +111,8 @@ async def make_sample(
         metadata["url"] = row["url"]
 
     # HACK, text is not present in all datasets, sometimes 'answer' is present
-    # if "text" not in row and "answer" in row:
-    #     row["text"] = row["answer"]
+    if "text" not in row and "answer" in row:
+        row["text"] = row["answer"]
 
     if "source" in row:
         metadata["source"] = row["source"]
@@ -112,16 +130,18 @@ async def make_sample(
             license=license,
             metadata=metadata,
             file_name=path,
-            prompt=row.get("prompt"),
-            text=row.get("text", None),
+            prompt=row.get("prompt", "None"),  ## HACK for esc50
+            text=row.get("text", "None"),
             task=row.get("task", "None"),
         )
         sample = sample.to_dict()
-        # remove derived_from
+        # remove derived_from and version
         sample.pop("derived_from", None)
+        sample.pop("version", None)
 
         # copy the audio file to the output_dir
-        await audio_file.async_copy_to(output_dir / path)
+        if not F.exists(output_dir / path):
+            audio_file.copy_to(output_dir / path)
 
         return sample
 
@@ -131,19 +151,27 @@ async def make_sample(
 
 
 async def process_batch(
-    batch_data: list[dict], dataset_cfg: dict, output_dir: str | AnyPath, replace_16k: bool, aggregate_dataset: dict
-):
+    batch_data: list[dict],
+    dataset_cfg: dict,
+    output_dir: str | AnyPath,
+    replace_16k: bool,
+    aggregator: ThreadSafeAggregator,
+    progress_bar=None,
+) -> None:
     """Process a batch of samples in parallel."""
     samples = []
     for row in batch_data:
+        # Update progress bar for each sample
+        if progress_bar is not None:
+            progress_bar.update(1)
+
         # check for duplicates
         path_parts = AnyPath(row["path"]).parts
-        s = hash(f"{path_parts[-1]}_{row['prompt']}_{row['text']}")
-        if s in aggregate_dataset["hashes"]:
+        s = hash(f"{path_parts[-1]}_{row.get('prompt', 'None')}_{row.get('text', 'None')}")
+        # Thread-safe check and add
+        if not aggregator.add_hash(s):
             logger.warning(f"Audio filename {path_parts[-1]} already exists, skipping")
             continue
-
-        aggregate_dataset["hashes"].add(s)
 
         sample = await make_sample(
             row,
@@ -154,13 +182,14 @@ async def process_batch(
         )
 
         if sample is None:
-            aggregate_dataset["not_found"].append(row)
+            aggregator.add_not_found(row)
             continue
 
         samples.append(sample)
 
     # after every batch write to csv
-    await write_rows_to_csv(samples, output_dir / "metadata.csv")
+    async with asyncio.Lock():  # Use asyncio.Lock for async operations
+        await run_as_async(F.write_rows_to_csv, rows=samples, file_path=output_dir / "metadata.csv", mode="a")
 
 
 async def make_component_dataset_parallel(
@@ -168,10 +197,17 @@ async def make_component_dataset_parallel(
     output_dir: str | os.PathLike | AnyPath,
     batch_size: int = 100,
     replace_16k: bool = True,
-    aggregate_dataset: dict = None,
+    aggregator: ThreadSafeAggregator = None,
 ):
     """Create a dataset using parallel processing with async threads."""
+    if aggregator is None:
+        aggregator = ThreadSafeAggregator()
+
+    # read the data from the component dataset
     rows = read_jsonl(LOCAL_PATHS[dataset_cfg["name"]])
+
+    # Create a progress bar for the total number of samples
+    progress_bar = tqdm(total=len(rows), desc=f"Processing {dataset_cfg['name']}", unit="samples")
 
     # Split data into chunks for parallel processing
     num_batches = len(rows) // batch_size + 1
@@ -179,31 +215,31 @@ async def make_component_dataset_parallel(
     logger.info(f"Processing {len(rows)} samples in {num_batches} batches for {dataset_cfg['name']}")
 
     # Create async tasks for gather
-    await tqdm_asyncio.gather(
+    await asyncio.gather(
         *[
             process_batch(
                 batch,
                 dataset_cfg=dataset_cfg,
                 output_dir=output_dir,
                 replace_16k=replace_16k,
-                aggregate_dataset=aggregate_dataset,
+                aggregator=aggregator,
+                progress_bar=progress_bar,
             )
             for batch in batches
         ]
     )
 
-    # Save the dataset as csv
+    # Close the progress bar
+    progress_bar.close()
+
     logger.info(f"Finished processing {dataset_cfg['name']} with {len(rows)} samples")
-    return aggregate_dataset
 
 
 async def main(args):
     output_dir = AnyPath(args.output_dir)
 
-    aggregate_dataset = {
-        "not_found": [],
-        "hashes": set(),
-    }
+    # Create a single thread-safe aggregator
+    aggregator = ThreadSafeAggregator()
 
     # Create pool and process datasets
     # with mp.Pool(args.num_processes) as pool:
@@ -215,22 +251,22 @@ async def main(args):
 
     for name in args.components_to_process:
         dataset_idx_in_cfg = [d["name"] for d in beans0_cfg.metadata["components"]].index(name)
-        aggregate_dataset = await make_component_dataset_parallel(
+        await make_component_dataset_parallel(
             beans0_cfg.metadata["components"][dataset_idx_in_cfg],
             output_dir,
             args.batch_size,
             args.replace_16k,
-            aggregate_dataset,
+            aggregator,
         )
 
-        logger.warning(f"Could not process {len(aggregate_dataset['not_found'])} samples")
+        logger.warning(f"Could not process {len(list(aggregator._not_found))} samples from {name}")
 
     # write aggregate dataset to json
-    with open(output_dir / "aggregate_dataset.json", "w") as f:
-        json.dump(aggregate_dataset, f, indent=4)
+    with F.open_file(output_dir / "aggregate_dataset.json", "w") as f:
+        json.dump(aggregator.to_dict(), f, indent=4)
 
     # save Beans0DatasetConfig
-    with open_file(output_dir / "dataset_config.json", "w") as fp:
+    with F.open_file(output_dir / "dataset_config.json", "w") as fp:
         json.dump(beans0_cfg.to_dict(make_serializable=True), fp)
 
 
