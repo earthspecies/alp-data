@@ -1,8 +1,11 @@
 import asyncio
+import concurrent.futures
 import json
+import logging
 import os
 import re
 from datetime import datetime, timedelta, timezone
+from functools import partial
 from typing import Callable
 from uuid import UUID, uuid4
 
@@ -89,7 +92,7 @@ def increment_version(version: str, mode: str = "patch") -> str:
     return f"{major}.{minor}.{patch}"
 
 
-async def run_as_async(func: Callable, *args, **kwargs) -> Callable:
+async def run_as_async(func: Callable, **func_kwargs) -> Callable:
     """Run the function asynchronously.
 
     Args:
@@ -99,4 +102,23 @@ async def run_as_async(func: Callable, *args, **kwargs) -> Callable:
         Callable: The function that runs asynchronously.
     """
     loop = asyncio.get_event_loop()
-    return await loop.run_in_executor(None, func, *args, **kwargs)
+    with concurrent.futures.ThreadPoolExecutor() as pool:
+        return await loop.run_in_executor(pool, partial(func, **func_kwargs))
+
+
+def make_simple_logger(name: str, add_file_handler: bool = False) -> logging.Logger:
+    logger = logging.getLogger(name)
+    logger.setLevel(logging.INFO)
+    ch = logging.StreamHandler()
+    ch.setLevel(logging.INFO)
+    formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+    ch.setFormatter(formatter)
+    logger.addHandler(ch)
+
+    if add_file_handler:
+        fh = logging.FileHandler(f"{name}.log")
+        fh.setLevel(logging.INFO)
+        fh.setFormatter(formatter)
+        logger.addHandler(fh)
+
+    return logger
