@@ -11,10 +11,11 @@ from esp_data.paths import AnyPath
 
 class DatasetType(Enum):
     JSON = "json"
-    JSONL = "jsonl"
+    JSONL = "json"
     ARROW = "arrow"
     CSV = "csv"
     AUDIO = "audiofolder"
+    IMAGE = "imagefolder"
     PARQUET = "parquet"
     FEATHER = "feather"
 
