@@ -4,9 +4,8 @@ import pytest
 
 from esp_data.utils import (
     increment_version,
-    is_gcs_path,
-    is_local_path,
     make_id,
+    run_as_async,
     utc_now,
     validate_datetime,
     validate_id,
@@ -51,18 +50,6 @@ def test_validate_version():
         validate_version("invalid_version")
 
 
-def test_is_local_path(tmp_path):
-    assert is_local_path(tmp_path)
-    assert is_local_path(str(tmp_path))
-    assert not is_local_path("gs://bucket/file.txt")
-
-
-def test_is_gcs_path():
-    assert is_gcs_path("gs://bucket/file.txt")
-    assert not is_gcs_path("s3://bucket/file.txt")
-    assert not is_gcs_path("file.txt")
-
-
 def test_validate_datetime():
     assert validate_datetime("2021-01-01T00:00:00") == datetime(2021, 1, 1, 0, 0, 0)
     with pytest.raises(ValueError):
@@ -75,3 +62,11 @@ def test_validate_datetime():
 def test_make_id():
     id = make_id()
     assert validate_id(id) == id
+
+
+async def test_run_as_async():
+    def add(a, b):
+        return a + b
+
+    result = await run_as_async(add, a=1, b=2)
+    assert result == 3
