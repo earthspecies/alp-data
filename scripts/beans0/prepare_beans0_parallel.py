@@ -166,12 +166,12 @@ async def process_batch(
             progress_bar.update(1)
 
         # check for duplicates
-        path_parts = AnyPath(row["path"]).parts
-        s = hash(f"{path_parts[-1]}_{row.get('prompt', 'None')}_{row.get('text', 'None')}")
-        # Thread-safe check and add
-        if not aggregator.add_hash(s):
-            logger.warning(f"Audio filename {path_parts[-1]} already exists, skipping")
-            continue
+        # path_parts = AnyPath(row["path"]).parts
+        # s = hash(f"{path_parts[-1]}_{row.get('prompt', 'None')}_{row.get('text', 'None')}")
+        # # Thread-safe check and add
+        # if not aggregator.add_hash(s):
+        #     logger.warning(f"Audio filename {path_parts[-1]} already exists, skipping")
+        #     continue
 
         sample = await make_sample(
             row,
