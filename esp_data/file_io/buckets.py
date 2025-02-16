@@ -14,6 +14,7 @@ from google.cloud.storage import Client as GSClient
 from google.cloud.storage import transfer_manager
 
 from esp_data.paths import AnyPath, is_cloud_path, is_local_path, strip_cloud_prefix
+from esp_data.utils import run_as_async
 
 from .utils import make_cloudflarer2fs, make_fs, make_gcsfs
 
@@ -437,7 +438,9 @@ class FSBucket:
 
         return FSBucket(subpath, self.fs)  # I'm not sure if this is the right way to do this, using the same fs ?
 
-    def upload_dir(self, source_dir: str | os.PathLike | AnyPath, destination: str | os.PathLike | AnyPath) -> None:
+    def upload_dir(
+        self, source_dir: str | os.PathLike | AnyPath, destination: str | os.PathLike | AnyPath = ""
+    ) -> None:
         """Upload a local directory to a destination folder in this bucket."""
         if not is_local_path(source_dir):
             raise ValueError("Source dir must be a local path.")
@@ -504,22 +507,18 @@ class FSBucket:
         except Exception as e:
             raise RuntimeError(f"Error deleting {dir_path}: {e}")
 
-    async def async_upload_dir(self, source_dir: str | os.PathLike, destination: str | os.PathLike) -> None:
-        loop = asyncio.get_running_loop()
-        with concurrent.futures.ThreadPoolExecutor() as pool:
-            await loop.run_in_executor(pool, self.upload_dir, source_dir, destination)
+    async def async_upload_dir(
+        self, source_dir: str | os.PathLike, destination: str | os.PathLike | AnyPath = ""
+    ) -> None:
+        await run_as_async(self.upload_dir, source_dir=source_dir, destination=destination)
 
     async def async_download_to(self, destination: str | os.PathLike) -> None:
-        loop = asyncio.get_running_loop()
-        with concurrent.futures.ThreadPoolExecutor() as pool:
-            await loop.run_in_executor(pool, self.download_to, destination)
+        await run_as_async(self.download_to, destination=destination)
 
     async def async_move_dir(
         self, source: str | os.PathLike, destination: str | os.PathLike, confirm: bool = False
     ) -> None:
-        loop = asyncio.get_running_loop()
-        with concurrent.futures.ThreadPoolExecutor() as pool:
-            await loop.run_in_executor(pool, self.move_dir, source, destination, confirm)
+        await run_as_async(self.move_dir, source=source, destination=destination, confirm=confirm)
 
     def __repr__(self):
         return f"R2Bucket({self.bucket_path})"

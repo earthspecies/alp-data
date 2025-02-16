@@ -1,6 +1,5 @@
 import io
 
-import cv2
 import numpy as np
 import pandas as pd
 import scipy.io
@@ -16,37 +15,37 @@ def read_image_from_bytes(image_bytes: bytes) -> np.ndarray:
     return np.array(image)
 
 
-def read_video_from_bytes(video_bytes: bytes) -> tuple[np.ndarray, float]:
-    """Convert video bytes to numpy array.
-    Supports common video formats (mp4, avi, mov, mpeg)
-    Returns:
-        tuple containing:
-        - frames array with shape (frames, height, width, channels)
-        - fps (frames per second)
-    """
-    # Write bytes to temporary file because OpenCV can't read directly from memory
-    temp_file = io.BytesIO(video_bytes)
-    temp_file.write(video_bytes)
+# def read_video_from_bytes(video_bytes: bytes) -> tuple[np.ndarray, float]:
+#     """Convert video bytes to numpy array.
+#     Supports common video formats (mp4, avi, mov, mpeg)
+#     Returns:
+#         tuple containing:
+#         - frames array with shape (frames, height, width, channels)
+#         - fps (frames per second)
+#     """
+#     # Write bytes to temporary file because OpenCV can't read directly from memory
+#     temp_file = io.BytesIO(video_bytes)
+#     temp_file.write(video_bytes)
 
-    # Create video capture object
-    video = cv2.VideoCapture(temp_file.name)
+#     # Create video capture object
+#     video = cv2.VideoCapture(temp_file.name)
 
-    # Get video properties
-    fps = video.get(cv2.CAP_PROP_FPS)
-    frame_count = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
+#     # Get video properties
+#     fps = video.get(cv2.CAP_PROP_FPS)
+#     frame_count = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
 
-    # Read all frames
-    frames = []
-    for _ in range(frame_count):
-        ret, frame = video.read()
-        if ret:
-            # Convert BGR to RGB
-            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            frames.append(frame)
+#     # Read all frames
+#     frames = []
+#     for _ in range(frame_count):
+#         ret, frame = video.read()
+#         if ret:
+#             # Convert BGR to RGB
+#             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+#             frames.append(frame)
 
-    video.release()
+#     video.release()
 
-    return np.array(frames), fps
+#     return np.array(frames), fps
 
 
 def read_npy_from_bytes(npy_bytes: bytes) -> np.ndarray:
@@ -85,10 +84,10 @@ PARSER_MAP = {
     "bmp": read_image_from_bytes,
     "gif": read_image_from_bytes,
     # Videos
-    "mp4": read_video_from_bytes,
-    "avi": read_video_from_bytes,
-    "mov": read_video_from_bytes,
-    "mpeg": read_video_from_bytes,
+    # "mp4": read_video_from_bytes,
+    # "avi": read_video_from_bytes,
+    # "mov": read_video_from_bytes,
+    # "mpeg": read_video_from_bytes,
     # Numpy files
     "npy": read_npy_from_bytes,
     "npz": read_npz_from_bytes,
