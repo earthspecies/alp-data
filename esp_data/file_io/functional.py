@@ -117,7 +117,7 @@ def exists(file_path: str | os.PathLike | AnyPath, use_fs: bool = False) -> bool
         raise e
 
 
-def list_files(dir_path: str | os.PathLike | AnyPath, pattern: str = "**", use_fs: bool = False) -> list[str]:
+def list_files(dir_path: str | os.PathLike | AnyPath, pattern: str = "*", use_fs: bool = False) -> list[str]:
     """List files in the given directory.
 
     Args:
@@ -389,10 +389,9 @@ def makedirs(dir_path: str | os.PathLike | AnyPath, use_fs: bool = False, exist_
 
         if not use_fs or fs is None:
             # make a temporary file there
-            AnyPath(dir_path / "temp").touch()
+            AnyPath(dir_path / ".temp").touch()
             dir_path.mkdir(parents=True, exist_ok=exist_ok)
-            # delete the temporary file
-            AnyPath(dir_path / "temp").unlink()
+
             return True
 
         # make a temporary file theret
