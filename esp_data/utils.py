@@ -107,6 +107,15 @@ async def run_as_async(func: Callable, **func_kwargs) -> Callable:
 
 
 def make_simple_logger(name: str, add_file_handler: bool = False) -> logging.Logger:
+    """Create a simple logger with a stream handler.
+
+    Args:
+        name (str): Name of the logger
+        add_file_handler (bool, optional): Add a file handler. Defaults to False.
+
+    Returns:
+        logging.Logger: Logger object
+    """
     logger = logging.getLogger(name)
     logger.setLevel(logging.INFO)
     ch = logging.StreamHandler()
