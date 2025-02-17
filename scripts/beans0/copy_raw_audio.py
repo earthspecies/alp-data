@@ -37,10 +37,10 @@ def main():
     args = parser.parse_args()
 
     metadata = pd.read_csv(args.metadata_file_path)
-    original_paths = pd.read_csv(args.original_paths_file_path).to_list()
+    original_paths = pd.read_csv(args.original_paths_file_path)
 
-    for i, p in tqdm(enumerate(original_paths)):
-        send_file_sync(p, str(metadata["file_name"].iloc[i]), args.target_dir)
+    for i, p in tqdm(original_paths.iterrows()):
+        send_file_sync(p["path"], str(metadata["file_name"].iloc[i]), args.target_dir)
 
 
 if __name__ == "__main__":
