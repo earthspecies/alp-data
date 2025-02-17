@@ -39,7 +39,7 @@ def main():
     metadata = pd.read_csv(args.metadata_file_path)
     original_paths = pd.read_csv(args.original_paths_file_path)
 
-    for i, p in tqdm(original_paths.iterrows()):
+    for i, p in tqdm(original_paths.iterrows(), total=len(original_paths)):
         send_file_sync(p["path"], str(metadata["file_name"].iloc[i]), args.target_dir)
 
 
