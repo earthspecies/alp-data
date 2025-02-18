@@ -2,6 +2,7 @@
 
 import argparse
 import asyncio
+import json
 
 import pandas as pd
 from tqdm import tqdm
@@ -37,25 +38,31 @@ def main():
     parser.add_argument("--metadata_file_path", type=str)
     parser.add_argument("--original_paths_file_path", type=str)
     parser.add_argument("--target_dir", type=str)
-    # parser.add_argument("--state_json_file", type=str, default=None)
+    parser.add_argument("--state_json_file", type=str, default=None)
 
     args = parser.parse_args()
 
     metadata = pd.read_csv(args.metadata_file_path)
     original_paths = pd.read_csv(args.original_paths_file_path)
 
-    # if args.state_json_file:
-    #     with open(args.state_json_file, "r") as f:
-    #         state = json.load(f)
-    #         start = state["start"]
+    start = 0
+    if args.state_json_file:
+        with open(args.state_json_file, "r") as f:
+            state = json.load(f)
+            start = state["start"]
 
-    for i in tqdm(range(len(original_paths)), total=len(original_paths)):
+    done_with = []
+    for i in tqdm(range(start, len(original_paths)), total=len(original_paths) - start):
         try:
             p = str(original_paths["path"].iloc[i])
             send_file_sync(p, str(metadata["file_name"].iloc[i]), args.target_dir)
+            done_with.append(p)
+
         except Exception as e:
             logger.error(f"Failed with exception {e}")
-            continue
+            with open("./state.json", "w") as f:
+                json.dump({"start": i, "done_with": done_with}, f)
+            raise RuntimeError(f"Something went wrong {e}")
 
 
 if __name__ == "__main__":
