@@ -49,7 +49,7 @@ def main():
     #         state = json.load(f)
     #         start = state["start"]
 
-    for i in tqdm(range(start=0, stop=len(original_paths)), total=len(original_paths)):
+    for i in tqdm(range(0, len(original_paths)), total=len(original_paths)):
         try:
             send_file_sync(str(original_paths.iloc[i]), str(metadata["file_name"].iloc[i]), args.target_dir)
         except Exception as e:
