@@ -18,7 +18,7 @@ async def send_file_async(original_path: str, file_name: str, target_dir: str):
     target = AnyPath(target_dir) / file_name
 
     asyncio.sleep(0.2)
-    if not AnyPath(target).exists():
+    if not target.exists():
         orig_path.copy_to(target)
 
 
@@ -26,7 +26,7 @@ def send_file_sync(original_path: str, file_name: str, target_dir: str):
     orig_path = GSFile(original_path)
     target = AnyPath(target_dir) / file_name
 
-    if not AnyPath(target).exists():
+    if not target.exists():
         orig_path.copy_to(target)
 
 
@@ -37,15 +37,21 @@ def main():
     parser.add_argument("--metadata_file_path", type=str)
     parser.add_argument("--original_paths_file_path", type=str)
     parser.add_argument("--target_dir", type=str)
+    # parser.add_argument("--state_json_file", type=str, default=None)
 
     args = parser.parse_args()
 
     metadata = pd.read_csv(args.metadata_file_path)
     original_paths = pd.read_csv(args.original_paths_file_path)
 
-    for i, p in tqdm(original_paths.iterrows(), total=len(original_paths)):
+    # if args.state_json_file:
+    #     with open(args.state_json_file, "r") as f:
+    #         state = json.load(f)
+    #         start = state["start"]
+
+    for i in tqdm(range(start=0, stop=len(original_paths)), total=len(original_paths)):
         try:
-            send_file_sync(p["path"], str(metadata["file_name"].iloc[i]), args.target_dir)
+            send_file_sync(str(original_paths.iloc[i]), str(metadata["file_name"].iloc[i]), args.target_dir)
         except Exception as e:
             logger.error(f"Failed with exception {e}")
             continue
