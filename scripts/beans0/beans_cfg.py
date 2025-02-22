@@ -20,7 +20,7 @@ STORAGE_OPTIONS = {"project": os.getenv("GCP_DEFAULT_PROJECT")}
 LOCAL_CACHE_DIR = "./temp_cache"
 
 DATASET_JSONL_PATHS = {
-    "esc50": "gs://foundation-model-data/data/esc50-animal/test_processed.jsonl",
+    "esc50": "gs://foundation-model-data/data/esc50-all/test_processed.jsonl",
     "watkins": "gs://foundation-model-data/data/watkins-classification/test_processed.jsonl",
     "cbi": "gs://foundation-model-data/data/cbi-classification/test_processed.jsonl",
     "humbugdb": "gs://foundation-model-data/data/humbugdb-classification/test_processed.jsonl",

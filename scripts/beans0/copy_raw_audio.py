@@ -45,13 +45,15 @@ def main():
     metadata = pd.read_csv(args.metadata_file_path)
     original_paths = pd.read_csv(args.original_paths_file_path)
 
+    # state
     start = 0
+    done_with = []
     if args.state_json_file:
         with open(args.state_json_file, "r") as f:
             state = json.load(f)
             start = state["start"]
+            done_with = state["done_with"]
 
-    done_with = []
     for i in tqdm(range(start, len(original_paths)), total=len(original_paths) - start):
         try:
             p = str(original_paths["path"].iloc[i])
