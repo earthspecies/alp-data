@@ -92,7 +92,7 @@ def increment_version(version: str, mode: str = "patch") -> str:
     return f"{major}.{minor}.{patch}"
 
 
-async def run_as_async(func: Callable, **func_kwargs) -> Callable:
+async def run_as_async(func: Callable, new_event_loop: bool = False, **func_kwargs) -> Callable:
     """Run the function asynchronously.
 
     Args:
@@ -101,7 +101,10 @@ async def run_as_async(func: Callable, **func_kwargs) -> Callable:
     Returns:
         Callable: The function that runs asynchronously.
     """
-    loop = asyncio.get_event_loop()
+    if new_event_loop:
+        loop = asyncio.new_event_loop()
+    else:
+        loop = asyncio.get_event_loop()
     with concurrent.futures.ThreadPoolExecutor() as pool:
         return await loop.run_in_executor(pool, partial(func, **func_kwargs))
 
