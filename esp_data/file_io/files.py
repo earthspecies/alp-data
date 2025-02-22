@@ -154,12 +154,12 @@ class GSAudioFile(GSFile):
         super().__init__(file_path)
 
     def _read_with_soundfile(self, audio_bytes: bytes) -> tuple[np.ndarray, int]:
-        from .utils import read_audio_from_bytes_sf
+        from .parsers import read_audio_from_bytes_sf
 
         return read_audio_from_bytes_sf(audio_bytes)
 
     def _read_with_pydub(self, audio_bytes: bytes) -> tuple[np.ndarray, int]:
-        from .utils import read_audio_from_bytes_pydub
+        from .parsers import read_audio_from_bytes_pydub
 
         return read_audio_from_bytes_pydub(audio_bytes)
 

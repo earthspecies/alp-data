@@ -3,7 +3,57 @@ import io
 import numpy as np
 import pandas as pd
 import scipy.io
+import soundfile as sf
 from PIL import Image
+from pydub import AudioSegment
+
+from esp_data.paths import AnyPath
+from esp_data.utils import make_simple_logger
+
+UNCOMPRESSED_AUDIO_FORMATS = ["wav", "flac", "ogg"]
+COMPRESSED_AUDIO_FORMATS = ["mp3"]
+
+
+logger = make_simple_logger("parsers")
+
+
+def read_audio_from_bytes_sf(audio_bytes: bytes) -> tuple[np.ndarray, int]:
+    with io.BytesIO(audio_bytes) as audio_buffer:
+        data, samplerate = sf.read(audio_buffer)
+
+    return data, samplerate
+
+
+def read_audio_from_bytes_pydub(audio_bytes: bytes) -> tuple[np.ndarray, int]:
+    audio = AudioSegment.from_mp3(io.BytesIO(audio_bytes))
+
+    return np.array(audio.get_array_of_samples()), audio.frame_rate
+
+
+def read_audio_bytes(file_path: AnyPath, fs=None) -> tuple[np.ndarray, int]:
+    file_path = AnyPath(file_path)
+    extension = file_path.suffix[1:]
+
+    if extension in UNCOMPRESSED_AUDIO_FORMATS:
+        read_func = read_audio_from_bytes_sf
+
+    elif extension in COMPRESSED_AUDIO_FORMATS:
+        read_func = read_audio_from_bytes_pydub
+
+    else:
+        raise ValueError(f"Unsupported audio format: {extension}")
+
+    try:
+        if fs is None:
+            with file_path.open("rb") as f:
+                return read_func(f.read())
+
+        with fs.open(str(file_path), "rb") as f:
+            return read_func(f.read())
+
+    except Exception as e:
+        logger.error(f"Error reading audio file {e}")
+        raise e
 
 
 def read_image_from_bytes(image_bytes: bytes) -> np.ndarray:
