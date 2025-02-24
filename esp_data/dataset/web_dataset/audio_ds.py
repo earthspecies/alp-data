@@ -1,6 +1,6 @@
 import io
 import json
-from typing import Any
+from typing import Any, Callable
 
 import numpy as np
 import pandas as pd
@@ -57,6 +57,7 @@ class AudioDataset:
         num_workers: int = 4,
         storage_options: dict = None,
         data_root: str = ".",
+        sample_prep_function: Callable | None = None,
     ):
         self.data_root = AnyPath(data_root)
         self.web_dataset_path = AnyPath(web_dataset_path)
@@ -83,10 +84,14 @@ class AudioDataset:
                 logger.error(f"Error reading metadata: {str(e)}")
                 return
 
-        self.sample_prep_function = prepare_audio_sample_for_sharding
+        self.sample_prep_function = sample_prep_function
 
     def create_sharded_dataset(self):
         """Create the sharded dataset from the metadata and audio files"""
+        if self.sample_prep_function is None:
+            logger.error("No sample prep function provided. Cannot create sharded dataset.")
+            return
+
         self.metadata_df = create_sharded_dataset(
             self.metadata_df,
             output_path=self.web_dataset_path,

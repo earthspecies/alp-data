@@ -185,6 +185,10 @@ def create_sharded_dataset(
     # Merge shard information with original metadata
     metadata_df = metadata_df.merge(shard_info_df[["id", "shard_path", "shard_id"]], on="id", how="left")
 
+    # drop any "file_path" column
+    if "file_path" in metadata_df.columns:
+        metadata_df.drop(columns=["file_path"], inplace=True)
+
     # Save updated metadata as parquet
     metadata_df.to_parquet(str(output_path / "metadata.parquet"), storage_options=storage_options)
 
