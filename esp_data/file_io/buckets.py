@@ -6,6 +6,7 @@ import logging
 import os
 import subprocess
 import warnings
+from pathlib import PosixPath
 from typing import Generator
 
 from cloudpathlib import CloudPath
@@ -386,7 +387,7 @@ class FSBucket:
             fs = make_fs(bucket_path)
 
         bucket_path = strip_cloud_prefix(str(bucket_path))  # remove any cloud prefix, fsspec doesn't like it
-        self.bucket_path = AnyPath(bucket_path)  # not using CloudPath because it doesn't work with r2 paths
+        self.bucket_path: PosixPath = AnyPath(bucket_path)
         self.fs = fs
 
     def _exists(self, path: str | os.PathLike | AnyPath) -> bool:
@@ -428,16 +429,6 @@ class FSBucket:
             AnyPath(file) for file in self.fs.glob(str(self.bucket_path / f"**/*{substring}*")) if self.fs.isfile(file)
         ]
 
-    def subdir_as_bucket(self, subdir: str | os.PathLike | AnyPath) -> "FSBucket":
-        """Create a subdirectory as a Bucket object.
-        e.g. if the bucket path is gs://esp-ci-cd-tests/esp-data-tests/,
-        and subdir is "subdir", then the new bucket path will be
-        gs://esp-ci-cd-tests/esp-data-tests/subdir.
-        """
-        subpath = self.bucket_path / AnyPath(subdir)
-
-        return FSBucket(subpath, self.fs)  # I'm not sure if this is the right way to do this, using the same fs ?
-
     def upload_dir(
         self, source_dir: str | os.PathLike | AnyPath, destination: str | os.PathLike | AnyPath = ""
     ) -> None:
@@ -451,7 +442,7 @@ class FSBucket:
             raise RuntimeError(f"Error uploading {source_dir} to {destination}: {e}")
         logger.info(f"Uploaded {source_dir} to {destination}")
 
-    def download_to(self, destination: str | os.PathLike) -> None:
+    def download_to(self, destination: str | os.PathLike | AnyPath) -> None:
         """Download the bucket contents to a local path. Does recursive download."""
         if not is_local_path(destination):
             raise ValueError("Destination path must be a local path.")
@@ -463,7 +454,9 @@ class FSBucket:
 
         logger.info(f"Downloaded to {destination}")
 
-    def move_dir(self, source: str | os.PathLike, destination: str | os.PathLike, confirm: bool = False) -> None:
+    def move_dir(
+        self, source: str | os.PathLike | AnyPath, destination: str | os.PathLike, confirm: bool = False
+    ) -> None:
         """Move a source folder in this bucket to a destination folder within the same bucket.
         CAUTION: This will overwrite files in the destination if they have the same name as files in the source.
         AND it will delete the source folder after moving.
@@ -476,24 +469,40 @@ class FSBucket:
         Raises:
             FileNotFoundError: If the source path does not exist.
         """
-        source = self.bucket_path / AnyPath(source)
-        destination = self.bucket_path / AnyPath(destination)
+        source = self.bucket_path / source
+        destination = self.bucket_path / destination
 
         if confirm:
             if not input(f"Are you sure you want to move {source} to {destination}? (y/n): ").lower() == "y":
                 return
 
         try:
-            self.fs.mv(str(source), str(destination))
+            self.fs.mv(str(source), str(destination), recursive=True)
             logger.info(f"Moved {source} to {destination}")
         except Exception as e:
             raise RuntimeError(f"Error moving {source} to {destination}: {e}")
+
+    def mkdir(self, dir_path: str | os.PathLike, exist_ok: bool = True) -> None:
+        """Create a directory in the bucket."""
+        if is_cloud_path(dir_path):
+            raise ValueError("dir path must be relative to the bucket.")
+        dir_path = self.bucket_path / AnyPath(dir_path)
+
+        try:
+            # make a temporary file theret
+            tmp_file = strip_cloud_prefix(dir_path / ".temp")
+            self.fs.touch(tmp_file)
+            self.fs.makedirs(str(dir_path), exist_ok=exist_ok)
+            logger.info(f"Created dir {dir_path} in {self.bucket_path}")
+
+        except Exception as e:
+            raise RuntimeError(f"Error creating {dir_path}: {e}")
 
     def delete_dir(self, dir_path: str | os.PathLike, confirm: bool = True):
         """Delete a directory in the bucket. When = "", this means the whole bucket!"""
         if is_cloud_path(dir_path):
             raise ValueError("dir path must be relative to the bucket.")
-        dir_path = self.bucket_path / AnyPath(dir_path) / "**"
+        dir_path = self.bucket_path / AnyPath(dir_path)
 
         if confirm:
             if not input(f"Are you sure you want to delete {dir_path}? (y/n): ").lower() == "y":
@@ -501,7 +510,11 @@ class FSBucket:
 
         try:
             # first find all files in the dir and delete them
-            self.fs.rm(str(dir_path), recursive=True)
+            # list everything here
+            files = self.list_files(recursive=True)
+            # pop the element that matches the dir_path
+            dir_path = strip_cloud_prefix(dir_path)
+            self.fs.rm(files)
             logger.info(f"Deleted dir {dir_path} from {self.bucket_path}")
 
         except Exception as e:
@@ -521,7 +534,7 @@ class FSBucket:
         await run_as_async(self.move_dir, source=source, destination=destination, confirm=confirm)
 
     def __repr__(self):
-        return f"R2Bucket({self.bucket_path})"
+        return f"FSBucket({self.bucket_path})"
 
     def __str__(self):
         return str(self.bucket_path)
