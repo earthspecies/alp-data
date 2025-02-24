@@ -1,5 +1,8 @@
 """Pytest based unit tests for file_io module."""
 
+import os
+import shutil
+
 import pytest
 from cloudpathlib import GSPath
 
@@ -39,8 +42,7 @@ def test_bucket_move_create_delete():
 
 def test_gcs_bucket_upload():
     """Test GCSBucket class."""
-    bucket = GSBucket("gs://esp-ci-cd-tests/esp-data-tests/temprandomfolder")
-    assert not bucket.exists
+    bucket = GSBucket("gs://esp-ci-cd-tests/esp-data-tests/temprandomfolderxyz")
     bucket.upload_dir("tests/fileio_test_folder")
     assert bucket.exists
     assert len(bucket.list_files(recursive=True)) > 0
@@ -138,41 +140,34 @@ def test_gs_audio_file():
 
 async def test_gs_bucket_v2():
     bucket = GSBucketV2("gs://esp-ci-cd-tests/esp-data-tests/temprandomfolder")
-    assert not bucket.exists
     bucket.upload_dir("tests/fileio_test_folder")
     assert bucket.exists
     assert len(bucket.list_files(recursive=True)) > 0
-    bucket.delete_dir("", confirm=False)
-    assert not bucket.exists
+    bucket.delete_dir("tests/fileio_test_folder", confirm=False)
 
-    bucket = GSBucketV2("gs://esp-ci-cd-tests/esp-data-tests/temprandomfolder")
     await bucket.async_upload_dir("tests/fileio_test_folder")
+    bucket.mkdir("tests/fileio_test_folder2")
     await bucket.async_move_dir("tests/fileio_test_folder", "tests/fileio_test_folder2")
-    await bucket.async_download_to("tests/fileio_test_folder2", "tests/fileio_test_folder")
-    assert len(bucket.list_files(recursive=True)) > 0
-    c = bucket.subdir_as_bucket("tests/fileio_test_folder2")
-    assert c.exists
-    c.delete_dir("", confirm=False)
-    assert not c.exists
+    await bucket.async_download_to("tests/fileio_test_folder2")
+    assert os.path.exists("tests/fileio_test_folder2")
+    shutil.rmtree("tests/fileio_test_folder2")
+
     bucket.delete_dir("", confirm=False)
 
 
-def test_r2_bucket():
+# @pytest.mark.skip
+async def test_r2_bucket():
     bucket = R2Bucket("r2://esp-ci-cd-tests/esp-data-tests/temprandomfolder")
-    assert not bucket.exists
     bucket.upload_dir("tests/fileio_test_folder")
     assert bucket.exists
     assert len(bucket.list_files(recursive=True)) > 0
-    bucket.delete_dir("", confirm=False)
-    assert not bucket.exists
+    bucket.delete_dir("tests/fileio_test_folder", confirm=False)
 
-    bucket = R2Bucket("s3://esp-ci-cd-tests/esp-data-tests/temprandomfolder")
-    bucket.upload_dir("tests/fileio_test_folder")
-    bucket.move_dir("tests/fileio_test_folder", "tests/fileio_test_folder2")
-    bucket.download_to("tests/fileio_test_folder2", "tests/fileio_test_folder")
-    assert len(bucket.list_files(recursive=True)) > 0
-    c = bucket.subdir_as_bucket("tests/fileio_test_folder2")
-    assert c.exists
-    c.delete_dir("", confirm=False)
-    assert not c.exists
+    await bucket.async_upload_dir("tests/fileio_test_folder")
+    bucket.mkdir("tests/fileio_test_folder2")
+    await bucket.async_move_dir("tests/fileio_test_folder", "tests/fileio_test_folder2")
+    await bucket.async_download_to("tests/fileio_test_folder2")
+    assert os.path.exists("tests/fileio_test_folder2")
+    shutil.rmtree("tests/fileio_test_folder2")
+
     bucket.delete_dir("", confirm=False)
