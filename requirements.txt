@@ -102,7 +102,6 @@ s3transfer==0.11.0
 scipy==1.15.2
 setuptools==75.8.0 ; python_full_version >= '3.12'
 six==1.17.0
-sounddevice==0.5.1
 soundfile==0.13.1
 sympy==1.13.1
 tomli==2.2.1 ; python_full_version < '3.11'

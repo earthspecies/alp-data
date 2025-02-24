@@ -19,7 +19,6 @@ dependencies = [
     "python-dotenv>=1.0.1",
     "s3fs>=2024.9.0",
     "scipy>=1.15.2",
-    "sounddevice>=0.5.1",
     "soundfile>=0.13.1",
     "torch>=2.6.0",
     "webdataset>=0.2.111",
