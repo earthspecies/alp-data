@@ -17,8 +17,6 @@ VERSION = "0.1.0"  # as of 2025-02-15
 
 STORAGE_OPTIONS = {"project": os.getenv("GCP_DEFAULT_PROJECT")}
 
-LOCAL_CACHE_DIR = "./temp_cache"
-
 DATASET_JSONL_PATHS = {
     "esc50": "gs://foundation-model-data/data/esc50-all/test_processed.jsonl",
     "watkins": "gs://foundation-model-data/data/watkins-classification/test_processed.jsonl",
@@ -38,6 +36,7 @@ DATASET_JSONL_PATHS = {
     "unseen-genus-tax": "gs://foundation-model-data/data/unseen-species-taxonomic-classification/v1.32/test_genus_license.jsonl",
     "captioning": "gs://foundation-model-data/data/animalspeak-caption-common/test_processed_license.jsonl",
     "zf-indiv": "gs://foundation-model-data/data/zebra_finch_elie/zebra_finch_nbirds_1.0_more_balanced.jsonl",
+    "birdvox70k_pitch": "gs://foundation-model-data/data/BirdVox-70k/BirdVox-70k_positive.jsonl",
 }
 
 LICENSES = {
@@ -59,6 +58,7 @@ LICENSES = {
     "unseen-genus-tax": "per file licenses, please see individual files",
     "captioning": "per file licenses, please see individual files",
     "zf-indiv": "CC-BY",
+    "birdvox70k_pitch": "CC-BY",
 }
 
 TASKS = {
@@ -78,8 +78,9 @@ TASKS = {
     "unseen-genus-cmn": "classification",
     "unseen-genus-sci": "classification",
     "unseen-genus-tax": "classification",
-    "captioning": "captioning",
+    "captioning": "caption-common",
     "zf-indiv": "classification",
+    "birdvox70k_pitch": "pitch estimation",
 }
 
 ALL_DATASET_NAMES = list(DATASET_JSONL_PATHS.keys())
@@ -95,6 +96,7 @@ METADATA = {
         {
             "name": "esc50",
             "task": "classification",
+            "source_dataset_name": "esc50",
             "license": LICENSES["esc50"],
             "description": """The ESC-50 dataset is a labeled collection of 2000 environmental audio recordings (each 5 seconds long) encompassing 50 classes of common sound events.
                  github: https://github.com/karolpiczak/ESC-50.git
@@ -175,6 +177,7 @@ METADATA = {
         {
             "name": "watkins",
             "task": "classification",
+            "source_dataset_name": "Watkins",
             "license": LICENSES["watkins"],
             "description": """Watkins Marine Mammal Sound Database, Woods Hole Oceanographic Institution and the New Bedford Whaling Museum.
                 https://whoicf2.whoi.edu/science/B/whalesounds/about.cfm#download
@@ -254,6 +257,7 @@ METADATA = {
             "name": "cbi",
             "task": "classification",
             "license": LICENSES["cbi"],
+            "source_dataset_name": "CBI",
             "description": """Cornell Birdcall Identification.
                 https://www.kaggle.com/competitions/birdsong-recognition/overview
                 """,
@@ -798,6 +802,7 @@ METADATA = {
             "name": "humbugdb",
             "task": "classification",
             "license": LICENSES["humbugdb"],
+            "source_dataset_name": "HumBugDB",
             "description": """
                 Large-scale multi-species dataset of acoustic recordings of mosquitoes, with Bayesian convolutional neural network detection and classification models.
                 https://openreview.net/forum?id=vhjsBtq9OxO
@@ -828,6 +833,7 @@ METADATA = {
             "name": "enabirds",
             "task": "detection",
             "license": LICENSES["enabirds"],
+            "source_dataset_name": "Enabirds",
             "description": """Bird dawn chorus detection with 34 labels. https://esajournals.onlinelibrary.wiley.com/doi/full/10.1002/ecy.3329.""",
             "num_labels": 34,
             "labels": [
@@ -910,6 +916,10 @@ METADATA = {
         {
             "name": "hiceas",
             "task": "detection",
+            "source_dataset_name": "HICEAS",
+            "description": """HICEAS dataset is a collection of marine mammal vocalizations from the Hawaiian Islands Cetacean and Ecosystem Assessment Survey.
+            https://www.fisheries.noaa.gov/resource/data/hawaiian-islands-cetacean-and-ecosystem-assessment-survey-hiceas
+            """,
             "license": LICENSES["hiceas"],
             "num_labels": 1,
             "labels": [1],
@@ -923,6 +933,7 @@ METADATA = {
             "name": "rfcx",
             "task": "detection",
             "license": LICENSES["rfcx"],
+            "source_dataset_name": "Rainforest Connection",
             "description": """A multi-label CNN was trained for classification of bird and frog vocalizations in soundscape recordings.
                 https://doi.org/10.1016/j.ecoinf.2020.101113
                 """,
@@ -988,6 +999,7 @@ METADATA = {
         {
             "name": "gibbons",
             "task": "detection",
+            "source_dataset_name": "Hainan Gibbons",
             "license": LICENSES["gibbons"],
             "description": """Automated detection of Hainan gibbon calls for passive acoustic monitoring
                 https://doi.org/10.1002/rse2.201
@@ -1003,6 +1015,7 @@ METADATA = {
         },
         {
             "name": "lifestage",  # or some other name?
+            "source_dataset_name": "Xeno-canto",
             "description": "A subset of Xeno-canto dataset with lifestage annotations",
             "license": LICENSES["lifestage"],
             "task": "lifestage",
@@ -1016,6 +1029,7 @@ METADATA = {
         {
             "name": "call-type",
             "task": "classification",
+            "source_dataset_name": "Xeno-canto",
             "description": "A subset of Xeno-canto dataset with call type annotations",
             "license": LICENSES["call-type"],
             "num_labels": 2,
@@ -1027,8 +1041,9 @@ METADATA = {
         },
         {
             "name": "unseen-species-cmn",
-            "task": "species-common-classification",
+            "task": "classification",
             "num_labels": 2,
+            "source_dataset_name": "Xeno-canto / iNaturalist / Animal Sound Archive",
             "license": LICENSES["unseen-species-cmn"],
             "description": "Classifying common names of species unseen during training. Derived from Xeno-canto, iNaturalist, Animal Sound Archive.",
             "labels": [
@@ -1241,8 +1256,9 @@ METADATA = {
         },
         {
             "name": "unseen-species-sci",
-            "task": "species-sci-classification",
+            "task": "classification",
             "license": LICENSES["unseen-species-sci"],
+            "source_dataset_name": "Xeno-canto / iNaturalist / Animal Sound Archive",
             "description": "Classifying scientific names of species unseen during training. Derived from Xeno-canto, iNaturalist, Animal Sound Archive.",
             "num_labels": 4,
             "labels": [
@@ -1453,9 +1469,10 @@ METADATA = {
         },
         {
             "name": "unseen-species-tax",
-            "task": "taxonomic-classification",
+            "task": "classification",
             "num_labels": 4,
             "license": LICENSES["unseen-species-tax"],
+            "source_dataset_name": "Xeno-canto / iNaturalist / Animal Sound Archive",
             "description": "Classifying taxonomic names of species unseen during training. Derived from Xeno-canto, iNaturalist, Animal Sound Archive.",
             "labels": [
                 "Chordata Aves Passeriformes Sturnidae Aplonis magna",
@@ -1665,8 +1682,9 @@ METADATA = {
         },
         {
             "name": "unseen-genus-cmn",
-            "task": "species-common-classification",
+            "task": "classification",
             "license": LICENSES["unseen-genus-cmn"],
+            "source_dataset_name": "Xeno-canto / iNaturalist / Animal Sound Archive",
             "num_labels": 4,
             "description": "Classifying common names of genus of species unseen during training. Derived from Xeno-canto, iNaturalist, Animal Sound Archive.",
             "labels": [
@@ -1782,8 +1800,9 @@ METADATA = {
         },
         {
             "name": "unseen-genus-sci",
-            "task": "species-sci-classification",
+            "task": "classification",
             "license": LICENSES["unseen-genus-sci"],
+            "source_dataset_name": "Xeno-canto / iNaturalist / Animal Sound Archive",
             "num_labels": 4,
             "description": "Classifying scientific names of genus of species unseen during training. Derived from Xeno-canto, iNaturalist, Animal Sound Archive.",
             "labels": [
@@ -1895,8 +1914,9 @@ METADATA = {
         },
         {
             "name": "unseen-genus-tax",
-            "task": "taxonomic-classification",
+            "task": "classification",
             "license": LICENSES["unseen-genus-tax"],
+            "source_dataset_name": "Xeno-canto / iNaturalist / Animal Sound Archive",
             "num_labels": 4,
             "description": "Classifying taxonomic names of genus of species unseen during training. Derived from Xeno-canto, iNaturalist, Animal Sound Archive.",
             "labels": [
@@ -2010,6 +2030,7 @@ METADATA = {
             "name": "captioning",
             "task": "caption-common",
             "license": LICENSES["captioning"],
+            "source_dataset_name": "iNaturalist",
             "description": "Captioning the audio. Derived from iNaturalist.",
             "sample_rate": 16000,
             "max_duration_secs": 10,
@@ -2018,7 +2039,8 @@ METADATA = {
         },
         {
             "name": "zf-indiv",
-            "task": "zf-indiv",
+            "task": "classification",
+            "source_dataset_name": "Elie et al 2020",
             "license": LICENSES["zf-indiv"],
             "num_labels": 4,
             "description": """Counting the number of birds in a recording. Derived from the Zebra Finches dataset:
@@ -2029,32 +2051,24 @@ METADATA = {
             "sample_rate": 16000,
             "max_duration_secs": 10,
         },
+        {
+            "name": "birdvox70k_pitch",
+            "task": "pitch estimation",
+            "source_dataset_name": "BirdVox-70k",
+            "license": LICENSES["birdvox70k_pitch"],
+            "description": """Pitch estimation task. Derived from the BirdVox-70k dataset.
+            The BirdVox-70k dataset contains 70k half-second clips from 6 audio recordings in the BirdVox-full-night dataset, each about ten hours in duration.
+            https://zenodo.org/records/1226427.
+            """,
+            "sample_rate": 24000,
+            "max_duration": 0.5,
+        },
     ],
 }
 # fix the num_labels entry of datasets
 for item in METADATA["components"]:
     if "labels" in item and item["labels"] is not None:
         item["num_labels"] = len(item["labels"])
-
-
-class Beans0Sample(DataSample):
-    """Defines the structure of a Beans0 sample.
-
-    Fields inherited from DataSample:
-        - source_dataset: str
-        - license: str | None
-        - metadata: dict | None
-        - created_at: datetime
-        - id: str
-        - derived_from: str | None
-    """
-
-    # required
-    file_name: str = Field(description="Audio filename")
-    prompt: str = Field(min_length=1, description="Prompt for naturelm")
-    audio: list[float] = Field(description="The audio array")
-    text: Optional[str] = Field(default=None, description="Some text caption")
-    task: Optional[str] = Field(default=None, description="The task for the model")
 
 
 class Beans0SampleNoAudio(DataSample):
@@ -2066,14 +2080,16 @@ class Beans0SampleNoAudio(DataSample):
         - metadata: dict | None
         - created_at: datetime
         - id: str
-        - derived_from: str | None
+        - derived_from: str | None (will be dropped)
+        - version: str | None (will be dropped)
     """
 
     # required
-    file_name: str = Field(description="Audio filename")
-    prompt: str = Field(min_length=1, description="Prompt for naturelm")
-    text: Optional[str] = Field(default=None, description="Some text caption")
-    task: Optional[str] = Field(default=None, description="The task for the model")
+    file_name: Optional[str] = Field(description="Audio filename, could be a url")
+    instruction: str = Field(min_length=1, description="Prompt for naturelm")
+    output: str = Field(min_length=1, description="Some kind of expected output: text caption / label / answer")
+    task: Optional[str] = Field(default=None, description="The task the model is trying to solve")
+    dataset_name: Optional[str] = Field(default=None, description="The name of the dataset, if applicable")
 
 
 class Beans0DatasetConfig(DatasetConfig):
@@ -2124,10 +2140,10 @@ beans0_cfg = Beans0DatasetConfig(
     (already a part of the BEANS benchmark https://doi.org/10.48550/arXiv.2210.12300)
     - esc50
     - Watkins
-    - cbi
+    - CBI
     - HumBugDB
-    - enabirds
-    - hiceas
+    - Enabirds
+    - HICEAS
     - rfcx
     - Hainan gibbons
 
@@ -2142,8 +2158,7 @@ beans0_cfg = Beans0DatasetConfig(
     - unseen-genus-tax: classifying genus taxonomic names
     - captioning: english bioacoustic captions
     - zf-indiv: zebra finch dataset with annotated individuals and call-types from individual birds
-
-    {MORE INFO HERE}
+    - birdvox70k_pitch: pitch estimation task created from the BirdVox-70k dataset
     """,
     license="""The component datasets either have dataset level licenses or per file licenses.
 
@@ -2165,6 +2180,7 @@ beans0_cfg = Beans0DatasetConfig(
     unseen-genus-tax: per file licenses, please see individual files,
     captioning: per file licenses, please see individual files,
     zf-indiv: CC-BY-NC,
+    birdvox70k_pitch: CC-BY
     """,
     creator=CREATOR,
     version=VERSION,
