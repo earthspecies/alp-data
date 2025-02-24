@@ -367,7 +367,7 @@ def makedirs(dir_path: str | os.PathLike | AnyPath, use_fs: bool = False, exist_
     """Create a directory at the given path.
     CAUTION: Most cloud storage services do not allow creation of empty directories
     (because they are not real filesystems).
-    So, this function will create a temporary file called ".temp" with 0 bytes
+    So, this function will creates a file called ".temp" with 0 bytes
     in the directory to check if it can be created.
 
     Args:
@@ -408,7 +408,7 @@ def upload(source: str | os.PathLike | AnyPath, destination: str | AnyPath, use_
     """Upload a file / dir to the destination. Please end dirs to upload to with a trailing /.
 
     Args:
-        source (str | os.PathLike | AnyPath): The path to the file to upload.
+        source (str | os.PathLike | AnyPath): The path to the file / dir to upload.
         destination (str | os.PathLike | AnyPath): The destination path, local or cloud.
         use_fs (bool, optional): If True, use the FileSystem approach. Defaults to False.
 
@@ -417,10 +417,10 @@ def upload(source: str | os.PathLike | AnyPath, destination: str | AnyPath, use_
 
     Example:
         # Upload a file to a cloud bucket
-        upload_to("local_file.txt", "gs://bucket_name/path/to/file.txt")
+        upload("local_file.txt", "gs://bucket_name/path/to/file.txt")
 
         # Upload a dir to a cloud bucket
-        upload_to("local_dir/", "gs://bucket_name/path/to/dir/")
+        upload("local_dir/", "gs://bucket_name/path/to/dir/")
     """
     source = AnyPath(source)
     destination = AnyPath(destination)

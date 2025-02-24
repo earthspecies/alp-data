@@ -39,7 +39,7 @@ def make_cloudflarer2fs() -> S3FileSystem:
         key=os.getenv("CLOUDFLARE_R2_ACCESS_KEY_ID"),
         secret=os.getenv("CLOUDFLARE_R2_SECRET_ACCESS_KEY"),
         endpoint_url=os.getenv("CLOUDFLARE_R2_ENDPOINT_URL"),
-        asynchronous=True,
+        asynchronous=False,
     )
 
 
