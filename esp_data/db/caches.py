@@ -99,8 +99,6 @@ class TTLCache(BaseCache):
         return entry["value"]
 
     def put(self, key: K, value: V) -> None:
-        import time
-
         self.cache[key] = {"value": value, "timestamp": time.time()}
 
     def clear(self) -> None:
@@ -108,8 +106,37 @@ class TTLCache(BaseCache):
         self.stats = CacheStats()
 
 
+class RedisCache(BaseCache):
+    """Redis cache implementation."""
+
+    def __init__(self, host: str, port: int, db: int = 0):
+        super().__init__()
+        import redis
+
+        self.client = redis.Redis(host=host, port=port, db=db)
+
+    def get(self, key: K) -> Optional[V]:
+        value = self.client.get(key)
+        if value is None:
+            self.stats.misses += 1
+            return None
+
+        self.stats.hits += 1
+        return value
+
+    def put(self, key: K, value: V) -> None:
+        if isinstance(value, dict):
+            self.client.hset(key, mapping=value)
+        else:
+            self.client.set(key, value)
+
+    def clear(self) -> None:
+        self.client.flushdb()
+        self.stats = CacheStats()
+
+
 class TwoLevelCache(BaseCache):
-    """Two-level cache implementation (e.g., memory + disk)."""
+    """Two-level cache implementation (e.g., in-memory LRU + redis)."""
 
     def __init__(self, l1_cache: BaseCache, l2_cache: BaseCache):
         super().__init__()
