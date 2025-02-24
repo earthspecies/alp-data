@@ -3,8 +3,6 @@ import logging
 import os
 from typing import TypeVar
 
-import numpy as np
-import sounddevice as sd
 from dotenv import load_dotenv
 from gcsfs import GCSFileSystem
 from s3fs import S3FileSystem
@@ -54,11 +52,6 @@ def make_fs(file_path: str | AnyPath) -> FileSystem | None:
 
     logger.info("Could not determine cloud filesystem, returning None = local filesystem")
     return None
-
-
-def play_audio(data: np.ndarray, samplerate: int) -> None:
-    sd.play(data, samplerate)
-    sd.wait()
 
 
 def read_jsonl_from_gs_bucket(file_path: str | os.PathLike, fs: GCSFileSystem = None) -> list[dict]:
