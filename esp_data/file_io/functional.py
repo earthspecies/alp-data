@@ -11,7 +11,7 @@ import os
 from io import StringIO
 from typing import Any
 
-from esp_data.paths import AnyPath, is_cloud_path, strip_cloud_prefix
+from esp_data.paths import AnyPath, strip_cloud_prefix
 
 from .utils import make_fs
 
@@ -367,7 +367,7 @@ def makedirs(dir_path: str | os.PathLike | AnyPath, use_fs: bool = False, exist_
     """Create a directory at the given path.
     CAUTION: Most cloud storage services do not allow creation of empty directories
     (because they are not real filesystems).
-    So, this function will creates a file called ".temp" with 0 bytes
+    So, this function will create a temporary file called ".temp" with 0 bytes
     in the directory to check if it can be created.
 
     Args:
@@ -408,7 +408,7 @@ def upload(source: str | os.PathLike | AnyPath, destination: str | AnyPath, use_
     """Upload a file / dir to the destination. Please end dirs to upload to with a trailing /.
 
     Args:
-        source (str | os.PathLike | AnyPath): The path to the file / dir to upload.
+        source (str | os.PathLike | AnyPath): The path to the file to upload.
         destination (str | os.PathLike | AnyPath): The destination path, local or cloud.
         use_fs (bool, optional): If True, use the FileSystem approach. Defaults to False.
 
@@ -417,10 +417,10 @@ def upload(source: str | os.PathLike | AnyPath, destination: str | AnyPath, use_
 
     Example:
         # Upload a file to a cloud bucket
-        upload("local_file.txt", "gs://bucket_name/path/to/file.txt")
+        upload_to("local_file.txt", "gs://bucket_name/path/to/file.txt")
 
         # Upload a dir to a cloud bucket
-        upload("local_dir/", "gs://bucket_name/path/to/dir/")
+        upload_to("local_dir/", "gs://bucket_name/path/to/dir/")
     """
     source = AnyPath(source)
     destination = AnyPath(destination)
@@ -480,56 +480,6 @@ def download(source: str | os.PathLike, destination: str | os.PathLike, use_fs: 
         source = strip_cloud_prefix(source)
         destination = strip_cloud_prefix(destination)
         fs.get(source, destination, recursive=True)
-
-        return True
-    except Exception as e:
-        raise e
-
-
-def copy(source: str | os.PathLike | AnyPath, destination: str | os.PathLike | AnyPath, use_fs: bool = False) -> bool:
-    """Copy a file / dir to the destination. Please end dirs to copy with a trailing /.
-
-    Args:
-        source (str | os.PathLike | AnyPath): The path to the file / dir to copy.
-        destination (str | os.PathLike | AnyPath): The destination path, local or cloud.
-        use_fs (bool, optional): If True, use the FileSystem approach. Defaults to False.
-
-    Returns:
-        bool: True if the file / dir was copied successfully.
-
-    Example:
-        # Copy a file to a cloud bucket
-        copy("local_file.txt", "gs://bucket_name/path/to/file.txt")
-
-        # Copy a dir to a cloud bucket
-        copy("local_dir/", "gs://bucket_name/path/to/dir/")
-    """
-    source = AnyPath(source)
-    destination = AnyPath(destination)
-
-    if is_cloud_path(source) and is_cloud_path(destination) and source is not destination:
-        raise ValueError(
-            """Source and destination must be of the same type if they are both cloud paths.
-             For e.g., we cannot copy from S3 to GCS"""
-        )
-
-    if not exists(source):
-        logger.warning(f"Source {source} does not exist, aborting.")
-        return False
-
-    fs = None
-    if use_fs:
-        fs = make_fs(source)
-
-    try:
-        if use_fs and fs is None:
-            logger.warning("Using AnyPath method to copy file.")
-
-        if not use_fs or fs is None:
-            source.copy_to(destination)
-            return True
-
-        fs.put(strip_cloud_prefix(source), strip_cloud_prefix(destination))
 
         return True
     except Exception as e:
