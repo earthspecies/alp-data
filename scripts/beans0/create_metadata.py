@@ -111,8 +111,8 @@ def make_sample(
             license=license,
             metadata=metadata,
             file_name=file_name,
-            instruction=row.get("prompt"),
-            output=row.get("text"),
+            instruction=row["prompt"],
+            output=row["text"],
             task=task,
             dataset_name=dataset_name,
         )
@@ -217,10 +217,12 @@ def main():
 
     else:
         metadata_df = pd.DataFrame(samples)
+        # some outputs are "None" which pandas handles as and need to be converted to string
+        metadata_df["output"] = metadata_df["output"].astype(str)
         original_paths_df = pd.Series(original_paths, name="path")
 
-    metadata_df.to_csv(args.metadata_file_path, index=False)
-    original_paths_df.to_csv(args.original_paths_file_path, index=False)
+    metadata_df.to_csv(args.metadata_file_path, index=False, na_rep="NULL")
+    original_paths_df.to_csv(args.original_paths_file_path, index=False, na_rep="NULL")
 
     with open("dataset_config.json", "w") as fp:
         json.dump(beans0_cfg.to_dict(make_serializable=True), fp)

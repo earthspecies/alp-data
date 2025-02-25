@@ -3,6 +3,7 @@ from typing import Optional
 
 from pydantic import Field
 
+import esp_data.file_io.functional as F
 from esp_data.config import DataSample, DatasetConfig
 
 CREATOR = """M.Hagiwara, masato at earthspecies dot org;
@@ -13,6 +14,7 @@ G. Narula, gagan at earthspecies dot org;
 M. Alizadeh, milad at earthspecies dot org;
 O. Pietquin, olivier at earthspecies dot org
 """
+
 VERSION = "0.1.0"  # as of 2025-02-15
 
 STORAGE_OPTIONS = {"project": os.getenv("GCP_DEFAULT_PROJECT")}
@@ -34,6 +36,9 @@ DATASET_JSONL_PATHS = {
     "unseen-genus-cmn": "gs://foundation-model-data/data/unseen-species-species-common-classification/v1.32/test_genus_license.jsonl",
     "unseen-genus-sci": "gs://foundation-model-data/data/unseen-species-species-sci-classification/v1.32/test_genus_license.jsonl",
     "unseen-genus-tax": "gs://foundation-model-data/data/unseen-species-taxonomic-classification/v1.32/test_genus_license.jsonl",
+    "unseen-family-cmn": "gs://foundation-model-data/data/unseen-species-species-common-classification/v1.32/test_family_license.jsonl",
+    "unseen-family-sci": "gs://foundation-model-data/data/unseen-species-species-sci-classification/v1.32/test_family_license.jsonl",
+    "unseen-family-tax": "gs://foundation-model-data/data/unseen-species-taxonomic-classification/v1.32/test_family_license.jsonl",
     "captioning": "gs://foundation-model-data/data/animalspeak-caption-common/test_processed_license.jsonl",
     "zf-indiv": "gs://foundation-model-data/data/zebra_finch_elie/zebra_finch_nbirds_1.0_more_balanced.jsonl",
     "birdvox70k_pitch": "gs://foundation-model-data/data/BirdVox-70k/BirdVox-70k_positive.jsonl",
@@ -56,6 +61,9 @@ LICENSES = {
     "unseen-genus-cmn": "per file licenses, please see individual files",
     "unseen-genus-sci": "per file licenses, please see individual files",
     "unseen-genus-tax": "per file licenses, please see individual files",
+    "unseen-family-cmn": "per file licenses, please see individual files",
+    "unseen-family-sci": "per file licenses, please see individual files",
+    "unseen-family-tax": "per file licenses, please see individual files",
     "captioning": "per file licenses, please see individual files",
     "zf-indiv": "CC-BY",
     "birdvox70k_pitch": "CC-BY",
@@ -78,6 +86,9 @@ TASKS = {
     "unseen-genus-cmn": "classification",
     "unseen-genus-sci": "classification",
     "unseen-genus-tax": "classification",
+    "unseen-family-cmn": "classification",
+    "unseen-family-sci": "classification",
+    "unseen-family-tax": "classification",
     "captioning": "caption-common",
     "zf-indiv": "classification",
     "birdvox70k_pitch": "pitch estimation",
@@ -88,6 +99,15 @@ ALL_DATASET_NAMES = list(DATASET_JSONL_PATHS.keys())
 
 local_path = "./beans0/jsonl_files"
 LOCAL_PATHS = {k: os.path.join(local_path, (k + ".jsonl")) for k in DATASET_JSONL_PATHS.keys()}
+
+
+def download_jsonl_files(exists_ok: Optional[bool] = True):
+    for name, path in DATASET_JSONL_PATHS.items():
+        if exists_ok:
+            F.download(path, LOCAL_PATHS[name])
+
+        if not exists_ok and not F.exists(LOCAL_PATHS[name]):
+            F.download(path, LOCAL_PATHS[name])
 
 
 METADATA = {
@@ -2027,6 +2047,157 @@ METADATA = {
             "max_duration_secs": 10,
         },
         {
+            "name": "unseen-family-cmn",
+            "task": "classification",
+            "license": LICENSES["unseen-family-cmn"],
+            "source_dataset_name": "Xeno-canto / iNaturalist / Animal Sound Archive",
+            "num_labels": 4,
+            "description": "Classifying common names of family of species unseen during training. Derived from Xeno-canto, iNaturalist, Animal Sound Archive.",
+            "labels": [
+                "Common Midwife Toad",
+                "Pinselohrschwein",
+                "American Beaver",
+                "Spotted Elachura",
+                "Eastern Chat-Tanager",
+                "Forest Hog",
+                "Great Grig",
+                "Bartschwein",
+                "Iberian Midwife Toad",
+                "Harbor Porpoise",
+                "Catalonian Midwife Toad",
+                "Eurasian Wild Pig",
+                "Common Degu",
+                "Western Chat-Tanager",
+                "Dall's Porpoise",
+                "Paddy Field Frog",
+                "Wild Boar",
+                "Babiroussa des Moluques",
+                "Nepal Wart Frog",
+                "Common skittering frog",
+                "Hong Kong Rice-paddy Frog",
+                "East Asian Bullfrog",
+                "Buckell's Grig",
+                "Finless Porpoise",
+                "Green Puddle Frog",
+                "Eurasian Beaver",
+                "South Georgia Diving Petrel",
+                "Common Diving Petrel",
+                "Malabar Wart Frog",
+                "Crab-eating Frog",
+                "Lesser Spiny Frog",
+                "Round-tongued Floating Frog",
+                "Marbled Sand Frog",
+                "Coruro",
+                "Crowned bullfrog",
+                "Mallorcan Midwife Toad",
+                "Common Indian Cricket Frog",
+                "Sumatran Puddle Frog",
+                "Tasman Common Diving-Petrel",
+                "Midwife toad",
+            ],
+            "unknown_label": "unknown",
+            "sample_rate": 16000,
+            "max_duration_secs": 10,
+        },
+        {
+            "name": "unseen-family-sci",
+            "task": "classification",
+            "license": LICENSES["unseen-family-sci"],
+            "source_dataset_name": "Xeno-canto / iNaturalist / Animal Sound Archive",
+            "num_labels": 4,
+            "description": "Classifying scientific names of family of species unseen during training. Derived from Xeno-canto, iNaturalist, Animal Sound Archive.",
+            "labels": [
+                "Alytes obstetricans",
+                "Potamochoerus porcus",
+                "Castor canadensis",
+                "Elachura formosa",
+                "Calyptophilus frugivorus",
+                "Hylochoerus meinertzhageni",
+                "Cyphoderris monstrosa",
+                "Sus barbatus",
+                "Alytes cisternasii",
+                "Phocoena phocoena",
+                "Sus scrofa",
+                "Octodon degus",
+                "Calyptophilus tertius",
+                "Phocoenoides dalli",
+                "Fejervarya limnocharis",
+                "Babyrousa babyrussa",
+                "Minervarya nepalensis",
+                "Euphlyctis cyanophlyctis",
+                "Fejervarya multistriata",
+                "Hoplobatrachus chinensis",
+                "Cyphoderris buckelli",
+                "Neophocaena phocaenoides",
+                "Occidozyga lima",
+                "Castor fiber",
+                "Pelecanoides georgicus",
+                "Pelecanoides urinatrix",
+                "Minervarya rufescens",
+                "Fejervarya cancrivora",
+                "Quasipaa exilispinosa",
+                "Occidozyga martensii",
+                "Sphaerotheca rolandae",
+                "Spalacopus cyanus",
+                "Hoplobatrachus occipitalis",
+                "Alytes muletensis",
+                "Minervarya agricola",
+                "Occidozyga sumatrana",
+            ],
+            "unknown_label": "unknown",
+            "sample_rate": 16000,
+            "max_duration_secs": 10,
+        },
+        {
+            "name": "unseen-family-tax",
+            "task": "classification",
+            "license": LICENSES["unseen-family-tax"],
+            "source_dataset_name": "Xeno-canto / iNaturalist / Animal Sound Archive",
+            "num_labels": 4,
+            "description": "Classifying taxonomic names of family of species unseen during training. Derived from Xeno-canto, iNaturalist, Animal Sound Archive.",
+            "labels": [
+                "Chordata Amphibia Anura Alytidae Alytes obstetricans",
+                "Chordata Mammalia Artiodactyla Suidae Potamochoerus porcus",
+                "Chordata Mammalia Rodentia Castoridae Castor canadensis",
+                "Chordata Aves Passeriformes Elachuridae Elachura formosa",
+                "Chordata Aves Passeriformes Calyptophilidae Calyptophilus frugivorus",
+                "Chordata Mammalia Artiodactyla Suidae Hylochoerus meinertzhageni",
+                "Arthropoda Insecta Orthoptera Prophalangopsidae Cyphoderris monstrosa",
+                "Chordata Mammalia Artiodactyla Suidae Sus barbatus",
+                "Chordata Amphibia Anura Alytidae Alytes cisternasii",
+                "Chordata Mammalia Cetacea Phocoenidae Phocoena phocoena",
+                "Chordata Mammalia Artiodactyla Suidae Sus scrofa",
+                "Chordata Mammalia Rodentia Octodontidae Octodon degus",
+                "Chordata Aves Passeriformes Calyptophilidae Calyptophilus tertius",
+                "Chordata Mammalia Cetacea Phocoenidae Phocoenoides dalli",
+                "Chordata Amphibia Anura Dicroglossidae Fejervarya limnocharis",
+                "Chordata Mammalia Artiodactyla Suidae Babyrousa babyrussa",
+                "Chordata Amphibia Anura Dicroglossidae Minervarya nepalensis",
+                "Chordata Amphibia Anura Dicroglossidae Euphlyctis cyanophlyctis",
+                "Chordata Amphibia Anura Dicroglossidae Fejervarya multistriata",
+                "Chordata Amphibia Anura Dicroglossidae Hoplobatrachus chinensis",
+                "Arthropoda Insecta Orthoptera Prophalangopsidae Cyphoderris buckelli",
+                "Chordata Mammalia Cetacea Phocoenidae Neophocaena phocaenoides",
+                "Chordata Amphibia Anura Dicroglossidae Occidozyga lima",
+                "Chordata Mammalia Rodentia Castoridae Castor fiber",
+                "Chordata Aves Procellariiformes Pelecanoididae Pelecanoides georgicus",
+                "Chordata Aves Procellariiformes Pelecanoididae Pelecanoides urinatrix",
+                "Chordata Amphibia Anura Dicroglossidae Minervarya rufescens",
+                "Chordata Amphibia Anura Dicroglossidae Fejervarya cancrivora",
+                "Chordata Amphibia Anura Dicroglossidae Quasipaa exilispinosa",
+                "Chordata Amphibia Anura Dicroglossidae Occidozyga martensii",
+                "Chordata Amphibia Anura Dicroglossidae Sphaerotheca rolandae",
+                "Chordata Mammalia Rodentia Octodontidae Spalacopus cyanus",
+                "Chordata Amphibia Anura Dicroglossidae Hoplobatrachus occipitalis",
+                "Chordata Amphibia Anura Alytidae Alytes muletensis",
+                "Chordata Amphibia Anura Dicroglossidae Minervarya agricola",
+                "Chordata Amphibia Anura Dicroglossidae Occidozyga sumatrana",
+            ],
+            "unknown_label": "unknown",
+            "sample_rate": 16000,
+            "max_duration_secs": 10,
+        },
+        {
             "name": "captioning",
             "task": "caption-common",
             "license": LICENSES["captioning"],
@@ -2085,7 +2256,7 @@ class Beans0SampleNoAudio(DataSample):
     """
 
     # required
-    file_name: Optional[str] = Field(description="Audio filename, could be a url")
+    file_name: str = Field(description="Audio filename, could be a url")
     instruction: str = Field(min_length=1, description="Prompt for naturelm")
     output: str = Field(min_length=1, description="Some kind of expected output: text caption / label / answer")
     task: Optional[str] = Field(default=None, description="The task the model is trying to solve")
@@ -2104,10 +2275,11 @@ class Beans0DatasetConfig(DatasetConfig):
 
     # required
     name: str = Field(description="The name of the dataset")
-    description: str = Field(description="A description of the dataset")
-    license: str = Field(description="The license for the dataset")
-    creator: str = Field(description="The creator of the dataset")
-    metadata: dict = Field(description="The metadata for the whole dataset")
+    description: str = Field(min_length=1, description="A description of the dataset")
+    license: str = Field(min_length=1, description="The license for the dataset")
+    creator: str = Field(min_length=1, sdescription="The creator of the dataset")
+    metadata: dict = Field(min_length=1, description="The metadata for the whole dataset")
+    changelog: Optional[str] = Field(default=None, description="A description of the changes made to the dataset")
 
 
 COLUMNS_TO_DROP = ["derived_from"]  # for the huggingface version we dont need this
@@ -2123,12 +2295,13 @@ beans0_cfg = Beans0DatasetConfig(
         "Beans",
         "esc50",
         "rfcx",
-        "cbi",
-        "humbugdb",
-        "enabirds",
-        "hiceas",
-        "watkins",
-        "gibbons",
+        "CBI",
+        "HumBugDB",
+        "Enabirds",
+        "HICEAS",
+        "Watkins",
+        "Gibbons",
+        "BirdVox-70k",
     ],
     description="""A benchmark bioacoustic dataset for zero-shot evaluation tasks.
     This benchmark was introduced in the paper:
@@ -2156,6 +2329,9 @@ beans0_cfg = Beans0DatasetConfig(
     - unseen-genus-cmn: classifying genus common names
     - unseen-genus-sci: classifying genus scientific names
     - unseen-genus-tax: classifying genus taxonomic names
+    - unseen-family-cmn: classifying family common names
+    - unseen-family-sci: classifying family scientific names
+    - unseen-family-tax: classifying family taxonomic names
     - captioning: english bioacoustic captions
     - zf-indiv: zebra finch dataset with annotated individuals and call-types from individual birds
     - birdvox70k_pitch: pitch estimation task created from the BirdVox-70k dataset
@@ -2178,6 +2354,9 @@ beans0_cfg = Beans0DatasetConfig(
     unseen-genus-cmn: per file licenses, please see individual files,
     unseen-genus-sci: per file licenses, please see individual files,
     unseen-genus-tax: per file licenses, please see individual files,
+    unseen-family-cmn: per file licenses, please see individual files,
+    unseen-family-sci: per file licenses, please see individual files,
+    unseen-family-tax: per file licenses, please see individual files,
     captioning: per file licenses, please see individual files,
     zf-indiv: CC-BY-NC,
     birdvox70k_pitch: CC-BY

@@ -7,19 +7,25 @@ import json
 import pandas as pd
 from tqdm import tqdm
 
-from esp_data.file_io.files import File
-from esp_data.paths import AnyPath
+from esp_data.file_io.files import GSFile
+from esp_data.paths import AnyPath, is_cloud_path
 from esp_data.utils import make_simple_logger
 
 logger = make_simple_logger(name="beans0_copy_data", add_file_handler=True)
 
 
 def send_file_sync(original_path: str, file_name: str, target_dir: str):
-    orig_path = File(original_path)
+    orig_path = AnyPath(original_path)
+    if is_cloud_path(orig_path):
+        orig_path = GSFile(orig_path)
+
     target = AnyPath(target_dir) / file_name
 
     if not target.exists():
-        orig_path.copy_to(target)
+        if isinstance(orig_path, GSFile):
+            orig_path.copy_to(target)
+        else:
+            target.upload_from(orig_path)
 
 
 async def send_file_async(original_path: str, file_name: str, target_dir: str):
