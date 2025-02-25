@@ -6,7 +6,6 @@ from esp_data.file_io.functional import (
     delete_file,
     download,
     exists,
-    find_files,
     list_files,
     makedirs,
     open_file,
@@ -110,20 +109,6 @@ def test_read_bytes(local_test_dir):
     assert data == b"\x00\xff\x10"
 
 
-def test_find_files(local_test_dir):
-    """Test finding files based on a pattern."""
-    (local_test_dir / "file1.txt").write_text("Test")
-    (local_test_dir / "file2.log").write_text("Log")
-    sub_dir = local_test_dir / "subdir"
-    sub_dir.mkdir()
-    (sub_dir / "file3.txt").write_text("Another")
-
-    txt_files = find_files(str(local_test_dir), "*.txt")
-    assert len(txt_files) == 2
-    log_files = find_files(str(local_test_dir), "*.log")
-    assert len(log_files) == 1
-
-
 def test_read_text(local_test_dir):
     """Test reading text from a file."""
     test_file = local_test_dir / "test_read.txt"
@@ -200,26 +185,6 @@ def test_list_files_in_cloud(cloud_dir, local_test_dir):
 @pytest.mark.parametrize(
     "cloud_dir",
     [
-        "gs://esp-ci-cd-tests/esp-data-tests/find_files_tests",
-        "r2://esp-ci-cd-tests/esp-data-tests/find_files_tests",
-    ],
-)
-def test_find_files_in_cloud(cloud_dir, local_test_dir):
-    """Test finding files in a cloud directory."""
-    makedirs(cloud_dir)
-    test_file = local_test_dir / "file_find_cloud.txt"
-    test_file.write_text("Find me in cloud")
-    remote_path = f"{cloud_dir}/file_find_cloud.txt"
-    upload(str(test_file), remote_path)
-    found_files = find_files(cloud_dir, "**/*.txt")
-    assert any("file_find_cloud.txt" in f for f in found_files)
-    assert delete_file(remote_path) is True
-    assert exists(remote_path) is False
-
-
-@pytest.mark.parametrize(
-    "cloud_dir",
-    [
         "gs://esp-ci-cd-tests/esp-data-tests/delete_files_tests",
         "r2://esp-ci-cd-tests/esp-data-tests/delete_files_tests",
     ],
@@ -255,3 +220,5 @@ def test_delete_dir_in_cloud(cloud_dir, local_test_dir):
     # Try listing again to ensure file is gone
     files = list_files(cloud_dir)
     assert not any("file_delete_dir_cloud.txt" in f for f in files)
+    # Delete the directory
+    assert delete_dir(cloud_dir) is True

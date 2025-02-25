@@ -5,13 +5,13 @@ The idea is to simplify the api, moving towards a functional, stateless approach
 We prefer using the FileSystem approach, defaulting to cloudpathlib if it doesn't work.
 """
 
-import csv
 import logging
 import os
+import shutil
 from io import StringIO
 from typing import Any
 
-from esp_data.paths import AnyPath, strip_cloud_prefix
+from esp_data.paths import AnyPath, is_local_path, strip_cloud_prefix
 
 from .utils import make_fs
 
@@ -34,27 +34,35 @@ def create_file(
         bool: True if the file was created successfully
     """
     file_path = AnyPath(file_path)
-    fs = None
-    if use_fs:
-        fs = make_fs(file_path)
 
-    try:
-        if use_fs and fs is None:
-            logger.warning("Using AnyPath method to create file.")
+    # Handle local path creation directly
+    if is_local_path(file_path):
+        parent_dir = file_path.parent
+        parent_dir.mkdir(parents=True, exist_ok=True)
+        file_path.touch(exist_ok=exist_ok)
+        if data:
+            file_path.write_bytes(data)
+        return True
 
-        if not use_fs or fs is None:
+    # Try AnyPath method first if not using filesystem or if filesystem creation failed
+    if not use_fs:
+        try:
             file_path.touch(exist_ok=exist_ok)
             if data:
                 file_path.write_bytes(data)
             return True
+        except Exception as e:
+            logger.warning(f"Could not create file using AnyPath method: {e}, trying FileSystem approach.")
 
-        file_path = strip_cloud_prefix(file_path)
-        with fs.open(file_path, "wb") as f:
+    # FileSystem approach as fallback or if specifically requested
+    try:
+        fs = make_fs(file_path)
+        file_path_str = strip_cloud_prefix(file_path)
+        with fs.open(file_path_str, "wb") as f:
             f.write(data or b"")
-
         return True
     except Exception as e:
-        raise e
+        raise IOError(f"Failed to create file at {file_path} using both methods: {e}") from e
 
 
 def open_file(file_path: str | os.PathLike | AnyPath, mode: str, use_fs: bool = False, **open_kwargs) -> Any:
@@ -70,22 +78,22 @@ def open_file(file_path: str | os.PathLike | AnyPath, mode: str, use_fs: bool = 
         Any: The file object.
     """
     file_path = AnyPath(file_path)
-    fs = None
-    if use_fs:
-        fs = make_fs(file_path)
+
+    if is_local_path(file_path):
+        return file_path.open(mode, **open_kwargs)
+
+    if not use_fs:
+        try:
+            return file_path.open(mode, **open_kwargs)
+        except Exception as e:
+            logger.warning(f"Could not open file using AnyPath method: {e}, trying FileSystem approach.")
 
     try:
-        if use_fs and fs is None:
-            logger.warning("Using AnyPath method to open file.")
-
-        if not use_fs or fs is None:
-            return file_path.open(mode, **open_kwargs)
-
-        file_path = strip_cloud_prefix(file_path)
-        return fs.open(str(file_path), mode, **open_kwargs)
-
+        fs = make_fs(file_path)
+        file_path_str = strip_cloud_prefix(file_path)
+        return fs.open(str(file_path_str), mode, **open_kwargs)
     except Exception as e:
-        raise e
+        raise IOError(f"Failed to open file at {file_path} using both methods: {e}") from e
 
 
 def exists(file_path: str | os.PathLike | AnyPath, use_fs: bool = False) -> bool:
@@ -99,22 +107,24 @@ def exists(file_path: str | os.PathLike | AnyPath, use_fs: bool = False) -> bool
         bool: True if the file exists.
     """
     file_path = AnyPath(file_path)
-    fs = None
-    if use_fs:
-        fs = make_fs(file_path)
+
+    if is_local_path(file_path):
+        return file_path.exists()
+
+    if not use_fs:
+        try:
+            return file_path.exists()
+        except Exception as e:
+            logger.warning(
+                f"Could not check for existence of file using AnyPath method: {e}, trying FileSystem approach."
+            )
 
     try:
-        if use_fs and fs is None:
-            logger.warning("Using AnyPath method to check if file exists.")
-
-        if not use_fs or fs is None:
-            return file_path.exists()
-
+        fs = make_fs(file_path)
         file_path = strip_cloud_prefix(file_path)
         return fs.exists(file_path)
-
     except Exception as e:
-        raise e
+        raise IOError(f"Failed to check file exists at {file_path} using both methods: {e}") from e
 
 
 def list_files(dir_path: str | os.PathLike | AnyPath, pattern: str = "*", use_fs: bool = False) -> list[str]:
@@ -122,104 +132,139 @@ def list_files(dir_path: str | os.PathLike | AnyPath, pattern: str = "*", use_fs
 
     Args:
         dir_path (str | os.PathLike | AnyPath): The path to the directory.
-        pattern (str, optional): A pattern to match the files. Defaults to "**" which lists all
-        files and dirs recursively.
+        pattern (str, optional): A pattern to match the files. Defaults to "*".
         use_fs (bool, optional): If True, use the FileSystem approach. Defaults to False, which is using cloudpathlib.
 
     Returns:
         list[str]: A list of file paths if successful.
     """
     dir_path = AnyPath(dir_path)
-    fs = None
-    if use_fs:
-        fs = make_fs(dir_path)
 
     if not exists(dir_path):
         logger.warning(f"Directory {dir_path} does not exist, aborting.")
         return []
 
-    try:
-        if use_fs and fs is None:
-            logger.warning("Using AnyPath method to list files.")
+    if is_local_path(dir_path):
+        return [str(f) for f in dir_path.rglob(pattern or "*") if f.is_file() and str(f) != str(dir_path)]
 
-        if not use_fs or fs is None:
+    if not use_fs:
+        try:
             return [str(f) for f in dir_path.rglob(pattern or "*") if f.is_file() and str(f) != str(dir_path)]
+        except Exception as e:
+            logger.warning(f"Could not list files using AnyPath method: {e}, trying FileSystem approach.")
 
-        dir_path = strip_cloud_prefix(dir_path / pattern)
-
-        return [f for f in fs.glob(dir_path) if fs.isfile(f) and f != dir_path]
+    try:
+        fs = make_fs(dir_path)
+        glob_path = strip_cloud_prefix(dir_path / pattern)
+        return [f for f in fs.glob(glob_path) if fs.isfile(f) and f != glob_path]
     except Exception as e:
-        raise e
+        raise IOError(f"Failed to list files in {dir_path} using both methods: {e}") from e
 
 
-def read_bytes(file_path: str | os.PathLike | AnyPath) -> bytes:
+def yield_files(dir_path: str | os.PathLike | AnyPath, pattern: str = "*", use_fs: bool = False):
+    """Yield files in the given directory.
+
+    Args:
+        dir_path (str | os.PathLike | AnyPath): The path to the directory.
+        pattern (str, optional): A pattern to match the files. Defaults to "*".
+        use_fs (bool, optional): If True, use the FileSystem approach. Defaults to False, which is using cloudpathlib.
+
+    Yields:
+        str: A file path if successful.
+    """
+    dir_path = AnyPath(dir_path)
+
+    if not exists(dir_path):
+        logger.warning(f"Directory {dir_path} does not exist, aborting.")
+        return
+
+    if is_local_path(dir_path):
+        for f in dir_path.rglob(pattern or "*"):
+            if f.is_file() and str(f) != str(dir_path):
+                yield str(f)
+        return
+
+    if not use_fs:
+        try:
+            for f in dir_path.rglob(pattern or "*"):
+                if f.is_file() and str(f) != str(dir_path):
+                    yield str(f)
+        except Exception as e:
+            logger.warning(f"Could not yield files using AnyPath method: {e}, trying FileSystem approach.")
+
+    # FileSystem approach as fallback or if specifically requested
+    try:
+        fs = make_fs(dir_path)
+        glob_path = strip_cloud_prefix(dir_path / pattern)
+        for f in fs.glob(glob_path):
+            if fs.isfile(f) and f != glob_path:
+                yield f
+    except Exception as e:
+        raise IOError(f"Failed to yield files in {dir_path} using both methods: {e}") from e
+
+
+def read_bytes(file_path: str | os.PathLike | AnyPath, use_fs: bool = False) -> bytes:
     """Read the contents of the file.
 
     Args:
         file_path (str | os.PathLike | AnyPath): The path to the file, local or cloud.
+        use_fs (bool, optional): If True, use the FileSystem approach. Defaults to False.
 
     Returns:
         bytes: The contents of the file if successful.
     """
     file_path = AnyPath(file_path)
-    fs = make_fs(file_path)
 
     if not exists(file_path):
         raise FileNotFoundError(f"File {file_path} does not exist")
 
-    try:
-        if fs is None:
+    if is_local_path(file_path):
+        return file_path.read_bytes()
+
+    if not use_fs:
+        try:
             return file_path.read_bytes()
+        except Exception as e:
+            logger.warning(f"Could not read file using AnyPath method: {e}, trying FileSystem approach.")
 
-        file_path = strip_cloud_prefix(file_path)
-        return fs.read_bytes(file_path)
-
+    try:
+        fs = make_fs(file_path)
+        file_path_str = strip_cloud_prefix(file_path)
+        return fs.read_bytes(file_path_str)
     except Exception as e:
-        raise e
+        raise IOError(f"Failed to read file {file_path} using both methods: {e}") from e
 
 
-def find_files(dir_path: str | os.PathLike | AnyPath, pattern: str) -> list[str]:
-    """Find files in the given directory matching the pattern. Alias for list_files.
-
-    Examples:
-        - match all files in folder "data": find_files("data", "*")
-        - match all files in folder "data" with extension ".txt": find_files("data", "*.txt")
-        - match all files in folder "data" with extension ".txt" recursively: find_files("data", "**/*.txt")
-
-    Args:
-        dir_path (str | os.PathLike | AnyPath): The path to the directory.
-        pattern (str): A pattern to match the files.
-
-    Returns:
-        list[str]: A list of file paths if successful.
-    """
-    return list_files(dir_path, pattern=pattern)
-
-
-def read_text(file_path: str | os.PathLike | AnyPath) -> str:
+def read_text(file_path: str | os.PathLike | AnyPath, use_fs: bool = False) -> str:
     """Read the contents of the file as text.
 
     Args:
         file_path (str | os.PathLike | AnyPath): The path to the file, local or cloud.
+        use_fs (bool, optional): If True, use the FileSystem approach. Defaults to False.
 
     Returns:
         str: The contents of the file as text if successful.
     """
     file_path = AnyPath(file_path)
-    fs = make_fs(file_path)
 
     if not exists(file_path):
         raise FileNotFoundError(f"File {file_path} does not exist")
 
-    try:
-        if fs is None:
+    if is_local_path(file_path):
+        return file_path.read_text()
+
+    if not use_fs:
+        try:
             return file_path.read_text()
+        except Exception as e:
+            logger.warning(f"Could not read file as text using AnyPath method: {e}, trying FileSystem approach.")
 
-        file_path = strip_cloud_prefix(file_path)
-        return fs.read_text(file_path)
-
+    try:
+        fs = make_fs(file_path)
+        file_path_str = strip_cloud_prefix(file_path)
+        return fs.read_text(file_path_str)
     except Exception as e:
-        raise e
+        raise IOError(f"Failed to read file {file_path} as text using both methods: {e}") from e
 
 
 def write_bytes(file_path: str | os.PathLike | AnyPath, data: bytes, use_fs: bool = False) -> bool:
@@ -228,35 +273,31 @@ def write_bytes(file_path: str | os.PathLike | AnyPath, data: bytes, use_fs: boo
     Args:
         file_path (str | os.PathLike | AnyPath): The path to the file, local or cloud.
         data (bytes): The data to write to the file.
-        use_fs (bool, optional): If True, use the FileSystem approach. Defaults to False, which is using cloudpathlib.
+        use_fs (bool, optional): If True, use the FileSystem approach. Defaults to False.
 
     Returns:
         bool: True if the data was written successfully.
     """
     file_path = AnyPath(file_path)
-    fs = None
-    if use_fs:
-        fs = make_fs(file_path)
 
-    # TODO: for some reason writing to a file doesn't work with fs, need to investigate
-    # error is: PermissionError: The request signature we calculated does not match the signature you provided.
-    # Check your secret access key and signing method.
-    # fs = make_fs(file_path)
-
-    try:
-        if use_fs and fs is None:
-            logger.warning("Using AnyPath method to write bytes to file.")
-
-        if not use_fs or fs is None:
-            file_path.write_bytes(data)
-            return True
-
-        file_path = strip_cloud_prefix(file_path)
-        fs.write_bytes(file_path, data)
+    if is_local_path(file_path):
+        file_path.write_bytes(data)
         return True
 
+    if not use_fs:
+        try:
+            file_path.write_bytes(data)
+            return True
+        except Exception as e:
+            logger.warning(f"Could not write bytes using AnyPath method: {e}, trying FileSystem approach.")
+
+    try:
+        fs = make_fs(file_path)
+        file_path_str = strip_cloud_prefix(file_path)
+        fs.write_bytes(file_path_str, data)
+        return True
     except Exception as e:
-        raise e
+        raise IOError(f"Failed to write bytes to {file_path} using both methods: {e}") from e
 
 
 def write_text(
@@ -267,7 +308,7 @@ def write_text(
     Args:
         file_path (str | os.PathLike | AnyPath): The path to the file, local or cloud.
         text (str): The text to write to the file.
-        use_fs (bool, optional): If True, use the FileSystem approach. Defaults to False, which is using cloudpathlib.
+        use_fs (bool, optional): If True, use the FileSystem approach. Defaults to False.
         encoding (str, optional): The encoding to use. Defaults to None.
         newline ([type], optional): The newline character to use. Defaults to None.
 
@@ -275,24 +316,25 @@ def write_text(
         bool: True if the text was written successfully
     """
     file_path = AnyPath(file_path)
-    fs = None
-    if use_fs:
-        fs = make_fs(file_path)
 
-    try:
-        if use_fs and fs is None:
-            logger.warning("Using AnyPath method to write text to file.")
-
-        if not use_fs or fs is None:
-            file_path.write_text(text, encoding=encoding, newline=newline)
-            return True
-
-        file_path = strip_cloud_prefix(file_path)
-        fs.write_text(file_path, text, encoding=encoding, newline=newline)
+    if is_local_path(file_path):
+        file_path.write_text(text, encoding=encoding, newline=newline)
         return True
 
+    if not use_fs:
+        try:
+            file_path.write_text(text, encoding=encoding, newline=newline)
+            return True
+        except Exception as e:
+            logger.warning(f"Could not write text using AnyPath method: {e}, trying FileSystem approach.")
+
+    try:
+        fs = make_fs(file_path)
+        file_path_str = strip_cloud_prefix(file_path)
+        fs.write_text(file_path_str, text, encoding=encoding, newline=newline)
+        return True
     except Exception as e:
-        raise e
+        raise IOError(f"Failed to write text to {file_path} using both methods: {e}") from e
 
 
 def delete_file(file_path: str | os.PathLike | AnyPath, use_fs: bool = False) -> bool:
@@ -300,7 +342,7 @@ def delete_file(file_path: str | os.PathLike | AnyPath, use_fs: bool = False) ->
 
     Args:
         file_path (str | os.PathLike | AnyPath): The path to the file, local or cloud.
-        use_fs (bool, optional): If True, use the FileSystem approach. Defaults to False, which is using cloudpathlib.
+        use_fs (bool, optional): If True, use the FileSystem approach. Defaults to False.
 
     Returns:
         bool: True if the file was deleted successfully
@@ -311,60 +353,72 @@ def delete_file(file_path: str | os.PathLike | AnyPath, use_fs: bool = False) ->
         logger.warning(f"File {file_path} does not exist, aborting.")
         return False
 
-    fs = None
-    if use_fs:
-        fs = make_fs(file_path)
-
-    try:
-        if use_fs and fs is None:
-            logger.warning("Using AnyPath method to delete file.")
-
-        if not use_fs or fs is None:
-            file_path.unlink()
-            return True
-
-        fs.rm(strip_cloud_prefix(file_path))
+    if is_local_path(file_path):
+        file_path.unlink()
         return True
 
+    if not use_fs:
+        try:
+            file_path.unlink()
+            return True
+        except Exception as e:
+            logger.warning(f"Could not delete file using AnyPath method: {e}, trying FileSystem approach.")
+
+    try:
+        fs = make_fs(file_path)
+        file_path_str = strip_cloud_prefix(file_path)
+        fs.rm(file_path_str)
+        return True
     except Exception as e:
-        raise e
+        raise IOError(f"Failed to delete file {file_path} using both methods: {e}") from e
 
 
-def delete_dir(dir_path: str | os.PathLike | AnyPath) -> bool:
+def delete_dir(dir_path: str | os.PathLike | AnyPath, use_fs: bool = False) -> bool:
     """Delete the directory at the given path.
 
     Args:
         dir_path (str | os.PathLike | AnyPath): The path to the directory, local or cloud.
+        use_fs (bool, optional): If True, use the FileSystem approach. Defaults to False.
 
     Returns:
         bool: True if the directory was deleted successfully
     """
     dir_path = AnyPath(dir_path)
-    fs = make_fs(dir_path)
 
     if not exists(dir_path):
         logger.info(f"Directory {dir_path} does not exist, aborting.")
         return False
 
-    try:
-        if fs is None:
-            # only empty dirs removed
-            dir_path.rmdir()
+    if is_local_path(dir_path):
+        try:
+            shutil.rmtree(dir_path)
             return True
+        except Exception as e:
+            if not use_fs:
+                raise IOError(f"Failed to delete directory {dir_path}: {e}") from e
 
-        # list everything here
+    if not use_fs:
+        try:
+            for f in yield_files(dir_path):
+                f.unlink()
+            return True
+        except Exception as e:
+            logger.warning(f"Could not delete directory using AnyPath method: {e}, trying FileSystem approach.")
+
+    try:
+        fs = make_fs(dir_path)
         files = list_files(dir_path)
-        # pop the element that matches the dir_path
-        dir_path = strip_cloud_prefix(dir_path)
-        fs.rm(files)
-
+        # Remove all files
+        if files:
+            fs.rm(files)
         return True
     except Exception as e:
-        raise e
+        raise IOError(f"Failed to delete directory {dir_path} using both methods: {e}") from e
 
 
 def makedirs(dir_path: str | os.PathLike | AnyPath, use_fs: bool = False, exist_ok: bool = True) -> bool:
     """Create a directory at the given path.
+
     CAUTION: Most cloud storage services do not allow creation of empty directories
     (because they are not real filesystems).
     So, this function will create a temporary file called ".temp" with 0 bytes
@@ -379,115 +433,152 @@ def makedirs(dir_path: str | os.PathLike | AnyPath, use_fs: bool = False, exist_
         bool: True if the directory was created successfully
     """
     dir_path = AnyPath(dir_path)
-    fs = None
-    if use_fs:
-        fs = make_fs(dir_path)
+
+    if is_local_path(dir_path):
+        try:
+            dir_path.mkdir(parents=True, exist_ok=exist_ok)
+            return True
+        except Exception as e:
+            raise IOError(f"Failed to create local directory {dir_path}: {e}") from e
+
+    if not use_fs:
+        try:
+            # Cloud paths - create a temporary file to ensure directory exists
+            temp_file = dir_path / ".temp"
+            temp_file.touch()
+            dir_path.mkdir(parents=True, exist_ok=exist_ok)
+            return True
+        except Exception as e:
+            logger.warning(f"Could not create directory using AnyPath method: {e}, trying FileSystem approach.")
 
     try:
-        if use_fs and fs is None:
-            logger.warning("Using AnyPath method to create directory.")
-
-        if not use_fs or fs is None:
-            # make a temporary file there
-            AnyPath(dir_path / ".temp").touch()
-            dir_path.mkdir(parents=True, exist_ok=exist_ok)
-
-            return True
-
-        # make a temporary file theret
-        tmp_file = strip_cloud_prefix(dir_path / ".temp")
-        fs.touch(tmp_file)
-        fs.mkdirs(strip_cloud_prefix(dir_path), exist_ok=exist_ok)
-
+        fs = make_fs(dir_path)
+        dir_path_str = strip_cloud_prefix(dir_path)
+        temp_file_str = strip_cloud_prefix(dir_path / ".temp")
+        # Create a temp file for cloud storage services
+        fs.touch(temp_file_str)
+        fs.mkdirs(dir_path_str, exist_ok=exist_ok)
         return True
     except Exception as e:
-        raise e
+        raise IOError(f"Failed to create directory {dir_path} using both methods: {e}") from e
 
 
-def upload(source: str | os.PathLike | AnyPath, destination: str | AnyPath, use_fs: bool = False) -> bool:
-    """Upload a file / dir to the destination. Please end dirs to upload to with a trailing /.
+def copy(source: str | os.PathLike | AnyPath, destination: str | os.PathLike | AnyPath, use_fs: bool = False) -> bool:
+    """Copy a file/directory from source to destination.
 
     Args:
-        source (str | os.PathLike | AnyPath): The path to the file to upload.
-        destination (str | os.PathLike | AnyPath): The destination path, local or cloud.
+        source (str | os.PathLike | AnyPath): The source path.
+        destination (str | os.PathLike | AnyPath): The destination path.
         use_fs (bool, optional): If True, use the FileSystem approach. Defaults to False.
 
     Returns:
-        bool: True if the file was uploaded successfully.
+        bool: True if the copy was successful.
+    """
+    source = AnyPath(source)
+    destination = AnyPath(destination)
+
+    if not exists(source):
+        raise FileNotFoundError(f"Source {source} does not exist")
+
+    # Create parent directories for destination if it's a local path
+    if is_local_path(destination):
+        os.makedirs(os.path.dirname(str(destination)), exist_ok=True)
+
+    # If both paths are local, use standard file operations
+    if is_local_path(source) and is_local_path(destination):
+        try:
+            if source.is_file():
+                shutil.copy2(source, destination)
+            else:
+                shutil.copytree(source, destination)
+            return True
+        except Exception as e:
+            raise IOError(f"Failed to copy local {source} to {destination}: {e}") from e
+
+    is_upload = is_local_path(source) and not is_local_path(destination)
+    is_download = not is_local_path(source) and is_local_path(destination)
+    is_cloud_to_cloud = not is_local_path(source) and not is_local_path(destination)
+
+    # For cloud paths, determine which path needs the filesystem
+    cloud_path = destination if not is_local_path(destination) else source
+
+    if not use_fs:
+        try:
+            if is_upload:
+                destination.upload_from(source, force_overwrite_to_cloud=True)
+            elif is_download:
+                source.download_to(destination)
+            else:
+                source.copy(destination, force_overwrite_to_cloud=True)
+            return True
+        except Exception as e:
+            logger.warning(f"Could not copy using AnyPath method: {e}, trying FileSystem approach.")
+
+    try:
+        fs = make_fs(cloud_path)
+        source_str = strip_cloud_prefix(source)
+        destination_str = strip_cloud_prefix(destination)
+
+        if is_upload:
+            fs.put(source_str, destination_str, recursive=True)
+        elif is_download:
+            fs.get(source_str, destination_str, recursive=True)
+        elif is_cloud_to_cloud:
+            fs.copy(source_str, destination_str)
+
+        return True
+    except Exception as e:
+        raise IOError(f"Failed to copy {source} to {destination} using both methods: {e}") from e
+
+
+def upload(source: str | os.PathLike | AnyPath, destination: str | os.PathLike | AnyPath, use_fs: bool = False) -> bool:
+    """Upload a file/directory from local path to destination (typically cloud).
+    Please end dirs to upload to with a trailing /.
+
+    Args:
+        source (str | os.PathLike | AnyPath): The local path to upload from.
+        destination (str | os.PathLike | AnyPath): The destination path.
+        use_fs (bool, optional): If True, use the FileSystem approach. Defaults to False.
+
+    Returns:
+        bool: True if the upload was successful.
 
     Example:
         # Upload a file to a cloud bucket
-        upload_to("local_file.txt", "gs://bucket_name/path/to/file.txt")
+        upload("local_file.txt", "gs://bucket_name/path/to/file.txt")
 
         # Upload a dir to a cloud bucket
-        upload_to("local_dir/", "gs://bucket_name/path/to/dir/")
+        upload("local_dir/", "gs://bucket_name/path/to/dir/")
     """
-    source = AnyPath(source)
-    destination = AnyPath(destination)
-    fs = None
-    if use_fs:
-        fs = make_fs(destination)
-
-    try:
-        if use_fs and fs is None:
-            logger.warning("Using AnyPath method to upload file.")
-
-        if not use_fs or fs is None:
-            destination.upload_from(source, force_overwrite_to_cloud=True)
-            return True
-
-        destination = strip_cloud_prefix(destination)
-        source = strip_cloud_prefix(source)
-        fs.put(source, destination, recursive=True)
-
-        return True
-    except Exception as e:
-        raise e
+    return copy(source, destination, use_fs)
 
 
-def download(source: str | os.PathLike, destination: str | os.PathLike, use_fs: bool = False) -> bool:
-    """Download a file / dir to the destination. Please end dirs to download with a trailing /.
+def download(
+    source: str | os.PathLike | AnyPath, destination: str | os.PathLike | AnyPath, use_fs: bool = False
+) -> bool:
+    """Download a file/directory from source (typically cloud) to local path.
+    Please end dirs to download with a trailing /.
 
     Args:
-        source (str | os.PathLike): The path to the file / dir to download.
-        destination (str | os.PathLike): The destination path, local or cloud.
+        source (str | os.PathLike | AnyPath): The source path to download from.
+        destination (str | os.PathLike | AnyPath): The local destination path.
         use_fs (bool, optional): If True, use the FileSystem approach. Defaults to False.
 
     Returns:
-        bool: True if the file was downloaded successfully.
+        bool: True if the download was successful.
 
     Example:
         # Download a file from a cloud bucket
-        download_to("gs://bucket_name/path/to/file.txt", "local_file.txt")
+        download("gs://bucket_name/path/to/file.txt", "local_file.txt")
 
         # Download a dir from a cloud bucket
-        download_to("gs://bucket_name/path/to/dir/", "local_dir/")
+        download("gs://bucket_name/path/to/dir/", "local_dir/")
     """
-    source = AnyPath(source)
-    destination = AnyPath(destination)
-    fs = None
-    if use_fs:
-        fs = make_fs(source)
-
-    try:
-        if use_fs and fs is None:
-            logger.warning("Using AnyPath method to download")
-
-        if not use_fs or fs is None:
-            source.download_to(destination)
-            return True
-
-        source = strip_cloud_prefix(source)
-        destination = strip_cloud_prefix(destination)
-        fs.get(source, destination, recursive=True)
-
-        return True
-    except Exception as e:
-        raise e
+    return copy(source, destination, use_fs)
 
 
 def write_rows_to_csv(rows: list[dict], *, file_path: str | AnyPath, mode: str = "a", use_fs: bool = False) -> None:
-    """Write a list of dicts to a CSV file. Allows appending to the file.
+    """Write a list of dicts to a remote CSV file. Allows appending to the file.
 
     Args:
         rows (list[dict]): The list of rows to write.
@@ -495,6 +586,8 @@ def write_rows_to_csv(rows: list[dict], *, file_path: str | AnyPath, mode: str =
         mode (str, optional): The mode to open the file in. Defaults to "a".
         use_fs (bool, optional): If True, use the FileSystem approach. Defaults to False.
     """
+    import csv
+
     if not rows:
         logger.warning("No rows to write, aborting.")
         return
