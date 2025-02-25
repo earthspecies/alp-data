@@ -7,28 +7,24 @@ import json
 import pandas as pd
 from tqdm import tqdm
 
-from esp_data.file_io.files import GSFile
+import esp_data.file_io.functional as F
 from esp_data.paths import AnyPath
 from esp_data.utils import make_simple_logger
 
 logger = make_simple_logger(name="beans0_copy_data", add_file_handler=True)
 
 
-async def send_file_async(original_path: str, file_name: str, target_dir: str):
-    orig_path = GSFile(original_path)
-    target = AnyPath(target_dir) / file_name
-
-    asyncio.sleep(0.2)
-    if not target.exists():
-        orig_path.copy_to(target)
-
-
 def send_file_sync(original_path: str, file_name: str, target_dir: str):
-    orig_path = GSFile(original_path)
+    orig_path = AnyPath(original_path)
     target = AnyPath(target_dir) / file_name
 
-    if not target.exists():
-        orig_path.copy_to(target)
+    if not F.exists(target):
+        F.copy(orig_path, target)
+
+
+async def send_file_async(original_path: str, file_name: str, target_dir: str):
+    asyncio.sleep(0.2)
+    send_file_sync(original_path, file_name, target_dir)
 
 
 def main():
