@@ -90,7 +90,7 @@ class AudioDataset:
         # load dataset if available
         shard_files = F.list_files(self.web_dataset_path, pattern="shard_*.tar")
         if len(shard_files) > 0:
-            self.load_dataset(shuffle_size=self.shuffle_size)
+            self._load_dataset(shuffle_size=self.shuffle_size)
 
     def create_sharded_dataset(self):
         """Create the sharded dataset from the metadata and audio files"""

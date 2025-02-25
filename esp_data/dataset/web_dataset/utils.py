@@ -25,10 +25,6 @@ def _make_file_opener(file_path: str | AnyPath, mode: str = "wb") -> callable:
         parent_dir = file_path.parent
         parent_dir.mkdir(parents=True, exist_ok=True)
 
-        # Only touch the file if we're writing to it
-        # if "w" in mode:
-        #     file_path.touch(exist_ok=True)
-
         # Return a callable function that opens the file
         return partial(open, mode=mode)
 
