@@ -30,9 +30,8 @@ def read_audio_from_bytes_pydub(audio_bytes: bytes) -> tuple[np.ndarray, int]:
     return np.array(audio.get_array_of_samples()), audio.frame_rate
 
 
-def read_audio_bytes(file_path: AnyPath, fs=None) -> tuple[np.ndarray, int]:
-    file_path = AnyPath(file_path)
-    extension = file_path.suffix[1:]
+def read_audio_bytes(audio_bytes: bytes, extension: str) -> tuple[np.ndarray, int]:
+    extension = extension.lower()
 
     if extension in UNCOMPRESSED_AUDIO_FORMATS:
         read_func = read_audio_from_bytes_sf
@@ -43,13 +42,20 @@ def read_audio_bytes(file_path: AnyPath, fs=None) -> tuple[np.ndarray, int]:
     else:
         raise ValueError(f"Unsupported audio format: {extension}")
 
+    return read_func(audio_bytes)
+
+
+def read_audio_bytes_from_path(file_path: AnyPath, fs=None) -> tuple[np.ndarray, int]:
+    file_path = AnyPath(file_path)
+    extension = file_path.suffix[1:]
+
     try:
         if fs is None:
             with file_path.open("rb") as f:
-                return read_func(f.read())
+                return read_audio_bytes(f.read(), extension)
 
         with fs.open(str(file_path), "rb") as f:
-            return read_func(f.read())
+            return read_audio_bytes(f.read(), extension)
 
     except Exception as e:
         logger.error(f"Error reading audio file {e}")
