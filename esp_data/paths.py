@@ -31,14 +31,7 @@ def is_cloud_path(path: str | Path | os.PathLike) -> bool:
 
 
 def strip_cloud_prefix(path: str | Path | os.PathLike) -> str:
-    path = str(path)
-    if is_gcs_path(path):
-        return path.replace("gs://", "")
-    if is_s3_path(path):
-        return path.replace("s3://", "")
-    if is_cloudflarer2_path(path):
-        return path.replace("r2://", "")
-    return path
+    return str(path).replace("gs://", "").replace("s3://", "").replace("r2://", "")
 
 
 def _make_r2_path_with_auth(path: str | os.PathLike | Path) -> S3Path:
