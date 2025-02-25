@@ -1,4 +1,5 @@
 import json
+import time
 from concurrent.futures import ProcessPoolExecutor
 from functools import partial
 from typing import Any, Callable, Optional
@@ -15,16 +16,24 @@ from esp_data.utils import make_simple_logger
 logger = make_simple_logger(name="web_dataset_utils")
 
 
-def _make_file_opener(file_path: str | AnyPath) -> callable:
+def _make_file_opener(file_path: str | AnyPath, mode: str = "wb") -> callable:
     """Make a file opener function for WebDataset"""
     file_path = AnyPath(file_path)
 
     if is_local_path(file_path):
-        file_path.touch(exist_ok=True)
-        return open(file_path, "wb")
+        # Create parent directories if they don't exist
+        parent_dir = file_path.parent
+        parent_dir.mkdir(parents=True, exist_ok=True)
+
+        # Only touch the file if we're writing to it
+        # if "w" in mode:
+        #     file_path.touch(exist_ok=True)
+
+        # Return a callable function that opens the file
+        return partial(open, mode=mode)
 
     if is_cloud_path(file_path):
-        return partial(F.open_file, mode="wb", use_fs=True)
+        return partial(F.open_file, mode=mode, use_fs=True)
 
 
 def write_shard(metadata: pd.DataFrame, output_path: AnyPath, shard_id: int, sample_prep_function: Callable) -> dict:
@@ -32,7 +41,7 @@ def write_shard(metadata: pd.DataFrame, output_path: AnyPath, shard_id: int, sam
     results = {"chunk_id": shard_id, "processed_samples": [], "failed": []}
 
     shard_path = (
-        output_path / f"shard_{shard_id:05d}%s.tar"
+        output_path / f"shard_%s{shard_id:05d}.tar"
     )  # an additional zero will be added to the shard_id by webdataset ShardWriter
 
     # here we're setting maxcount and maxsize to very large values because we want all files in this
@@ -57,7 +66,7 @@ def write_shard(metadata: pd.DataFrame, output_path: AnyPath, shard_id: int, sam
 
             # Track successful sample with shard info
             results["processed_samples"].append(
-                {"id": sample_id, "shard_path": f"shard_{shard_id:05d}0.tar", "shard_id": shard_id}
+                {"id": sample_id, "shard_path": f"shard_0{shard_id:05d}.tar", "shard_id": shard_id}
             )
 
         except Exception as e:
@@ -126,6 +135,7 @@ def create_sharded_dataset(
         num_workers (int, optional): Number of workers for parallel processing. Defaults to 4.
         storage_options (dict, optional): Storage options for reading and writing files. Defaults to None.
     """
+    t0 = time.time()
     output_path = AnyPath(output_path)
     # Create output directory if it doesn't exist
     # output_path.mkdir(exist_ok=True, parents=True)
@@ -196,11 +206,13 @@ def create_sharded_dataset(
     total_successful = len(processed_samples)
     total_failed = sum(len(chunk["failed"]) for chunk in completed_chunks.values())
 
+    tend = time.time()
     logger.info(f"""
     Processing completed:
     - Total files processed successfully: {total_successful}
     - Total files failed: {total_failed}
     - Success rate: {(total_successful / (total_successful + total_failed)) * 100:.2f}%
+    - Total time taken: {tend - t0:.2f} seconds
     """)
 
     return metadata_df
