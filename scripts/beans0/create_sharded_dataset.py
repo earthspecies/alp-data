@@ -15,7 +15,10 @@ from esp_data.paths import is_cloud_path
 def prepare_audio_sample_for_beans0(row: pd.Series, remove_inaturalist: bool = True) -> dict[str, Any]:
     # if we encounter iNaturalist as the 'source_dataset', then we cant add audio to the dataset
     if remove_inaturalist and row["source_dataset"] == "iNaturalist":
-        return {"audio.wav": None, "metadata.json": json.dumps(row.to_dict())}
+        # make 0 bytes audio
+        if "file_path" in row:
+            del row["file_path"]
+        return {"audio.wav": b"", "metadata.json": json.dumps(row.to_dict())}
 
     # otherwise prep data
     return prepare_audio_sample_for_sharding(row)
