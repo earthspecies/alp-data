@@ -33,6 +33,8 @@ def prepare_audio_sample_for_sharding(row: pd.Series) -> dict[str, Any]:
     md["metadata"] = json.loads(md["metadata"])
     md["metadata"]["duration"] = duration
     md["metadata"]["sample_rate"] = sr
+    if "file_path" in md:
+        del md["file_path"]
 
     return {"audio.wav": audio_buffer.getvalue(), "metadata.json": json.dumps(md)}
 
