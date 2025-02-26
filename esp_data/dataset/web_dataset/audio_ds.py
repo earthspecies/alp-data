@@ -30,11 +30,25 @@ def prepare_audio_sample_for_sharding(row: pd.Series) -> dict[str, Any]:
 
     # Write to shard with metadata
     md = row.to_dict()
-    md["metadata"] = json.loads(md["metadata"])
-    md["metadata"]["duration"] = duration
-    md["metadata"]["sample_rate"] = sr
+    # Handle metadata differently based on its type
+    if "metadata" in md:
+        # Check if metadata is already a string that needs parsing
+        if isinstance(md["metadata"], str):
+            try:
+                md["metadata"] = json.loads(md["metadata"])
+            except json.JSONDecodeError:
+                md["metadata"] = {}
+        # If it's not a string or dict, convert to dict
+        elif not isinstance(md["metadata"], dict):
+            md["metadata"] = {}
+    else:
+        md["metadata"] = {}
+
     if "file_path" in md:
         del md["file_path"]
+
+    md["metadata"]["duration"] = duration
+    md["metadata"]["sample_rate"] = sr
 
     return {"audio.wav": audio_buffer.getvalue(), "metadata.json": json.dumps(md)}
 
