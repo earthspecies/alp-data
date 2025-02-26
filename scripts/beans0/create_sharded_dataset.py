@@ -4,6 +4,7 @@ import os
 from functools import partial
 from typing import Any
 
+import numpy as np
 import pandas as pd
 from beans_cfg import beans0_cfg
 
@@ -62,7 +63,10 @@ def main():
 
     # Add file paths to metadata
     original_paths_df = pd.read_csv(args.original_paths_file)
-    metadata_df["file_path"] = original_paths_df["path"]  # this will be dropped during sharding
+    metadata_df["file_path"] = original_paths_df["path"]  # this will be dropped after sharding
+
+    # shuffle the rows, the ensures equal sized shards
+    metadata_df = metadata_df.sample(frac=1, random_state=42).reset_index(drop=True)
 
     # Perform checks
     checks(metadata_df, original_paths_df)
@@ -88,7 +92,7 @@ def main():
     ds.create_sharded_dataset()
 
     # write new dataset config file
-    beans0_cfg.version = args.version
+    beans0_cfg.version = args.version.replace("v", "")
     beans0_cfg.changelog = "Webdataset sharded dataset version of Beans0"
     with open(os.path.join(output_path, "dataset_config.json"), "w") as fp:
         json.dump(beans0_cfg.to_dict(make_serializable=True), fp)
@@ -97,6 +101,7 @@ def main():
     for audio, metadata in ds:
         print(f"Audio of type: {type(audio)} and shape {audio.shape}")
         print(f"Metadata of type: {type(metadata)} and keys {metadata.keys()}")
+        assert isinstance(audio, np.ndarray)
         break
 
     print(f"Sharded dataset created at: {output_path}")
