@@ -5,18 +5,20 @@ The idea is to simplify the api, moving towards a functional, stateless approach
 We prefer using the FileSystem approach, defaulting to cloudpathlib if it doesn't work.
 """
 
-import logging
 import os
 import shutil
+import subprocess
 from io import StringIO
 from typing import Any
 
+from cloudpathlib import GSPath
+
 from esp_data.paths import AnyPath, is_local_path, strip_cloud_prefix
+from esp_data.utils import make_simple_logger
 
 from .utils import make_fs
 
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+logger = make_simple_logger("fileio_functional")
 
 
 def create_file(
@@ -463,13 +465,19 @@ def makedirs(dir_path: str | os.PathLike | AnyPath, use_fs: bool = False, exist_
         raise IOError(f"Failed to create directory {dir_path} using both methods: {e}") from e
 
 
-def copy(source: str | os.PathLike | AnyPath, destination: str | os.PathLike | AnyPath, use_fs: bool = False) -> bool:
+def copy(
+    source: str | os.PathLike | AnyPath, destination: str | os.PathLike | AnyPath, use_fs: bool = False, **gcloud_kwargs
+) -> bool:
     """Copy a file/directory from source to destination.
+
+    If both the source and destination are local paths, the standard file operations are used.
+    If both the source and destination are cloud paths on GCP, the gcloud storage rsync command is used.
 
     Args:
         source (str | os.PathLike | AnyPath): The source path.
         destination (str | os.PathLike | AnyPath): The destination path.
         use_fs (bool, optional): If True, use the FileSystem approach. Defaults to False.
+        **gcloud_kwargs: Additional keyword arguments to pass to the gcloud storage rsync command.
 
     Returns:
         bool: True if the copy was successful.
@@ -497,8 +505,6 @@ def copy(source: str | os.PathLike | AnyPath, destination: str | os.PathLike | A
 
     is_upload = is_local_path(source) and not is_local_path(destination)
     is_download = not is_local_path(source) and is_local_path(destination)
-    is_cloud_to_cloud = not is_local_path(source) and not is_local_path(destination)
-
     # For cloud paths, determine which path needs the filesystem
     cloud_path = destination if not is_local_path(destination) else source
 
@@ -523,8 +529,12 @@ def copy(source: str | os.PathLike | AnyPath, destination: str | os.PathLike | A
             fs.put(source_str, destination_str, recursive=True)
         elif is_download:
             fs.get(source_str, destination_str, recursive=True)
-        elif is_cloud_to_cloud:
-            fs.copy(source_str, destination_str)
+        else:
+            if isinstance(source, GSPath) and isinstance(destination, GSPath):
+                # call gcloud_rsync
+                gcloud_rsync(source, destination, **gcloud_kwargs)
+            else:
+                raise ValueError("Cloud to cloud copy is only supported for GCP paths")
 
         return True
     except Exception as e:
@@ -575,6 +585,66 @@ def download(
         download("gs://bucket_name/path/to/dir/", "local_dir/")
     """
     return copy(source, destination, use_fs)
+
+
+def gcloud_rsync(
+    source: str | os.PathLike | AnyPath,
+    destination: str | os.PathLike | AnyPath,
+    avoid_overwrite: bool = False,
+    delete_unmatched: bool = False,
+    continue_on_error: bool = True,
+    recursive: bool = True,
+    gzip_in_flight: str = "",
+) -> None:
+    """Sync the bucket directory with a local / cloud directory.
+
+    Args:
+        destination: The local directory to sync with.
+        avoid_overwrite: Whether to avoid overwriting files in the destination. Default is True.
+        delete_unmatched: Whether to delete files in the destination that are not in the source. Default is False
+        continue_on_error: Whether to continue syncing if an error occurs. Default is True
+        recursive: Whether to sync recursively. Default is True
+        gzip_in_flight: Whether to compress files with the given extensions in flight for faster transfer.
+            For e.g. gzip_in_flight="txt,csv,jpg". Default is "" which means none. If "all",
+            will try to compress everything, but this may be counterproductive for files that should not be
+            compressed.
+
+    Raises:
+        subprocess.CalledProcessError: If rsync command fails
+    """
+    # uses gcloud storage rsync command
+    cmd = ["gcloud", "storage", "rsync", str(source), str(destination)]
+
+    if recursive:
+        cmd.append("--recursive")
+    if delete_unmatched:
+        cmd.append("--delete-unmatched-destination-objects")
+    if continue_on_error:
+        cmd.append("--continue-on-error")
+    if avoid_overwrite:
+        cmd.append("--no-clobber")
+
+    if gzip_in_flight == "all":
+        cmd.append("--gzip-in-flight-all")
+    elif gzip_in_flight != "":
+        cmd.append(f"--gzip-in-flight={gzip_in_flight}")
+
+    p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    stdout, stderr = p.communicate()
+
+    if p.returncode != 0:
+        error_msg = stderr.decode("utf-8").strip()
+        logger.error(f"Rsync failed with return code {p.returncode}: {error_msg}")
+        logger.error(f"Command used: {' '.join(cmd)}")
+        if not continue_on_error:
+            raise subprocess.CalledProcessError(p.returncode, cmd, stdout, stderr)
+    else:
+        # Log success message with some stats if available
+        output = stdout.decode("utf-8").strip()
+        if output:
+            logger.info(f"Rsync completed successfully: {output}")
+        else:
+            logger.info("Rsync completed successfully")
 
 
 def write_rows_to_csv(rows: list[dict], *, file_path: str | AnyPath, mode: str = "a", use_fs: bool = False) -> None:

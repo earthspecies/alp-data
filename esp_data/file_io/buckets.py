@@ -9,7 +9,6 @@ import warnings
 from pathlib import PosixPath
 from typing import Generator
 
-from cloudpathlib import CloudPath
 from dotenv import load_dotenv
 from google.cloud.storage import Client as GSClient
 from google.cloud.storage import transfer_manager
@@ -44,13 +43,13 @@ class Bucket:
         if not is_cloud_path(str(bucket_path)):
             raise ValueError("Bucket path must be a cloud path.")
 
-        self.bucket_path = CloudPath(bucket_path)
+        self.bucket_path = AnyPath(bucket_path)
 
     @property
     def exists(self):
         return self.bucket_path.exists()
 
-    def list_files(self, recursive: bool = True, as_str: bool = False) -> list[CloudPath]:
+    def list_files(self, recursive: bool = True, as_str: bool = False) -> list[AnyPath]:
         if recursive:
             iterator = self.bucket_path.rglob("*")
         else:
@@ -60,7 +59,7 @@ class Bucket:
 
         return [str(file) if as_str else file for file in iterator if file.is_file()]
 
-    def list_dirs(self, recursive: bool = True, as_str: bool = False) -> list[CloudPath]:
+    def list_dirs(self, recursive: bool = True, as_str: bool = False) -> list[AnyPath]:
         if recursive:
             iterator = self.bucket_path.rglob("*")
         else:
@@ -78,13 +77,13 @@ class Bucket:
 
         return Bucket(subpath)
 
-    def find_paths_with_extension(self, extension: str) -> Generator[CloudPath, None, None]:
+    def find_paths_with_extension(self, extension: str) -> Generator[AnyPath, None, None]:
         for file in self.bucket_path.rglob(f"*{extension}"):
-            yield CloudPath(file)
+            yield AnyPath(file)
 
-    def find_paths_containing(self, substring: str) -> Generator[CloudPath, None, None]:
+    def find_paths_containing(self, substring: str) -> Generator[AnyPath, None, None]:
         for file in self.bucket_path.rglob(f"*{substring}*"):
-            yield CloudPath(file)
+            yield AnyPath(file)
 
     def delete_dir(self, dir_path: str | os.PathLike, confirm: bool = True):
         """Delete a directory in the bucket."""
@@ -170,7 +169,7 @@ class Bucket:
 
 class GSBucket(Bucket):
     """Class for managing a Google Cloud Storage bucket.
-    Uses some methods from the google-cloud-storage library not available in cloudpathlib.
+    Uses some methods from the google-cloud-storage library not available in AnyPathlib.
     """
 
     def __init__(self, bucket_path):
@@ -237,9 +236,7 @@ class GSBucket(Bucket):
             file_names: The names of the files to be added to the bucket.
             contents: The contents of the files.
         """
-        loop = asyncio.get_running_loop()
-        with concurrent.futures.ThreadPoolExecutor() as pool:
-            await loop.run_in_executor(pool, self.upload_data_as_str, file_names, contents)
+        await run_as_async(self.upload_data_as_str, file_names=file_names, contents=contents)
 
     def upload_data_as_str(self, file_names: list[str | os.PathLike], contents: list[str | bytes]) -> None:
         """Upload a list of byte or string data to the bucket. If string, it will be encoded as UTF-8.
@@ -319,18 +316,15 @@ class GSBucket(Bucket):
         recursive: bool = True,
         gzip_in_flight: str = "",
     ) -> None:
-        loop = asyncio.get_running_loop()
-        with concurrent.futures.ThreadPoolExecutor() as pool:
-            await loop.run_in_executor(
-                pool,
-                self.rsync,
-                other,
-                self_is_source,
-                delete_unmatched,
-                continue_on_error,
-                recursive,
-                gzip_in_flight,
-            )
+        await run_as_async(
+            self.rsync,
+            other=other,
+            self_is_source=self_is_source,
+            delete_unmatched=delete_unmatched,
+            continue_on_error=continue_on_error,
+            recursive=recursive,
+            gzip_in_flight=gzip_in_flight,
+        )
 
     def rsync(
         self,
@@ -542,7 +536,7 @@ class FSBucket:
 
 class GSBucketV2(FSBucket):
     """This version of Google cloud storage uses the GCSFileSystem from gcsfs.
-    It seems more efficient than cloudpathlib and google-cloud-storage.
+    It seems more efficient than AnyPathlib and google-cloud-storage.
 
     Args:
         bucket_path: The path to the bucket. This may either be the bucket name
