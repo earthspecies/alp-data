@@ -32,8 +32,53 @@ def _make_file_opener(file_path: str | AnyPath, mode: str = "wb") -> callable:
         return partial(F.open_file, mode=mode, use_fs=True)
 
 
-def write_shard(metadata: pd.DataFrame, output_path: AnyPath, shard_id: int, sample_prep_function: Callable) -> dict:
-    """Write a shard of samples to a WebDataset shard."""
+def write_sample_to_shard(row: pd.Series | dict, shard_sink, sample_prep_function: Callable | None = None) -> None:
+    """Write a single row to a WebDataset shard.
+
+    Args:
+        row (pd.Series | dict): Row of metadata to write to shard
+        shard_sink: WebDataset shard writer
+        sample_prep_function (Callable, optional): Function to prepare a sample for sharding. Defaults
+            to None.
+    """
+    if sample_prep_function is not None:
+        shard_data = sample_prep_function(row)
+    else:
+        shard_data = row
+
+    sample_id = str(row["id"])
+    try:
+        sample = {
+            "__key__": sample_id,
+            **shard_data,
+        }
+        shard_sink.write(sample)
+
+    except Exception as e:
+        logger.error(f"Error processing sample {sample_id}: {str(e)}")
+
+
+def write_shard(
+    metadata: pd.DataFrame | list[dict],
+    output_path: AnyPath,
+    shard_id: int,
+    sample_prep_function: Callable,
+    max_count: int = 1e12,
+    max_size_bytes: int = 1e12,
+) -> dict:
+    """Write a shard of samples to a WebDataset shard.
+
+    Args:
+        metadata (pd.DataFrame | list[dict]): Metadata for samples to write to shard
+        output_path (AnyPath): Path to save the sharded dataset
+        shard_id (int): Shard ID
+        sample_prep_function (Callable): Function to prepare a sample for sharding
+        max_count (int, optional): Maximum number of samples in shard. Defaults to 1e12.
+        max_size_bytes (int, optional): Maximum size of shard in bytes. Defaults to 1e12.
+
+    Returns:
+        dict: Results of the sharding process
+    """
     results = {"chunk_id": shard_id, "processed_samples": [], "failed": []}
 
     shard_path = (
@@ -45,20 +90,17 @@ def write_shard(metadata: pd.DataFrame, output_path: AnyPath, shard_id: int, sam
     # The actual number of shards for the dataset is set in the self.shard_size variable
     sink = wds.ShardWriter(
         str(shard_path),
-        maxcount=1e12,
-        maxsize=1e12,
+        maxcount=max_count,
+        maxsize=max_size_bytes,
         opener=_make_file_opener(shard_path),
     )
 
-    for _, row in metadata.iterrows():
-        shard_data = sample_prep_function(row)
+    for i in range(len(metadata)):
+        row = metadata.iloc[i] if isinstance(metadata, pd.DataFrame) else metadata[i]
         sample_id = str(row["id"])
+
         try:
-            sample = {
-                "__key__": sample_id,
-                **shard_data,
-            }
-            sink.write(sample)
+            write_sample_to_shard(row, sink, sample_prep_function)
 
             # Track successful sample with shard info
             results["processed_samples"].append(
@@ -111,7 +153,7 @@ def _load_checkpoint(output_path: AnyPath, metadata_df: pd.DataFrame) -> Optiona
 
 
 def create_sharded_dataset(
-    metadata_df: pd.DataFrame,
+    metadata_df: pd.DataFrame | list[dict],
     output_path: str | AnyPath,
     sample_prep_function: Callable,
     num_samples_per_shard: int = 1000,
