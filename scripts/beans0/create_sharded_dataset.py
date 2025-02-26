@@ -1,4 +1,5 @@
 import argparse
+import io
 import json
 import os
 from functools import partial
@@ -6,19 +7,61 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
+import soundfile as sf
 from beans_cfg import beans0_cfg
 
 from esp_data.dataset.web_dataset.audio_ds import AudioDataset, prepare_audio_sample_for_sharding
 from esp_data.paths import is_cloud_path
 
 
+def create_silent_wav(duration=1.0, sample_rate=16000):
+    """
+    Create a silent WAV file of specified duration.
+
+    Args:
+        duration (float): Duration of the silent audio in seconds
+        sample_rate (int): Sample rate of the audio
+
+    Returns:
+        bytes: WAV file data as bytes
+    """
+    # Create silent audio data (array of zeros)
+    num_samples = int(duration * sample_rate)
+    audio_data = np.zeros(num_samples, dtype=np.float32)
+
+    # Store as bytes in memory using BytesIO
+    audio_buffer = io.BytesIO()
+    sf.write(audio_buffer, audio_data, sample_rate, format="WAV")
+
+    # Get the bytes value
+    audio_bytes = audio_buffer.getvalue()
+
+    return audio_bytes
+
+
 def prepare_audio_sample_for_beans0(row: pd.Series, remove_inaturalist: bool = True) -> dict[str, Any]:
     # if we encounter iNaturalist as the 'source_dataset', then we cant add audio to the dataset
     if remove_inaturalist and row["source_dataset"] == "iNaturalist":
-        # make 0 bytes audio
-        if "file_path" in row:
-            del row["file_path"]
-        return {"audio.wav": b"", "metadata.json": json.dumps(row.to_dict())}
+        # Write to shard with metadata
+        md = row.to_dict()
+        # Handle metadata differently based on its type
+        if "metadata" in md:
+            # Check if metadata is already a string that needs parsing
+            if isinstance(md["metadata"], str):
+                try:
+                    md["metadata"] = json.loads(md["metadata"])
+                except json.JSONDecodeError:
+                    md["metadata"] = {}
+            # If it's not a string or dict, convert to dict
+            elif not isinstance(md["metadata"], dict):
+                md["metadata"] = {}
+        else:
+            md["metadata"] = {}
+
+        if "file_path" in md:
+            del md["file_path"]
+
+        return {"audio.wav": create_silent_wav(0.1), "metadata.json": json.dumps(row.to_dict())}
 
     # otherwise prep data
     return prepare_audio_sample_for_sharding(row)
