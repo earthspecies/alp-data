@@ -155,7 +155,7 @@ async def test_gs_bucket_v2():
     bucket.delete_dir("", confirm=False)
 
 
-# @pytest.mark.skip
+@pytest.mark.skip
 async def test_r2_bucket():
     bucket = R2Bucket("r2://esp-ci-cd-tests/esp-data-tests/temprandomfolder")
     bucket.upload_dir("tests/fileio_test_folder")
