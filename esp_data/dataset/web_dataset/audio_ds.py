@@ -30,8 +30,9 @@ def prepare_audio_sample_for_sharding(row: pd.Series) -> dict[str, Any]:
 
     # Write to shard with metadata
     md = row.to_dict()
-    md["duration"] = duration
-    md["sample_rate"] = sr
+    md["metadata"] = json.loads(md["metadata"])
+    md["metadata"]["duration"] = duration
+    md["metadata"]["sample_rate"] = sr
 
     return {"audio.wav": audio_buffer.getvalue(), "metadata.json": json.dumps(md)}
 
@@ -64,8 +65,8 @@ class AudioDataset:
         sample_prep_function: Callable | None = None,
         shuffle_size: int = 1000,
     ):
-        self.metadata_path = AnyPath(metadata_path if metadata_path is not None else web_dataset_path)
         self.web_dataset_path = AnyPath(web_dataset_path)
+        self.metadata_path = AnyPath(metadata_path if metadata_path is not None else self.web_dataset_path)
         self.num_samples_per_shard = num_samples_per_shard
         self.num_workers = num_workers
         self.metadata_df = metadata_df
@@ -74,12 +75,12 @@ class AudioDataset:
 
         # Read metadata if missing
         if self.metadata_df is None:
-            if AnyPath(metadata_path / "metadata.parquet").exists():
-                self.metadata_df = pd.read_parquet(metadata_path / "metadata.parquet")
-            elif AnyPath(metadata_path / "metadata.csv").exists():
-                self.metadata_df = pd.read_csv(metadata_path / "metadata.csv")
-            elif AnyPath(metadata_path / "metadata.json").exists():
-                self.metadata_df = pd.read_json(metadata_path / "metadata.json")
+            if AnyPath(self.metadata_path / "metadata.parquet").exists():
+                self.metadata_df = pd.read_parquet(self.metadata_path / "metadata.parquet")
+            elif AnyPath(self.metadata_path / "metadata.csv").exists():
+                self.metadata_df = pd.read_csv(self.metadata_path / "metadata.csv")
+            elif AnyPath(self.metadata_path / "metadata.json").exists():
+                self.metadata_df = pd.read_json(self.metadata_path / "metadata.json")
             else:
                 logger.warning(
                     "No metadata found. Won't be able to create a sharded dataset or index directly into the data"
@@ -88,6 +89,7 @@ class AudioDataset:
         self.sample_prep_function = sample_prep_function
 
         # load dataset if available
+        self.ds = None
         shard_files = F.list_files(self.web_dataset_path, pattern="shard_*.tar")
         if len(shard_files) > 0:
             self._load_dataset(shuffle_size=self.shuffle_size)
@@ -116,11 +118,15 @@ class AudioDataset:
             **webdataset_kwargs: Additional arguments for WebDataset. See here:
 
         """
-        self.ds = (
-            wds.WebDataset(str(self.web_dataset_path / "shard_{000000..999999}.tar"), **webdataset_kwargs)
-            .shuffle(shuffle_size)
-            .map(self._data_processor)
-        )
+        shard_files = F.list_files(self.web_dataset_path, pattern="shard_*.tar")
+
+        if not shard_files:
+            raise FileNotFoundError(f"No shard files found in {self.web_dataset_path}")
+
+        # Log what we found for debugging
+        logger.info(f"Found {len(shard_files)} shard files in {self.web_dataset_path}")
+
+        self.ds = wds.WebDataset(shard_files, **webdataset_kwargs).shuffle(shuffle_size).map(self._data_processor)
 
     @classmethod
     def from_path(cls, path: str | AnyPath, **kwargs):

@@ -53,6 +53,7 @@ def main():
         action="store_true",
         help="Remove samples from iNaturalist dataset from the sharded dataset",
     )
+    parser.add_argument("--changelog", type=str, help="Changelog for the dataset")
 
     args = parser.parse_args()
 
@@ -93,7 +94,7 @@ def main():
 
     # write new dataset config file
     beans0_cfg.version = args.version.replace("v", "")
-    beans0_cfg.changelog = "Webdataset sharded dataset version of Beans0"
+    beans0_cfg.changelog = args.changelog
     with open(os.path.join(output_path, "dataset_config.json"), "w") as fp:
         json.dump(beans0_cfg.to_dict(make_serializable=True), fp)
 

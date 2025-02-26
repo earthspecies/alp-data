@@ -7,6 +7,7 @@ from typing import Any, Callable, Optional
 import numpy as np
 import pandas as pd
 import webdataset as wds
+from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 import esp_data.file_io.functional as F
@@ -79,7 +80,7 @@ def write_shard(
     Returns:
         dict: Results of the sharding process
     """
-    results = {"chunk_id": shard_id, "processed_samples": [], "failed": []}
+    results = {"chunk_id": shard_id, "processed_samples": [], "failed_ids": []}
 
     shard_path = (
         output_path / f"shard_%s{shard_id:05d}.tar"
@@ -309,3 +310,78 @@ def get_batch(
         batch.append(item)
 
     return batch
+
+
+def apply_and_save(
+    ds: wds.WebDataset,
+    output_path: str | AnyPath,
+    apply_fn: Callable,
+    num_samples_per_shard: int = 1000,
+    num_workers: int = 4,
+):
+    """Apply a function to each sample in the dataset and save the results to new shards.
+
+    Args:
+        ds (wds.WebDataset): WebDataset object
+        output_path (str | AnyPath): Path to save the sharded dataset
+        apply_fn (Callable): Function to apply to each sample
+        num_samples_per_shard (int, optional): Number of samples per output shard. Defaults to 1000.
+        num_workers (int, optional): Number of workers for DataLoader. Defaults to 4.
+    """
+    output_path = AnyPath(output_path)
+
+    # Create DataLoader for efficient processing
+    dataloader = DataLoader(ds, batch_size=None, num_workers=num_workers)
+
+    # Prepare pattern for output shards
+    pattern = output_path / "shard_%06d.tar"
+
+    # Initialize sink for writing shards
+    sink = wds.TarWriter(pattern, maxcount=num_samples_per_shard, opener=_make_file_opener(pattern))
+
+    # Process each sample
+    for sample in tqdm(dataloader, desc="Processing samples", total=len(dataloader)):
+        # Get the key for this sample
+        key = sample.get("__key__", None)
+        if key is None:
+            raise ValueError("Sample missing __key__ field")
+
+        # Apply the function to the sample
+        modified_sample = apply_fn(sample)
+
+        # Write to the sink with the original key
+        sink.write({"__key__": key, **modified_sample})
+
+    # Close the sink to ensure all data is written
+    sink.close()
+
+
+def apply_and_save_v2(
+    ds: wds.WebDataset,
+    output_path: str | AnyPath,
+    apply_fn: Callable,
+    num_samples_per_shard: int = 1000,
+    shuffle_buffer_size: int = 100,
+):
+    """Apply a function to each sample in the dataset and save the results to new shards.
+
+    Args:
+        ds (wds.WebDataset): WebDataset object
+        output_path (str | AnyPath): Path to save the sharded dataset
+        apply_fn (Callable): Function to apply to each sample
+        samples_per_shard (int, optional): Number of samples per output shard. Defaults to 1000.
+        shuffle_buffer_size (int, optional): Size of the shuffle buffer. Defaults to 100.
+    """
+    output_path = AnyPath(output_path)
+    pattern = output_path / "shard_%06d.tar"
+
+    processed_ds = ds.map(apply_fn, handler=wds.handlers.warn_and_continue)
+
+    # Write the modified dataset to disk
+    # The DataPipeline will run with multiple workers in parallel
+    (
+        processed_ds.compose(wds.filters.detshuffle(shuffle_buffer_size))
+        .to_tuple("__key__", "*")
+        .pipe(lambda data: ({"__key__": key, **rest} for key, *values in data for rest in [dict(values)]))
+        .compose(wds.writers.TarWriter(pattern, maxcount=num_samples_per_shard, opener=_make_file_opener(pattern)))
+    )
