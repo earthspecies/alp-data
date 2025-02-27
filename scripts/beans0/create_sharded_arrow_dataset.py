@@ -154,7 +154,7 @@ def create_sharded_dataset(
 
     # Report final statistics
     total_successful = len(processed_samples)
-    total_failed = sum(len(chunk["failed"]) for chunk in completed_chunks.values())
+    total_failed = sum(len(chunk["failed_ids"]) for chunk in completed_chunks.values())
 
     tend = time.time()
     logger.info(f"""
