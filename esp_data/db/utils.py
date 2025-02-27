@@ -20,11 +20,11 @@ def pydantic_to_bigquery_schema(model: type[BaseModel]) -> list[dict]:
     type_mapping = {
         str: "STRING",
         int: "INTEGER",
-        float: "FLOAT",
+        float: "FLOAT64",
         bool: "BOOLEAN",
         datetime: "TIMESTAMP",
         dict: "JSON",  # BigQuery supports JSON type
-        list: "JSON",
+        list: "ARRAY",  # BigQuery supports ARRAY type
     }
 
     schema = []
