@@ -238,7 +238,7 @@ def main():
     # test the dataset
     from datasets import load_dataset
 
-    ds = load_dataset("arrow", data_files=AnyPath(output_path / "*arrow"), split="train")
+    ds = load_dataset("arrow", data_files=str(AnyPath(output_path) / "*arrow"), split="train")
     print(ds.column_names)
     print(f"Number of samples = {len(ds)}")
 

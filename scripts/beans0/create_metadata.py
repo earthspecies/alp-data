@@ -93,8 +93,6 @@ def make_sample(
         source_dataset = row["source"]
         if source_dataset == "iNaturalist":
             metadata["exclude_from_release"] = True
-            if "url" in metadata:
-                file_name = metadata["url"]
 
     if "license" in row:
         if row["license"]:
