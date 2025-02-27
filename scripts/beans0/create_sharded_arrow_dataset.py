@@ -39,9 +39,9 @@ def prepare_audio_sample_for_beans0(row: dict, remove_inaturalist: bool = True) 
     if remove_inaturalist and row["source_dataset"] == "iNaturalist":
         # Create silent audio data (array of zeros)
         num_samples = int(0.1 * 16000)
-        audio_data = np.zeros(num_samples, dtype=np.float32)
+        audio_data = np.zeros(num_samples, dtype=np.float64)
         duration = 0.1
-
+        sr = 16000
     else:
         # Read audio file
         audio_data, sr = read_audio_bytes_from_path(row["file_path"])
