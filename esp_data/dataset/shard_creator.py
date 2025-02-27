@@ -8,6 +8,7 @@ from functools import partial
 from typing import Callable, Dict, Iterable, List, Optional
 
 import numpy as np
+import pandas as pd
 import pyarrow as pa
 import webdataset as wds
 from pydantic import BaseModel
@@ -61,7 +62,7 @@ def validate_batch(batch: List[Dict], validation_model: Optional[type[BaseModel]
 
 
 def write_webdataset_shard(
-    batch: List[Dict],
+    batch: Iterable[dict] | pd.DataFrame | pd.Series,
     shard_id: int,
     output_path: str | AnyPath,
     sample_prep_function: Callable,
@@ -70,7 +71,7 @@ def write_webdataset_shard(
     Write a batch of samples to a WebDataset shard.
 
     Args:
-        batch: List of dictionaries containing sample data
+        batch: list of dictionaries or dataframe or series containing sample data
         shard_id: ID for this shard
         output_path: Path to save the shard
         sample_prep_function: Function to prepare a sample for the WebDataset format
@@ -82,7 +83,7 @@ def write_webdataset_shard(
 
     # Create shard path
     output_path = AnyPath(output_path)
-    shard_path = output_path / f"shard_{shard_id:05d}.tar"
+    shard_path = output_path / f"shard_%s{shard_id:05d}.tar"
 
     # Initialize shard writer
     sink = wds.ShardWriter(
@@ -93,7 +94,12 @@ def write_webdataset_shard(
     )
 
     # Process each sample
-    for i, item in enumerate(batch):
+    iterator = batch.iterrows() if isinstance(batch, pd.DataFrame) else enumerate(batch)
+    for i, item in enumerate(iterator):
+        # get item and sample_id
+        if isinstance(item, pd.Series):
+            item = item.to_dict()
+
         sample_id = str(item.get("id", i))
 
         try:
@@ -109,7 +115,7 @@ def write_webdataset_shard(
 
             # Track successful sample
             results["processed_samples"].append(
-                {"id": sample_id, "shard_path": f"shard_{shard_id:05d}.tar", "shard_id": shard_id}
+                {"id": sample_id, "shard_path": f"shard_0{shard_id:05d}.tar", "shard_id": shard_id}
             )
 
         except Exception as e:
@@ -123,7 +129,7 @@ def write_webdataset_shard(
 
 
 def write_arrow_shard(
-    batch: List[Dict],
+    batch: Iterable[dict] | pd.DataFrame | pd.Series,
     shard_id: int,
     output_path: str | AnyPath,
     arrow_prep_function: Callable,
@@ -132,7 +138,7 @@ def write_arrow_shard(
     Write a batch of samples to an Arrow shard.
 
     Args:
-        batch: List of dictionaries containing sample data
+        batch: list of dictionaries or dataframe or series containing sample data
         shard_id: ID for this shard
         output_path: Path to save the shard
         arrow_prep_function: Function to prepare a sample for Arrow format
@@ -144,25 +150,30 @@ def write_arrow_shard(
 
     # Create shard path
     output_path = AnyPath(output_path)
-    shard_path = output_path / f"shard_{shard_id:05d}.arrow"
+    shard_path = output_path / f"shard_{shard_id:06d}.arrow"
 
     # Process batch data
     prepared_data = []
-    for i, item in enumerate(batch):
-        sample_id = str(item.get("id", i))
+    iterator = batch.iterrows() if isinstance(batch, pd.DataFrame) else enumerate(batch)
+
+    for i, item in iterator:
+        # get item and sample_id
+        if isinstance(item, pd.Series):
+            item = item.to_dict()
+
+        sample_id = str(item["id"] if "id" in item else i)
 
         try:
-            # Prepare sample for Arrow
             prepared_sample = arrow_prep_function(item)
             prepared_data.append(prepared_sample)
 
             # Track successful sample
             results["processed_samples"].append(
-                {"id": sample_id, "arrow_path": f"shard_{shard_id:05d}.arrow", "shard_id": shard_id}
+                {"id": sample_id, "shard_path": f"shard_{shard_id:06d}.arrow", "shard_id": shard_id}
             )
 
         except Exception as e:
-            print(f"Error processing sample {sample_id} for Arrow: {str(e)}")
+            print(f"Error processing sample {sample_id} for Arrow: {e}")
             results["failed_ids"].append(sample_id)
 
     if prepared_data:
@@ -239,6 +250,31 @@ def write_arrow_shard(
                 writer.write_table(table)
 
     return results
+
+
+def write_shard(
+    batch: List[Dict],
+    shard_id: int,
+    output_path: str | AnyPath,
+    sample_prep_function: Callable,
+    output_format: str = "webdataset",
+) -> Dict:
+    """
+    Write a batch of samples to a shard in the specified format.
+
+    Args:
+        batch: List of dictionaries containing sample data
+        shard_id: ID for this shard
+        output_path: Path to save the shard
+        sample_prep_function: Function to prepare a sample for the specified format
+        output_format: Output format for the shard (webdataset or arrow)
+    """
+    if output_format == "webdataset":
+        return write_webdataset_shard(batch, shard_id, output_path, sample_prep_function)
+    elif output_format == "arrow":
+        return write_arrow_shard(batch, shard_id, output_path, sample_prep_function)
+    else:
+        raise ValueError(f"Unsupported output format: {output_format}")
 
 
 def create_dual_sharded_dataset(

@@ -117,7 +117,7 @@ def write_shard(
     return results
 
 
-def _save_checkpoint(output_path: AnyPath, completed_chunks: dict, metadata_df: pd.DataFrame):
+def save_checkpoint(output_path: AnyPath, completed_chunks: dict, metadata_df: pd.DataFrame) -> None:
     """Save checkpoint information"""
     checkpoint_data = {
         "completed_chunks": completed_chunks,
@@ -129,7 +129,7 @@ def _save_checkpoint(output_path: AnyPath, completed_chunks: dict, metadata_df: 
         json.dump(checkpoint_data, f)
 
 
-def _load_checkpoint(output_path: AnyPath, metadata_df: pd.DataFrame) -> Optional[dict]:
+def load_checkpoint(output_path: AnyPath, metadata_df: pd.DataFrame) -> Optional[dict]:
     """Load checkpoint if it exists and is valid"""
     checkpoint_path = output_path / "checkpoint.json"
 
@@ -184,7 +184,7 @@ def create_sharded_dataset(
         return
 
     # Load checkpoint if exists
-    checkpoint_data = _load_checkpoint(output_path, metadata_df)
+    checkpoint_data = load_checkpoint(output_path, metadata_df)
     completed_chunks = checkpoint_data["completed_chunks"] if checkpoint_data else {}
 
     # Calculate number of shards needed
@@ -224,7 +224,7 @@ def create_sharded_dataset(
 
                 # Update checkpoint
                 completed_chunks[str(chunk_id)] = result
-                _save_checkpoint(output_path, completed_chunks, metadata_df)
+                save_checkpoint(output_path, completed_chunks, metadata_df)
 
                 pbar.update(1)
 
