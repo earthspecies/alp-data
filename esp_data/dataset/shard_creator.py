@@ -144,7 +144,7 @@ def write_arrow_shard(
         shard_id: ID for this shard
         output_path: Path to save the shard
         arrow_prep_function: Function to prepare a sample for Arrow format
-        format: Output format for the Arrow shard (parquet or arrow)
+        format: Output format for the sshard (parquet or arrow)
 
     Returns:
         Dictionary with processing results
@@ -153,7 +153,7 @@ def write_arrow_shard(
 
     # Create shard path
     output_path = AnyPath(output_path)
-    shard_path = output_path / f"shard_{shard_id:06d}." + format
+    shard_path = output_path / (f"shard_{shard_id:06d}." + format)
 
     # Process batch data
     prepared_data = []
