@@ -52,8 +52,11 @@ def generate_random_indices(
 
 
 def wrapped_apply(
-    function: Callable, sample_config=DataSample, version_update_mode: str = "patch", **function_kwargs
-) -> dict:
+    function: Callable,
+    sample_config=DataSample,
+    version_update_mode: str = "patch",
+    **function_kwargs,
+) -> Callable:
     """Creates a wrapper around a function that transforms each sample in the dataset
       to handle DataSample metadata updates.
 
@@ -65,8 +68,8 @@ def wrapped_apply(
     Args:
         function: The user's function to wrap. It should take a sample as a dict and return a transformed dict
         sample_config: The config class to use for samples
-        dataset_config: The config class to use for the dataset
-        static_kwargs: Any static kwargs that should always be passed to function
+        version_update_mode: The mode to use for version updates
+        **function_kwargs: Additional keyword arguments to pass to the function
     """
 
     def update_sample(transformed_sample: dict) -> dict:

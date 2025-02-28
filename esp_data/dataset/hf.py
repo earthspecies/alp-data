@@ -11,76 +11,9 @@ from esp_data.file_io import File
 from esp_data.paths import AnyPath, is_cloud_path, is_local_path
 
 from .base import BaseIterableDataset, BaseMapDataset
-from .utils import generate_random_indices
+from .utils import generate_random_indices, wrapped_apply
 
 warnings.filterwarnings("ignore", "Your application has authenticated using end user credentials")
-
-
-def wrap_sample_function(
-    function: Callable, sample_config=DataSample, version_update_mode: str = "patch", **function_kwargs
-) -> dict:
-    """Creates a wrapper around a function that transforms each sample in the dataset
-      to handle DataSample metadata updates.
-
-      ASSUMPTION: This assumes that your function either implements:
-        - A single sample transformation, where the function takes a sample as a dict and returns a transformed dict
-        - A batch transformation, where the function takes a dict with keys = sample_config fields, and values = list of
-            values for each field, length = batch_size, and returns a dict with the same structure.
-
-    Args:
-        function: The user's function to wrap. It should take a sample as a dict and return a transformed dict
-        sample_config: The config class to use for samples
-        static_kwargs: Any static kwargs that should always be passed to function
-    """
-
-    def update_sample(transformed_sample: dict) -> dict:
-        # remove the id and created_at fields, as they will be updated
-        sample_id = transformed_sample.pop("id", None)
-        transformed_sample.pop("created_at", None)
-
-        transformed_sample = sample_config(
-            **transformed_sample,  # generates id and created_at
-        )
-
-        transformed_sample.derived_from = sample_id
-        if transformed_sample.version is not None:
-            transformed_sample.increment_version(mode=version_update_mode)
-
-        return transformed_sample.to_dict()
-
-    def update_batch(transformed_batch: dict) -> dict:
-        """When batched=True and batch_size > 1 is part of map_kwargs,
-        the function will return a dict with keys = sample_config fields,
-        and values = list of values for each field, length = batch_size.
-        """
-        some_key = list(transformed_batch.keys())[0]
-        batch_size = len(transformed_batch[some_key])  # batch size
-        new_dict = {k: [] for k in transformed_batch.keys()}
-
-        for i in range(batch_size):
-            sample = {k: transformed_batch[k][i] for k in transformed_batch.keys()}
-            transformed_sample: dict = update_sample(sample)
-            for k, v in transformed_sample.items():
-                new_dict[k].append(v)
-
-        return new_dict
-
-    def wrapped_function(sample: dict) -> dict:
-        # First apply the user's function to get transformed data
-        transformed_sample: dict = function(sample, **function_kwargs)
-
-        # Now update the sample metadata, namely id and created_at
-        some_key = list(transformed_sample.keys())[0]
-        if isinstance(transformed_sample[some_key], list):
-            # If the function returns a batch of samples, apply the update_batch function
-            transformed_sample = update_batch(transformed_sample)
-        else:
-            # If the function returns a single sample, apply the update function
-            transformed_sample = update_sample(transformed_sample)
-
-        return transformed_sample
-
-    return wrapped_function
 
 
 class HFDataset(BaseMapDataset):
@@ -388,7 +321,7 @@ class HFDataset(BaseMapDataset):
             A new HFDataset with the function applied to each sample
         """
         function_kwargs = function_kwargs or {}
-        wrapped_function = wrap_sample_function(
+        wrapped_function = wrapped_apply(
             function, sample_config=sample_config, version_update_mode=version_update_mode, **function_kwargs
         )
 
@@ -534,7 +467,7 @@ class HFStreamingDataset(BaseIterableDataset):
 
     @classmethod
     def from_path(
-        cls, path: str | os.PathLike, storage_options: dict = None, file_format: str = "arrow"
+        cls, path: str | os.PathLike, storage_options: dict = None, format: str = "arrow", file_pattern: str = "*arrow"
     ) -> "HFStreamingDataset":
         """Create a dataset from a path. This uses pyarrow so the dataset is memory-mapped.
         Uses load_dataset technique
@@ -561,11 +494,11 @@ class HFStreamingDataset(BaseIterableDataset):
             config = json.load(fp)
 
         # find all files in the directory with the file_format
-        files = [str(s) for s in path.rglob(f"*.{file_format}")]
+        files = [str(s) for s in path.rglob(f"{file_pattern}")]
         if len(files) == 0:
             raise FileNotFoundError("No files found")
 
-        ds = load_dataset(path=file_format, data_files=files, storage_options=storage_options, streaming=True)
+        ds = load_dataset(path=format, data_files=files, storage_options=storage_options, streaming=True)
 
         return cls(config, ds=ds)
 
