@@ -28,6 +28,9 @@ class LicenseEnum(str, Enum):
     CC_BY_NC_4_0 = "CC-BY-NC-4.0"
     CC_BY_NC_SA_4_0 = "CC-BY-NC-SA-4.0"
     CC_BY_NC_ND_4_0 = "CC-BY-NC-ND-4.0"
+    UNKNOWN = "UNKNOWN"
+    MIT = "MIT"
+    APACHE_2_0 = "Apache-2.0"
 
 
 class DataSample(BaseModel):
@@ -233,7 +236,11 @@ class DatasetConfig(BaseModel):
         description="Datetime of creation in UTC timezone, will be auto-generated if None",
     )
 
-    license: Optional[str] = Field(default=None, description="License for the dataset, if applicable")
+    license: Optional[str] = Field(
+        default_factory=lambda: LicenseEnum.UNKNOWN, description="License for the dataset, if applicable"
+    )
+
+    changelog: Optional[str] = Field(default="", description="Changelog from previous version")
 
     @field_validator("version", mode="before")
     @classmethod
