@@ -1,4 +1,5 @@
 import argparse
+import io
 import json
 import os
 import time
@@ -8,15 +9,16 @@ from typing import Any, Callable
 
 import numpy as np
 import pandas as pd
+import soundfile as sf
 from beans_cfg import beans0_cfg
 from tqdm import tqdm
 
-from esp_data.dataset.shard_creator import load_checkpoint, save_checkpoint, write_shard
+from esp_data.dataset.shard_creator import load_checkpoint, save_checkpoint, write_webdataset_shard
 from esp_data.file_io.parsers import read_audio_bytes_from_path
 from esp_data.paths import AnyPath, is_cloud_path
 from esp_data.utils import make_simple_logger
 
-logger = make_simple_logger("sharded_arrow_dataset_creator")
+logger = make_simple_logger("sharded_web_dataset_creator")
 
 
 def prepare_audio_sample_for_beans0(row: dict, remove_inaturalist: bool = True) -> dict[str, Any]:
@@ -37,6 +39,8 @@ def prepare_audio_sample_for_beans0(row: dict, remove_inaturalist: bool = True) 
     # if we encounter iNaturalist as the 'source_dataset', then we cant add audio to the dataset
     if remove_inaturalist and row["source_dataset"] == "iNaturalist":
         # Create silent audio data (array of zeros)
+        # num_samples = int(0.1 * 16000)
+        # audio_data = np.zeros(num_samples, dtype=np.float64)
         audio_data = [0.0]
         duration = 0
         sr = 0
@@ -52,10 +56,13 @@ def prepare_audio_sample_for_beans0(row: dict, remove_inaturalist: bool = True) 
     if "file_path" in row:
         del row["file_path"]
 
-    # HACK
+    # Store as bytes in memory
+    audio_buffer = io.BytesIO()
+    sf.write(audio_buffer, audio_data, sr, format="WAV")
+
     row["output"] = "None" if (pd.isna(row["output"]) or row["output"] == "nan") else row["output"]
 
-    return {"audio": audio_data, **row}
+    return {"audio.wav": audio_buffer.getvalue(), "metadata.json": json.dumps(row)}
 
 
 def checks(metadata_df: pd.DataFrame, original_paths_df: pd.DataFrame):
@@ -66,6 +73,17 @@ def checks(metadata_df: pd.DataFrame, original_paths_df: pd.DataFrame):
     assert metadata_df.source_dataset.isnull().sum() == 0
 
 
+def validate_sample(sample: dict):
+    assert sum(sample["audio"]) != 0.0
+    assert len(sample["output"]) > 0
+    assert "Audio" in sample["instruction"]
+    assert isinstance(sample["metadata"], dict)
+    assert len(sample["file_name"]) > 0
+    assert len(sample["license"]) > 0
+    assert len(sample["task"]) > 0
+    return sample
+
+
 def create_sharded_dataset(
     metadata_df: pd.DataFrame | list[dict],
     output_path: str | AnyPath,
@@ -73,7 +91,6 @@ def create_sharded_dataset(
     num_samples_per_shard: int = 1000,
     num_workers: int = 4,
     storage_options: dict = None,
-    shard_type: str = "arrow",
 ):
     """Create sharded dataset from information in metadata dataframe and a sample prep function,
     in parallel with checkpointing.
@@ -117,11 +134,9 @@ def create_sharded_dataset(
 
     # Create partial function with fixed arguments
     process_chunk_partial = partial(
-        write_shard,
+        write_webdataset_shard,
         output_path=output_path,
-        sample_prep_function=sample_prep_function,
-        output_format=shard_type,
-        format=shard_type,
+        arrow_prep_function=sample_prep_function,
     )
 
     # Process chunks in parallel with progress bar
@@ -191,7 +206,6 @@ def main():
         required=True,
         help="Path to the file containing the original paths of the audio files",
     )
-    parser.add_argument("--shard_type", type=str, default="arrow", help="Type of sharded dataset to create")
     parser.add_argument("--num_samples_per_shard", type=int, default=1000, help="Number of samples per shard")
     parser.add_argument("--num_workers", type=int, default=4, help="Number of workers for parallel processing")
     parser.add_argument("--version", type=str, required=True, help="Version of the dataset, e.g. v0.1.1")
@@ -252,18 +266,15 @@ def main():
         fp.write(f"### Changelog\n\n{args.changelog}\n")
 
     # test the dataset
-    from datasets import load_dataset
+    # from datasets import load_dataset
 
-    ds = load_dataset(
-        args.shard_type, data_files=str(AnyPath(output_path) / f"*{args.shard_type}"), split="train", streaming=True
-    )
-    print(ds.column_names)
-    print(f"Number of samples = {len(ds)}")
+    # ds = load_dataset(
+    #     args.shard_type, data_files=str(AnyPath(output_path) / f"*{args.shard_type}"), split="train", streaming=True
+    # )
+    # print(ds.column_names)
 
-    audio = ds[0]["audio"]
-    print(f"Source dataset = {ds[0]['source_dataset']}")
-    print(f"Audio shape = {audio.shape}")
-    print(f"Audio mean = {audio.mean(): .3f}, and std = {audio.std(): .3f}")
+    # for example in tqdm(ds):
+    #     validate_sample(example)
 
 
 if __name__ == "__main__":

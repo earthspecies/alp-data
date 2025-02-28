@@ -10,7 +10,7 @@ from esp_data.config.project_config import REQUIRED_DATASAMPLE_FIELDS
 from esp_data.file_io import File
 from esp_data.paths import AnyPath, is_cloud_path, is_local_path
 
-from .base import BaseIterableDataset, BaseMapDataset
+from .base import BaseMapDataset
 from .utils import generate_random_indices, wrapped_apply
 
 warnings.filterwarnings("ignore", "Your application has authenticated using end user credentials")
@@ -76,7 +76,7 @@ class HFDataset(BaseMapDataset):
         return cls(dataset_config, ds=Dataset.from_dict(data))
 
     @classmethod
-    def from_samples(cls, samples: Iterable[DataSample], dataset_config: DatasetConfig | dict) -> "HFDataset":
+    def from_samples(cls, samples: Iterable[DataSample | dict], dataset_config: DatasetConfig | dict) -> "HFDataset":
         """Create a dataset from a Iterable of DataSample records."""
         if len(samples) == 0:
             raise ValueError("Data must have at least one sample")
@@ -433,10 +433,11 @@ class HFDataset(BaseMapDataset):
         return self.__str__()
 
 
-class HFStreamingDataset(BaseIterableDataset):
+class HFStreamingDataset(HFDataset):
     def __init__(self, dataset_config: DatasetConfig | dict, ds: Optional[Dataset] = None):
         self.config = self._set_config(dataset_config)
         self.ds: Dataset = ds
+        self._streaming = True
 
     def _set_config(self, dataset_config) -> None:
         if isinstance(dataset_config, dict):
@@ -453,26 +454,21 @@ class HFStreamingDataset(BaseIterableDataset):
     def __iter__(self):
         return iter(self.ds)
 
-    # TODO:
-    def map(self, function: Callable, **map_kwargs) -> "HFStreamingDataset":
-        pass
-
-    # TODO:
-    def filter(self, condition: Callable) -> "HFStreamingDataset":
-        pass
-
-    # TODO:
-    def save_to_path(self, path: str | os.PathLike | AnyPath) -> None:
-        pass
-
     @classmethod
     def from_path(
         cls, path: str | os.PathLike, storage_options: dict = None, format: str = "arrow", file_pattern: str = "*arrow"
     ) -> "HFStreamingDataset":
         """Create a dataset from a path. This uses pyarrow so the dataset is memory-mapped.
-        Uses load_dataset technique
-        Args:
+        Uses load_dataset technique.
 
+        Args:
+            path: The path to the dataset.
+            storage_options: The storage options for cloud paths.
+            format: The format of the dataset, one of "arrow", "csv", "tsv", "json", "parquet".
+            file_pattern: The file pattern to use to find the dataset files.
+
+        Returns:
+            The loaded HFStreamingDataset.
         """
         if not is_local_path(path) and not is_cloud_path(path):
             raise ValueError(f"Path {path} must be a local or cloud path")
@@ -524,7 +520,7 @@ def concatenate_hf_datasets(
     else:
         new_ds = HFDataset(datasets[0].config.copy())
         if version_update_mode:
-            new_ds.config.increment_version(mode="patch")
+            new_ds.config.increment_version(mode=version_update_mode)
 
     new_ds.set_ds(concatenate_datasets([d.ds for d in datasets]))
 
@@ -551,68 +547,3 @@ def build_concatenated_dataset(
     )
 
     return new_ds
-
-
-def export_hfdataset_as_datafolder(
-    hf_dataset,
-    export_to: str | os.PathLike | AnyPath,
-    rich_media_keys: list[str],
-    metadata_keys: list[str],
-    split: str = None,
-):
-    """The idea is to export an HFDataset to a bucket / directory in the form of a data folder. The idea is that
-    a dataset with the following structure is created:
-        dataset_name/
-            vX.X.X/
-                - train (optional, if no split is provided, then the root directory will contain the dataset)
-                    - rich_media_keys[0] (e.g. audio)
-                        - 1.wav
-                        - 2.wav
-                        - ...
-                    - rich_media_keys[1] (e.g. video)
-                        - 1.mp4
-                        - 2.mp4
-                        - ...
-                - metadata.csv  # Contains all file related metadata, must be same length as number of dataset files
-                - metadata.json  # same as above but saved as json
-                - dataset_config.json # Contains the dataset configuration
-
-    Ref: https://huggingface.co/docs/datasets/audio_load#audiofolder
-    """
-    output_dir = str(export_to) / hf_dataset.config.version
-
-    # create the train directory
-    if split is not None:
-        output_dir = output_dir / split
-
-    # create the rich media directories
-    for key in rich_media_keys:
-        rich_media_dir = output_dir / key
-        rich_media_dir.mkdir(exist_ok=True)
-
-        # copy the rich media files
-        for idx, sample in enumerate(hf_dataset.ds):
-            file_name = f"{idx + 1}.{key}"
-            file_path = rich_media_dir / file_name
-            with file_path.open("wb") as f:
-                f.write(sample[key])
-
-    # create the metadata files
-    metadata_csv = output_dir / "metadata.csv"
-    metadata_json = output_dir / "metadata.json"
-
-    metadata = {k: [] for k in metadata_keys}
-    for sample in hf_dataset.ds:
-        for k in metadata_keys:
-            metadata[k].append(sample[k])
-
-    import pandas as pd
-
-    metadata_df = pd.DataFrame(metadata)
-    metadata_df.to_csv(metadata_csv, index=False)
-    metadata_df.to_json(metadata_json, orient="records")
-
-    # create the dataset config file
-    dataset_config_file = output_dir / "dataset_config.json"
-    with dataset_config_file.open("w") as fp:
-        json.dump(hf_dataset.config.to_dict(make_serializable=True), fp)

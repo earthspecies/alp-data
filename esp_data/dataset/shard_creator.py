@@ -2,48 +2,36 @@
 Modular functions to create sharded datasets in both WebDataset (tar) and Arrow formats
 """
 
+import hashlib
 import json
-import time
-from functools import partial
-from typing import Callable, Dict, Iterable, List, Optional
+from typing import Any, Callable, Iterable, Optional
 
 import numpy as np
 import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
 import webdataset as wds
+from datasets import Dataset
 from pydantic import BaseModel
-from tqdm import tqdm
 
-import esp_data.file_io.functional as F
-from esp_data.paths import AnyPath, is_cloud_path, is_local_path
+from esp_data.paths import AnyPath
+from esp_data.utils import make_simple_logger
 
+from .utils import _make_file_opener
 
-def _make_file_opener(file_path: str | AnyPath, mode: str = "wb") -> callable:
-    """Make a file opener function for WebDataset or Arrow"""
-    file_path = AnyPath(file_path)
-
-    if is_local_path(file_path):
-        # Create parent directories if they don't exist
-        parent_dir = file_path.parent
-        parent_dir.mkdir(parents=True, exist_ok=True)
-        # Return a callable function that opens the file
-        return partial(open, mode=mode)
-
-    if is_cloud_path(file_path):
-        return partial(F.open_file, mode=mode, use_fs=True)
+logger = make_simple_logger(name="shard_creator_module")
 
 
-def validate_batch(batch: List[Dict], validation_model: Optional[type[BaseModel]] = None) -> List[Dict]:
+def validate_batch(batch: list[dict], validation_model: Optional[type[BaseModel]] = None) -> list[dict]:
     """
     Validate a batch of data using a Pydantic model.
 
     Args:
-        batch: List of dictionaries containing sample data
+        batch: list of dictionaries containing sample data
         validation_model: Optional pydantic model for validation
 
     Returns:
-        List of validated dictionaries (filters out invalid items)
+        list of validated dictionaries (filters out invalid items)
     """
     if validation_model is None:
         return batch
@@ -56,7 +44,7 @@ def validate_batch(batch: List[Dict], validation_model: Optional[type[BaseModel]
             valid_items.append(validated.dict())
         except Exception as e:
             # Skip invalid items
-            print(f"Validation failed for item: {e}")
+            logger.error(f"Validation failed for item: {e}")
             continue
 
     return valid_items
@@ -66,8 +54,8 @@ def write_webdataset_shard(
     batch: Iterable[dict] | pd.DataFrame | pd.Series,
     shard_id: int,
     output_path: str | AnyPath,
-    sample_prep_function: Callable,
-) -> Dict:
+    sample_prep_function: Optional[Callable] = None,
+) -> dict:
     """
     Write a batch of samples to a WebDataset shard.
 
@@ -105,7 +93,10 @@ def write_webdataset_shard(
 
         try:
             # Prepare the sample
-            shard_data = sample_prep_function(item)
+            if sample_prep_function is None:
+                shard_data = item
+            else:
+                shard_data = sample_prep_function(item)
 
             # Write to shard
             sample = {
@@ -120,7 +111,7 @@ def write_webdataset_shard(
             )
 
         except Exception as e:
-            print(f"Error processing sample {sample_id}: {str(e)}")
+            logger.error(f"Error processing sample {sample_id}: {e}")
             results["failed_ids"].append(sample_id)
 
     # Close the shard
@@ -133,9 +124,9 @@ def write_arrow_shard(
     batch: Iterable[dict] | pd.DataFrame | pd.Series,
     shard_id: int,
     output_path: str | AnyPath,
-    arrow_prep_function: Callable,
+    sample_prep_function: Optional[Callable] = None,
     format: str = "parquet",
-) -> Dict:
+) -> dict:
     """
     Write a batch of samples to an Arrow / Parquet shard.
 
@@ -143,7 +134,7 @@ def write_arrow_shard(
         batch: list of dictionaries or dataframe or series containing sample data
         shard_id: ID for this shard
         output_path: Path to save the shard
-        arrow_prep_function: Function to prepare a sample for Arrow format
+        sample_prep_function: Function to prepare a sample for Arrow format
         format: Output format for the sshard (parquet or arrow)
 
     Returns:
@@ -167,8 +158,13 @@ def write_arrow_shard(
         sample_id = str(item["id"] if "id" in item else i)
 
         try:
-            prepared_sample = arrow_prep_function(item)
-            prepared_data.append(prepared_sample)
+            # Prepare the sample
+            if sample_prep_function is None:
+                shard_data = item
+            else:
+                shard_data = sample_prep_function(item)
+
+            prepared_data.append(shard_data)
 
             # Track successful sample
             results["processed_samples"].append(
@@ -176,7 +172,7 @@ def write_arrow_shard(
             )
 
         except Exception as e:
-            print(f"Error processing sample {sample_id} for Arrow: {e}")
+            logger.error(f"Error processing sample {sample_id} for Arrow: {e}")
             results["failed_ids"].append(sample_id)
 
     if prepared_data:
@@ -259,201 +255,175 @@ def write_arrow_shard(
     return results
 
 
+def write_huggingface_shard(
+    batch: Iterable[dict] | pd.DataFrame | pd.Series,
+    shard_id: int,
+    output_path: str | AnyPath,
+    sample_prep_function: Optional[Callable] = None,
+    storage_options: Optional[dict] = None,
+    num_proc: int = 1,
+):
+    """
+    Write a batch of samples to an Arrow shard in the Hugging Face format.
+
+    Args:
+        batch: list of dictionaries containing sample data
+        shard_id: ID for this shard
+        output_path: Path to save the shard
+        sample_prep_function: Function to prepare a sample for dataset Arrow format
+        storage_options: Optional storage options for saving the dataset
+        num_proc: Number of processes to use for saving the dataset
+        num_shards: Number of shards to split the dataset into
+
+    """
+    results = {"shard_id": shard_id, "processed_samples": [], "failed_ids": []}
+
+    # Create shard path
+    output_path = AnyPath(output_path)
+    shard_path = output_path / (f"shard_{shard_id:06d}")
+
+    # Process batch data
+    prepared_data = []
+    iterator = batch.iterrows() if isinstance(batch, pd.DataFrame) else enumerate(batch)
+
+    for i, item in iterator:
+        # get item and sample_id
+        if isinstance(item, pd.Series):
+            item = item.to_dict()
+
+        sample_id = str(item["id"] if "id" in item else i)
+        try:
+            # Prepare the sample
+            if sample_prep_function is None:
+                shard_data = item
+            else:
+                shard_data = sample_prep_function(item)
+
+            prepared_data.append(shard_data)
+
+            # Track successful sample
+            results["processed_samples"].append(
+                {"id": sample_id, "shard_path": f"shard_{shard_id:06d}.arrow", "shard_id": shard_id}
+            )
+
+        except Exception as e:
+            logger.error(f"Error processing sample {sample_id} for Arrow: {e}")
+            results["failed_ids"].append(sample_id)
+
+    if prepared_data:
+        ds = Dataset.from_list(prepared_data)
+        ds.save_to_disk(shard_path, storage_options=storage_options, num_proc=num_proc, num_shards=1)
+
+    return results
+
+
 def write_shard(
-    batch: List[Dict],
+    batch: list[dict],
     shard_id: int,
     output_path: str | AnyPath,
     sample_prep_function: Callable,
     output_format: str = "webdataset",
-) -> Dict:
+    **kwargs,
+) -> dict:
     """
     Write a batch of samples to a shard in the specified format.
 
     Args:
-        batch: List of dictionaries containing sample data
+        batch: list of dictionaries containing sample data
         shard_id: ID for this shard
         output_path: Path to save the shard
         sample_prep_function: Function to prepare a sample for the specified format
         output_format: Output format for the shard (webdataset or arrow)
     """
     if output_format == "webdataset":
-        return write_webdataset_shard(batch, shard_id, output_path, sample_prep_function)
-    elif output_format == "arrow":
-        return write_arrow_shard(batch, shard_id, output_path, sample_prep_function)
+        return write_webdataset_shard(batch, shard_id, output_path, sample_prep_function, **kwargs)
+    elif output_format in ["arrow", "parquet"]:
+        return write_arrow_shard(batch, shard_id, output_path, sample_prep_function, format=output_format, **kwargs)
+    elif output_format == "hf":
+        return write_huggingface_shard(batch, shard_id, output_path, sample_prep_function, **kwargs)
     else:
-        raise ValueError(f"Unsupported output format: {output_format}")
+        raise ValueError(
+            f"Unsupported output format: {output_format}, must be 'webdataset', 'arrow', 'parquet' or 'hf'"
+        )
 
 
-def create_dual_sharded_dataset(
-    data_generator: Iterable[List[Dict]],
-    webdataset_output_path: str | AnyPath,
-    arrow_output_path: str | AnyPath,
-    webdataset_sample_prep_function: Callable,
-    arrow_sample_prep_function: Callable,
-    validation_model: Optional[type[BaseModel]] = None,
-    num_workers: int = 1,
-) -> Dict:
+def compute_metadata_hash(metadata: pd.DataFrame | list[dict] | dict | Any) -> int:
     """
-    Create sharded datasets in both WebDataset and Arrow formats.
+    Compute a hash for metadata of various types.
 
     Args:
-        data_generator: Generator yielding lists of dictionaries (each dictionary is a sample)
-        webdataset_output_path: Path to save WebDataset shards
-        arrow_output_path: Path to save Arrow shards
-        webdataset_sample_prep_function: Function to prepare samples for WebDataset
-        arrow_sample_prep_function: Function to prepare samples for Arrow
-        validation_model: Optional pydantic model for validation
-        num_workers: Number of workers for parallel processing
+        metadata: Can be a pandas DataFrame, list of dictionaries, dictionary, or other serializable data
 
     Returns:
-        Dictionary with processing results
+        int: A hash value representing the metadata
     """
-    webdataset_output_path = AnyPath(webdataset_output_path)
-    arrow_output_path = AnyPath(arrow_output_path)
+    if isinstance(metadata, pd.DataFrame):
+        # Use pandas' built-in hashing for DataFrames
+        return int(pd.util.hash_pandas_object(metadata).sum())
 
-    # Create output directories
-    for path in [webdataset_output_path, arrow_output_path]:
-        if is_local_path(path):
-            path.mkdir(parents=True, exist_ok=True)
+    # For other types, convert to JSON and hash that
+    try:
+        # Convert to JSON string in a deterministic way (sorted keys)
+        metadata_str = json.dumps(metadata, sort_keys=True)
+        # Use hash to get a consistent int value
+        hash_object = hashlib.md5(metadata_str.encode())
+        # Convert first 8 bytes of MD5 to int (to keep similar scale to pandas hash)
+        return int.from_bytes(hash_object.digest()[:8], byteorder="big")
+    except (TypeError, ValueError):
+        # If the metadata can't be converted to JSON, use its string representation
+        logger.warning("Could not JSON-serialize metadata, using string representation for hashing")
+        metadata_str = str(metadata)
+        hash_object = hashlib.md5(metadata_str.encode())
+        return int.from_bytes(hash_object.digest()[:8], byteorder="big")
 
-    # Initialize counters and results
-    shard_id = 0
-    total_processed = 0
-    total_failed = 0
-    all_results = {"webdataset": [], "arrow": [], "metadata": []}
-    start_time = time.time()
 
-    # Process batches
-    with tqdm(data_generator, desc="Processing batches") as pbar:
-        for batch in pbar:
-            # Validate batch
-            valid_batch = validate_batch(batch, validation_model)
+def save_checkpoint(output_path: AnyPath, completed_chunks: dict, metadata: Any) -> None:
+    """
+    Save checkpoint information for any type of metadata.
 
-            if not valid_batch:
-                print("Skipping empty batch after validation")
-                continue
-
-            # Create WebDataset shard
-            webdataset_result = write_webdataset_shard(
-                valid_batch, shard_id, webdataset_output_path, webdataset_sample_prep_function
-            )
-
-            # Create Arrow shard
-            arrow_result = write_arrow_shard(valid_batch, shard_id, arrow_output_path, arrow_sample_prep_function)
-
-            # Update results
-            all_results["webdataset"].append(webdataset_result)
-            all_results["arrow"].append(arrow_result)
-
-            # Merge sample info for metadata
-            for sample in webdataset_result["processed_samples"]:
-                # Find corresponding arrow info
-                arrow_info = next((a for a in arrow_result["processed_samples"] if a["id"] == sample["id"]), None)
-
-                if arrow_info:
-                    all_results["metadata"].append(
-                        {
-                            "id": sample["id"],
-                            "webdataset_shard": sample["shard_path"],
-                            "arrow_shard": arrow_info["arrow_path"],
-                            "shard_id": shard_id,
-                        }
-                    )
-
-            # Update counters
-            total_processed += len(webdataset_result["processed_samples"])
-            total_failed += len(webdataset_result["failed_ids"])
-
-            # Update progress bar
-            pbar.set_postfix({"shard": shard_id, "processed": total_processed, "failed": total_failed})
-
-            # Increment shard ID for next batch
-            shard_id += 1
-
-    # Write metadata
-    metadata_dict = {"samples": all_results["metadata"]}
-    metadata_json_path = webdataset_output_path / "metadata.json"
-    with _make_file_opener(metadata_json_path, mode="w")(str(metadata_json_path)) as f:
-        json.dump(metadata_dict, f)
-
-    arrow_metadata_json_path = arrow_output_path / "metadata.json"
-    with _make_file_opener(arrow_metadata_json_path, mode="w")(str(arrow_metadata_json_path)) as f:
-        json.dump(metadata_dict, f)
-
-    # Report final statistics
-    processing_time = time.time() - start_time
-    summary = {
-        "total_processed": total_processed,
-        "total_failed": total_failed,
-        "success_rate": (total_processed / (total_processed + total_failed) * 100)
-        if (total_processed + total_failed) > 0
-        else 0,
-        "total_shards": shard_id,
-        "processing_time_seconds": processing_time,
+    Args:
+        output_path: Path to save the checkpoint
+        completed_chunks: Dictionary of completed chunks
+        metadata: Metadata of any serializable type
+    """
+    checkpoint_data = {
+        "completed_chunks": completed_chunks,
+        "metadata_hash": compute_metadata_hash(metadata),
     }
 
-    print(f"""
-    Processing completed:
-    - Total files processed successfully: {summary["total_processed"]}
-    - Total files failed: {summary["total_failed"]}
-    - Success rate: {summary["success_rate"]:.2f}%
-    - Total shards created: {summary["total_shards"]}
-    - Total time taken: {summary["processing_time_seconds"]:.2f} seconds
-    """)
-
-    return {"results": all_results, "summary": summary}
+    # can write to a cloud path
+    with (output_path / "checkpoint.json").open("w") as f:
+        json.dump(checkpoint_data, f)
 
 
-# Example usage as CLI
-def main():
-    import argparse
+def load_checkpoint(output_path: AnyPath, metadata: Any) -> Optional[dict]:
+    """
+    Load checkpoint if it exists and is valid for any type of metadata.
 
-    from pydantic import BaseModel, Field
+    Args:
+        output_path: Path to the checkpoint
+        metadata: Current metadata to compare against saved checkpoint
 
-    # Example Pydantic validation model
-    class AudioSample(BaseModel):
-        id: str
-        file_path: str
-        metadata: dict = Field(default_factory=dict)
+    Returns:
+        Optional[dict]: Checkpoint data if valid, None otherwise
+    """
+    checkpoint_path = output_path / "checkpoint.json"
 
-    parser = argparse.ArgumentParser(description="Create dual-format sharded datasets")
-    parser.add_argument("--webdataset_output", required=True, help="Path for WebDataset output")
-    parser.add_argument("--arrow_output", required=True, help="Path for Arrow output")
-    parser.add_argument("--num_workers", type=int, default=1, help="Number of workers")
+    if not checkpoint_path.exists():
+        return None
 
-    args = parser.parse_args()
+    try:
+        with checkpoint_path.open("r") as f:
+            checkpoint_data = json.load(f)
 
-    # This is where you would define your custom sample prep functions
-    # These are just placeholders - replace with your actual implementations
-    def example_webdataset_prep(item):
-        # Example function - replace with your actual implementation
-        return {"metadata.json": json.dumps(item)}
+        # Verify metadata hasn't changed
+        current_hash = compute_metadata_hash(metadata)
+        if checkpoint_data["metadata_hash"] != current_hash:
+            logger.warning("Metadata has changed since last checkpoint. Starting fresh.")
+            return None
 
-    def example_arrow_prep(item):
-        # Example function - replace with your actual implementation
-        return item
+        return checkpoint_data
 
-    # Example generator function that yields batches of dictionaries
-    def example_data_generator():
-        # In a real implementation, this would read from a source
-        for i in range(5):  # 5 batches
-            batch = [
-                {"id": f"{i}_{j}", "file_path": f"/path/to/file_{i}_{j}", "metadata": {"tag": f"batch_{i}"}}
-                for j in range(10)  # 10 items per batch
-            ]
-            yield batch
-
-    # Process the dataset
-    create_dual_sharded_dataset(
-        data_generator=example_data_generator(),
-        webdataset_output_path=args.webdataset_output,
-        arrow_output_path=args.arrow_output,
-        webdataset_sample_prep_function=example_webdataset_prep,
-        arrow_sample_prep_function=example_arrow_prep,
-        validation_model=AudioSample,
-        num_workers=args.num_workers,
-    )
-
-
-if __name__ == "__main__":
-    main()
+    except Exception as e:
+        logger.error(f"Error loading checkpoint: {str(e)}")
+        return None
