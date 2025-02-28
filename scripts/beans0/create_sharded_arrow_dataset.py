@@ -238,13 +238,21 @@ def main():
     # write new dataset config file
     beans0_cfg.version = args.version.replace("v", "")
     beans0_cfg.changelog = args.changelog
-    with open(os.path.join(output_path, "dataset_config.json"), "w") as fp:
+    with AnyPath(os.path.join(output_path, "dataset_config.json")).open("w") as fp:
         json.dump(beans0_cfg.to_dict(make_serializable=True), fp)
+
+    # Write a README using the confg description and changelog
+    with AnyPath(os.path.join(output_path, "README.md")).open("w") as fp:
+        fp.write(f"# Beans0\n\n## Version {args.version}\n\n")
+        fp.write(f"{beans0_cfg.description}\n\n")
+        fp.write(f"### Changelog\n\n{args.changelog}\n")
 
     # test the dataset
     from datasets import load_dataset
 
-    ds = load_dataset("arrow", data_files=str(AnyPath(output_path) / "*arrow"), split="train")
+    ds = load_dataset(
+        args.shard_type, data_files=str(AnyPath(output_path) / f"*{args.shard_type}"), split="train", streaming=True
+    )
     print(ds.column_names)
     print(f"Number of samples = {len(ds)}")
 
