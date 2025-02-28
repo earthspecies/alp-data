@@ -10,6 +10,7 @@ from typing import Callable, Dict, Iterable, List, Optional
 import numpy as np
 import pandas as pd
 import pyarrow as pa
+import pyarrow.parquet as pq
 import webdataset as wds
 from pydantic import BaseModel
 from tqdm import tqdm
@@ -133,15 +134,17 @@ def write_arrow_shard(
     shard_id: int,
     output_path: str | AnyPath,
     arrow_prep_function: Callable,
+    format: str = "parquet",
 ) -> Dict:
     """
-    Write a batch of samples to an Arrow shard.
+    Write a batch of samples to an Arrow / Parquet shard.
 
     Args:
         batch: list of dictionaries or dataframe or series containing sample data
         shard_id: ID for this shard
         output_path: Path to save the shard
         arrow_prep_function: Function to prepare a sample for Arrow format
+        format: Output format for the Arrow shard (parquet or arrow)
 
     Returns:
         Dictionary with processing results
@@ -150,7 +153,7 @@ def write_arrow_shard(
 
     # Create shard path
     output_path = AnyPath(output_path)
-    shard_path = output_path / f"shard_{shard_id:06d}.arrow"
+    shard_path = output_path / f"shard_{shard_id:06d}." + format
 
     # Process batch data
     prepared_data = []
@@ -246,8 +249,12 @@ def write_arrow_shard(
         # Write to file
         opener = _make_file_opener(shard_path)
         with opener(str(shard_path)) as f:
-            with pa.ipc.new_file(f, schema) as writer:
-                writer.write_table(table)
+            if format == "parquet":
+                # Write as Parquet
+                pq.write_table(table, f)
+            else:
+                with pa.ipc.new_file(f, schema) as writer:
+                    writer.write_table(table)
 
     return results
 
