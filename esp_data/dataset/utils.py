@@ -1,8 +1,27 @@
+from functools import partial
 from typing import Callable
 
 import numpy as np
 
+import esp_data.file_io.functional as F
 from esp_data.config import DataSample
+from esp_data.paths import AnyPath, is_cloud_path, is_local_path
+
+
+def _make_file_opener(file_path: str | AnyPath, mode: str = "wb") -> callable:
+    """Make a file opener function for WebDataset"""
+    file_path = AnyPath(file_path)
+
+    if is_local_path(file_path):
+        # Create parent directories if they don't exist
+        parent_dir = file_path.parent
+        parent_dir.mkdir(parents=True, exist_ok=True)
+
+        # Return a callable function that opens the file
+        return partial(open, mode=mode)
+
+    if is_cloud_path(file_path):
+        return partial(F.open_file, mode=mode, use_fs=True)
 
 
 def generate_random_indices(
