@@ -73,6 +73,7 @@ def create_sharded_dataset(
     num_samples_per_shard: int = 1000,
     num_workers: int = 4,
     storage_options: dict = None,
+    shard_type: str = "arrow",
 ):
     """Create sharded dataset from information in metadata dataframe and a sample prep function,
     in parallel with checkpointing.
@@ -86,6 +87,8 @@ def create_sharded_dataset(
         num_samples_per_shard (int, optional): Number of samples per shard. Defaults to 1000.
         num_workers (int, optional): Number of workers for parallel processing. Defaults to 4.
         storage_options (dict, optional): Storage options for reading and writing files. Defaults to None.
+        shard_type (str, optional): Type of sharded dataset to create. Defaults to "arrow".
+
     """
     t0 = time.time()
     output_path = AnyPath(output_path)
@@ -114,7 +117,7 @@ def create_sharded_dataset(
 
     # Create partial function with fixed arguments
     process_chunk_partial = partial(
-        write_arrow_shard, output_path=output_path, arrow_prep_function=sample_prep_function
+        write_arrow_shard, output_path=output_path, arrow_prep_function=sample_prep_function, format=shard_type
     )
 
     # Process chunks in parallel with progress bar
@@ -184,6 +187,7 @@ def main():
         required=True,
         help="Path to the file containing the original paths of the audio files",
     )
+    parser.add_argument("--shard_type", type=str, default="arrow", help="Type of sharded dataset to create")
     parser.add_argument("--num_samples_per_shard", type=int, default=1000, help="Number of samples per shard")
     parser.add_argument("--num_workers", type=int, default=4, help="Number of workers for parallel processing")
     parser.add_argument("--version", type=str, required=True, help="Version of the dataset, e.g. v0.1.1")
@@ -228,6 +232,7 @@ def main():
         num_samples_per_shard=args.num_samples_per_shard,
         num_workers=args.num_workers,
         storage_options=storage_options,
+        shard_type=args.shard_type,
     )
 
     # write new dataset config file
