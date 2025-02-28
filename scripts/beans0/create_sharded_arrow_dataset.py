@@ -9,6 +9,7 @@ from typing import Any, Callable
 import numpy as np
 import pandas as pd
 from beans_cfg import beans0_cfg
+from datasets import load_dataset
 from tqdm import tqdm
 
 from esp_data.dataset.shard_creator import load_checkpoint, save_checkpoint, write_shard
@@ -192,6 +193,7 @@ def main():
         help="Path to the file containing the original paths of the audio files",
     )
     parser.add_argument("--shard_type", type=str, default="arrow", help="Type of sharded dataset to create")
+    parser.add_argument("--output_shard_pattern", type=str, default="shard_*.arrow", help="Output shard pattern")
     parser.add_argument("--num_samples_per_shard", type=int, default=1000, help="Number of samples per shard")
     parser.add_argument("--num_workers", type=int, default=4, help="Number of workers for parallel processing")
     parser.add_argument("--version", type=str, required=True, help="Version of the dataset, e.g. v0.1.1")
@@ -251,11 +253,8 @@ def main():
         fp.write(f"{beans0_cfg.description}\n\n")
         fp.write(f"### Changelog\n\n{args.changelog}\n")
 
-    # test the dataset
-    from datasets import load_dataset
-
     ds = load_dataset(
-        args.shard_type, data_files=str(AnyPath(output_path) / f"*{args.shard_type}"), split="train", streaming=True
+        args.shard_type, data_files=str(AnyPath(output_path) / args.output_shard_pattern), split="train", streaming=True
     )
     print(ds.column_names)
     print(f"Number of samples = {len(ds)}")
@@ -264,6 +263,20 @@ def main():
     print(f"Source dataset = {ds[0]['source_dataset']}")
     print(f"Audio shape = {audio.shape}")
     print(f"Audio mean = {audio.mean(): .3f}, and std = {audio.std(): .3f}")
+
+    def validate_sample(sample: dict):
+        assert sum(sample["audio"]) != 0.0
+        assert len(sample["output"]) > 0
+        assert sample["output"] != "nan"
+        assert "Audio" in sample["instruction"]
+        assert isinstance(sample["metadata"], dict)
+        assert len(sample["file_name"]) > 0
+        assert len(sample["license"]) > 0
+        assert len(sample["task"]) > 0
+        return sample
+
+    # validate all
+    ds.map(validate_sample, num_proc=args.num_workers)
 
 
 if __name__ == "__main__":
