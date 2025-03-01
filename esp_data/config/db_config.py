@@ -9,10 +9,13 @@ from typing import Optional
 from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, field_validator
 from typing_extensions import Annotated
 
+from esp_data.file_io.functional import open_file
+
 from ..utils import (
     increment_version,
     make_id,
     utc_now,
+    utc_now_str,
     validate_datetime,
     validate_id,
     validate_path_exists,
@@ -148,14 +151,14 @@ class DataSample(BaseModel):
     @classmethod
     def from_json(cls, file_path: str | os.PathLike) -> "DataSample":
         """Load data sample from a JSON file"""
-        with open(file_path, "r") as f:
+        with open_file(file_path, "r") as f:
             data = json.load(f)
         data["created_at"] = datetime.fromisoformat(data["created_at"])
         return cls(**data)
 
     def write_json(self, file_path: str | os.PathLike, indent: int = 2) -> None:
         """Write the data sample to a JSON file"""
-        with open(file_path, "w") as f:
+        with open_file(file_path, "w") as f:
             d = self.to_dict()
             d["created_at"] = self.created_at_isoformat()
             json.dump(d, f, indent=indent)
@@ -255,7 +258,7 @@ class DatasetConfig(BaseModel):
     @classmethod
     def from_json(cls, file_path: str | os.PathLike) -> None:
         """Load data sample from a JSON file"""
-        with open(file_path, "r") as f:
+        with open_file(file_path, "r") as f:
             data = json.load(f)
         data["created_at"] = datetime.fromisoformat(data["created_at"])
         return cls(**data)
@@ -279,7 +282,28 @@ class DatasetConfig(BaseModel):
 
     def write_json(self, file_path: str | os.PathLike) -> None:
         """Write the dataset to a JSON file"""
-        with open(file_path, "w") as f:
+        with open_file(file_path, "w") as f:
             d = self.to_dict()
             d["created_at"] = self.created_at.isoformat()
             json.dump(d, f, indent=2)
+
+    def update_changelog(self, new_log: str) -> None:
+        """Update changelog with new string"""
+        # get current datetime as str
+        dt_str = utc_now_str()
+        # append new changelog with datetime
+        self.changelog += f"\n\n{dt_str}:\n{new_log}"
+
+    def generate_readme(self, file_path: str | os.PathLike) -> None:
+        """Generate a README file for the dataset"""
+        text = f"""# {self.name}
+        ## Version\n\n{self.version}\n\n
+        ## Created At\n\n{self.created_at}\n\n
+        ## Creator\n\n{self.creator}\n\n
+        ## License\n\n{self.license}\n\n
+        ## Description\n\n{self.description}\n\n
+        ## Sources\n\n{self.sources}\n\n
+        ## Changelog\n\n{self.changelog}\n\n"""
+
+        with open_file(file_path, "w") as f:
+            f.write(text)
