@@ -1,3 +1,4 @@
+import json
 from typing import Any, Callable
 
 import pandas as pd
@@ -6,6 +7,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 import esp_data.file_io.functional as F
+from esp_data.config import DatasetConfig
 from esp_data.paths import AnyPath
 from esp_data.utils import make_simple_logger
 
@@ -190,24 +192,27 @@ class WebDataset:
 
     def __init__(
         self,
-        web_dataset_path: str | AnyPath,
+        dataset_config: DatasetConfig,
+        ds: wds.WebDataset = None,
+        path: str | AnyPath | None = None,
+        load_metadata: bool = True,
         metadata_df: pd.DataFrame = None,
         file_pattern: str = "shard_*.tar",
-        num_workers: int = 4,
         storage_options: dict = None,
         metadata_path: str | None = None,
         data_processor: Callable = None,
         shuffle_size: int = 1000,
     ):
-        self.web_dataset_path = AnyPath(web_dataset_path)
+        assert path is None and ds is None, "Only one of path or ds should be provided"
+        self.path = AnyPath(path)
+        self.config = dataset_config
         self.metadata_path = AnyPath(metadata_path if metadata_path is not None else self.web_dataset_path)
-        self.num_workers = num_workers
         self.metadata_df = metadata_df
         self.storage_options = storage_options
         self.shuffle_size = shuffle_size
 
         # Read metadata if missing
-        if self.metadata_df is None:
+        if self.metadata_df is None and load_metadata:
             if AnyPath(self.metadata_path / "metadata.parquet").exists():
                 self.metadata_df = pd.read_parquet(
                     self.metadata_path / "metadata.parquet", storage_options=storage_options
@@ -224,14 +229,28 @@ class WebDataset:
         self._data_processor = data_processor
 
         # load dataset if available
-        self.ds = None
+        self.ds = ds
         shard_files = F.list_files(self.web_dataset_path, pattern=file_pattern)
         if len(shard_files) > 0:
             self._load_dataset(shuffle_size=self.shuffle_size)
 
+    @property
+    def columns(self):
+        return list(self.metadata_df.columns) if self.metadata_df is not None else None
+
+    @property
+    def version(self):
+        return self.config.version
+
+    def _set_config(self, dataset_config) -> None:
+        if isinstance(dataset_config, dict):
+            return DatasetConfig(**dataset_config)
+        elif isinstance(dataset_config, DatasetConfig):
+            return dataset_config
+
     def _load_dataset(self, shuffle_size: int = 1000, **webdataset_kwargs):
         self.ds = load_dataset(
-            path=self.web_dataset_path,
+            path=self.path,
             data_processor=self._data_processor,
             shuffle_size=shuffle_size,
             **webdataset_kwargs,
@@ -239,7 +258,17 @@ class WebDataset:
 
     @classmethod
     def from_path(cls, path: str | AnyPath, **kwargs):
-        return cls(web_dataset_path=path, **kwargs)
+        path = AnyPath(path)
+
+        # load config from json
+        config_file = AnyPath(path / "dataset_config.json")
+        if not config_file.exists():
+            raise FileNotFoundError("No dataset config found")
+
+        with config_file.open("r") as fp:
+            config = json.load(fp)
+
+        return cls(config, path=path, **kwargs)
 
     def __getitem__(self, idx: int) -> Any:
         if self.metadata_df is None:
