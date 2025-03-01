@@ -129,6 +129,53 @@ def exists(file_path: str | os.PathLike | AnyPath, use_fs: bool = False) -> bool
         raise IOError(f"Failed to check file exists at {file_path} using both methods: {e}") from e
 
 
+def move_file(
+    source: str | os.PathLike | AnyPath, destination: str | os.PathLike | AnyPath, use_fs: bool = False
+) -> bool:
+    """Move a file from the source to the destination.
+
+    Args:
+        source (str | os.PathLike | AnyPath): The path to the source file.
+        destination (str | os.PathLike | AnyPath): The path to the destination file.
+        use_fs (bool, optional): If True, use the FileSystem approach. Defaults to False.
+
+    Returns:
+        bool: True if the file was moved successfully.
+    """
+    source = AnyPath(source)
+    destination = AnyPath(destination)
+
+    if not exists(source):
+        raise FileNotFoundError(f"Source {source} does not exist")
+
+    # Handle local path move directly
+    if is_local_path(source) and is_local_path(destination):
+        try:
+            shutil.move(source, destination)
+            return True
+        except Exception as e:
+            raise IOError(f"Failed to move local file {source} to {destination}: {e}") from e
+
+    # For cloud paths, determine which path needs the filesystem
+    cloud_path = destination if not is_local_path(destination) else source
+
+    if not use_fs:
+        try:
+            source.rename(destination)
+            return True
+        except Exception as e:
+            logger.warning(f"Could not move file using AnyPath method: {e}, trying FileSystem approach.")
+
+    try:
+        fs = make_fs(cloud_path)
+        source_str = strip_cloud_prefix(source)
+        destination_str = strip_cloud_prefix(destination)
+        fs.mv(source_str, destination_str)
+        return True
+    except Exception as e:
+        raise IOError(f"Failed to move file {source} to {destination} using both methods: {e}") from e
+
+
 def list_files(dir_path: str | os.PathLike | AnyPath, pattern: str = "*", use_fs: bool = False) -> list[str]:
     """List files in the given directory.
 
