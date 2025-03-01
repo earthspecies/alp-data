@@ -20,6 +20,19 @@ from esp_data.utils import make_simple_logger
 logger = make_simple_logger("sharded_arrow_dataset_creator")
 
 
+def validate_sample(sample: dict, remove_inaturalist: bool = True) -> dict:
+    if remove_inaturalist:
+        assert np.std(sample["audio"]) > 0.0
+    assert len(sample["output"]) > 0
+    assert sample["output"] != "nan"
+    assert "Audio" in sample["instruction"]
+    assert isinstance(sample["metadata"], str)
+    assert len(sample["file_name"]) > 0
+    assert len(sample["license"]) > 0
+    assert len(sample["task"]) > 0
+    return sample
+
+
 def prepare_audio_sample_for_beans0(row: dict, remove_inaturalist: bool = True) -> dict[str, Any]:
     # Handle metadata differently based on its type
     if "metadata" in row:
@@ -58,7 +71,15 @@ def prepare_audio_sample_for_beans0(row: dict, remove_inaturalist: bool = True) 
     # HACK
     row["output"] = "None" if (pd.isna(row["output"]) or row["output"] == "nan") else row["output"]
 
-    return {"audio": audio_data, **row}
+    sample = {"audio": audio_data, **row}
+
+    try:
+        validate_sample(sample)
+    except AssertionError as e:
+        logger.error(f"Validation failed for sample {row['id']}: {e}")
+        raise e
+
+    return sample
 
 
 def checks(metadata_df: pd.DataFrame, original_paths_df: pd.DataFrame):
@@ -160,7 +181,7 @@ def create_sharded_dataset(
         metadata_df.drop(columns=["file_path"], inplace=True)
 
     # Save updated metadata as parquet
-    metadata_df.to_parquet(str(output_path / "metadata.parquet"), storage_options=storage_options)
+    metadata_df.to_csv(str(output_path / "metadata.csv"), index=False, storage_options=storage_options)
 
     # Report final statistics
     total_successful = len(processed_samples)
@@ -244,40 +265,20 @@ def main():
 
     # write new dataset config file
     beans0_cfg.version = args.version.replace("v", "")
-    beans0_cfg.changelog = args.changelog
+    beans0_cfg.update_changelog(args.changelog)
     with AnyPath(os.path.join(output_path, "dataset_config.json")).open("w") as fp:
         json.dump(beans0_cfg.to_dict(make_serializable=True), fp)
 
-    # Write a README using the confg description and changelog
-    with AnyPath(os.path.join(output_path, "README.md")).open("w") as fp:
-        fp.write(f"# Beans0\n\n## Version {args.version}\n\n")
-        fp.write(f"{beans0_cfg.description}\n\n")
-        fp.write(f"### Changelog\n\n{args.changelog}\n")
+    beans0_cfg.generate_readme(AnyPath(output_path) / "README.md")
 
+    # Few post-hoc checks
     ds = load_dataset(
-        args.shard_type, data_files=str(AnyPath(output_path) / args.output_shard_pattern), split="train", streaming=True
+        "arrow" if args.shard_type in ["arrow", "hf"] else "parquet",
+        data_files=str(AnyPath(output_path) / args.output_shard_pattern),
+        split="train",
+        streaming=True,
     )
     print(ds.column_names)
-    print(f"Number of samples = {len(ds)}")
-
-    audio = ds[0]["audio"]
-    print(f"Source dataset = {ds[0]['source_dataset']}")
-    print(f"Audio shape = {audio.shape}")
-    print(f"Audio mean = {audio.mean(): .3f}, and std = {audio.std(): .3f}")
-
-    def validate_sample(sample: dict):
-        assert sum(sample["audio"]) != 0.0
-        assert len(sample["output"]) > 0
-        assert sample["output"] != "nan"
-        assert "Audio" in sample["instruction"]
-        assert isinstance(sample["metadata"], str)
-        assert len(sample["file_name"]) > 0
-        assert len(sample["license"]) > 0
-        assert len(sample["task"]) > 0
-        return sample
-
-    # validate all
-    ds.map(validate_sample, num_proc=args.num_workers)
 
 
 if __name__ == "__main__":

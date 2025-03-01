@@ -2258,6 +2258,7 @@ class Beans0SampleNoAudio(DataSample):
     # required
     file_name: str = Field(description="Audio filename, could be a url")
     instruction: str = Field(min_length=1, description="Prompt for naturelm")
+    instruction_text: str = Field(min_length=1, description="Prompt for naturelm without Audio token placeholders")
     output: str = Field(min_length=1, description="Some kind of expected output: text caption / label / answer")
     task: Optional[str] = Field(default=None, description="The task the model is trying to solve")
     dataset_name: Optional[str] = Field(default=None, description="The name of the dataset, if applicable")

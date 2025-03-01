@@ -21,7 +21,20 @@ from esp_data.utils import make_simple_logger
 logger = make_simple_logger("sharded_web_dataset_creator")
 
 
-def prepare_audio_sample_for_beans0(row: dict, remove_inaturalist: bool = True) -> dict[str, Any]:
+def validate_sample(sample: dict, remove_inaturalist: bool = False):
+    if not remove_inaturalist:
+        assert np.std(sample["audio"]) > 0.0
+    assert len(sample["output"]) > 0
+    assert sample["output"] != "nan"
+    assert "Audio" in sample["instruction"]
+    assert isinstance(sample["metadata"], str)
+    assert len(sample["file_name"]) > 0
+    assert len(sample["license"]) > 0
+    assert len(sample["task"]) > 0
+    return sample
+
+
+def prepare_audio_sample_for_beans0(row: dict, remove_inaturalist: bool = False) -> dict[str, Any]:
     # Handle metadata differently based on its type
     if "metadata" in row:
         # Check if metadata is already a string that needs parsing
@@ -53,6 +66,8 @@ def prepare_audio_sample_for_beans0(row: dict, remove_inaturalist: bool = True) 
     row["metadata"]["duration"] = duration
     row["metadata"]["sample_rate"] = sr
 
+    row["metadata"] = json.dumps(row["metadata"])
+
     if "file_path" in row:
         del row["file_path"]
 
@@ -61,6 +76,14 @@ def prepare_audio_sample_for_beans0(row: dict, remove_inaturalist: bool = True) 
     sf.write(audio_buffer, audio_data, sr, format="WAV")
 
     row["output"] = "None" if (pd.isna(row["output"]) or row["output"] == "nan") else row["output"]
+
+    sample = {"audio": audio_data, **row}
+
+    try:
+        validate_sample(sample)
+    except AssertionError as e:
+        logger.error(f"Validation failed for sample {row['id']}: {e}")
+        raise e
 
     return {"audio.wav": audio_buffer.getvalue(), "metadata.json": json.dumps(row)}
 
@@ -71,17 +94,6 @@ def checks(metadata_df: pd.DataFrame, original_paths_df: pd.DataFrame):
     assert metadata_df.file_name.isnull().sum() == 0
     assert metadata_df.output.isnull().sum() == 0
     assert metadata_df.source_dataset.isnull().sum() == 0
-
-
-def validate_sample(sample: dict):
-    assert sum(sample["audio"]) != 0.0
-    assert len(sample["output"]) > 0
-    assert "Audio" in sample["instruction"]
-    assert isinstance(sample["metadata"], dict)
-    assert len(sample["file_name"]) > 0
-    assert len(sample["license"]) > 0
-    assert len(sample["task"]) > 0
-    return sample
 
 
 def create_sharded_dataset(
@@ -255,26 +267,13 @@ def main():
 
     # write new dataset config file
     beans0_cfg.version = args.version.replace("v", "")
-    beans0_cfg.changelog = args.changelog
+    beans0_cfg.update_changelog(args.changelog)
     with AnyPath(os.path.join(output_path, "dataset_config.json")).open("w") as fp:
         json.dump(beans0_cfg.to_dict(make_serializable=True), fp)
 
-    # Write a README using the confg description and changelog
-    with AnyPath(os.path.join(output_path, "README.md")).open("w") as fp:
-        fp.write(f"# Beans0\n\n## Version {args.version}\n\n")
-        fp.write(f"{beans0_cfg.description}\n\n")
-        fp.write(f"### Changelog\n\n{args.changelog}\n")
+    beans0_cfg.generate_readme(AnyPath(output_path) / "README.md")
 
     # test the dataset
-    # from datasets import load_dataset
-
-    # ds = load_dataset(
-    #     args.shard_type, data_files=str(AnyPath(output_path) / f"*{args.shard_type}"), split="train", streaming=True
-    # )
-    # print(ds.column_names)
-
-    # for example in tqdm(ds):
-    #     validate_sample(example)
 
 
 if __name__ == "__main__":

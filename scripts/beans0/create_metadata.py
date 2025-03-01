@@ -110,6 +110,7 @@ def make_sample(
             metadata=metadata,
             file_name=file_name,
             instruction=row["prompt"],
+            instruction_text=row["prompt"].replace("<Audio><AudioHere></Audio>", "").strip(),
             output=row["text"],
             task=task,
             dataset_name=dataset_name,
