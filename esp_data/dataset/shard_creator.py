@@ -12,42 +12,14 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 import webdataset as wds
 from datasets import Dataset
-from pydantic import BaseModel
 
+import esp_data.file_io.functional as F
 from esp_data.paths import AnyPath
 from esp_data.utils import make_simple_logger
 
 from .utils import _make_file_opener
 
 logger = make_simple_logger(name="shard_creator_module")
-
-
-def validate_batch(batch: list[dict], validation_model: Optional[type[BaseModel]] = None) -> list[dict]:
-    """
-    Validate a batch of data using a Pydantic model.
-
-    Args:
-        batch: list of dictionaries containing sample data
-        validation_model: Optional pydantic model for validation
-
-    Returns:
-        list of validated dictionaries (filters out invalid items)
-    """
-    if validation_model is None:
-        return batch
-
-    valid_items = []
-    for item in batch:
-        try:
-            # Validate with pydantic model
-            validated = validation_model(**item)
-            valid_items.append(validated.dict())
-        except Exception as e:
-            # Skip invalid items
-            logger.error(f"Validation failed for item: {e}")
-            continue
-
-    return valid_items
 
 
 def write_webdataset_shard(
@@ -77,8 +49,8 @@ def write_webdataset_shard(
     # Initialize shard writer
     sink = wds.ShardWriter(
         str(shard_path),
-        maxcount=1e12,  # Set very high to ensure all samples go in one shard
-        maxsize=1e12,  # Set very high
+        maxcount=100_000_000_000,  # Set very high to ensure all samples go in one shard
+        maxsize=100_000_000_000,
         opener=_make_file_opener(shard_path),
     )
 
@@ -313,6 +285,11 @@ def write_huggingface_shard(
     if prepared_data:
         ds = Dataset.from_list(prepared_data)
         ds.save_to_disk(shard_path, storage_options=storage_options, num_proc=num_proc, num_shards=1)
+        # this saves a few files in a folder, like state.json, data*.arrow, dataset_info.json.
+        # we just want the .arrow file
+        arrow_file = F.list_files(shard_path, pattern="*.arrow")[0]
+        F.move_file(arrow_file, output_path / (f"shard_{shard_id:06d}.arrow"))
+        F.delete_dir(shard_path)
 
     return results
 
