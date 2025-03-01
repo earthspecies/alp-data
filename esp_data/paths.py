@@ -1,12 +1,17 @@
 """Path definitions that get rid of some issues with the AnyPath type hint."""
 
 import os
+import warnings
+from functools import lru_cache
 from pathlib import Path
 
-from cloudpathlib import GSPath, S3Client, S3Path
+import cloudpathlib
+from cloudpathlib import S3Path
 from dotenv import load_dotenv
+from google.cloud.storage.client import Client as GSClient
 
 load_dotenv()
+warnings.filterwarnings("ignore", "Your application has authenticated using end user credentials")
 
 
 def is_gcs_path(path: str | Path | os.PathLike) -> bool:
@@ -35,12 +40,33 @@ def strip_cloud_prefix(path: str | Path | os.PathLike) -> str:
 
 
 def _make_r2_path_with_auth(path: str | os.PathLike | Path) -> S3Path:
-    c = S3Client(
+    c = cloudpathlib.S3Client(
         aws_access_key_id=os.getenv("CLOUDFLARE_R2_ACCESS_KEY_ID"),
         aws_secret_access_key=os.getenv("CLOUDFLARE_R2_SECRET_ACCESS_KEY"),
         endpoint_url=os.getenv("CLOUDFLARE_R2_ENDPOINT_URL"),
     )
     return c.S3Path(path)
+
+
+@lru_cache(maxsize=1)
+def _get_client():
+    return cloudpathlib.GSClient(storage_client=GSClient())
+
+
+class GSPath(cloudpathlib.GSPath):
+    """
+    A wrapper for the GSPath class that provides a default client to the constructor.
+    This is necessary due to a bug in cloudpathlib (v0.20.0) which assumes that the
+    GOOGLE_APPLICATION_CREDENTIALS environment variable always points to a service
+    account. This assumption is incorrect when using Workload Identity Federation, which
+    we in our Github Action. Here, we fallback to the actual Google library for a
+    default client that handles this correctly.
+
+    For more details, see: https://github.com/drivendataorg/cloudpathlib/issues/390
+    """
+
+    def __init__(self, client_path, client=_get_client()):
+        super().__init__(client_path, client=client)
 
 
 class AnyPath:
