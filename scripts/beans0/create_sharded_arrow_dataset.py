@@ -194,7 +194,7 @@ def main():
         help="Path to the file containing the original paths of the audio files",
     )
     parser.add_argument("--shard_type", type=str, default="arrow", help="Type of sharded dataset to create")
-    parser.add_argument("--output_shard_pattern", type=str, default="shard_*.arrow", help="Output shard pattern")
+    parser.add_argument("--output_shard_pattern", type=str, default="**/*.arrow", help="Output shard pattern")
     parser.add_argument("--num_samples_per_shard", type=int, default=1000, help="Number of samples per shard")
     parser.add_argument("--num_workers", type=int, default=4, help="Number of workers for parallel processing")
     parser.add_argument("--version", type=str, required=True, help="Version of the dataset, e.g. v0.1.1")
@@ -270,7 +270,7 @@ def main():
         assert len(sample["output"]) > 0
         assert sample["output"] != "nan"
         assert "Audio" in sample["instruction"]
-        assert isinstance(sample["metadata"], dict)
+        assert isinstance(sample["metadata"], str)
         assert len(sample["file_name"]) > 0
         assert len(sample["license"]) > 0
         assert len(sample["task"]) > 0
