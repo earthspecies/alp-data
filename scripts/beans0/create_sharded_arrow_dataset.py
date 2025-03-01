@@ -50,6 +50,8 @@ def prepare_audio_sample_for_beans0(row: dict, remove_inaturalist: bool = True) 
     row["metadata"]["duration"] = duration
     row["metadata"]["sample_rate"] = sr
 
+    row["metadata"] = json.dumps(row["metadata"])
+
     if "file_path" in row:
         del row["file_path"]
 
@@ -122,7 +124,6 @@ def create_sharded_dataset(
         output_path=output_path,
         sample_prep_function=sample_prep_function,
         output_format=shard_type,
-        format=shard_type,
     )
 
     # Process chunks in parallel with progress bar
