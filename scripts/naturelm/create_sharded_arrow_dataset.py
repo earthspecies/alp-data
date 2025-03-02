@@ -309,14 +309,6 @@ def main():
     else:
         storage_options = None
 
-    # write new dataset config file
-    naturelm_cfg.version = args.version.replace("v", "")
-    naturelm_cfg.update_changelog(args.changelog)
-    with AnyPath(os.path.join(output_path, "dataset_config.json")).open("w") as fp:
-        json.dump(naturelm_cfg.to_dict(make_serializable=True), fp)
-
-    naturelm_cfg.generate_readme(AnyPath(output_path) / "README.md")
-
     create_sharded_dataset(
         jsonl_paths,
         output_path,
@@ -326,6 +318,14 @@ def main():
         storage_options=storage_options,
         shard_type=args.shard_type,
     )
+
+    # write new dataset config file
+    naturelm_cfg.version = args.version.replace("v", "")
+    naturelm_cfg.update_changelog(args.changelog)
+    with AnyPath(os.path.join(output_path, "dataset_config.json")).open("w") as fp:
+        json.dump(naturelm_cfg.to_dict(make_serializable=True), fp)
+
+    naturelm_cfg.generate_readme(AnyPath(output_path) / "README.md")
 
 
 if __name__ == "__main__":
