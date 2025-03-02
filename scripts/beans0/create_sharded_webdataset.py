@@ -7,16 +7,29 @@ from concurrent.futures import ProcessPoolExecutor
 from functools import partial
 from typing import Any, Callable
 
+import colorama
 import numpy as np
 import pandas as pd
 import soundfile as sf
 from beans_cfg import beans0_cfg
+from colorama import Fore, Style
 from tqdm import tqdm
 
 from esp_data.dataset.shard_creator import load_checkpoint, save_checkpoint, write_webdataset_shard
 from esp_data.file_io.parsers import read_audio_bytes_from_path
 from esp_data.paths import AnyPath, is_cloud_path
 from esp_data.utils import make_simple_logger
+
+# Initialize colorama for cross-platform colored terminal output
+colorama.init()
+
+# Define color schemes for different progress levels
+BATCH_COLOR = Fore.BLUE
+SHARD_COLOR = Fore.GREEN
+SAMPLE_COLOR = Fore.CYAN
+SUCCESS_COLOR = Fore.GREEN
+ERROR_COLOR = Fore.RED
+RESET_COLOR = Style.RESET_ALL
 
 logger = make_simple_logger("sharded_web_dataset_creator")
 
@@ -116,7 +129,6 @@ def create_sharded_dataset(
         num_samples_per_shard (int, optional): Number of samples per shard. Defaults to 1000.
         num_workers (int, optional): Number of workers for parallel processing. Defaults to 4.
         storage_options (dict, optional): Storage options for reading and writing files. Defaults to None.
-        shard_type (str, optional): Type of sharded dataset to create. Defaults to "arrow".
 
     """
     t0 = time.time()
@@ -137,6 +149,11 @@ def create_sharded_dataset(
     # Split metadata into chunks for parallel processing
     chunks = np.array_split(metadata_df, num_shards)
 
+    print(f"\n{BATCH_COLOR}=== Dataset Sharding Process ==={RESET_COLOR}")
+    print(
+        f"{BATCH_COLOR}Total samples: {num_samples}, Shards: {num_shards}, Samples per shard: {num_samples_per_shard}{RESET_COLOR}\n"
+    )
+
     # Filter out completed chunks
     chunks_to_process = [(idx, chunk) for idx, chunk in enumerate(chunks) if str(idx) not in completed_chunks]
 
@@ -153,26 +170,60 @@ def create_sharded_dataset(
 
     # Process chunks in parallel with progress bar
     processed_samples = []
-    with ProcessPoolExecutor(max_workers=num_workers) as executor:
-        futures = [
-            executor.submit(process_chunk_partial, batch=chunk, shard_id=chunk_id)
-            for chunk_id, chunk in chunks_to_process
-        ]
+    if num_workers > 1:
+        with ProcessPoolExecutor(max_workers=num_workers) as executor:
+            futures = [
+                executor.submit(process_chunk_partial, batch=chunk, shard_id=chunk_id)
+                for chunk_id, chunk in chunks_to_process
+            ]
 
+            # Track progress with tqdm
+            with tqdm(
+                total=len(chunks_to_process),
+                desc=f"{SHARD_COLOR}Processing shards{RESET_COLOR}",
+                bar_format="{l_bar}%s{bar}%s{r_bar}" % (SHARD_COLOR, RESET_COLOR),
+                ncols=100,
+            ) as pbar:
+                for future in futures:
+                    result = future.result()
+                    chunk_id = result["shard_id"]
+                    processed_samples.extend(result["processed_samples"])
+
+                    # Update checkpoint
+                    completed_chunks[str(chunk_id)] = result
+                    save_checkpoint(output_path, completed_chunks, completed_chunks)
+
+                    # Update progress bar with shard info
+                    pbar.set_postfix(
+                        shard=f"{chunk_id:05d}",
+                        success=len(result["processed_samples"]),
+                        failed=len(result["failed_ids"]),
+                    )
+                    pbar.update(1)
+    else:
         # Track progress with tqdm
-        with tqdm(total=len(chunks_to_process), desc="Processing shards") as pbar:
-            for future in futures:
-                result = future.result()
-                chunk_id = result["shard_id"]
-
-                # Collect processed samples info
+        # Sequential processing with nested progress bars
+        with tqdm(
+            total=len(chunks_to_process),
+            desc=f"{SHARD_COLOR}Processing shards{RESET_COLOR}",
+            bar_format="{l_bar}%s{bar}%s{r_bar}" % (SHARD_COLOR, RESET_COLOR),
+            position=0,
+            leave=True,
+            ncols=100,
+        ) as pbar_shards:
+            for chunk_id, chunk in chunks_to_process:
+                result = process_chunk_partial(batch=chunk, shard_id=chunk_id)
                 processed_samples.extend(result["processed_samples"])
 
                 # Update checkpoint
                 completed_chunks[str(chunk_id)] = result
-                save_checkpoint(output_path, completed_chunks, metadata_df)
+                save_checkpoint(output_path, completed_chunks, completed_chunks)
 
-                pbar.update(1)
+                # Update progress bar with shard info
+                pbar_shards.set_postfix(
+                    shard=f"{chunk_id:05d}", success=len(result["processed_samples"]), failed=len(result["failed_ids"])
+                )
+                pbar_shards.update(1)
 
     # Create DataFrame with shard information
     shard_info_df = pd.DataFrame(processed_samples)
@@ -190,6 +241,9 @@ def create_sharded_dataset(
     # Report final statistics
     total_successful = len(processed_samples)
     total_failed = sum(len(chunk["failed_ids"]) for chunk in completed_chunks.values())
+    success_rate = (
+        (total_successful / (total_successful + total_failed)) * 100 if (total_successful + total_failed) > 0 else 0
+    )
 
     tend = time.time()
     logger.info(f"""
@@ -199,6 +253,11 @@ def create_sharded_dataset(
     - Success rate: {(total_successful / (total_successful + total_failed)) * 100:.2f}%
     - Total time taken: {tend - t0:.2f} seconds
     """)
+    print(f"\n{BATCH_COLOR}=== Processing Summary ==={RESET_COLOR}")
+    print(f"{SUCCESS_COLOR}- Total files processed successfully: {total_successful}{RESET_COLOR}")
+    print(f"{ERROR_COLOR}- Total files failed: {total_failed}{RESET_COLOR}")
+    print(f"{BATCH_COLOR}- Success rate: {success_rate:.2f}%{RESET_COLOR}")
+    print(f"{BATCH_COLOR}- Total time taken: {tend - t0:.2f} seconds{RESET_COLOR}")
 
     return metadata_df
 
@@ -262,7 +321,6 @@ def main():
         num_samples_per_shard=args.num_samples_per_shard,
         num_workers=args.num_workers,
         storage_options=storage_options,
-        shard_type="webdataset",
     )
 
     # write new dataset config file
