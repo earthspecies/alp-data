@@ -289,6 +289,8 @@ def main():
     parser.add_argument("--num_workers", type=int, default=4)
     parser.add_argument("--shard_type", type=str, default="hf")
     parser.add_argument("--remove_inaturalist", action="store_true")
+    parser.add_argument("--version", type=str, required=True)
+    parser.add_argument("--changelog", type=str, default="")
 
     args = parser.parse_args()
 
