@@ -74,6 +74,9 @@ class TransformStep:
     function_name: str
     parameters: Dict[str, Any]
     version: str = None  # Package version if available
+    is_class_method: bool = False  # Flag to indicate if it's a class method
+    class_name: Optional[str] = None  # Class name if it's a class method
+    init_parameters: Optional[Dict[str, Any]] = None  # Parameters for class initialization
 
     def __post_init__(self):
         if not self.version:
@@ -85,9 +88,48 @@ class TransformStep:
                 logger.warning(f"Could not get version for {module_name}: {e}")
                 self.version = "unknown"
 
+        # Initialize default parameters
+        if self.is_class_method and self.init_parameters is None:
+            self.init_parameters = {}
+
     def get_transform_function(self):
+        """
+        Get the transform function or method.
+
+        For regular functions, returns the function directly.
+        For class methods, returns a wrapper function that creates an instance
+        and calls the method.
+        """
         module = importlib.import_module(self.module_path)
-        return getattr(module, self.function_name)
+
+        if not self.is_class_method:
+            # Regular function case - same as before
+            return getattr(module, self.function_name)
+        else:
+            # Class method case
+            if not self.class_name:
+                raise ValueError("class_name must be provided for class methods")
+
+            # Get the class
+            class_obj = getattr(module, self.class_name)
+
+            # Create a wrapper function that:
+            # 1. Instantiates the class with init_parameters
+            # 2. Calls the specified method with parameters
+            def class_method_wrapper(data, **kwargs):
+                # Merge default parameters with any provided at call time
+                merged_params = {**self.parameters, **kwargs}
+
+                # Create an instance of the class
+                instance = class_obj(**self.init_parameters)
+
+                # Get the method from the instance
+                method = getattr(instance, self.function_name)
+
+                # Call the method with the data and parameters
+                return method(data, **merged_params)
+
+            return class_method_wrapper
 
 
 @dataclass
