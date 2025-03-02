@@ -108,5 +108,7 @@ naturelm_cfg = NatureLMDatasetConfig(
     description="NatureLM training dataset",
     license="CC BY-NC-SA 4.0",
     creator="Earth Species Project",
-    metadata={},
+    metadata={"sample_rate": 16000, "language": "en"},
+    version="0.1.0",
+    sources=["Xeno-canto", "AnimalSpeak", "iNaturalist"],
 )
