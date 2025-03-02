@@ -12,3 +12,14 @@ REQUIRED_DATASET_FIELDS = [
     "description",
     "sources",
 ]
+
+
+WEBDS_DEFAULT_CFG = dict(
+    load_metadata=True,
+    metadata_df=None,
+    file_pattern="shard_*.tar",
+    storage_options=None,
+    metadata_path=None,
+    data_processor=None,
+    shuffle_size=1000,
+)

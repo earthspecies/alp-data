@@ -12,7 +12,7 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 import webdataset as wds
 from datasets import Dataset
-from tqdm import tqdm
+from tqdm.auto import tqdm
 
 import esp_data.file_io.functional as F
 from esp_data.paths import AnyPath
@@ -21,6 +21,17 @@ from esp_data.utils import make_simple_logger
 from .utils import _make_file_opener
 
 logger = make_simple_logger(name="shard_creator_module")
+
+PBAR_EVERY = 20  # Update progress bar every N samples
+# Global flag for graceful interruption
+_interrupt_processing = False
+
+
+def handle_interrupt(signum, frame):
+    """Signal handler for graceful interruption"""
+    global _interrupt_processing
+    logger.warning("Received interrupt signal. Will stop after current sample...")
+    _interrupt_processing = True
 
 
 def write_webdataset_shard(
@@ -59,12 +70,21 @@ def write_webdataset_shard(
     iterator = batch.iterrows() if isinstance(batch, pd.DataFrame) else enumerate(batch)
     with tqdm(total=len(batch), desc=f"Shard {shard_id:05d}", position=1, leave=False, ncols=90) as pbar_samples:
         for i, item in enumerate(iterator):
+            # Check for interrupt
+            global _interrupt_processing
+            if _interrupt_processing:
+                logger.warning(f"Processing of shard {shard_id} interrupted. Saving progress...")
+                break
+
             # get item and sample_id
             if isinstance(item, pd.Series):
                 item = item.to_dict()
 
             sample_id = str(item.get("id", i))
-            pbar_samples.set_postfix(sample=sample_id)
+
+            if i % PBAR_EVERY == 0:  # Only update description occasionally to reduce output
+                pbar_samples.set_description(f"Shard {shard_id:05d} - Sample {sample_id}")
+
             try:
                 # Prepare the sample
                 if sample_prep_function is None:
@@ -128,12 +148,19 @@ def write_arrow_shard(
 
     with tqdm(total=len(batch), desc=f"Shard {shard_id:05d}", position=1, leave=False, ncols=90) as pbar_samples:
         for i, item in iterator:
+            # Check for interrupt
+            global _interrupt_processing
+            if _interrupt_processing:
+                logger.warning(f"Processing of shard {shard_id} interrupted. Saving progress...")
+                break
+
             # get item and sample_id
             if isinstance(item, pd.Series):
                 item = item.to_dict()
 
             sample_id = str(item["id"] if "id" in item else i)
-            pbar_samples.set_postfix(sample=sample_id)
+            if i % PBAR_EVERY == 0:
+                pbar_samples.set_description(f"Shard {shard_id:05d} - Sample {sample_id}")
 
             try:
                 # Prepare the sample
@@ -268,12 +295,19 @@ def write_huggingface_shard(
 
     with tqdm(total=len(batch), desc=f"Shard {shard_id:05d}", position=1, leave=False, ncols=90) as pbar_samples:
         for i, item in iterator:
+            # Check for interrupt
+            global _interrupt_processing
+            if _interrupt_processing:
+                logger.warning(f"Processing of shard {shard_id} interrupted. Saving progress...")
+                break
+
             # get item and sample_id
             if isinstance(item, pd.Series):
                 item = item.to_dict()
 
             sample_id = str(item["id"] if "id" in item else i)
-            pbar_samples.set_postfix(sample=sample_id)
+            if i % PBAR_EVERY == 0:
+                pbar_samples.set_description(f"Shard {shard_id:05d} - Sample {sample_id}")
 
             try:
                 # Prepare the sample
