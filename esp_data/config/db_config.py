@@ -292,7 +292,10 @@ class DatasetConfig(BaseModel):
         # get current datetime as str
         dt_str = utc_now_str()
         # append new changelog with datetime
-        self.changelog += f"\n\n{dt_str}:\n{new_log}"
+        if not self.changelog:
+            self.changelog = f"{dt_str}:\n{new_log}"
+        else:
+            self.changelog += f"\n\n{dt_str}:\n{new_log}"
 
     def __str__(self) -> str:
         return f"""# {self.name}
