@@ -367,7 +367,9 @@ def compute_metadata_hash(metadata: pd.DataFrame | list[dict] | dict | Any) -> i
         return int.from_bytes(hash_object.digest()[:8], byteorder="big")
 
 
-def save_checkpoint(output_path: AnyPath, completed_chunks: dict, metadata: Any) -> None:
+def save_checkpoint(
+    output_path: AnyPath, completed_chunks: dict, metadata: Any, checkpoint_name: str = "checkpoint.json"
+) -> None:
     """
     Save checkpoint information for any type of metadata.
 
@@ -375,6 +377,8 @@ def save_checkpoint(output_path: AnyPath, completed_chunks: dict, metadata: Any)
         output_path: Path to save the checkpoint
         completed_chunks: Dictionary of completed chunks
         metadata: Metadata of any serializable type
+        checkpoint_name: Name of the checkpoint file
+
     """
     checkpoint_data = {
         "completed_chunks": completed_chunks,
@@ -382,22 +386,23 @@ def save_checkpoint(output_path: AnyPath, completed_chunks: dict, metadata: Any)
     }
 
     # can write to a cloud path
-    with (output_path / "checkpoint.json").open("w") as f:
+    with (output_path / checkpoint_name).open("w") as f:
         json.dump(checkpoint_data, f)
 
 
-def load_checkpoint(output_path: AnyPath, metadata: Any) -> Optional[dict]:
+def load_checkpoint(output_path: AnyPath, metadata: Any, checkpoint_name: str = "checkpoint.json") -> Optional[dict]:
     """
     Load checkpoint if it exists and is valid for any type of metadata.
 
     Args:
         output_path: Path to the checkpoint
         metadata: Current metadata to compare against saved checkpoint
+        checkpoint_name: Name of the checkpoint file
 
     Returns:
         Optional[dict]: Checkpoint data if valid, None otherwise
     """
-    checkpoint_path = output_path / "checkpoint.json"
+    checkpoint_path = output_path / checkpoint_name
 
     if not checkpoint_path.exists():
         return None
