@@ -48,6 +48,29 @@ def _make_r2_path_with_auth(path: str | os.PathLike | Path) -> S3Path:
     return c.S3Path(path)
 
 
+def make_gscs_storage_options() -> dict:
+    return {"project": os.getenv("GCP_DEFAULT_PROJECT")}
+
+
+def make_s3_storage_options() -> dict:
+    return {
+        "client_kwargs": {
+            "aws_access_key_id": os.getenv("CLOUDFLARE_R2_ACCESS_KEY_ID"),
+            "aws_secret_access_key": os.getenv("CLOUDFLARE_R2_SECRET_ACCESS_KEY"),
+            "endpoint_url": os.getenv("CLOUDFLARE_R2_ENDPOINT_URL"),
+        }
+    }
+
+
+def make_storage_options(path: str | os.PathLike) -> dict | None:
+    if is_gcs_path(path):
+        return make_gscs_storage_options()
+    elif is_s3_path(path) or is_cloudflarer2_path(path):
+        return make_s3_storage_options()
+    else:
+        return None
+
+
 @lru_cache(maxsize=1)
 def _get_client():
     return cloudpathlib.GSClient(storage_client=GSClient())
