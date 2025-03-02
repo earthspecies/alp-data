@@ -15,6 +15,7 @@ from typing import Any, Callable
 
 import colorama
 import numpy as np
+import pandas as pd
 from colorama import Fore, Style
 from naturelm_cfg import LICENSES, NatureLMSample, naturelm_cfg
 from tqdm import tqdm
@@ -51,44 +52,54 @@ def read_jsonl(path: str | AnyPath) -> list[dict]:
     return annotation
 
 
+def validate_sample(sample: dict, remove_inaturalist: bool = True) -> dict:
+    if remove_inaturalist:
+        assert np.std(sample["audio"]) > 0.0
+    assert len(sample["output"]) > 0
+    assert sample["output"] != "nan"
+    assert "Audio" in sample["instruction"]
+    assert "<Audio>" not in sample["instruction_text"]
+    assert isinstance(sample["metadata"], str)
+    assert len(sample["file_name"]) > 0
+    assert len(sample["license"]) > 0
+    assert len(sample["task"]) > 0
+    return sample
+
+
 def prepare_audio_sample_for_naturelm(
     row: dict, remove_inaturalist: bool = True, local_path: str = "/mnt/"
 ) -> dict[str, Any]:
+
+    row["output"] = "None" if (pd.isna(row["output"]) or row["output"] == "nan") else row["output"]
     sample_data = {
         "instruction": row["prompt"],
         "output": row["output"],
         "task": row["task"],
-        "class_": row.get("class"),
-        "family": row.get("family"),
-        "genus": row.get("genus"),
-        "species": row.get("species"),
-        "subspecies": row.get("subspecies"),
-        "phylum": row.get("phylum"),
-        "order": row.get("order"),
-        "url": row.get("url"),
-        "recordist": row.get("recordist"),
-        "duration": row.get("duration"),
+        "instruction_text": row["prompt"].replace("<Audio><AudioHere></Audio>","").strip()
     }
-    path = AnyPath(row["path"])
-    path_parts = path.parts
-    idx_go = path_parts.index("foundation-model-data")
-    file_path = os.path.join(local_path, *path_parts[idx_go:])
 
-    sample_data["file_name"] = path_parts[-1]
+    path = AnyPath(row["path"])
+    # idx_go = path_parts.index("foundation-model-data")
+    # file_path = os.path.join(local_path, *path_parts[idx_go:])
+    file_path = path
+    sample_data["file_name"] = path.parts[-1]
     sample_data["source_dataset"] = row.get("source_dataset", "NatureLM")
 
     if sample_data["source_dataset"].lower() in LICENSES:
         license = LICENSES[sample_data["source_dataset"].lower()]
         sample_data["license"] = license
     else:
-        sample_data["license"] = row.get("license", "unknown")
+        lic = row.get("license", "unknown")
+        if len(lic) < 1:
+            lic = "unknown"
+        sample_data["license"] = lic
 
     # make metadata
     md = {}
-    # for k, v in row.items():
-    #     if k in sample_data or k == "path":
-    #         continue
-    #     md[k] = v
+    for k, v in row.items():
+        if k in sample_data or k == "path" or k == "prompt":
+            continue
+        md[k] = v
 
     # if we encounter iNaturalist as the 'source_dataset', then we cant add audio to the dataset
     if remove_inaturalist and sample_data["source_dataset"] == "iNaturalist":
@@ -109,9 +120,16 @@ def prepare_audio_sample_for_naturelm(
     sample_data["metadata"] = json.dumps(md)
 
     # validate
-    data_sample = NatureLMSample(**sample_data).to_dict()
+    sample_data = NatureLMSample(**sample_data).to_dict()
+    sample_data = {"audio": audio_data, **sample_data}
 
-    return {"audio": audio_data, **data_sample}
+    try:
+        validate_sample(sample_data)
+    except AssertionError as e:
+        logger.error(f"Validation failed for sample {sample_data['id']}: {e}")
+        raise e
+
+    return sample_data
 
 
 def create_sharded_dataset(
@@ -167,7 +185,8 @@ def create_sharded_dataset(
         )
 
         # Filter out completed chunks
-        chunks_to_process = [(idx, chunk) for idx, chunk in enumerate(chunks) if str(idx) not in completed_chunks]
+        # Add batch number
+        chunks_to_process = [(idx + j, chunk) for idx, chunk in enumerate(chunks) if str(idx + j) not in completed_chunks]
 
         if not chunks_to_process:
             print(f"{SUCCESS_COLOR}All chunks already processed. Nothing to do.{RESET_COLOR}")
@@ -202,7 +221,7 @@ def create_sharded_dataset(
                         result = future.result()
                         chunk_id = result["shard_id"]
                         # prepend batch_output_path to shard_path
-                        result["shard_path"] = [str(batch_output_path / p) for p in result["shard_path"]]
+                        # result["shard_path"] = [str(batch_output_path / p["shard_path"]) for p in result["processed_samples"]]
                         processed_samples.extend(result["processed_samples"])
 
                         # Update checkpoint
@@ -231,7 +250,10 @@ def create_sharded_dataset(
                     result = process_chunk_partial(batch=chunk, shard_id=chunk_id)
 
                     # prepend batch_output_path to shard_path
-                    result["shard_path"] = [str(batch_output_path / p) for p in result["shard_path"]]
+                    # result["processed_samples"] = [{"id": x["id"],
+                    # "shard_path": str(batch_output_path / x["shard_path"]),
+                    # "" for x in result["processed_samples"]]
+
                     processed_samples.extend(result["processed_samples"])
 
                     # Update checkpoint
@@ -261,21 +283,20 @@ def create_sharded_dataset(
         print(f"{BATCH_COLOR}- Success rate: {success_rate:.2f}%{RESET_COLOR}")
         print(f"{BATCH_COLOR}- Total time taken: {tend - t0:.2f} seconds{RESET_COLOR}")
 
-    # Create DataFrame with shard information
-    # shard_info_df = pd.DataFrame(processed_samples)
+        # Create DataFrame with shard information
+        shard_info_df = pd.DataFrame(processed_samples)
 
-    # # Merge shard information with original metadata
-    # metadata_df = pd.DataFrame(batch)
-    # metadata_df = metadata_df.merge(shard_info_df[["id", "shard_path", "shard_id"]], on="id", how="left")
+        # Merge shard information with original metadata
+        metadata_df = pd.DataFrame(batch)
+        metadata_df = metadata_df.merge(shard_info_df[["id", "shard_path", "shard_id"]], on="id", how="left")
 
-    # # drop any "file_path" column
-    # if "file_path" in metadata_df.columns:
-    #     metadata_df.drop(columns=["file_path"], inplace=True)
+        # drop any "file_path" column
+        if "file_path" in metadata_df.columns:
+            metadata_df.drop(columns=["file_path"], inplace=True)
 
-    # # Save updated metadata as parquet
-    # metadata_df.to_parquet(str(output_path / "metadata.parquet"), storage_options=storage_options)
+        # Save updated metadata as parquet
+        metadata_df.to_csv(str(batch_output_path / "metadata.csv"), index=False, storage_options=storage_options)
 
-    # return metadata_df
 
 
 def main():

@@ -201,8 +201,6 @@ def create_sharded_dataset(
                     )
                     pbar.update(1)
     else:
-        # Track progress with tqdm
-        # Sequential processing with nested progress bars
         with tqdm(
             total=len(chunks_to_process),
             desc=f"{SHARD_COLOR}Processing shards{RESET_COLOR}",
