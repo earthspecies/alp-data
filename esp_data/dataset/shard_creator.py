@@ -4,6 +4,7 @@ Modular functions to create sharded datasets in both WebDataset (tar) and Arrow 
 
 import hashlib
 import json
+import signal
 from typing import Any, Callable, Iterable, Optional
 
 import numpy as np
@@ -22,7 +23,7 @@ from .utils import _make_file_opener
 
 logger = make_simple_logger(name="shard_creator_module")
 
-PBAR_EVERY = 20  # Update progress bar every N samples
+PBAR_EVERY = 10  # Update progress bar every N samples
 # Global flag for graceful interruption
 _interrupt_processing = False
 
@@ -68,8 +69,8 @@ def write_webdataset_shard(
 
     # Process each sample
     iterator = batch.iterrows() if isinstance(batch, pd.DataFrame) else enumerate(batch)
-    with tqdm(total=len(batch), desc=f"Shard {shard_id:05d}", position=1, leave=False, ncols=90) as pbar_samples:
-        for i, item in enumerate(iterator):
+    with tqdm(total=len(batch), desc=f"Shard {shard_id:05d}", position=None, leave=False, ncols=90) as pbar_samples:
+        for i, item in iterator:
             # Check for interrupt
             global _interrupt_processing
             if _interrupt_processing:
@@ -79,7 +80,7 @@ def write_webdataset_shard(
             # get item and sample_id
             if isinstance(item, pd.Series):
                 item = item.to_dict()
-
+            
             sample_id = str(item.get("id", i))
 
             if i % PBAR_EVERY == 0:  # Only update description occasionally to reduce output
@@ -146,7 +147,7 @@ def write_arrow_shard(
     prepared_data = []
     iterator = batch.iterrows() if isinstance(batch, pd.DataFrame) else enumerate(batch)
 
-    with tqdm(total=len(batch), desc=f"Shard {shard_id:05d}", position=1, leave=False, ncols=90) as pbar_samples:
+    with tqdm(total=len(batch), desc=f"Shard {shard_id:05d}", position=None, leave=False, ncols=90) as pbar_samples:
         for i, item in iterator:
             # Check for interrupt
             global _interrupt_processing
@@ -293,7 +294,7 @@ def write_huggingface_shard(
     prepared_data = []
     iterator = batch.iterrows() if isinstance(batch, pd.DataFrame) else enumerate(batch)
 
-    with tqdm(total=len(batch), desc=f"Shard {shard_id:05d}", position=1, leave=False, ncols=90) as pbar_samples:
+    with tqdm(total=len(batch), desc=f"Shard {shard_id:05d}", position=None, leave=False, ncols=90) as pbar_samples:
         for i, item in iterator:
             # Check for interrupt
             global _interrupt_processing
@@ -308,7 +309,7 @@ def write_huggingface_shard(
             sample_id = str(item["id"] if "id" in item else i)
             if i % PBAR_EVERY == 0:
                 pbar_samples.set_description(f"Shard {shard_id:05d} - Sample {sample_id}")
-
+            
             try:
                 # Prepare the sample
                 if sample_prep_function is None:
@@ -324,7 +325,7 @@ def write_huggingface_shard(
                 )
 
             except Exception as e:
-                logger.error(f"Error processing sample {sample_id} for Arrow: {e}")
+                logger.error(f"Error processing sample {sample_id} for HF: {e}")
                 results["failed_ids"].append(sample_id)
 
             pbar_samples.update(1)
@@ -359,6 +360,11 @@ def write_shard(
         sample_prep_function: Function to prepare a sample for the specified format
         output_format: Output format for the shard (webdataset or arrow)
     """
+    # Set up interrupt handler
+    global _interrupt_processing
+    _interrupt_processing = False
+    original_handler = signal.signal(signal.SIGINT, handle_interrupt)
+
     if output_format == "webdataset":
         return write_webdataset_shard(batch, shard_id, output_path, sample_prep_function, **kwargs)
     elif output_format in ["arrow", "parquet"]:
