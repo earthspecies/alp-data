@@ -1,4 +1,3 @@
-import json
 import os
 import warnings
 from typing import Any, Callable, Iterable, Optional
@@ -6,14 +5,46 @@ from typing import Any, Callable, Iterable, Optional
 from datasets import Dataset, concatenate_datasets, load_dataset, load_from_disk
 
 from esp_data.config.db_config import DataSample, DatasetConfig
-from esp_data.config.project_config import REQUIRED_DATASAMPLE_FIELDS
-from esp_data.file_io import File
 from esp_data.paths import AnyPath, is_cloud_path, is_local_path
+from esp_data.utils import make_simple_logger
 
 from .base import BaseMapDataset
 from .utils import generate_random_indices, wrapped_apply
 
 warnings.filterwarnings("ignore", "Your application has authenticated using end user credentials")
+
+logger = make_simple_logger("hf_dataset")
+
+
+HF_DATASET_TYPES = [
+    "arrow",
+    "csv",
+    "tsv",
+    "json",
+    "parquet",
+    "audiofolder",
+    "imagefolder",
+    "local_hf",
+    "bucket_hf",
+    "hf_hub",
+]
+
+
+def load_hf_dataset(hf_dataset_type: str, path: str | AnyPath, **hf_ds_kwargs) -> "HFDataset":
+    if hf_dataset_type == "hf_hub":
+        ds = load_dataset(path, **hf_ds_kwargs)
+        cfg = DatasetConfig(
+            name=ds.info.dataset_name,
+            description=str(ds.info),
+            version=ds.version,
+            sources=ds.info.dataset_name,
+            license=ds.license,
+            creator=ds.info.citation,
+        )
+        return HFDataset(cfg, ds=ds, streaming_dataset=hf_ds_kwargs.get("streaming", False))
+
+    elif hf_dataset_type in ["csv", "tsv", "json", "parquet", "local_hf", "bucket_hf"]:
+        return HFDataset.from_path(path, hf_dataset_type, **hf_ds_kwargs)
 
 
 class HFDataset(BaseMapDataset):
@@ -41,15 +72,11 @@ class HFDataset(BaseMapDataset):
     def set_ds(self, ds: Dataset) -> None:
         self.ds = ds
 
-    def __getitem__(self, idx: int, as_dict: bool = True) -> DataSample | dict:
+    def __getitem__(self, idx: int) -> dict:
         if self._streaming:
             raise TypeError("Cannot access samples in a streaming dataset")
 
-        d = self.ds[idx]
-        if not as_dict:
-            return DataSample(**d)
-
-        return d
+        return self.ds[idx]
 
     def __len__(self) -> int:
         """Return the length of the dataset."""
@@ -57,6 +84,13 @@ class HFDataset(BaseMapDataset):
             raise TypeError("Cannot get length of a streaming dataset")
 
         return len(self.ds)
+
+    def __iter__(self):
+        if self._streaming:
+            return iter(self.ds)
+
+        for i in range(len(self)):
+            yield self[i]
 
     @classmethod
     def from_dict(cls, data: dict, dataset_config: DatasetConfig | dict) -> "HFDataset":
@@ -69,9 +103,6 @@ class HFDataset(BaseMapDataset):
 
         if not all(len(data[key]) == len(data[list(data.keys())[0]]) for key in data.keys()):
             raise ValueError("All columns must have the same length")
-
-        if not all([i in data for i in REQUIRED_DATASAMPLE_FIELDS]):
-            raise ValueError("Data must have id, source_dataset, and metadata fields")
 
         return cls(dataset_config, ds=Dataset.from_dict(data))
 
@@ -86,35 +117,32 @@ class HFDataset(BaseMapDataset):
         if not isinstance(samples[0], dict):
             samples = [s.to_dict() for s in samples]
 
-        if not all([i in samples[0] for i in REQUIRED_DATASAMPLE_FIELDS]):
-            raise ValueError("Data must have id, source_dataset, and metadata fields")
-
         new_ds.set_ds(Dataset.from_list(samples))
 
         return new_ds
 
     @classmethod
     def from_path(
-        cls, path: str | os.PathLike, storage_options: dict = None, sharded: bool = False, keep_in_memory: bool = None
+        cls,
+        path: str | os.PathLike,
+        hf_dataset_type: str,
+        storage_options: dict = None,
+        streaming: bool = False,
+        file_pattern: str = "shard*arrow",
+        split: str = "train",
     ) -> "HFDataset":
         """Create a dataset from a path. This uses pyarrow so the dataset is memory-mapped.
 
         Args:
             path: The path to the dataset.
             storage_options: The storage options for cloud paths.
-            sharded: Whether the dataset is sharded, i.e. made of sub-directories called 'shard_1', 'shard_2' etc.
-            If True, the dataset is concatenated from all shards.
-
-            keep_in_memory: Whether to keep the dataset in memory. Default is None, the dataset will be kept in memory,
-            upto datasets.config.IN_MEMORY_MAX_SIZE (which is default = 0 bytes). If True, the entire dataset will be
-            kept in memory. If False, the dataset will be memory-mapped.
+            streaming: Whether to stream the dataset.
+            file_pattern: The file pattern to load.
+            split: The split to load.
 
         Returns:
             The loaded HFDataset.
         """
-        if not is_local_path(path) and not is_cloud_path(path):
-            raise ValueError(f"Path {path} must be a local or cloud path")
-
         path = AnyPath(path)
 
         if is_cloud_path(path) and not storage_options:
@@ -124,31 +152,32 @@ class HFDataset(BaseMapDataset):
             """)
 
         # load config from json
-        config_file = File(path / "dataset_config.json")
-        if not config_file.exists:
-            raise FileNotFoundError("No dataset config found")
-
-        with config_file.open("r") as fp:
-            config = json.load(fp)
-
-        # load dataset using load_dataset / load_from_disk
-        if sharded:
-            # find all *shard_* directories
-            b = AnyPath(path)
-            shard_paths = list(b.rglob("*shard_*"))
-            if len(shard_paths) == 0:
-                raise FileNotFoundError("No shards found")
-
-            ds = concatenate_datasets(
-                [
-                    load_from_disk(str(p), storage_options=storage_options, keep_in_memory=keep_in_memory)
-                    for p in shard_paths
-                ]
-            )
+        config_file = AnyPath(path / "dataset_config.json")
+        if not config_file.exists():
+            logger.warning(f"Config file not found at {config_file}, creating an empty new one")
+            config = DatasetConfig.from_skeleton()
         else:
-            ds = load_from_disk(str(path), storage_options=storage_options, keep_in_memory=keep_in_memory)
+            config = DatasetConfig.from_json(config_file)
 
-        return cls(config, ds)
+        if hf_dataset_type == "local_hf":
+            ds = load_from_disk(str(path), storage_options=storage_options)
+            if streaming:
+                ds = ds.to_iterable_dataset()
+        elif hf_dataset_type in ["arrow", "csv", "tsv", "json", "parquet", "bucket_hf"]:
+            ds_type = hf_dataset_type if hf_dataset_type != "bucket_hf" else "arrow"
+            ds = load_dataset(
+                ds_type,
+                data_files=str(path / file_pattern),
+                storage_options=storage_options,
+                split=split,
+                streaming=streaming,
+            )
+        elif hf_dataset_type in ["audiofolder", "imagefolder"]:
+            ds = load_dataset(hf_dataset_type, data_dir=str(path), split=split, streaming=streaming)
+        else:
+            raise ValueError(f"Unsupported dataset type: {hf_dataset_type}")
+
+        return cls(config, ds, streaming_dataset=streaming)
 
     def to_dict(self) -> dict:
         """Convert the dataset to a dictionary."""
@@ -228,12 +257,12 @@ class HFDataset(BaseMapDataset):
         new_ds.set_ds(concatenate_datasets([self.ds, other.ds]))
 
         if change_log:
-            new_ds.config.description += "\n" + change_log
+            new_ds.config.update_changelog(change_log)
         else:
             s = f"""-> Concatenated two datasets. Dataset 1: {self.config.name}, Dataset 2: {other.config.name}
             Dataset 1 version: {self.config.version}, Dataset 2 version: {other.config.version}
             """
-            new_ds.config.description += "\n" + s
+            new_ds.config.update_changelog(s)
 
         return new_ds
 
@@ -257,9 +286,9 @@ class HFDataset(BaseMapDataset):
             new_ds.config.increment_version(mode=version_update_mode)
 
         if change_log:
-            new_ds.config.description += "\n" + change_log
+            new_ds.config.update_changelog(change_log)
         else:
-            new_ds.config.description += f"-> Filtered the dataset with condition {condition.__name__}"
+            new_ds.config.update_changelog(f"-> Filtered the dataset with condition {condition.__name__}")
 
         return new_ds
 
@@ -287,9 +316,9 @@ class HFDataset(BaseMapDataset):
             new_ds.config.increment_version(mode=version_update_mode)
 
         if change_log:
-            new_ds.config.description += "\n" + change_log
+            new_ds.config.update_changelog(change_log)
         else:
-            new_ds.config.description += f"-> Added column {column_name}"
+            new_ds.config.update_changelog(f"-> Added column {column_name}")
 
         return new_ds
 
@@ -333,9 +362,9 @@ class HFDataset(BaseMapDataset):
 
         # TODO: this is a very rudimentary solution, there are much more elegant ways to do this
         if change_log:
-            new_ds.config.description += "\n" + change_log
+            new_ds.config.update_changelog(change_log)
         else:
-            new_ds.config.description += f"-> Applied function {function.__name__} to each sample"
+            new_ds.config.update_changelog(f"-> Applied function {function.__name__} to each sample")
 
         return new_ds
 
@@ -355,37 +384,8 @@ class HFDataset(BaseMapDataset):
 
     def save_config(self, path: str | os.PathLike | AnyPath) -> None:
         """Save the dataset config to a local or cloud path."""
-        path = AnyPath(path)
-        g = File(path / "dataset_config.json")
-        g.create(exist_ok=True)
-
-        with g.open("w") as fp:
-            json.dump(self.config.to_dict(make_serializable=True), fp)
-
-    def save_shard(
-        self,
-        path: str | os.PathLike | AnyPath,
-        shard_idx: int,
-        num_shards: int,
-        storage_options: dict = None,
-        num_proc: int = 8,
-        save_config: bool = True,
-    ) -> None:
-        """Save a shard of the dataset to a local or cloud path.
-
-        Args:
-        """
-        path = self._validate_path(path, storage_options)
-
-        shard = self.ds.shard(num_shards=num_shards, index=shard_idx, contiguous=True)
-        shard.save_to_disk(
-            str(path / f"shard_{shard_idx}"),
-            num_proc=num_proc,
-            storage_options=storage_options,
-        )
-
-        if save_config:
-            self.save_config(path)
+        g = AnyPath(path) / "dataset_config.json"
+        self.config.write_json(g)
 
     def save_to_path(
         self,
@@ -431,72 +431,6 @@ class HFDataset(BaseMapDataset):
 
     def __repr__(self):
         return self.__str__()
-
-
-class HFStreamingDataset(HFDataset):
-    def __init__(self, dataset_config: DatasetConfig | dict, ds: Optional[Dataset] = None):
-        self.config = self._set_config(dataset_config)
-        self.ds: Dataset = ds
-        self._streaming = True
-
-    def _set_config(self, dataset_config) -> None:
-        if isinstance(dataset_config, dict):
-            return DatasetConfig(**dataset_config)
-        elif isinstance(dataset_config, DatasetConfig):
-            return dataset_config
-
-    def __getitem__(self, idx: int, as_dict: bool = True) -> DataSample | dict:
-        raise TypeError("Cannot access samples in a streaming dataset")
-
-    def __len__(self) -> int:
-        raise TypeError("Cannot get length of a streaming dataset")
-
-    def __iter__(self):
-        return iter(self.ds)
-
-    @classmethod
-    def from_path(
-        cls, path: str | os.PathLike, storage_options: dict = None, format: str = "arrow", file_pattern: str = "*arrow"
-    ) -> "HFStreamingDataset":
-        """Create a dataset from a path. This uses pyarrow so the dataset is memory-mapped.
-        Uses load_dataset technique.
-
-        Args:
-            path: The path to the dataset.
-            storage_options: The storage options for cloud paths.
-            format: The format of the dataset, one of "arrow", "csv", "tsv", "json", "parquet".
-            file_pattern: The file pattern to use to find the dataset files.
-
-        Returns:
-            The loaded HFStreamingDataset.
-        """
-        if not is_local_path(path) and not is_cloud_path(path):
-            raise ValueError(f"Path {path} must be a local or cloud path")
-
-        path = AnyPath(path)
-
-        if is_cloud_path(path) and not storage_options:
-            raise ValueError("""You need to provide a dict here,
-            e.g. for google it is storage_options={"project": "my-google-project"}
-            see https://huggingface.co/docs/datasets/v3.2.0/en/filesystems#google-cloud-storage for details
-            """)
-
-        # load config from json
-        config_file = File(path / "dataset_config.json")
-        if not config_file.exists:
-            raise FileNotFoundError("No dataset config found")
-
-        with config_file.open("r") as fp:
-            config = json.load(fp)
-
-        # find all files in the directory with the file_format
-        files = [str(s) for s in path.rglob(f"{file_pattern}")]
-        if len(files) == 0:
-            raise FileNotFoundError("No files found")
-
-        ds = load_dataset(path=format, data_files=files, storage_options=storage_options, streaming=True)
-
-        return cls(config, ds=ds)
 
 
 def concatenate_hf_datasets(

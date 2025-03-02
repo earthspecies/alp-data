@@ -8,6 +8,7 @@ from tqdm import tqdm
 
 import esp_data.file_io.functional as F
 from esp_data.config import DatasetConfig
+from esp_data.config.project_config import WEBDS_DEFAULT_CFG
 from esp_data.paths import AnyPath
 from esp_data.utils import make_simple_logger
 
@@ -195,13 +196,13 @@ class WebDataset:
         dataset_config: DatasetConfig,
         ds: wds.WebDataset = None,
         path: str | AnyPath | None = None,
-        load_metadata: bool = True,
-        metadata_df: pd.DataFrame = None,
-        file_pattern: str = "shard_*.tar",
-        storage_options: dict = None,
-        metadata_path: str | None = None,
-        data_processor: Callable = None,
-        shuffle_size: int = 1000,
+        load_metadata: bool = WEBDS_DEFAULT_CFG["load_metadata"],
+        metadata_df: pd.DataFrame = WEBDS_DEFAULT_CFG["metadata_df"],
+        file_pattern: str = WEBDS_DEFAULT_CFG["file_pattern"],
+        storage_options: dict = WEBDS_DEFAULT_CFG["storage_options"],
+        metadata_path: str | None = WEBDS_DEFAULT_CFG["metadata_path"],
+        data_processor: Callable = WEBDS_DEFAULT_CFG["data_processor"],
+        shuffle_size: int = WEBDS_DEFAULT_CFG["shuffle_size"],
     ):
         assert path is None and ds is None, "Only one of path or ds should be provided"
         self.path = AnyPath(path)
