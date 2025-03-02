@@ -91,6 +91,12 @@ def test_dataset_config():
     assert dataset.license == "CC-BY-4.0"
 
 
+def test_dataset_config_from_skeleton():
+    dataset = DatasetConfig.from_skeleton()
+    assert dataset.created_at is not None
+    assert dataset.name == "unknown"
+
+
 def test_utility_methods():
     """Test utility methods."""
     data = {

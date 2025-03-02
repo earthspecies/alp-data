@@ -243,7 +243,7 @@ class DatasetConfig(BaseModel):
         default_factory=lambda: LicenseEnum.UNKNOWN, description="License for the dataset, if applicable"
     )
 
-    changelog: Optional[str] = Field(default="", description="Changelog from previous version")
+    changelog: Optional[str] = Field(default_factory=lambda: "", description="Changelog from previous version")
 
     @field_validator("version", mode="before")
     @classmethod
@@ -314,9 +314,9 @@ class DatasetConfig(BaseModel):
     def from_skeleton(cls) -> "DatasetConfig":
         """Return a skeleton dataset configuration"""
         return cls(
-            name="",
-            creator="",
+            name="unknown",
+            creator="unknown",
             version="0.0.0",
-            description="",
-            sources="",
+            description="none",
+            sources=["none"],
         )
