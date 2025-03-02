@@ -294,9 +294,8 @@ class DatasetConfig(BaseModel):
         # append new changelog with datetime
         self.changelog += f"\n\n{dt_str}:\n{new_log}"
 
-    def generate_readme(self, file_path: str | os.PathLike) -> None:
-        """Generate a README file for the dataset"""
-        text = f"""# {self.name}
+    def __str__(self) -> str:
+        return f"""# {self.name}
         ## Version\n\n{self.version}\n\n
         ## Created At\n\n{self.created_at}\n\n
         ## Creator\n\n{self.creator}\n\n
@@ -305,5 +304,19 @@ class DatasetConfig(BaseModel):
         ## Sources\n\n{self.sources}\n\n
         ## Changelog\n\n{self.changelog}\n\n"""
 
+    def generate_readme(self, file_path: str | os.PathLike) -> None:
+        """Generate a README file for the dataset"""
+        text = str(self)
         with open_file(file_path, "w") as f:
             f.write(text)
+
+    @classmethod
+    def from_skeleton(cls) -> "DatasetConfig":
+        """Return a skeleton dataset configuration"""
+        return cls(
+            name="",
+            creator="",
+            version="0.0.0",
+            description="",
+            sources="",
+        )

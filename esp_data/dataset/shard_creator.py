@@ -12,6 +12,7 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 import webdataset as wds
 from datasets import Dataset
+from tqdm import tqdm
 
 import esp_data.file_io.functional as F
 from esp_data.paths import AnyPath
@@ -56,35 +57,38 @@ def write_webdataset_shard(
 
     # Process each sample
     iterator = batch.iterrows() if isinstance(batch, pd.DataFrame) else enumerate(batch)
-    for i, item in enumerate(iterator):
-        # get item and sample_id
-        if isinstance(item, pd.Series):
-            item = item.to_dict()
+    with tqdm(total=len(batch), desc=f"Shard {shard_id:05d}", position=1, leave=False, ncols=90) as pbar_samples:
+        for i, item in enumerate(iterator):
+            # get item and sample_id
+            if isinstance(item, pd.Series):
+                item = item.to_dict()
 
-        sample_id = str(item.get("id", i))
+            sample_id = str(item.get("id", i))
+            pbar_samples.set_postfix(sample=sample_id)
+            try:
+                # Prepare the sample
+                if sample_prep_function is None:
+                    shard_data = item
+                else:
+                    shard_data = sample_prep_function(item)
 
-        try:
-            # Prepare the sample
-            if sample_prep_function is None:
-                shard_data = item
-            else:
-                shard_data = sample_prep_function(item)
+                # Write to shard
+                sample = {
+                    "__key__": sample_id,
+                    **shard_data,
+                }
+                sink.write(sample)
 
-            # Write to shard
-            sample = {
-                "__key__": sample_id,
-                **shard_data,
-            }
-            sink.write(sample)
+                # Track successful sample
+                results["processed_samples"].append(
+                    {"id": sample_id, "shard_path": f"shard_0{shard_id:05d}.tar", "shard_id": shard_id}
+                )
 
-            # Track successful sample
-            results["processed_samples"].append(
-                {"id": sample_id, "shard_path": f"shard_0{shard_id:05d}.tar", "shard_id": shard_id}
-            )
+            except Exception as e:
+                logger.error(f"Error processing sample {sample_id}: {e}")
+                results["failed_ids"].append(sample_id)
 
-        except Exception as e:
-            logger.error(f"Error processing sample {sample_id}: {e}")
-            results["failed_ids"].append(sample_id)
+            pbar_samples.update(1)
 
     # Close the shard
     sink.close()
@@ -122,30 +126,34 @@ def write_arrow_shard(
     prepared_data = []
     iterator = batch.iterrows() if isinstance(batch, pd.DataFrame) else enumerate(batch)
 
-    for i, item in iterator:
-        # get item and sample_id
-        if isinstance(item, pd.Series):
-            item = item.to_dict()
+    with tqdm(total=len(batch), desc=f"Shard {shard_id:05d}", position=1, leave=False, ncols=90) as pbar_samples:
+        for i, item in iterator:
+            # get item and sample_id
+            if isinstance(item, pd.Series):
+                item = item.to_dict()
 
-        sample_id = str(item["id"] if "id" in item else i)
+            sample_id = str(item["id"] if "id" in item else i)
+            pbar_samples.set_postfix(sample=sample_id)
 
-        try:
-            # Prepare the sample
-            if sample_prep_function is None:
-                shard_data = item
-            else:
-                shard_data = sample_prep_function(item)
+            try:
+                # Prepare the sample
+                if sample_prep_function is None:
+                    shard_data = item
+                else:
+                    shard_data = sample_prep_function(item)
 
-            prepared_data.append(shard_data)
+                prepared_data.append(shard_data)
 
-            # Track successful sample
-            results["processed_samples"].append(
-                {"id": sample_id, "shard_path": f"shard_{shard_id:06d}.arrow", "shard_id": shard_id}
-            )
+                # Track successful sample
+                results["processed_samples"].append(
+                    {"id": sample_id, "shard_path": f"shard_{shard_id:06d}.arrow", "shard_id": shard_id}
+                )
 
-        except Exception as e:
-            logger.error(f"Error processing sample {sample_id} for Arrow: {e}")
-            results["failed_ids"].append(sample_id)
+            except Exception as e:
+                logger.error(f"Error processing sample {sample_id} for Arrow: {e}")
+                results["failed_ids"].append(sample_id)
+
+            pbar_samples.update(1)
 
     if prepared_data:
         # Create Arrow table
@@ -258,29 +266,34 @@ def write_huggingface_shard(
     prepared_data = []
     iterator = batch.iterrows() if isinstance(batch, pd.DataFrame) else enumerate(batch)
 
-    for i, item in iterator:
-        # get item and sample_id
-        if isinstance(item, pd.Series):
-            item = item.to_dict()
+    with tqdm(total=len(batch), desc=f"Shard {shard_id:05d}", position=1, leave=False, ncols=90) as pbar_samples:
+        for i, item in iterator:
+            # get item and sample_id
+            if isinstance(item, pd.Series):
+                item = item.to_dict()
 
-        sample_id = str(item["id"] if "id" in item else i)
-        try:
-            # Prepare the sample
-            if sample_prep_function is None:
-                shard_data = item
-            else:
-                shard_data = sample_prep_function(item)
+            sample_id = str(item["id"] if "id" in item else i)
+            pbar_samples.set_postfix(sample=sample_id)
 
-            prepared_data.append(shard_data)
+            try:
+                # Prepare the sample
+                if sample_prep_function is None:
+                    shard_data = item
+                else:
+                    shard_data = sample_prep_function(item)
 
-            # Track successful sample
-            results["processed_samples"].append(
-                {"id": sample_id, "shard_path": f"shard_{shard_id:06d}.arrow", "shard_id": shard_id}
-            )
+                prepared_data.append(shard_data)
 
-        except Exception as e:
-            logger.error(f"Error processing sample {sample_id} for Arrow: {e}")
-            results["failed_ids"].append(sample_id)
+                # Track successful sample
+                results["processed_samples"].append(
+                    {"id": sample_id, "shard_path": f"shard_{shard_id:06d}.arrow", "shard_id": shard_id}
+                )
+
+            except Exception as e:
+                logger.error(f"Error processing sample {sample_id} for Arrow: {e}")
+                results["failed_ids"].append(sample_id)
+
+            pbar_samples.update(1)
 
     if prepared_data:
         ds = Dataset.from_list(prepared_data)
