@@ -295,7 +295,7 @@ def main():
     args = parser.parse_args()
 
     # Find all jsonl files in the directory
-    jsonl_paths = F.list_files(args.path_to_jsonl_files, pattern="*.jsonl")
+    jsonl_paths = F.yield_files(args.path_to_jsonl_files, pattern="*.jsonl")
 
     sample_prep_function = partial(
         prepare_audio_sample_for_naturelm,
