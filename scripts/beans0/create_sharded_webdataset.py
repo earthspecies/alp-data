@@ -165,7 +165,7 @@ def create_sharded_dataset(
     process_chunk_partial = partial(
         write_webdataset_shard,
         output_path=output_path,
-        arrow_prep_function=sample_prep_function,
+        sample_prep_function=sample_prep_function,
     )
 
     # Process chunks in parallel with progress bar
