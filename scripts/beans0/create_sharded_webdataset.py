@@ -262,7 +262,7 @@ def main():
         num_samples_per_shard=args.num_samples_per_shard,
         num_workers=args.num_workers,
         storage_options=storage_options,
-        shard_type=args.shard_type,
+        shard_type="webdataset",
     )
 
     # write new dataset config file
