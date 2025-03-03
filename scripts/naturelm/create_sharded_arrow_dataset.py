@@ -8,6 +8,7 @@
 import argparse
 import json
 import os
+import signal
 import time
 from concurrent.futures import ProcessPoolExecutor
 from functools import partial
@@ -40,6 +41,16 @@ RESET_COLOR = Style.RESET_ALL
 
 logger = make_simple_logger("sharded_arrow_dataset_creator")
 
+# Global flag for graceful interruption
+_interrupt_processing = False
+
+
+def handle_interrupt(signum, frame):
+    """Signal handler for graceful interruption"""
+    global _interrupt_processing
+    logger.warning("Received interrupt signal. Will stop after current batch...")
+    _interrupt_processing = True
+
 
 def read_jsonl(path: str | AnyPath) -> list[dict]:
     try:
@@ -69,13 +80,12 @@ def validate_sample(sample: dict, remove_inaturalist: bool = True) -> dict:
 def prepare_audio_sample_for_naturelm(
     row: dict, remove_inaturalist: bool = True, local_path: str = "/mnt/"
 ) -> dict[str, Any]:
-
     row["output"] = "None" if (pd.isna(row["output"]) or row["output"] == "nan") else row["output"]
     sample_data = {
         "instruction": row["prompt"],
         "output": row["output"],
         "task": row["task"],
-        "instruction_text": row["prompt"].replace("<Audio><AudioHere></Audio>","").strip()
+        "instruction_text": row["prompt"].replace("<Audio><AudioHere></Audio>", "").strip(),
     }
 
     path = AnyPath(row["path"])
@@ -156,12 +166,22 @@ def create_sharded_dataset(
     """
     output_path = AnyPath(output_path)
 
+    # Setup interrupt handler in the main process
+    global _interrupt_processing
+    _interrupt_processing = False
+    signal.signal(signal.SIGINT, handle_interrupt)
+
     print(f"\n{BATCH_COLOR}=== Dataset Sharding Process ==={RESET_COLOR}")
 
     for j, path in enumerate(jsonl_paths):
+        if _interrupt_processing:
+            print(f"\n{ERROR_COLOR}Process interrupted by user. Exiting...{RESET_COLOR}")
+            return
+
         t0 = time.time()
 
         batch_output_path = output_path / f"batch_{j}"
+        logger.info(f"Reading batch {j} jsonl...")
         batch = read_jsonl(path)
 
         if len(batch) == 0:
@@ -186,7 +206,9 @@ def create_sharded_dataset(
 
         # Filter out completed chunks
         # Add batch number
-        chunks_to_process = [(idx + j, chunk) for idx, chunk in enumerate(chunks) if str(idx + j) not in completed_chunks]
+        chunks_to_process = [
+            (idx + j, chunk) for idx, chunk in enumerate(chunks) if str(idx + j) not in completed_chunks
+        ]
 
         if not chunks_to_process:
             print(f"{SUCCESS_COLOR}All chunks already processed. Nothing to do.{RESET_COLOR}")
@@ -217,24 +239,45 @@ def create_sharded_dataset(
                     bar_format="{l_bar}%s{bar}%s{r_bar}" % (SHARD_COLOR, RESET_COLOR),
                     ncols=100,
                 ) as pbar:
-                    for future in futures:
-                        result = future.result()
-                        chunk_id = result["shard_id"]
-                        # prepend batch_output_path to shard_path
-                        # result["shard_path"] = [str(batch_output_path / p["shard_path"]) for p in result["processed_samples"]]
-                        processed_samples.extend(result["processed_samples"])
+                    for i, future in enumerate(futures):
+                        try:
+                            result = future.result(timeout=0.1)
+                            chunk_id = result["shard_id"]
+                            processed_samples.extend(result["processed_samples"])
 
-                        # Update checkpoint
-                        completed_chunks[str(chunk_id)] = result
-                        save_checkpoint(batch_output_path, batch, completed_chunks)
+                            completed_chunks[str(chunk_id)] = result
+                            save_checkpoint(batch_output_path, batch, completed_chunks)
 
-                        # Update progress bar with shard info
-                        pbar.set_postfix(
-                            shard=f"{chunk_id:05d}",
-                            success=len(result["processed_samples"]),
-                            failed=len(result["failed_ids"]),
-                        )
-                        pbar.update(1)
+                            # Update progress bar with shard info
+                            pbar.set_postfix(
+                                shard=f"{chunk_id:05d}",
+                                success=len(result["processed_samples"]),
+                                failed=len(result["failed_ids"]),
+                            )
+                            pbar.update(1)
+
+                        except TimeoutError:
+                            # No result yet, check if we should interrupt
+                            if _interrupt_processing:
+                                print(
+                                    f"\n{ERROR_COLOR}Process interrupted by user. Waiting for current tasks to complete...{RESET_COLOR}"
+                                )
+                                # Cancel all pending futures
+                                for f in futures[i:]:
+                                    f.cancel()
+                                break
+                            # Continue waiting for this future
+                            i -= 1
+                        except Exception as e:
+                            logger.error(f"Error processing chunk: {e}")
+                            pbar.update(1)
+
+                        # Check for interrupt after each future completes
+                        if _interrupt_processing:
+                            print(
+                                f"\n{ERROR_COLOR}Process interrupted by user. Stopping after current tasks...{RESET_COLOR}"
+                            )
+                            break
         else:
             # Track progress with tqdm
             # Sequential processing with nested progress bars
@@ -247,12 +290,13 @@ def create_sharded_dataset(
                 ncols=100,
             ) as pbar_shards:
                 for chunk_id, chunk in chunks_to_process:
-                    result = process_chunk_partial(batch=chunk, shard_id=chunk_id)
+                    if _interrupt_processing:
+                        print(
+                            f"\n{ERROR_COLOR}Process interrupted by user. Stopping after current shard...{RESET_COLOR}"
+                        )
+                        break
 
-                    # prepend batch_output_path to shard_path
-                    # result["processed_samples"] = [{"id": x["id"],
-                    # "shard_path": str(batch_output_path / x["shard_path"]),
-                    # "" for x in result["processed_samples"]]
+                    result = process_chunk_partial(batch=chunk, shard_id=chunk_id)
 
                     processed_samples.extend(result["processed_samples"])
 
@@ -269,6 +313,12 @@ def create_sharded_dataset(
                     pbar_shards.update(1)
 
         tend = time.time()
+
+        if _interrupt_processing:
+            print(f"\n{ERROR_COLOR}Process was interrupted by user.{RESET_COLOR}")
+            print(f"{BATCH_COLOR}Progress was saved in the checkpoint.{RESET_COLOR}")
+            return
+
         # Report final statistics
         total_successful = len(processed_samples)
         total_failed = sum(len(chunk["failed_ids"]) for chunk in completed_chunks.values())
@@ -296,7 +346,6 @@ def create_sharded_dataset(
 
         # Save updated metadata as parquet
         metadata_df.to_csv(str(batch_output_path / "metadata.csv"), index=False, storage_options=storage_options)
-
 
 
 def main():

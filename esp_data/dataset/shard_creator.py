@@ -80,7 +80,7 @@ def write_webdataset_shard(
             # get item and sample_id
             if isinstance(item, pd.Series):
                 item = item.to_dict()
-            
+
             sample_id = str(item.get("id", i))
 
             if i % PBAR_EVERY == 0:  # Only update description occasionally to reduce output
@@ -309,7 +309,7 @@ def write_huggingface_shard(
             sample_id = str(item["id"] if "id" in item else i)
             if i % PBAR_EVERY == 0:
                 pbar_samples.set_description(f"Shard {shard_id:05d} - Sample {sample_id}")
-            
+
             try:
                 # Prepare the sample
                 if sample_prep_function is None:
@@ -360,21 +360,36 @@ def write_shard(
         sample_prep_function: Function to prepare a sample for the specified format
         output_format: Output format for the shard (webdataset or arrow)
     """
-    # Set up interrupt handler
+    # Set up interrupt handler - make sure it works in child processes too
     global _interrupt_processing
     _interrupt_processing = False
-    original_handler = signal.signal(signal.SIGINT, handle_interrupt)
 
-    if output_format == "webdataset":
-        return write_webdataset_shard(batch, shard_id, output_path, sample_prep_function, **kwargs)
-    elif output_format in ["arrow", "parquet"]:
-        return write_arrow_shard(batch, shard_id, output_path, sample_prep_function, format=output_format, **kwargs)
-    elif output_format == "hf":
-        return write_huggingface_shard(batch, shard_id, output_path, sample_prep_function, **kwargs)
-    else:
-        raise ValueError(
-            f"Unsupported output format: {output_format}, must be 'webdataset', 'arrow', 'parquet' or 'hf'"
-        )
+    # Set up signal handler in each worker process
+    # This ensures signals are properly caught in multiprocessing environment
+    try:
+        original_handler = signal.signal(signal.SIGINT, handle_interrupt)
+    except ValueError:
+        # This can happen in child processes where the main thread isn't the main thread
+        # Just log and continue - the main process will handle interruption
+        logger.warning("Could not set signal handler in child process")
+
+    try:
+        if output_format == "webdataset":
+            return write_webdataset_shard(batch, shard_id, output_path, sample_prep_function, **kwargs)
+        elif output_format in ["arrow", "parquet"]:
+            return write_arrow_shard(batch, shard_id, output_path, sample_prep_function, format=output_format, **kwargs)
+        elif output_format == "hf":
+            return write_huggingface_shard(batch, shard_id, output_path, sample_prep_function, **kwargs)
+        else:
+            raise ValueError(
+                f"Unsupported output format: {output_format}, must be 'webdataset', 'arrow', 'parquet' or 'hf'"
+            )
+    finally:
+        # Restore original signal handler
+        try:
+            signal.signal(signal.SIGINT, original_handler)
+        except ValueError:
+            pass  # Same issue as above
 
 
 def compute_metadata_hash(metadata: pd.DataFrame | list[dict] | dict | Any) -> int:
