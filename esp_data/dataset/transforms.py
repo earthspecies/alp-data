@@ -1,4 +1,5 @@
-"""Module for defining and applying data transformation pipelines
+"""NO QA!
+Module for defining and applying data transformation pipelines
 
 Example:
 # Define a pipeline
@@ -55,10 +56,11 @@ transformed_data = loaded_pipeline.apply(data)
 """
 
 import importlib
+import inspect
 import json
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Callable, Dict, List, Optional, Union
 
 import git
 import pkg_resources
@@ -66,6 +68,75 @@ import pkg_resources
 from esp_data.utils import make_simple_logger
 
 logger = make_simple_logger("esp_data.transforms")
+
+
+@dataclass
+class SimpleTransformStep:
+    """A simplified transform step that works with a function reference"""
+
+    function: Callable
+    parameters: Dict[str, Any] = None
+    name: str = None
+    module_path: str = None
+    function_name: str = None
+    version: str = None
+
+    def __post_init__(self):
+        if self.parameters is None:
+            self.parameters = {}
+        if self.name is None:
+            self.name = self.function.__name__
+
+        # Get module path and function name for serialization
+        if self.module_path is None:
+            module = inspect.getmodule(self.function)
+            self.module_path = module.__name__ if module else "unknown"
+
+        if self.function_name is None:
+            self.function_name = self.function.__name__
+
+        # Get package version
+        if self.version is None:
+            try:
+                # Extract the top-level package name
+                top_package = self.module_path.split(".")[0]
+                self.version = pkg_resources.get_distribution(top_package).version
+            except Exception:
+                self.version = "unknown"
+
+    def __call__(self, data):
+        """Apply the transform function to the data"""
+        return self.function(data, **self.parameters)
+
+    def to_dict(self):
+        """Convert to a serializable dictionary"""
+        return {
+            "name": self.name,
+            "module_path": self.module_path,
+            "function_name": self.function_name,
+            "parameters": self.parameters,
+            "version": self.version,
+        }
+
+    @classmethod
+    def from_dict(cls, data):
+        """Create a step from a dictionary"""
+        try:
+            module = importlib.import_module(data["module_path"])
+            function = getattr(module, data["function_name"])
+
+            return cls(
+                function=function,
+                parameters=data["parameters"],
+                name=data["name"],
+                module_path=data["module_path"],
+                function_name=data["function_name"],
+                version=data["version"],
+            )
+        except ImportError:
+            raise ImportError(f"Could not import module {data['module_path']}")
+        except AttributeError:
+            raise AttributeError(f"Could not find function {data['function_name']} in module {data['module_path']}")
 
 
 @dataclass
@@ -167,7 +238,7 @@ class TransformPipeline:
             data["steps"] = [TransformStep(**step) for step in data["steps"]]
             return cls(**data)
 
-    def apply(self, data: Any) -> Any:
+    def __call__(self, data: Any) -> Any:
         """Apply all transformation steps in sequence"""
         result = data
         for step in self.steps:

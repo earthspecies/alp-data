@@ -1,6 +1,6 @@
 import os
 import warnings
-from typing import Any, Callable, Iterable, Optional
+from typing import Any, Callable, Iterable, Literal, Optional
 
 from datasets import Dataset, concatenate_datasets, load_dataset, load_from_disk
 
@@ -33,13 +33,14 @@ HF_DATASET_TYPES = [
 def load_hf_dataset(hf_dataset_type: str, path: str | AnyPath, **hf_ds_kwargs) -> "HFDataset":
     if hf_dataset_type == "hf_hub":
         ds = load_dataset(path, **hf_ds_kwargs)
+
         cfg = DatasetConfig(
             name=ds.info.dataset_name,
             description=str(ds.info),
-            version=ds.version,
-            sources=ds.info.dataset_name,
-            license=ds.license,
-            creator=ds.info.citation,
+            version="0.0.0",
+            sources="see description",
+            license="see description",
+            creator="see description",
         )
         return HFDataset(cfg, ds=ds, streaming_dataset=hf_ds_kwargs.get("streaming", False))
 
@@ -58,6 +59,10 @@ class HFDataset(BaseMapDataset):
     @property
     def columns(self):
         return list(self.ds.column_names)
+
+    @property
+    def features(self):
+        return self.ds.features
 
     @property
     def version(self):
@@ -87,7 +92,7 @@ class HFDataset(BaseMapDataset):
 
     def __iter__(self):
         if self._streaming:
-            return iter(self.ds)
+            return self.ds
 
         for i in range(len(self)):
             yield self[i]
@@ -433,6 +438,50 @@ class HFDataset(BaseMapDataset):
         return self.__str__()
 
 
+def apply(
+    ds: HFDataset,
+    function: Callable,
+    changelog: str | None = None,
+    version_update_mode: Literal["major", "minor", "patch"] = None,
+    accumulate_in_memory: bool = False,
+    function_kwargs: dict = None,
+    **map_kwargs,
+) -> HFDataset:
+    """Apply a function to a dataset, creates a new dataset.
+
+    Args:
+        ds: The dataset to apply the function to.
+        function: The function to apply to each sample.
+        changelog: A change log to add to the dataset description.
+        version_update_mode: The version update mode to use. Default is None.
+        accumulate_in_memory: Whether to accumulate the dataset in memory before applying the function.
+        function_kwargs: Any kwargs to pass to the function during mapping.
+        map_kwargs: Any kwargs to pass to the map function.
+    """
+
+    if ds._streaming and not accumulate_in_memory:
+        raise ValueError(
+            "Cannot apply function to a streaming dataset without accumulating in memory, otherwise you will lose the data"
+        )
+    elif ds._streaming and accumulate_in_memory:
+        samples = []
+        for sample in enumerate(ds.ds):
+            samples.append(sample)
+        newds = HFDataset.from_samples(samples, ds.config.copy())
+    else:
+        # memory mapped apply
+        _newds = ds.ds.map(function, fn_kwargs=function_kwargs, **map_kwargs)
+        newds = HFDataset(config=ds.config.copy(), ds=_newds, streaming=ds._streaming)
+
+    if changelog:
+        newds.config.update_changelog(changelog)
+
+    if version_update_mode:
+        newds.config.increment_version(version_update_mode)
+
+    return newds
+
+
 def concatenate_hf_datasets(
     datasets: Iterable[HFDataset],
     new_dataset_config: DatasetConfig | dict = None,
@@ -460,7 +509,7 @@ def concatenate_hf_datasets(
 
     s = f"""-> Concatenated multiple datasets. Datasets: {[d.config.name for d in datasets]}
     """
-    new_ds.config.description += "\n" + s
+    new_ds.config.update_changelog(s)
 
     return new_ds
 
