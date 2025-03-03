@@ -194,11 +194,11 @@ def list_files(dir_path: str | os.PathLike | AnyPath, pattern: str = "*", use_fs
         return []
 
     if is_local_path(dir_path):
-        return [str(f) for f in dir_path.rglob(pattern or "*") if f.is_file() and str(f) != str(dir_path)]
+        return [str(f) for f in dir_path.rglob(pattern) if f.is_file() and str(f) != str(dir_path)]
 
     if not use_fs:
         try:
-            return [str(f) for f in dir_path.rglob(pattern or "*") if f.is_file() and str(f) != str(dir_path)]
+            return [str(f) for f in dir_path.rglob(pattern)]  # if f.is_file() and str(f) != str(dir_path)]
         except Exception as e:
             logger.warning(f"Could not list files using AnyPath method: {e}, trying FileSystem approach.")
 
@@ -236,8 +236,9 @@ def yield_files(dir_path: str | os.PathLike | AnyPath, pattern: str = "*", use_f
     if not use_fs:
         try:
             for f in dir_path.rglob(pattern or "*"):
-                if f.is_file() and str(f) != str(dir_path):
-                    yield str(f)
+                # if f.is_file() and str(f) != str(dir_path):
+                #   yield str(f)
+                yield str(f)
         except Exception as e:
             logger.warning(f"Could not yield files using AnyPath method: {e}, trying FileSystem approach.")
 
@@ -449,7 +450,7 @@ def delete_dir(dir_path: str | os.PathLike | AnyPath, use_fs: bool = False) -> b
     if not use_fs:
         try:
             for f in yield_files(dir_path):
-                f.unlink()
+                AnyPath(f).unlink()
             return True
         except Exception as e:
             logger.warning(f"Could not delete directory using AnyPath method: {e}, trying FileSystem approach.")
@@ -637,7 +638,7 @@ def download(
 def gcloud_rsync(
     source: str | os.PathLike | AnyPath,
     destination: str | os.PathLike | AnyPath,
-    avoid_overwrite: bool = False,
+    avoid_copy_if_same: bool = False,
     delete_unmatched: bool = False,
     continue_on_error: bool = True,
     recursive: bool = True,
@@ -646,8 +647,9 @@ def gcloud_rsync(
     """Sync the bucket directory with a local / cloud directory.
 
     Args:
-        destination: The local directory to sync with.
-        avoid_overwrite: Whether to avoid overwriting files in the destination. Default is True.
+        source (str | os.PathLike | AnyPath): The source path to sync from.
+        destination (str | os.PathLike | AnyPath): The destination path to sync to.
+        avoid_copy_if_same: Whether to avoid copying files that are the same in source and destination. Default is False
         delete_unmatched: Whether to delete files in the destination that are not in the source. Default is False
         continue_on_error: Whether to continue syncing if an error occurs. Default is True
         recursive: Whether to sync recursively. Default is True
@@ -668,7 +670,7 @@ def gcloud_rsync(
         cmd.append("--delete-unmatched-destination-objects")
     if continue_on_error:
         cmd.append("--continue-on-error")
-    if avoid_overwrite:
+    if avoid_copy_if_same:
         cmd.append("--no-clobber")
 
     if gzip_in_flight == "all":
