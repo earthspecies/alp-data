@@ -1,10 +1,9 @@
 import json
-from typing import Any, Callable
+from functools import partial
+from typing import Any, Callable, Generator, Literal
 
 import pandas as pd
 import webdataset as wds
-from torch.utils.data import DataLoader
-from tqdm import tqdm
 
 import esp_data.file_io.functional as F
 from esp_data.config import DatasetConfig
@@ -12,37 +11,86 @@ from esp_data.config.project_config import WEBDS_DEFAULT_CFG
 from esp_data.paths import AnyPath
 from esp_data.utils import make_simple_logger
 
-from .utils import _make_file_opener
+from .shard_creator import write_webdataset_shard
 
 logger = make_simple_logger("web_dataset")
 
 
 def load_dataset(
     path: str | AnyPath,
-    pattern: str = "shard_*.tar",
+    file_pattern: str = "shard_*.tar",
     data_processor: Callable = None,
-    shuffle_size: int = 1000,
-    **webdataset_kwargs,
+    shuffle_size: int | None = None,
+    batch_size: int | None = None,
+    shard_shuffle: bool = False,
+    shard_shuffle_size: bool = 1000,
+    split_by_worker: bool = False,
+    batch_collate_fn: Callable = None,
+    seed: int | bool | None = True,
 ):
     """Create a pipeline for loading the dataset
 
     Args:
         path (str | AnyPath): Path to the dataset
-        pattern (str, optional): Pattern to match the shard files. Defaults to "shard_*.tar".
+        file_pattern (str, optional): Pattern to match the shard files. Defaults to "shard_*.tar".
         data_processor (Callable, optional): Function to process the data. Defaults to None.
         shuffle_size (int, optional): Size of the shuffle buffer. Defaults to 1000.
-        **webdataset_kwargs: Additional arguments for webdataset
+        batch_size (int, optional): Batch size for processing audio files. Defaults to None.
+        shard_shuffle (bool, optional): Whether to shuffle the shards. Defaults to False.
+        shard_shuffle_size (int, optional): Size of the shuffle buffer for shards. Defaults to 1000.
+        split_by_worker (bool, optional): Whether to split the dataset by worker. Defaults to False.
+        batch_collate_fn (Callable, optional): Function to collate the batch. Defaults to None.
+        seed (int, optional): Seed for shuffling. Defaults to True, random seed. If None, means no shuffling!
     """
     path = AnyPath(path)
-    shard_files = F.list_files(path, pattern=pattern)
+    shard_files = F.list_files(path, pattern=file_pattern)
 
     if not shard_files:
         raise FileNotFoundError(f"No shard files found in {path}")
 
     # Log what we found for debugging
-    logger.info(f"Found {len(shard_files)} shard files in {path}")
+    logger.debug(f"Found {len(shard_files)} shard files in {path}")
 
-    return wds.WebDataset(shard_files, **webdataset_kwargs).shuffle(shuffle_size).map(data_processor)
+    if batch_size is not None:
+        return (
+            wds.WebDataset(
+                shard_files,
+                shardshuffle=shard_shuffle_size if shard_shuffle else False,
+                seed=seed,
+                workersplitter=split_by_worker,
+            )
+            .shuffle(shuffle_size)
+            .map(data_processor)
+            .batched(batch_size, collation_fn=batch_collate_fn)
+        )
+    return (
+        wds.WebDataset(
+            shard_files,
+            shardshuffle=shard_shuffle_size if shard_shuffle else False,
+            seed=seed,
+            workersplitter=split_by_worker,
+        )
+        .shuffle(shuffle_size)
+        .map(data_processor)
+    )
+
+    # operations = [wds.SimpleShardList(shard_files, seed)]
+    # if shard_shuffle:
+    #     operations.append(wds.shuffle(shard_shuffle_size))
+    # if split_by_worker:
+    #     operations.append(wds.split_by_worker)
+    # operations.append(wds.tarfile_to_samples())
+    # if shuffle_size:
+    #     operations.append(wds.shuffle(shuffle_size))
+    # if data_processor:
+    #     operations.append(wds.map(data_processor))
+    # if batch_size:
+    #     batched_kwargs = {"batchsize": batch_size}
+    #     if batch_collate_fn:
+    #         batched_kwargs["collate_fn"] = batch_collate_fn
+    #     operations.append(wds.batched(batch_size))
+
+    # return wds.DataPipeline(*operations)
 
 
 def get_item_from_dataset(
@@ -100,81 +148,6 @@ def get_batch(
     return batch
 
 
-def apply_and_save(
-    ds: wds.WebDataset,
-    output_path: str | AnyPath,
-    apply_fn: Callable,
-    num_samples_per_shard: int = 1000,
-    num_workers: int = 4,
-):
-    """Apply a function to each sample in the dataset and save the results to new shards.
-
-    Args:
-        ds (wds.WebDataset): WebDataset object
-        output_path (str | AnyPath): Path to save the sharded dataset
-        apply_fn (Callable): Function to apply to each sample
-        num_samples_per_shard (int, optional): Number of samples per output shard. Defaults to 1000.
-        num_workers (int, optional): Number of workers for DataLoader. Defaults to 4.
-    """
-    output_path = AnyPath(output_path)
-
-    # Create DataLoader for efficient processing
-    dataloader = DataLoader(ds, batch_size=None, num_workers=num_workers)
-
-    # Prepare pattern for output shards
-    pattern = output_path / "shard_%06d.tar"
-
-    # Initialize sink for writing shards
-    sink = wds.TarWriter(pattern, maxcount=num_samples_per_shard, opener=_make_file_opener(pattern))
-
-    # Process each sample
-    for sample in tqdm(dataloader, desc="Processing samples", total=len(dataloader)):
-        # Get the key for this sample
-        key = sample.get("__key__", None)
-        if key is None:
-            raise ValueError("Sample missing __key__ field")
-
-        # Apply the function to the sample
-        modified_sample = apply_fn(sample)
-
-        # Write to the sink with the original key
-        sink.write({"__key__": key, **modified_sample})
-
-    # Close the sink to ensure all data is written
-    sink.close()
-
-
-def apply_and_save_v2(
-    ds: wds.WebDataset,
-    output_path: str | AnyPath,
-    apply_fn: Callable,
-    num_samples_per_shard: int = 1000,
-    shuffle_buffer_size: int = 100,
-):
-    """Apply a function to each sample in the dataset and save the results to new shards.
-
-    Args:
-        ds (wds.WebDataset): WebDataset object
-        output_path (str | AnyPath): Path to save the sharded dataset
-        apply_fn (Callable): Function to apply to each sample
-        samples_per_shard (int, optional): Number of samples per output shard. Defaults to 1000.
-        shuffle_buffer_size (int, optional): Size of the shuffle buffer. Defaults to 100.
-    """
-    output_path = AnyPath(output_path)
-    pattern = output_path / "shard_%06d.tar"
-
-    processed_ds = ds.map(apply_fn, handler=wds.handlers.warn_and_continue)
-
-    # Write the modified dataset to disk
-    # The DataPipeline will run with multiple workers in parallel
-    (
-        processed_ds.compose(wds.filters.detshuffle(shuffle_buffer_size))
-        .to_tuple("__key__", "*")
-        .pipe(lambda data: ({"__key__": key, **rest} for key, *values in data for rest in [dict(values)]))
-        .compose(wds.writers.TarWriter(pattern, maxcount=num_samples_per_shard, opener=_make_file_opener(pattern)))
-    )
-
-
 class WebDataset:
     """Class for loading and accessing a tar file based dataset.
 
@@ -193,9 +166,9 @@ class WebDataset:
 
     def __init__(
         self,
-        dataset_config: DatasetConfig,
-        ds: wds.WebDataset = None,
         path: str | AnyPath | None = None,
+        dataset_config: DatasetConfig | None = None,
+        ds: wds.WebDataset = None,
         load_metadata: bool = WEBDS_DEFAULT_CFG["load_metadata"],
         metadata_df: pd.DataFrame = WEBDS_DEFAULT_CFG["metadata_df"],
         file_pattern: str = WEBDS_DEFAULT_CFG["file_pattern"],
@@ -203,37 +176,57 @@ class WebDataset:
         metadata_path: str | None = WEBDS_DEFAULT_CFG["metadata_path"],
         data_processor: Callable = WEBDS_DEFAULT_CFG["data_processor"],
         shuffle_size: int = WEBDS_DEFAULT_CFG["shuffle_size"],
+        shard_shuffle: bool = WEBDS_DEFAULT_CFG["shard_shuffle"],
+        shard_shuffle_size: int = WEBDS_DEFAULT_CFG["shard_shuffle_size"],
+        batch_size: int | None = WEBDS_DEFAULT_CFG["batch_size"],
+        batch_collate_fn: Callable = WEBDS_DEFAULT_CFG["batch_collate_fn"],
+        split_by_worker: bool = WEBDS_DEFAULT_CFG["split_by_worker"],
+        seed: int | bool | None = WEBDS_DEFAULT_CFG["seed"],
     ):
-        assert path is None and ds is None, "Only one of path or ds should be provided"
+        assert not (path is None and ds is None), "One of path or ds should be provided"
         self.path = AnyPath(path)
         self.config = dataset_config
-        self.metadata_path = AnyPath(metadata_path if metadata_path is not None else self.web_dataset_path)
+        self.metadata_path = AnyPath(metadata_path if metadata_path is not None else self.path)
         self.metadata_df = metadata_df
         self.storage_options = storage_options
-        self.shuffle_size = shuffle_size
 
         # Read metadata if missing
         if self.metadata_df is None and load_metadata:
-            if AnyPath(self.metadata_path / "metadata.parquet").exists():
+            if (self.metadata_path / "metadata.parquet").exists():
                 self.metadata_df = pd.read_parquet(
-                    self.metadata_path / "metadata.parquet", storage_options=storage_options
+                    str(self.metadata_path / "metadata.parquet"), storage_options=storage_options
                 )
-            elif AnyPath(self.metadata_path / "metadata.csv").exists():
-                self.metadata_df = pd.read_csv(self.metadata_path / "metadata.csv", storage_options=storage_options)
-            elif AnyPath(self.metadata_path / "metadata.json").exists():
-                self.metadata_df = pd.read_json(self.metadata_path / "metadata.json", storage_options=storage_options)
+            elif (self.metadata_path / "metadata.csv").exists():
+                self.metadata_df = pd.read_csv(
+                    str(self.metadata_path / "metadata.csv"), storage_options=storage_options
+                )
+            elif (self.metadata_path / "metadata.json").exists():
+                self.metadata_df = pd.read_json(
+                    str(self.metadata_path / "metadata.json"), storage_options=storage_options
+                )
             else:
                 logger.warning(
                     "No metadata found. Won't be able to create a sharded dataset or index directly into the data"
                 )
 
+        # try and load the dataset_config
+        self.config = self._set_config(dataset_config)
+
         self._data_processor = data_processor
 
         # load dataset if available
-        self.ds = ds
-        shard_files = F.list_files(self.web_dataset_path, pattern=file_pattern)
-        if len(shard_files) > 0:
-            self._load_dataset(shuffle_size=self.shuffle_size)
+        self.ds = ds or load_dataset(
+            path=self.path,
+            data_processor=data_processor,
+            shuffle_size=shuffle_size,
+            shard_shuffle=shard_shuffle,
+            shard_shuffle_size=shard_shuffle_size,
+            batch_size=batch_size,
+            batch_collate_fn=batch_collate_fn,
+            seed=seed,
+            file_pattern=file_pattern,
+            split_by_worker=split_by_worker,
+        )
 
     @property
     def columns(self):
@@ -243,19 +236,19 @@ class WebDataset:
     def version(self):
         return self.config.version
 
+    def set_ds(self, ds: wds.WebDataset):
+        self.ds = ds
+
+    def get_ds(self):
+        return self.ds
+
     def _set_config(self, dataset_config) -> None:
         if isinstance(dataset_config, dict):
             return DatasetConfig(**dataset_config)
         elif isinstance(dataset_config, DatasetConfig):
             return dataset_config
-
-    def _load_dataset(self, shuffle_size: int = 1000, **webdataset_kwargs):
-        self.ds = load_dataset(
-            path=self.path,
-            data_processor=self._data_processor,
-            shuffle_size=shuffle_size,
-            **webdataset_kwargs,
-        )
+        else:
+            return DatasetConfig.from_skeleton()
 
     @classmethod
     def from_path(cls, path: str | AnyPath, **kwargs):
@@ -264,12 +257,13 @@ class WebDataset:
         # load config from json
         config_file = AnyPath(path / "dataset_config.json")
         if not config_file.exists():
-            raise FileNotFoundError("No dataset config found")
+            logger.warning("No dataset config found, making skeleton config")
+            config = DatasetConfig.from_skeleton()
+        else:
+            with config_file.open("r") as fp:
+                config = json.load(fp)
 
-        with config_file.open("r") as fp:
-            config = json.load(fp)
-
-        return cls(config, path=path, **kwargs)
+        return cls(path=path, dataset_config=config, **kwargs)
 
     def __getitem__(self, idx: int) -> Any:
         if self.metadata_df is None:
@@ -278,14 +272,14 @@ class WebDataset:
         if isinstance(idx, slice):
             return get_batch(
                 indices=list(range(idx.start, idx.stop, idx.step)),
-                dataset_path=self.web_dataset_path,
+                dataset_path=self.path,
                 data_processor=self._data_processor,
                 metadata_df=self.metadata_df,
             )
 
         return get_item_from_dataset(
             idx=idx,
-            dataset_path=self.web_dataset_path,
+            dataset_path=self.path,
             data_processor=self._data_processor,
             metadata_df=self.metadata_df,
         )
@@ -294,7 +288,89 @@ class WebDataset:
         return len(self.metadata_df) or None
 
     def __iter__(self):
-        if self.ds is None:
-            self._load_dataset(shuffle_size=self.shuffle_size)
-
         return iter(self.ds)
+
+    def map(self, function: Callable, **kwargs):
+        self.ds = self.ds.map(function, **kwargs)
+        return self
+
+    def save_to_path(
+        self, path: str | AnyPath, num_samples_per_shard: int = 1000, sample_prep_function: Callable = None
+    ):
+        """Save the dataset to a new path."""
+        path = AnyPath(path)
+
+        if self.metadata_df is not None:
+            # get num_shards from metadata
+            logger.info("Using metadata to determine number of shards")
+            num_shards = len(self.metadata_df["shard_path"].unique())
+            num_samples_per_shard = len(self.metadata_df) // num_shards
+
+        batch = []
+        shard_id = 0
+        for i, sample in enumerate(self):
+            batch.append(sample)
+
+            if len(batch) == num_samples_per_shard:
+                write_webdataset_shard(batch, path, shard_id=shard_id, sample_prep_function=sample_prep_function)
+                batch = []
+                shard_id += 1
+
+        if batch:
+            write_webdataset_shard(batch, path, shard_id=i, sample_prep_function=sample_prep_function)
+
+        # save config
+        self.config.write_json(path / "dataset_config.json")
+        self.config.generate_readme(path / "README.md")
+        # save metadata if available
+        if self.metadata_df is not None:
+            self.metadata_df.to_parquet(path / "metadata.parquet")
+
+
+def apply_fn(
+    ds: WebDataset,
+    function: Callable,
+    fn_kwargs: dict = {},
+    output_path: str | AnyPath | None = None,
+    num_samples_per_shard: int = 1000,
+    changelog: str | None = None,
+    version_update_mode: Literal["major", "minor", "patch"] = None,
+) -> Generator[dict, None, None] | WebDataset:
+    """Apply a function to each sample in the dataset and save the results to new shards.
+
+    Args:
+        ds (wds.WebDataset): WebDataset object
+        function (Callable): Function to apply to each sample
+        fn_kwargs (dict, optional): Additional keyword arguments for the function. Defaults to {}.
+        batched (bool, optional): Whether to process the dataset in batches. Defaults to False.
+        batch_size (int, optional): Batch size for processing audio files. Defaults to 1000.
+        output_path (str | AnyPath, optional): Path to the output directory. Defaults to None.
+        num_samples_per_shard (int, optional): Number of samples per output shard. Defaults to 1000.
+        changelog (str, optional): Changelog for the dataset. Defaults to None.
+        version_update_mode (Literal["major", "minor", "patch"], optional): Mode for updating the version number. Defaults to None.
+
+    Yields:
+        Generator[dict, None, None]: Generator for the processed samples if output_path is None
+
+    Returns:
+        WebDataset: WebDataset object if output_path is provided
+    """
+    if fn_kwargs is not None:
+        function = partial(function, **fn_kwargs)
+
+    ds = ds.map(function)
+
+    if changelog:
+        ds.config.update_changelog(changelog)
+
+    if version_update_mode:
+        ds.config.increment_version(version_update_mode)
+
+    if output_path is None:
+        for sample in ds:
+            yield sample
+
+    # Apply and save to new shards
+    ds.save_to_path(output_path, num_samples_per_shard=num_samples_per_shard)
+
+    return ds
