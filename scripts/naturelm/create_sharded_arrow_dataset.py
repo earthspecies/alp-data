@@ -89,6 +89,14 @@ def prepare_audio_sample_for_naturelm(
     }
 
     path = AnyPath(row["path"])
+
+    # HACK David's comments on original jsonl's
+    skip_cond1 = any([c in str(path) for c in ["compa_r", "audiocaps", "animal-instruct"]])
+    skip_cond2 = row["task"] in ["compa_r", "audiocaps-qa", "audiocaps", "animal-instruct"]
+
+    if skip_cond1 or skip_cond2:
+        raise ValueError(f"Skipping {path} as it is not a valid audio file")
+
     # idx_go = path_parts.index("foundation-model-data")
     # file_path = os.path.join(local_path, *path_parts[idx_go:])
     file_path = path
