@@ -22,4 +22,10 @@ WEBDS_DEFAULT_CFG = dict(
     metadata_path=None,
     data_processor=None,
     shuffle_size=1000,
+    seed=0,
+    shard_shuffle=True,
+    shard_shuffle_size=1000,
+    batch_size=None,
+    batch_collate_fn=None,
+    split_by_worker=False,
 )
