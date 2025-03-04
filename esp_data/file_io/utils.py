@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import warnings
 from typing import TypeVar
 
 from dotenv import load_dotenv
@@ -9,8 +10,9 @@ from s3fs import S3FileSystem
 
 from esp_data.paths import AnyPath, is_cloudflarer2_path, is_gcs_path, is_s3_path
 
-load_dotenv()
+warnings.filterwarnings("ignore", "Your application has authenticated using end user credentials")
 
+load_dotenv()
 
 logger = logging.getLogger(__name__)
 
