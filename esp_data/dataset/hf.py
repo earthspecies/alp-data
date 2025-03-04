@@ -1,6 +1,6 @@
 import os
 import warnings
-from typing import Any, Callable, Iterable, Literal, Optional
+from typing import Any, Callable, Generator, Iterable, Literal, Optional
 
 from datasets import Dataset, concatenate_datasets, load_dataset, load_from_disk
 
@@ -9,7 +9,8 @@ from esp_data.paths import AnyPath, is_cloud_path, is_local_path
 from esp_data.utils import make_simple_logger
 
 from .base import BaseMapDataset
-from .utils import generate_random_indices, wrapped_apply
+from .shard_creator import write_huggingface_shard
+from .utils import generate_random_indices
 
 warnings.filterwarnings("ignore", "Your application has authenticated using end user credentials")
 
@@ -76,6 +77,9 @@ class HFDataset(BaseMapDataset):
 
     def set_ds(self, ds: Dataset) -> None:
         self.ds = ds
+
+    def get_ds(self) -> Dataset:
+        return self.ds
 
     def __getitem__(self, idx: int) -> dict:
         if self._streaming:
@@ -335,41 +339,11 @@ class HFDataset(BaseMapDataset):
     def map(
         self,
         function: Callable,
-        sample_config: "DataSample" = DataSample,
-        version_update_mode: str | None = None,
-        function_kwargs: dict = None,
-        change_log: str | None = None,
         **map_kwargs,
     ) -> "HFDataset":
-        """Apply a function over each sample in the dataset, creates a new dataset.
-
-        Args:
-            function: The function to apply to each sample
-            sample_config: The config class to use for samples. It could be a subclass of DataSample.
-            version_update_mode: The version update mode to use. Default is "patch".
-            function_kwargs: Any kwargs to pass to the function during mapping
-            change_log: A change log to add to the dataset description.
-            map_kwargs: Any kwargs to pass to the map function
-
-        Returns:
-            A new HFDataset with the function applied to each sample
-        """
-        function_kwargs = function_kwargs or {}
-        wrapped_function = wrapped_apply(
-            function, sample_config=sample_config, version_update_mode=version_update_mode, **function_kwargs
-        )
-
-        new_ds = HFDataset(self.config)
-        new_ds.set_ds(self.ds.map(wrapped_function, **map_kwargs))
-        if version_update_mode:
-            # now update the version number of the dataset
-            new_ds.config.increment_version(mode=version_update_mode)
-
-        # TODO: this is a very rudimentary solution, there are much more elegant ways to do this
-        if change_log:
-            new_ds.config.update_changelog(change_log)
-        else:
-            new_ds.config.update_changelog(f"-> Applied function {function.__name__} to each sample")
+        """Apply a function over each sample in the dataset, creates a new dataset."""
+        new_ds = HFDataset(self.config.copy())
+        new_ds.set_ds(self.ds.map(function, **map_kwargs))
 
         return new_ds
 
@@ -392,10 +366,42 @@ class HFDataset(BaseMapDataset):
         g = AnyPath(path) / "dataset_config.json"
         self.config.write_json(g)
 
+    def save_streaming(
+        self, path: str | os.PathLike | AnyPath, num_samples_per_shard: int = 1000, storage_options: dict | None = None
+    ) -> None:
+        """Save a streaming dataset to a local or cloud path."""
+        path = self._validate_path(path, storage_options)
+
+        batch = []
+        shard_id = 0
+        for sample in self.ds:
+            batch.append(sample)
+
+            if len(batch) == num_samples_per_shard:
+                write_huggingface_shard(
+                    self.ds,
+                    path,
+                    shard_id=shard_id,
+                    num_samples_per_shard=num_samples_per_shard,
+                    sample_prep_function=None,
+                    storage_options=storage_options,
+                )
+                shard_id += 1
+                batch = []
+
+        if batch:
+            write_huggingface_shard(
+                self.ds,
+                path,
+                shard_id=shard_id,
+                num_samples_per_shard=num_samples_per_shard,
+                sample_prep_function=None,
+                storage_options=storage_options,
+            )
+
     def save_to_path(
         self,
         path: str | os.PathLike | AnyPath,
-        save_config: bool = True,
         max_shard_size: int | str | None = None,
         num_shards: int | None = None,
         num_proc: int | None = None,
@@ -428,8 +434,8 @@ class HFDataset(BaseMapDataset):
             storage_options=storage_options,
         )
 
-        if save_config:
-            self.save_config(path)
+        self.save_config(path)
+        self.config.generate_readme(path / "README.md")
 
     def __str__(self):
         return f"HFDataset: {self.config.name}, version: {self.config.version}, num samples: {len(self)}, columns: {self.columns}"
@@ -438,15 +444,15 @@ class HFDataset(BaseMapDataset):
         return self.__str__()
 
 
-def apply(
+def apply_fn(
     ds: HFDataset,
     function: Callable,
     changelog: str | None = None,
     version_update_mode: Literal["major", "minor", "patch"] = None,
-    accumulate_in_memory: bool = False,
     function_kwargs: dict = None,
+    output_path: str | os.PathLike | AnyPath = None,
     **map_kwargs,
-) -> HFDataset:
+) -> Generator[dict, None, None] | HFDataset:
     """Apply a function to a dataset, creates a new dataset.
 
     Args:
@@ -458,28 +464,23 @@ def apply(
         function_kwargs: Any kwargs to pass to the function during mapping.
         map_kwargs: Any kwargs to pass to the map function.
     """
-
-    if ds._streaming and not accumulate_in_memory:
-        raise ValueError(
-            "Cannot apply function to a streaming dataset without accumulating in memory, otherwise you will lose the data"
-        )
-    elif ds._streaming and accumulate_in_memory:
-        samples = []
-        for sample in enumerate(ds.ds):
-            samples.append(sample)
-        newds = HFDataset.from_samples(samples, ds.config.copy())
-    else:
-        # memory mapped apply
-        _newds = ds.ds.map(function, fn_kwargs=function_kwargs, **map_kwargs)
-        newds = HFDataset(config=ds.config.copy(), ds=_newds, streaming=ds._streaming)
+    ds: HFDataset = ds.map(function, fn_kwargs=function_kwargs, **map_kwargs)
 
     if changelog:
-        newds.config.update_changelog(changelog)
+        ds.config.update_changelog(changelog)
 
     if version_update_mode:
-        newds.config.increment_version(version_update_mode)
+        ds.config.increment_version(version_update_mode)
 
-    return newds
+    if ds._streaming and not output_path:
+        for sample in ds:
+            yield sample
+        return
+
+    if ds._streaming and output_path:
+        ds.save_streaming(output_path)
+
+    return ds
 
 
 def concatenate_hf_datasets(
