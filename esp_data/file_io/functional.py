@@ -13,7 +13,7 @@ from typing import Any
 
 from cloudpathlib import GSPath
 
-from esp_data.paths import AnyPath, is_local_path, strip_cloud_prefix
+from esp_data.paths import AnyPath, get_cloud_prefix, is_local_path, strip_cloud_prefix
 from esp_data.utils import make_simple_logger
 
 from .utils import make_fs
@@ -187,27 +187,7 @@ def list_files(dir_path: str | os.PathLike | AnyPath, pattern: str = "*", use_fs
     Returns:
         list[str]: A list of file paths if successful.
     """
-    dir_path = AnyPath(dir_path)
-
-    if not exists(dir_path):
-        logger.warning(f"Directory {dir_path} does not exist, aborting.")
-        return []
-
-    if is_local_path(dir_path):
-        return [str(f) for f in dir_path.rglob(pattern) if f.is_file() and str(f) != str(dir_path)]
-
-    if not use_fs:
-        try:
-            return [str(f) for f in dir_path.rglob(pattern)]  # if f.is_file() and str(f) != str(dir_path)]
-        except Exception as e:
-            logger.warning(f"Could not list files using AnyPath method: {e}, trying FileSystem approach.")
-
-    try:
-        fs = make_fs(dir_path)
-        glob_path = strip_cloud_prefix(dir_path / pattern)
-        return [f for f in fs.glob(glob_path) if fs.isfile(f) and f != glob_path]
-    except Exception as e:
-        raise IOError(f"Failed to list files in {dir_path} using both methods: {e}") from e
+    return [f for f in yield_files(dir_path, pattern, use_fs)]
 
 
 def yield_files(dir_path: str | os.PathLike | AnyPath, pattern: str = "*", use_fs: bool = False):
@@ -228,17 +208,17 @@ def yield_files(dir_path: str | os.PathLike | AnyPath, pattern: str = "*", use_f
         return
 
     if is_local_path(dir_path):
-        for f in dir_path.rglob(pattern or "*"):
+        for f in dir_path.rglob(pattern):
             if f.is_file() and str(f) != str(dir_path):
                 yield str(f)
         return
 
     if not use_fs:
         try:
-            for f in dir_path.rglob(pattern or "*"):
-                # if f.is_file() and str(f) != str(dir_path):
-                #   yield str(f)
-                yield str(f)
+            for f in dir_path.rglob(pattern):
+                if f.is_file() and str(f) != str(dir_path):
+                    yield str(f)
+            return
         except Exception as e:
             logger.warning(f"Could not yield files using AnyPath method: {e}, trying FileSystem approach.")
 
@@ -246,9 +226,12 @@ def yield_files(dir_path: str | os.PathLike | AnyPath, pattern: str = "*", use_f
     try:
         fs = make_fs(dir_path)
         glob_path = strip_cloud_prefix(dir_path / pattern)
+        cloud_prefix = get_cloud_prefix(dir_path)
+
         for f in fs.glob(glob_path):
             if fs.isfile(f) and f != glob_path:
-                yield f
+                yield (cloud_prefix + f)
+
     except Exception as e:
         raise IOError(f"Failed to yield files in {dir_path} using both methods: {e}") from e
 

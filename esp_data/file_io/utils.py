@@ -1,4 +1,3 @@
-import json
 import logging
 import os
 import warnings
@@ -54,24 +53,3 @@ def make_fs(file_path: str | AnyPath) -> FileSystem | None:
 
     logger.info("Could not determine cloud filesystem, returning None = local filesystem")
     return None
-
-
-def read_jsonl_from_gs_bucket(file_path: str | os.PathLike, fs: GCSFileSystem = None) -> list[dict]:
-    """Reads a json file assuming top level key is 'annotation'"""
-
-    if fs is None:
-        fs = GCSFileSystem()
-
-    with fs.open(str(file_path)) as f:
-        try:
-            return json.load(f)["annotation"]
-
-        except Exception as e:
-            logger.error(f"Error reading jsonl {e}, trying line by line")
-            # read lines
-            records = f.readlines()
-            return [json.loads(record) for record in records]
-
-        except Exception as e:
-            logger.error(f"Error reading jsonl {e}")
-            return []
