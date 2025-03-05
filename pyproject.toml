@@ -44,7 +44,7 @@ pythonpath = [
 [tool.ruff]
 line-length = 120
 exclude = [
-  ".ipynb"
+  "**/*.ipynb"
 ]
 [tool.ruff.lint.isort]
 known-third-party = ["wandb"]
