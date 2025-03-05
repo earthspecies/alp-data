@@ -202,6 +202,18 @@ class TransformStep:
 
             return class_method_wrapper
 
+    def to_dict(self):
+        """Convert to a serializable dictionary"""
+        return {
+            "module_path": self.module_path,
+            "function_name": self.function_name,
+            "parameters": self.parameters,
+            "version": self.version,
+            "is_class_method": self.is_class_method,
+            "class_name": self.class_name,
+            "init_parameters": self.init_parameters,
+        }
+
 
 @dataclass
 class TransformPipeline:
@@ -226,9 +238,20 @@ class TransformPipeline:
             logger.warning(f"Could not get git commit: {e}")
             self.git_commit = None
 
+    def to_dict(self):
+        """Convert to a serializable dictionary"""
+        return {
+            "steps": [step.to_dict() for step in self.steps],
+            "name": self.name,
+            "git_commit": self.git_commit,
+            "git_repo_path": self.git_repo_path,
+            "created_at": self.created_at,
+            "description": self.description,
+        }
+
     def save(self, path: str):
         with open(path, "w") as f:
-            json.dump(self.__dict__, f, indent=2, default=lambda x: x.__dict__)
+            json.dump(self.to_dict(), f, indent=2)
 
     @classmethod
     def load(cls, path: str) -> "TransformPipeline":

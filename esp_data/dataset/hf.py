@@ -475,7 +475,6 @@ def apply_fn(
     if ds._streaming and not output_path:
         for sample in ds:
             yield sample
-        return
 
     if ds._streaming and output_path:
         ds.save_streaming(output_path)
