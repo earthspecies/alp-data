@@ -40,6 +40,7 @@ ERROR_COLOR = Fore.RED
 RESET_COLOR = Style.RESET_ALL
 
 PBAR_EVERY = 10  # Update progress bar every N samples
+SHARD_TYPES = ["webdataset", "arrow", "parquet", "hf"]
 
 
 def write_webdataset_shard(
@@ -378,9 +379,7 @@ def write_shard(
     elif output_format == "hf":
         return write_huggingface_shard(batch, shard_id, output_path, sample_prep_function, **kwargs)
     else:
-        raise ValueError(
-            f"Unsupported output format: {output_format}, must be 'webdataset', 'arrow', 'parquet' or 'hf'"
-        )
+        raise ValueError(f"Unsupported output format: {output_format}, must be {', '.join(SHARD_TYPES)}.")
 
 
 def compute_metadata_hash(metadata: pd.DataFrame | list[dict] | dict | Any) -> int:
@@ -475,7 +474,7 @@ def create_sharded_dataset(
     output_path: str | AnyPath,
     sample_prep_function: Callable,
     num_samples_per_shard: int = 1000,
-    num_workers: int = 4,
+    num_workers: int = 1,
     storage_options: dict = None,
     shard_type: str = "arrow",
     dataset_config: DatasetConfig = None,
@@ -483,8 +482,7 @@ def create_sharded_dataset(
     merge_data_and_metadata: bool = False,
     **sharding_kwargs,
 ):
-    """Create sharded dataset from information in a dataframe (or a Iterable[dict]) and a sample prep function,
-    in parallel with checkpointing.
+    """Create sharded dataset from information in a dataframe (or a Iterable[dict]) and a sample prep function, in parallel, with checkpointing.
 
     Args:
         data (pd.DataFrame | Iterable[dict]): DataFrame containing data for samples. Please try and include an 'id' column.
@@ -510,7 +508,7 @@ def create_sharded_dataset(
         return
 
     if shard_type not in ["webdataset", "arrow", "parquet", "hf"]:
-        raise ValueError(f"Unsupported shard type: {shard_type}. Must be 'webdataset', 'arrow', 'parquet' or 'hf'")
+        raise ValueError(f"Unsupported shard type: {shard_type}. Must be one of {', '.join(SHARD_TYPES)}.")
 
     # Load checkpoint if exists
     checkpoint_data = load_checkpoint(output_path, data)
@@ -524,8 +522,8 @@ def create_sharded_dataset(
     # Split metadata into chunks for parallel processing
     chunks = np.array_split(data, num_shards)
 
-    print(f"\n{BATCH_COLOR}=== Dataset Sharding Process ==={RESET_COLOR}")
-    print(
+    logger.info(f"\n{BATCH_COLOR}=== Dataset Sharding Process ==={RESET_COLOR}")
+    logger.info(
         f"{BATCH_COLOR}Total samples: {num_samples}, Shards: {num_shards}, Samples per shard: {num_samples_per_shard}{RESET_COLOR}\n"
     )
 
@@ -641,13 +639,6 @@ def create_sharded_dataset(
     )
 
     tend = time.time()
-    logger.info(f"""
-    Processing completed:
-    - Total files processed successfully: {total_successful}
-    - Total files failed: {total_failed}
-    - Success rate: {(total_successful / (total_successful + total_failed)) * 100:.2f}%
-    - Total time taken: {tend - t0:.2f} seconds
-    """)
     logger.info(f"\n{BATCH_COLOR}=== Processing Summary ==={RESET_COLOR}")
     logger.info(f"{SUCCESS_COLOR}- Total files processed successfully: {total_successful}{RESET_COLOR}")
     logger.info(f"{ERROR_COLOR}- Total files failed: {total_failed}{RESET_COLOR}")
