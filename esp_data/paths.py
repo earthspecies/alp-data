@@ -39,6 +39,17 @@ def strip_cloud_prefix(path: str | Path | os.PathLike) -> str:
     return str(path).replace("gs://", "").replace("s3://", "").replace("r2://", "")
 
 
+def get_cloud_prefix(path: str | Path | os.PathLike) -> str:
+    if is_gcs_path(path):
+        return "gs://"
+    elif is_s3_path(path):
+        return "s3://"
+    elif is_cloudflarer2_path(path):
+        return "r2://"
+    else:
+        return ""
+
+
 def _make_r2_path_with_auth(path: str | os.PathLike | Path) -> S3Path:
     c = cloudpathlib.S3Client(
         aws_access_key_id=os.getenv("CLOUDFLARE_R2_ACCESS_KEY_ID"),
@@ -109,7 +120,7 @@ class AnyPath:
             return path
 
         elif is_gcs_path(path):
-            return GSPath(path)
+            return cloudpathlib.GSPath(path)
 
         elif is_s3_path(path):
             # FIXME: Since we are not going to use AWS, we can use the same constructor for R2 and S3
