@@ -1,16 +1,12 @@
-import os
 import tempfile
 from datetime import datetime
 
 import pytest
-from cloudpathlib import AnyPath
-from dotenv import load_dotenv
 
+import esp_data.file_io.functional as F
 from esp_data.config import DataSample, DatasetConfig
 from esp_data.dataset import HFDataset
-from esp_data.file_io import Bucket, File
-
-load_dotenv(".env")
+from esp_data.paths import AnyPath, make_storage_options
 
 # constants for all tests
 cfg = DatasetConfig(
@@ -54,7 +50,8 @@ def test_hf_from_dict():
         sources="test",
     )
 
-    wrong_data = {"col1": [1, 2, 3], "col2": ["a", "b", "c"]}
+    # incorrect lengths of columns
+    wrong_data = {"col1": [1, 2, 3], "col2": ["a", "b"]}
 
     with pytest.raises(ValueError):
         HFDataset.from_dict(wrong_data, cfg)
@@ -128,14 +125,10 @@ def test_hf_methods():
         x["col1"] += 1
         return x
 
-    mapped_ds = ds.map(fn, version_update_mode="patch")
+    mapped_ds = ds.map(fn)
     assert isinstance(mapped_ds, HFDataset)
     assert len(mapped_ds) == 2
     assert mapped_ds[0]["col1"] == 2
-    # the ids of mapped_ds should be different from ds
-    assert mapped_ds[0]["id"] != ds[0]["id"]
-    # the version of mapped_ds should be updated
-    assert mapped_ds.config.version == "0.0.1"
 
 
 def test_concatenate():
@@ -155,25 +148,25 @@ def test_saving_methods():
     # test save config as json
     with tempfile.TemporaryDirectory() as tmpdir:
         ds.save_config(tmpdir)
-        f = File(AnyPath(tmpdir) / "dataset_config.json")
-        assert f.exists
+        f = AnyPath(tmpdir) / "dataset_config.json"
+        assert f.exists()
         # load the config back
-        cfg2 = DatasetConfig.from_json(str(f))
+        cfg2 = DatasetConfig.from_json(f)
         assert cfg2.name == "test"
         assert cfg2.creator == "test"
 
     # test save config to cloud
     ds.save_config("gs://esp-ci-cd-tests/esp-data-tests/hf_test_dataset")
-    f = File("gs://esp-ci-cd-tests/esp-data-tests/hf_test_dataset/dataset_config.json")
-    assert f.exists
-    f.delete(confirm=False)
+    f = AnyPath("gs://esp-ci-cd-tests/esp-data-tests/hf_test_dataset/dataset_config.json")
+    assert f.exists()
+    F.delete_file(f)
 
     # test save dataset locally
     with tempfile.TemporaryDirectory() as tmpdir:
-        ds.save_to_path(tmpdir, save_config=True)
+        ds.save_to_path(tmpdir)
         b = AnyPath(tmpdir)
         assert b.exists()
-        assert File(AnyPath(tmpdir) / "dataset_config.json").exists
+        assert (AnyPath(tmpdir) / "dataset_config.json").exists()
 
     # test save dataset to cloud
     with pytest.raises(ValueError):
@@ -181,12 +174,12 @@ def test_saving_methods():
 
     ds.save_to_path(
         "gs://esp-ci-cd-tests/esp-data-tests/hf_test_dataset",
-        storage_options={"project": os.getenv("GCP_DEFAULT_PROJECT")},
+        storage_options=make_storage_options("gs://esp-ci-cd-tests/esp-data-tests/hf_test_dataset"),
     )
-    b = Bucket("gs://esp-ci-cd-tests/esp-data-tests/hf_test_dataset")
-    assert b.exists
-    assert File("gs://esp-ci-cd-tests/esp-data-tests/hf_test_dataset/dataset_config.json").exists
-    b.delete_dir("", confirm=False)
+
+    assert AnyPath("gs://esp-ci-cd-tests/esp-data-tests/hf_test_dataset").exists()
+    assert AnyPath("gs://esp-ci-cd-tests/esp-data-tests/hf_test_dataset/dataset_config.json").exists()
+    F.delete_dir("gs://esp-ci-cd-tests/esp-data-tests/hf_test_dataset")
 
 
 def test_load_from_path():
@@ -194,7 +187,7 @@ def test_load_from_path():
 
     with tempfile.TemporaryDirectory() as tmpdir:
         ds.save_to_path(tmpdir)
-        ds2 = HFDataset.from_path(tmpdir, sharded=False)
+        ds2 = HFDataset.from_path(tmpdir, hf_dataset_type="local_hf")
         assert len(ds2) == 2
         assert ds2.columns == ds.columns
         assert ds2[0] == ds[0]
