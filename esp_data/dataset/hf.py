@@ -96,10 +96,8 @@ class HFDataset(BaseMapDataset):
 
     def __iter__(self):
         if self._streaming:
-            return self.ds
-
-        for i in range(len(self)):
-            yield self[i]
+            return iter(self.ds)
+        raise TypeError("Cannot iterate over a non-streaming dataset")
 
     @classmethod
     def from_dict(cls, data: dict, dataset_config: DatasetConfig | dict) -> "HFDataset":
@@ -134,8 +132,8 @@ class HFDataset(BaseMapDataset):
     def from_path(
         cls,
         path: str | os.PathLike,
-        hf_dataset_type: str,
-        storage_options: dict = None,
+        hf_dataset_type: str | None = None,
+        storage_options: dict | None = None,
         streaming: bool = False,
         file_pattern: str = "shard*arrow",
         split: str = "train",
@@ -172,6 +170,7 @@ class HFDataset(BaseMapDataset):
             ds = load_from_disk(str(path), storage_options=storage_options)
             if streaming:
                 ds = ds.to_iterable_dataset()
+
         elif hf_dataset_type in ["arrow", "csv", "tsv", "json", "parquet", "bucket_hf"]:
             ds_type = hf_dataset_type if hf_dataset_type != "bucket_hf" else "arrow"
             ds = load_dataset(
@@ -196,7 +195,7 @@ class HFDataset(BaseMapDataset):
 
     def subset(self, indices: Iterable[int]) -> "HFDataset":
         """Return a subset of the dataset."""
-        return HFDataset(self.config.copy(), ds=self.ds.select(indices))
+        return HFDataset(self.config.copy(), ds=self.ds.select(indices), streaming_dataset=self._streaming)
 
     def sample(
         self,
@@ -257,9 +256,9 @@ class HFDataset(BaseMapDataset):
             raise ValueError("Both datasets need to have the same columns")
 
         if new_dataset_config:
-            new_ds = HFDataset(new_dataset_config)
+            new_ds = HFDataset(new_dataset_config, streaming_dataset=self._streaming)
         else:
-            new_ds = HFDataset(self.config.copy())
+            new_ds = HFDataset(self.config.copy(), streaming_dataset=self._streaming)
             if version_update_mode:
                 new_ds.config.increment_version(mode=version_update_mode)
 
@@ -288,7 +287,7 @@ class HFDataset(BaseMapDataset):
         Returns:
             A new HFDataset with the filtered data.
         """
-        new_ds = HFDataset(self.config.copy())
+        new_ds = HFDataset(self.config.copy(), streaming_dataset=self._streaming)
         new_ds.set_ds(self.ds.filter(condition))
 
         if version_update_mode:
@@ -318,7 +317,7 @@ class HFDataset(BaseMapDataset):
         """
         # TODO: create a decorated function, so that each sample has a
         # new DataSample config, with new id, and copy other stuff etc.
-        new_ds = HFDataset(self.config.copy())
+        new_ds = HFDataset(self.config.copy(), streaming_dataset=self._streaming)
         new_ds.set_ds(self.ds.add_column(column_name, column_data))
 
         if version_update_mode:
@@ -342,7 +341,7 @@ class HFDataset(BaseMapDataset):
         **map_kwargs,
     ) -> "HFDataset":
         """Apply a function over each sample in the dataset, creates a new dataset."""
-        new_ds = HFDataset(self.config.copy())
+        new_ds = HFDataset(self.config.copy(), streaming_dataset=self._streaming)
         new_ds.set_ds(self.ds.map(function, **map_kwargs))
 
         return new_ds
@@ -438,6 +437,8 @@ class HFDataset(BaseMapDataset):
         self.config.generate_readme(path / "README.md")
 
     def __str__(self):
+        if self._streaming:
+            return f"HFDataset: {self.config.name}, version: {self.config.version}, streaming: True, columns: {self.columns}"
         return f"HFDataset: {self.config.name}, version: {self.config.version}, num samples: {len(self)}, columns: {self.columns}"
 
     def __repr__(self):
