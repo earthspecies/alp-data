@@ -11,6 +11,7 @@ from esp_data.config.project_config import WEBDS_DEFAULT_CFG
 from esp_data.paths import AnyPath
 from esp_data.utils import make_simple_logger
 
+from .base import BaseIterableDataset, BaseMapDataset
 from .shard_creator import write_webdataset_shard
 
 logger = make_simple_logger("web_dataset")
@@ -148,7 +149,7 @@ def get_batch(
     return batch
 
 
-class WebDataset:
+class WebDataset(BaseMapDataset, BaseIterableDataset):
     """Class for loading and accessing a tar file based dataset.
 
     Args:
