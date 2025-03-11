@@ -84,6 +84,9 @@ def prepare_audio_sample_for_beans0(row: dict, remove_inaturalist: bool = False)
     if "file_path" in row:
         del row["file_path"]
 
+    if not isinstance(row["created_at"], str):
+        row["created_at"] = row["created_at"].isoformat()
+
     # Store as bytes in memory
     audio_buffer = io.BytesIO()
     sf.write(audio_buffer, audio_data, sr, format="WAV")

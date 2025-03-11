@@ -82,6 +82,9 @@ def prepare_audio_sample_for_beans0(row: dict, remove_inaturalist: bool = True) 
     if "file_path" in row:
         del row["file_path"]
 
+    if not isinstance(row["created_at"], str):
+        row["created_at"] = row["created_at"].isoformat()
+
     # HACK
     row["output"] = "None" if (pd.isna(row["output"]) or row["output"] == "nan") else row["output"]
 
