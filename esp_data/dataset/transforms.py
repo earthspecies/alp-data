@@ -59,13 +59,13 @@ import importlib
 import inspect
 import json
 from dataclasses import dataclass
-from datetime import datetime
 from typing import Any, Callable, Dict, List, Optional, Union
 
 import git
 import pkg_resources
 
-from esp_data.utils import make_simple_logger
+from esp_data.paths import AnyPath
+from esp_data.utils import make_simple_logger, utc_now_str
 
 logger = make_simple_logger("esp_data.transforms")
 
@@ -104,9 +104,9 @@ class SimpleTransformStep:
             except Exception:
                 self.version = "unknown"
 
-    def __call__(self, data):
+    def __call__(self, *args):
         """Apply the transform function to the data"""
-        return self.function(data, **self.parameters)
+        return self.function(*args, **self.parameters)
 
     def to_dict(self):
         """Convert to a serializable dictionary"""
@@ -141,6 +141,8 @@ class SimpleTransformStep:
 
 @dataclass
 class TransformStep:
+    """A transform step that can be a function or a class method"""
+
     module_path: str
     function_name: str
     parameters: Dict[str, Any]
@@ -214,6 +216,24 @@ class TransformStep:
             "init_parameters": self.init_parameters,
         }
 
+    @classmethod
+    def from_dict(cls, data):
+        """Create a step from a dictionary"""
+        return cls(
+            module_path=data["module_path"],
+            function_name=data["function_name"],
+            parameters=data["parameters"],
+            version=data.get("version", None),
+            is_class_method=data.get("is_class_method", False),
+            class_name=data.get("class_name", None),
+            init_parameters=data.get("init_parameters", None),
+        )
+
+    def __call__(self, *data):
+        """Apply the transform function to the data"""
+        transform_fn = self.get_transform_function()
+        return transform_fn(*data, **self.parameters)
+
 
 @dataclass
 class TransformPipeline:
@@ -226,7 +246,7 @@ class TransformPipeline:
 
     def __post_init__(self):
         if not self.created_at:
-            self.created_at = datetime.now().isoformat()
+            self.created_at = utc_now_str()
         if self.git_repo_path:
             self.update_git_info()
 
@@ -249,19 +269,19 @@ class TransformPipeline:
             "description": self.description,
         }
 
-    def save(self, path: str):
-        with open(path, "w") as f:
+    def save(self, path: str | AnyPath) -> None:
+        with AnyPath(path).open("w") as f:
             json.dump(self.to_dict(), f, indent=2)
 
     @classmethod
-    def load(cls, path: str) -> "TransformPipeline":
-        with open(path) as f:
+    def load(cls, path: str | AnyPath) -> "TransformPipeline":
+        with AnyPath(path).open("r") as f:
             data = json.load(f)
             # Convert steps back to TransformStep objects
             data["steps"] = [TransformStep(**step) for step in data["steps"]]
             return cls(**data)
 
-    def __call__(self, data: Any) -> Any:
+    def __call__(self, *data) -> Any:
         """Apply all transformation steps in sequence"""
         result = data
         for step in self.steps:
@@ -285,3 +305,20 @@ def create_pipeline(
             steps.append(t)
 
     return TransformPipeline(steps=steps, name=name, description=description, git_repo_path=git_repo_path)
+
+
+### TEST FUNCTIONS ###
+def test_method_add_int(a: int, b: int) -> int:
+    return a + b
+
+
+def test_method_multiply(a: int, b: int) -> int:
+    return a * b
+
+
+class TestClass:
+    def __init__(self, factor: int):
+        self.factor = factor
+
+    def multiply(self, a: int) -> int:
+        return a * self.factor

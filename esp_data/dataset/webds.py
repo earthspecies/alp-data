@@ -24,7 +24,7 @@ def load_dataset(
     shuffle_size: int | None = None,
     batch_size: int | None = None,
     shard_shuffle: bool = False,
-    shard_shuffle_size: bool = 1000,
+    shard_shuffle_size: int = 1000,
     split_by_worker: bool = False,
     batch_collate_fn: Callable = None,
     seed: int | bool | None = True,
@@ -52,28 +52,21 @@ def load_dataset(
     # Log what we found for debugging
     logger.debug(f"Found {len(shard_files)} shard files in {path}")
 
-    if batch_size is not None:
-        return (
-            wds.WebDataset(
-                shard_files,
-                shardshuffle=shard_shuffle_size if shard_shuffle else False,
-                seed=seed,
-                workersplitter=split_by_worker,
-            )
-            .shuffle(shuffle_size)
-            .map(data_processor)
-            .batched(batch_size, collation_fn=batch_collate_fn)
-        )
-    return (
-        wds.WebDataset(
-            shard_files,
-            shardshuffle=shard_shuffle_size if shard_shuffle else False,
-            seed=seed,
-            workersplitter=split_by_worker,
-        )
-        .shuffle(shuffle_size)
-        .map(data_processor)
+    webds = wds.WebDataset(
+        shard_files,
+        shardshuffle=shard_shuffle_size if shard_shuffle else False,
+        seed=seed,
+        workersplitter=split_by_worker,
     )
+
+    if shuffle_size:
+        webds = webds.shuffle(shuffle_size)
+    if data_processor:
+        webds = webds.map(data_processor)
+    if batch_size is not None:
+        webds = webds.batched(batch_size, collation_fn=batch_collate_fn)
+
+    return webds
 
     # operations = [wds.SimpleShardList(shard_files, seed)]
     # if shard_shuffle:
@@ -98,19 +91,19 @@ def get_item_from_dataset(
     idx: int,
     dataset_path: str | AnyPath,
     data_processor: Callable,
-    metadata_df: pd.DataFrame = None,
+    metadata_df: pd.DataFrame,
 ) -> dict[str, dict[str, Any]]:
     """Get a single item from the dataset using metadata lookup.
 
     Args:
         idx: Integer index to get from metadata DataFrame
+        data_processor: Function to parse the binary data into a dictionary
+        metadata_df: Optional metadata DataFrame, if not provided will be read from disk
+        dataset_path: Path to the dataset, if different from metadata path
 
     Returns:
         Dictionary containing the sample data (usually raw data and metadata)
     """
-    if metadata_df is None:
-        metadata_df = pd.read_parquet(AnyPath(dataset_path) / "metadata.parquet")
-
     # Get row from metadata
     row = metadata_df.iloc[idx]
     shard_path = row["shard_path"]
@@ -131,12 +124,15 @@ def get_batch(
     indices: list[int],
     dataset_path: str | AnyPath,
     data_processor: Callable,
-    metadata_df: pd.DataFrame = None,
+    metadata_df: pd.DataFrame,
 ) -> list[dict[str, dict[str, Any]]]:
     """Get a batch of items using metadata lookup.
 
     Args:
         indices: List of indices to get from metadata DataFrame
+        data_processor: Function to process the data
+        metadata_df: Optional metadata DataFrame, if not provided will be read from disk
+        dataset_path: Path to the dataset, if different from metadata path
 
     Returns:
         list[dict[str, dict[str, Any]]]: List of dictionaries containing:
@@ -153,8 +149,13 @@ class WebDataset(BaseMapDataset, BaseIterableDataset):
     """Class for loading and accessing a tar file based dataset.
 
     Args:
-        web_dataset_path (str): Path to the directory where the sharded dataset will be stored or is already stored.
+        path (str): Path to the directory where the sharded dataset will be stored or is already stored.
+        dataset_config (DatasetConfig, optional): DatasetConfig object. Defaults to None.
+            If not provided, will try to load from disk. If not found, will create a skeleton config.
+        ds (wds.WebDataset, optional): WebDataset object. Defaults to None. If provided, will be used instead of loading from disk.
+        load_metadata (bool, optional): Whether to load metadata from disk. Defaults to True.
         metadata_df (pd.DataFrame, optional): Optional metadata DataFrame, if not provided will be read from disk. Defaults to None.
+        file_pattern (str, optional): Pattern to match the shard files. Defaults to "shard_*.tar".
         shard_size (int, optional): Number of samples per shard. Defaults to 1000.
         num_workers (int, optional): Number of workers for parallel processing. Defaults to 4.
         batch_size (int, optional): Batch size for processing audio files. Defaults to 100.

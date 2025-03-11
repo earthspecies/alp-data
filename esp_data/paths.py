@@ -120,7 +120,7 @@ class AnyPath:
             return path
 
         elif is_gcs_path(path):
-            return cloudpathlib.GSPath(path)
+            return GSPath(path)
 
         elif is_s3_path(path):
             # FIXME: Since we are not going to use AWS, we can use the same constructor for R2 and S3

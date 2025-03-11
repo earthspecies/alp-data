@@ -5,7 +5,7 @@ from typing import Any, Callable, Generator, Iterable, Literal, Optional
 from datasets import Dataset, concatenate_datasets, load_dataset, load_from_disk
 
 from esp_data.config.db_config import DataSample, DatasetConfig
-from esp_data.paths import AnyPath, is_cloud_path, is_local_path
+from esp_data.paths import AnyPath, make_storage_options
 from esp_data.utils import make_simple_logger
 
 from .base import BaseMapDataset
@@ -51,7 +51,7 @@ def load_hf_dataset(hf_dataset_type: str, path: str | AnyPath, **hf_ds_kwargs) -
 
 class HFDataset(BaseMapDataset):
     def __init__(
-        self, dataset_config: DatasetConfig | dict, ds: Optional[Dataset] = None, streaming_dataset: bool = False
+        self, dataset_config: DatasetConfig | dict | None, ds: Optional[Dataset] = None, streaming_dataset: bool = False
     ):
         self.config = self._set_config(dataset_config)
         self.ds: Dataset = ds
@@ -69,11 +69,12 @@ class HFDataset(BaseMapDataset):
     def version(self):
         return self.config.version
 
-    def _set_config(self, dataset_config) -> None:
+    def _set_config(self, dataset_config: DatasetConfig | dict | None) -> None:
         if isinstance(dataset_config, dict):
             return DatasetConfig(**dataset_config)
         elif isinstance(dataset_config, DatasetConfig):
             return dataset_config
+        return DatasetConfig.from_skeleton()
 
     def set_ds(self, ds: Dataset) -> None:
         self.ds = ds
@@ -151,12 +152,6 @@ class HFDataset(BaseMapDataset):
             The loaded HFDataset.
         """
         path = AnyPath(path)
-
-        if is_cloud_path(path) and not storage_options:
-            raise ValueError("""You need to provide a dict here,
-            e.g. for google it is storage_options={"project": "my-google-project"}
-            see https://huggingface.co/docs/datasets/v3.2.0/en/filesystems#google-cloud-storage for details
-            """)
 
         # load config from json
         config_file = AnyPath(path / "dataset_config.json")
@@ -346,30 +341,16 @@ class HFDataset(BaseMapDataset):
 
         return new_ds
 
-    def _validate_path(self, path: str | os.PathLike | AnyPath, storage_options: dict = None) -> AnyPath:
-        if not is_local_path(path) and not is_cloud_path(path):
-            raise ValueError(f"Path {path} must be a local or cloud path")
-
-        path = AnyPath(path)
-
-        if is_cloud_path(path) and not storage_options:
-            raise ValueError("""You need to provide a dict here,
-            e.g. for google it is storage_options={"project": "my-google-project"}
-            see https://huggingface.co/docs/datasets/v3.2.0/en/filesystems#google-cloud-storage for details
-            """)
-
-        return path
-
     def save_config(self, path: str | os.PathLike | AnyPath) -> None:
         """Save the dataset config to a local or cloud path."""
         g = AnyPath(path) / "dataset_config.json"
         self.config.write_json(g)
 
-    def save_streaming(
+    def _save_streaming(
         self, path: str | os.PathLike | AnyPath, num_samples_per_shard: int = 1000, storage_options: dict | None = None
     ) -> None:
         """Save a streaming dataset to a local or cloud path."""
-        path = self._validate_path(path, storage_options)
+        path = AnyPath(path)
 
         batch = []
         shard_id = 0
@@ -401,6 +382,9 @@ class HFDataset(BaseMapDataset):
     def save_to_path(
         self,
         path: str | os.PathLike | AnyPath,
+        changelog: str | None = None,
+        version_update_mode: Literal["major", "minor", "patch"] = None,
+        num_samples_per_shard: int = 1000,
         max_shard_size: int | str | None = None,
         num_shards: int | None = None,
         num_proc: int | None = None,
@@ -420,10 +404,17 @@ class HFDataset(BaseMapDataset):
         Raises:
             ValueError: If both max_shard_size and num_shards are provided.
         """
+        path = AnyPath(path)
+
+        # set storage options if not provided
+        if not storage_options:
+            storage_options = make_storage_options(storage_options)
+
+        if self._streaming:
+            self._save_streaming(path, storage_options=storage_options, num_samples_per_shard=num_samples_per_shard)
+
         if max_shard_size and num_shards:
             raise ValueError("Provide either max_shard_size or num_shards, not both")
-
-        path = self._validate_path(path, storage_options)
 
         self.ds.save_to_disk(
             str(path),
@@ -451,7 +442,6 @@ def apply_fn(
     changelog: str | None = None,
     version_update_mode: Literal["major", "minor", "patch"] = None,
     function_kwargs: dict = None,
-    output_path: str | os.PathLike | AnyPath = None,
     **map_kwargs,
 ) -> Generator[dict, None, None] | HFDataset:
     """Apply a function to a dataset, creates a new dataset.
@@ -461,7 +451,6 @@ def apply_fn(
         function: The function to apply to each sample.
         changelog: A change log to add to the dataset description.
         version_update_mode: The version update mode to use. Default is None.
-        accumulate_in_memory: Whether to accumulate the dataset in memory before applying the function.
         function_kwargs: Any kwargs to pass to the function during mapping.
         map_kwargs: Any kwargs to pass to the map function.
     """
@@ -473,12 +462,9 @@ def apply_fn(
     if version_update_mode:
         ds.config.increment_version(version_update_mode)
 
-    if ds._streaming and not output_path:
+    if ds._streaming:
         for sample in ds:
             yield sample
-
-    if ds._streaming and output_path:
-        ds.save_streaming(output_path)
 
     return ds
 
