@@ -149,8 +149,8 @@ def create_sharded_dataset(
     # Split metadata into chunks for parallel processing
     chunks = np.array_split(metadata_df, num_shards)
 
-    print(f"\n{BATCH_COLOR}=== Dataset Sharding Process ==={RESET_COLOR}")
-    print(
+    logger.info(f"\n{BATCH_COLOR}=== Dataset Sharding Process ==={RESET_COLOR}")
+    logger.info(
         f"{BATCH_COLOR}Total samples: {num_samples}, Shards: {num_shards}, Samples per shard: {num_samples_per_shard}{RESET_COLOR}\n"
     )
 
@@ -244,18 +244,11 @@ def create_sharded_dataset(
     )
 
     tend = time.time()
-    logger.info(f"""
-    Processing completed:
-    - Total files processed successfully: {total_successful}
-    - Total files failed: {total_failed}
-    - Success rate: {(total_successful / (total_successful + total_failed)) * 100:.2f}%
-    - Total time taken: {tend - t0:.2f} seconds
-    """)
-    print(f"\n{BATCH_COLOR}=== Processing Summary ==={RESET_COLOR}")
-    print(f"{SUCCESS_COLOR}- Total files processed successfully: {total_successful}{RESET_COLOR}")
-    print(f"{ERROR_COLOR}- Total files failed: {total_failed}{RESET_COLOR}")
-    print(f"{BATCH_COLOR}- Success rate: {success_rate:.2f}%{RESET_COLOR}")
-    print(f"{BATCH_COLOR}- Total time taken: {tend - t0:.2f} seconds{RESET_COLOR}")
+    logger.info(f"\n{BATCH_COLOR}=== Processing Summary ==={RESET_COLOR}")
+    logger.info(f"{SUCCESS_COLOR}- Total files processed successfully: {total_successful}{RESET_COLOR}")
+    logger.info(f"{ERROR_COLOR}- Total files failed: {total_failed}{RESET_COLOR}")
+    logger.info(f"{BATCH_COLOR}- Success rate: {success_rate:.2f}%{RESET_COLOR}")
+    logger.info(f"{BATCH_COLOR}- Total time taken: {tend - t0:.2f} seconds{RESET_COLOR}")
 
     return metadata_df
 
