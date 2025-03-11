@@ -234,8 +234,10 @@ def create_sharded_dataset(
     if "file_path" in metadata_df.columns:
         metadata_df.drop(columns=["file_path"], inplace=True)
 
-    # Save updated metadata as parquet
-    metadata_df.to_csv(str(output_path / "metadata.csv"), index=False, storage_options=storage_options)
+    # Save updated metadata as jsonl
+    metadata_df.to_json(
+        str(output_path / "metadata.jsonl"), orient="records", lines=True, index=False, storage_options=storage_options
+    )
 
     # Report final statistics
     total_successful = len(processed_samples)
