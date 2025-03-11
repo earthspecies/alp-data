@@ -62,12 +62,6 @@ def make_sample(
         # for animal_speak, the audio is already in the correct path (already 16k downsampled)
         path = path.replace("audio_16k", "audio")
 
-    # audio_file = GSAudioFile(path)
-
-    # if not audio_file.exists:
-    #     logger.error(f"Sample not found at {path}")
-    #     return None
-
     # create file specific metadata
     metadata = {}
     if "recordist" in row:
@@ -81,6 +75,8 @@ def make_sample(
         row["prompt"] = row["instruction"]
 
     # HACK, text is not present in all datasets, sometimes 'answer' is present
+    if "text" not in row:
+        breakpoint()
     if "text" not in row and "answer" in row:
         row["text"] = row["answer"]
     if "text" not in row and "label" in row:
@@ -119,10 +115,6 @@ def make_sample(
         # remove derived_from and version
         sample.pop("derived_from", None)
         sample.pop("version", None)
-
-        # copy the audio file to the output_dir
-        # if not F.exists(output_dir / path):
-        #     audio_file.copy_to(output_dir / path)
 
         return sample, path
 
@@ -216,10 +208,10 @@ def main():
 
     else:
         metadata_df = pd.DataFrame(samples)
-        # some outputs are "None" which pandas handles as and need to be converted to string
-        metadata_df["output"] = metadata_df["output"].astype(str)
         original_paths_df = pd.Series(original_paths, name="path")
 
+    metadata_df.to_json(args.metadata_file_path.split(".")[0] + ".jsonl", orient="records", lines=True)
+    metadata_df["output"] = metadata_df["output"].astype(str)
     metadata_df.to_csv(args.metadata_file_path, index=False, na_rep="NULL")
     original_paths_df.to_csv(args.original_paths_file_path, index=False, na_rep="NULL")
 

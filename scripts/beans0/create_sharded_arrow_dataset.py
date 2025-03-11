@@ -270,7 +270,7 @@ def main():
     parser = argparse.ArgumentParser(description="Create a sharded Beans0 dataset from raw audio files")
     parser.add_argument("--metadata_path", type=str, required=True, help="Path to the metadata CSV file")
     parser.add_argument(
-        "--arrow_dataset_path",
+        "--dataset_path",
         type=str,
         required=True,
         help="Path to the directory where the sharded dataset will be stored",
@@ -296,13 +296,16 @@ def main():
 
     args = parser.parse_args()
 
-    # Load metadata
-    metadata_df = pd.read_csv(args.metadata_path)
-    metadata_df["output"] = metadata_df["output"].astype(str)  # convert to string
-    metadata_df["instruction"] = metadata_df["instruction"].astype(str)  # convert to string
+    # Load metadata csv
+    # metadata_df = pd.read_csv(args.metadata_path)
+    # metadata_df["output"] = metadata_df["output"].astype(str)  # convert to string
+    # metadata_df["instruction"] = metadata_df["instruction"].astype(str)  # convert to string
 
     # Add file paths to metadata
-    original_paths_df = pd.read_csv(args.original_paths_file)
+    # original_paths_df = pd.read_csv(args.original_paths_file)
+
+    metadata_df = pd.read_json(args.metadata_path, lines=True, orient="records")
+    original_paths_df = pd.read_json(args.original_paths_file, lines=True, orient="records")
     metadata_df["file_path"] = original_paths_df["path"]  # this will be dropped after sharding
 
     # shuffle the rows, the ensures equal sized shards
@@ -313,7 +316,7 @@ def main():
 
     sample_prep_function = partial(prepare_audio_sample_for_beans0, remove_inaturalist=args.remove_inaturalist)
 
-    output_path = os.path.join(args.arrow_dataset_path, args.version)
+    output_path = os.path.join(args.dataset_path, args.version)
     if is_cloud_path(output_path):
         storage_options = {"project": os.getenv("GCP_DEFAULT_PROJECT")}
     else:
