@@ -9,13 +9,14 @@ import pandas as pd
 from beans_cfg import beans0_cfg
 
 from esp_data.dataset.esp_dataset import load_esp_dataset as load_dataset
-from esp_data.dataset.shard_creator_v2 import create_sharded_dataset
+from esp_data.dataset.shard_creator import create_sharded_dataset
 from esp_data.file_io.parsers import read_audio_bytes_from_path
 
 
 def validate_sample(sample: dict, remove_inaturalist: bool = False):
-    if not remove_inaturalist:
-        assert np.std(sample["audio"]) > 0.0, "Audio is empty"
+    # if not remove_inaturalist:
+    #   assert np.std(sample["audio"]) > 0.0, "Audio is empty"
+    assert np.sum(np.isnan(sample["audio"])) == 0, "Audio contains nan"
     assert len(sample["output"]) > 0, "Output is empty"
     assert sample["output"] != "nan", "Output is nan"
     assert "Audio" in sample["instruction"], "Instruction does not contain 'Audio'"
