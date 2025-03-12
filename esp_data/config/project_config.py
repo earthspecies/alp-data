@@ -14,6 +14,12 @@ REQUIRED_DATASET_FIELDS = [
 ]
 
 
+### SHARD  CREATOR PARAMS ###
+LOG_EVERY = 10
+WRITER_BATCH_SIZE = 100
+
+
+### WEB DATASET LOADER PARAMS ###
 WEBDS_DEFAULT_CFG = dict(
     load_metadata=True,
     metadata_df=None,

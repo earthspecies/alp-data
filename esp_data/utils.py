@@ -58,12 +58,14 @@ def validate_path_exists(p: str | os.PathLike) -> str:
     return str(path)
 
 
-def validate_datetime(v: datetime | str) -> datetime:
-    if isinstance(v, str):
-        return datetime.fromisoformat(v)
+def validate_datetime(v: str) -> str:
+    try:
+        d = datetime.fromisoformat(v)
+    except ValueError:
+        raise ValueError("Invalid datetime string")
 
     # check that tzinfo is present and is UTC
-    if v.tzinfo is None or v.tzinfo.utcoffset(v) != timedelta(0):
+    if d.tzinfo is None or d.tzinfo.utcoffset(d) != timedelta(0):
         raise ValueError("created_at must be a datetime object with UTC timezone")
     return v
 

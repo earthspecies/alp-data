@@ -1,8 +1,6 @@
 """Tests for pydantic configs for database"""
 
 import json
-import os
-from datetime import datetime
 
 import pytest
 
@@ -19,7 +17,7 @@ def test_correct_datasample():
     assert sample.id is not None
     assert sample.created_at is not None
     assert isinstance(sample.metadata, dict)
-    assert isinstance(sample.created_at, datetime)
+    assert isinstance(sample.created_at, str)
     assert sample.source_dataset == "test"
 
 
@@ -97,7 +95,7 @@ def test_dataset_config_from_skeleton():
     assert dataset.name == "unknown"
 
 
-def test_utility_methods():
+def test_utility_methods(tmp_path):
     """Test utility methods."""
     data = {
         "source_dataset": "test",
@@ -106,8 +104,8 @@ def test_utility_methods():
         "version": "0.0.0",
     }
     sample = DataSample(**data)
-    assert sample.created_at_timestamp() == int(sample.created_at.timestamp())
-    assert sample.created_at_isoformat() == sample.created_at.isoformat()
+    assert isinstance(sample.created_at, str)
+    assert isinstance(sample.created_at_timestamp(), float)
     assert sample.get_metadata_dict() == {"something": "else"}
     sample.update_metadata({"new": "metadata"})
     assert sample.metadata == {"something": "else", "new": "metadata"}
@@ -115,9 +113,8 @@ def test_utility_methods():
     assert sample.version == "0.0.1"
     assert sample.to_dict() == sample.model_dump()
     assert isinstance(sample.to_json(), str)
-    sample.write_json("tests/test_data_sample.json")
-    with open("tests/test_data_sample.json", "r") as f:
+    sample.write_json(tmp_path / "test_data_sample.json")
+    with open(tmp_path / "test_data_sample.json", "r") as f:
         assert json.load(f) == json.loads(sample.to_json())
-    new_sample = DataSample.from_json("tests/test_data_sample.json")
+    new_sample = DataSample.from_json(tmp_path / "test_data_sample.json")
     assert new_sample.to_dict() == sample.to_dict()
-    os.remove("tests/test_data_sample.json")

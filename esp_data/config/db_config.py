@@ -56,8 +56,8 @@ class DataSample(BaseModel):
     # optional or auto-generated params
     id: str = Field(default_factory=make_id, description="Unique identifier, will be auto-generated if None")
 
-    created_at: datetime = Field(
-        default_factory=utc_now,
+    created_at: str = Field(
+        default_factory=utc_now_str,
         description="Datetime of creation in UTC timezone, will be auto-generated if None",
     )
 
@@ -111,16 +111,14 @@ class DataSample(BaseModel):
 
     @field_validator("created_at", mode="after")
     @classmethod
-    def validate_created_at(cls, v: datetime | str) -> datetime:
+    def validate_created_at(cls, v: str) -> str:
         return validate_datetime(v)
 
     # Helper methods
     def created_at_timestamp(self) -> int:
         """Return created_at as a Unix timestamp"""
-        return int(self.created_at.timestamp())
-
-    def created_at_isoformat(self) -> str:
-        return self.created_at.isoformat()
+        # get datetime object
+        return datetime.fromisoformat(self.created_at).timestamp()
 
     def get_metadata_dict(self) -> dict:
         """Return metadata as a Python dictionary"""
@@ -145,7 +143,6 @@ class DataSample(BaseModel):
     def to_json(self) -> str:
         """Convert the data sample to a JSON string"""
         data = self.to_dict()
-        data["created_at"] = self.created_at_isoformat()
         return json.dumps(data, indent=2)
 
     @classmethod
@@ -153,14 +150,12 @@ class DataSample(BaseModel):
         """Load data sample from a JSON file"""
         with open_file(file_path, "r") as f:
             data = json.load(f)
-        data["created_at"] = datetime.fromisoformat(data["created_at"])
         return cls(**data)
 
     def write_json(self, file_path: str | os.PathLike, indent: int = 2) -> None:
         """Write the data sample to a JSON file"""
         with open_file(file_path, "w") as f:
             d = self.to_dict()
-            d["created_at"] = self.created_at_isoformat()
             json.dump(d, f, indent=indent)
 
 
