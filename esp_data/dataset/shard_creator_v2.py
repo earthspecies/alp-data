@@ -7,7 +7,7 @@ import json
 import time
 from concurrent.futures import ProcessPoolExecutor
 from functools import partial
-from typing import Any, Callable, Generator, Iterable, List, Optional, Union
+from typing import Any, Callable, Iterable, List, Optional, Union
 
 import colorama
 import numpy as np
@@ -19,6 +19,7 @@ from colorama import Fore, Style
 from datasets import Dataset
 from tqdm.auto import tqdm
 
+import esp_data.file_io.functional as F
 from esp_data.config import DatasetConfig
 from esp_data.config.project_config import LOG_EVERY, WRITER_BATCH_SIZE
 from esp_data.paths import AnyPath, make_storage_options
@@ -39,7 +40,7 @@ SUCCESS_COLOR = Fore.GREEN
 ERROR_COLOR = Fore.RED
 RESET_COLOR = Style.RESET_ALL
 
-DEFAULT_FLOAT_TYPE = "float32"
+DEFAULT_FLOAT_TYPE = "float32"  # TODO: DISCUSS THIS!
 SHARD_TYPES = ["webdataset", "arrow", "parquet", "hf"]
 
 
@@ -73,18 +74,19 @@ def write_webdataset_shard(
     Example
     -------
         >>> items = [{"id": "1", "text": "hello"}, {"id": "2", "text": "world"}]
-        >>> results = write_webdataset_shard(items, 0, "/tmp/output")
+        >>> results = write_webdataset_shard(items, 0, "/tmp/webds_output")
+        # writing /tmp/webds_output/shard_000000.tar 0 0.0 GB 0
         >>> print(len(results["processed_ids"]))
         2
         >>> from pathlib import Path
-        >>> Path("/tmp/output").exists()
-        >>> Path(")
+        >>> Path("/tmp/webds_output/shard_000000.tar").exists()
+        True
     """
     results = {"shard_id": shard_id, "processed_ids": [], "failed_ids": []}
 
     # Create shard path
     output_path = AnyPath(output_path)
-    shard_path = output_path / f"shard_{shard_id:05d}.tar"
+    shard_path = output_path / f"shard_%s{shard_id:05d}.tar"  # one 0 added by the ShardWriter class
 
     # Initialize shard writer
     sink = wds.ShardWriter(
@@ -128,11 +130,10 @@ def write_webdataset_shard(
             if isinstance(e, KeyboardInterrupt):
                 raise e
 
-    # Close the shard
     sink.close()
 
     logger.info(
-        f"Finished shard {shard_id:05d} - Processed: {len(results['processed_ids'])}, Failed: {len(results['failed_ids'])}"
+        f"Finished shard {shard_id:06d} - Processed: {len(results['processed_ids'])}, Failed: {len(results['failed_ids'])}"
     )
 
     return results
@@ -156,11 +157,11 @@ def determine_pa_field_type(value: Any, default_float_type: str = DEFAULT_FLOAT_
     Example
     -------
         >>> determine_pa_field_type(3.14, "float32")
-        DataType(float32)
+        DataType(float)
         >>> determine_pa_field_type("hello")
         DataType(string)
         >>> determine_pa_field_type([1, 2, 3])
-        DataType(list<int32>)
+        ListType(list<item: int32>)
     """
     float_type = pa.float32() if default_float_type == "float32" else pa.float64()
 
@@ -180,7 +181,6 @@ def determine_pa_field_type(value: Any, default_float_type: str = DEFAULT_FLOAT_
             }
         )
 
-    # Determine PyArrow data type based on value type
     if isinstance(value, (list, np.ndarray)):
         # For arrays/lists
         if isinstance(value, np.ndarray):
@@ -202,6 +202,7 @@ def determine_pa_field_type(value: Any, default_float_type: str = DEFAULT_FLOAT_
                 field_type = pa.list_(pa.int32())
             else:
                 field_type = pa.list_(pa.string())
+
     elif isinstance(value, dict):
         # For metadata dictionaries
         field_type = build_struct(value)
@@ -240,7 +241,7 @@ def infer_schema_from_sample(sample: dict[str, Any], default_float_type: str = D
         >>> schema = infer_schema_from_sample(sample)
         >>> print(schema)
         id: string
-        value: float32
+        value: float
         count: int32
     """
     fields = []
@@ -266,21 +267,23 @@ def create_iterative_writer(
     default_float_type:
         Default float type to use
 
-    Returns:
+    Returns
+    -------
         Writer object for the specified format
 
-    Example:
-        >>> sample = {"id": "1", "value": 3.14}
-        >>> writer = create_iterative_writer("/tmp/test.parquet", sample)
-        >>> writer.write_table(pa.Table.from_pydict(sample))
+    Example
+    -------
+        >>> sample = [{"id": "1", "value": 3.14}, {"id": "2", "value": 2.71}]
+        >>> writer = create_iterative_writer("/tmp/test.parquet", sample[0])
+        >>> writer.write_table(pa.Table.from_pylist(sample, schema=writer.schema))
         >>> writer.close()
     """
     # Infer schema from the sample
     schema = infer_schema_from_sample(sample, default_float_type)
 
     # Create opener and file
-    opener = _make_file_opener(path)
-    file_obj = opener(str(path), "wb")
+    opener = _make_file_opener(path, mode="wb")
+    file_obj = opener(path)
 
     # Create appropriate writer
     if format == "parquet":
@@ -304,21 +307,22 @@ def write_batch_to_writer(
     Example
     -------
         >>> batch = [{"id": "1", "value": 3.14}, {"id": "2", "value": 2.71}]
-        >>> schema = pa.schema([pa.field("id", pa.string()), pa.field("value", pa.float32())])
+        >>> schema = pa.schema([pa.field("id", pa.string()), pa.field("value", pa.float64())])
         >>> with pq.ParquetWriter("/tmp/test.parquet", schema) as writer:
-        ...     write_batch_to_writer(writer, batch)
+        ...     write_batch_to_writer(batch, writer)
         >>> table = pq.read_table("/tmp/test.parquet")
         >>> print(table)
+        pyarrow.Table
+        id: string
+        value: double
+        ----
+        id: [["1","2"]]
+        value: [[3.14,2.71]]
     """
     if not batch_data:
         return
-    table = pa.Table.from_pylist(batch_data)
-
-    # Write to the appropriate writer type
-    if isinstance(writer, pq.ParquetWriter):
-        writer.write_table(table)
-    else:  # Arrow writer
-        writer.write_table(table)
+    table = pa.Table.from_pylist(batch_data, schema=writer.schema)
+    writer.write_table(table)
 
 
 def write_arrow_shard(
@@ -387,7 +391,7 @@ def write_arrow_shard(
         sample_id = str(item.get("id", i))
 
         if i % log_every == 0:
-            logger.info(f"Shard {shard_id:05d} - Processing sample {i}/{total_samples} (id: {sample_id})")
+            logger.info(f"Shard {shard_id:06d} - Processing sample {i}/{total_samples} (id: {sample_id})")
 
         try:
             # Prepare the sample
@@ -402,7 +406,7 @@ def write_arrow_shard(
 
             # Write batch if we've reached batch size
             if len(current_batch) == writer_batch_size:
-                write_batch_to_writer(writer, current_batch)
+                write_batch_to_writer(current_batch, writer)
                 current_batch = []
 
         except Exception as e:
@@ -414,68 +418,17 @@ def write_arrow_shard(
 
     # Write any remaining samples
     if current_batch and writer is not None:
-        write_batch_to_writer(writer, current_batch)
+        write_batch_to_writer(current_batch, writer)
 
     # Close the writer
     if writer is not None:
         writer.close()
 
     logger.info(
-        f"Finished shard {shard_id:05d} - Processed: {len(results['processed_ids'])}, Failed: {len(results['failed_ids'])}"
+        f"Finished shard {shard_id:06d} - Processed: {len(results['processed_ids'])}, Failed: {len(results['failed_ids'])}"
     )
 
     return results
-
-
-def sample_generator(
-    batch: Union[Iterable[dict], pd.DataFrame, pd.Series],
-    sample_prep_function: Optional[Callable] = None,
-    log_every: int = LOG_EVERY,
-) -> Generator[tuple[dict, str] | None, None, None]:
-    """Generator function that yields prepared samples from a batch.
-
-    Arguments
-    ---------
-    batch: Union[Iterable[dict], pd.DataFrame, pd.Series]
-        List of dictionaries or dataframe or series containing sample data
-    sample_prep_function: Optional[Callable]
-        Function to prepare each sample
-    log_every: int
-        Log progress every N samples
-
-    Yields
-    ------
-        dict: Prepared sample data
-
-    Example
-    -------
-        >>> data = [{"id": 1, "text": "hello"}, {"id": 2, "text": "world"}]
-        >>> gen = sample_generator(data)
-        >>> next(gen)
-        {'id': 1, 'text': 'hello'}
-    """
-    iterator = batch.iterrows() if isinstance(batch, pd.DataFrame) else enumerate(batch)
-    total_samples = len(batch)
-
-    for i, item in iterator:
-        # Get item
-        if isinstance(item, pd.Series):
-            item = item.to_dict()
-
-        sample_id = str(item.get("id", i))
-
-        if i % log_every == 0:
-            logger.info(f"Processing sample {i}/{total_samples} (id: {sample_id})")
-
-        try:
-            # Prepare the sample
-            prepared_sample = sample_prep_function(item) if sample_prep_function else item
-            yield (prepared_sample, sample_id)
-        except Exception as e:
-            logger.error(f"Error processing sample {sample_id}: {e}")
-            if isinstance(e, KeyboardInterrupt):
-                raise e
-            yield (None, sample_id)
 
 
 def write_huggingface_shard(
@@ -513,11 +466,11 @@ def write_huggingface_shard(
         ... ]
         >>> result = write_huggingface_shard(data, 0, "/tmp/hf_data")
         >>> print(len(result["processed_ids"]))
-        2
+        3
         >>> print(result["failed_ids"])
         []
         >>> from pathlib import Path
-        >>> Path("/tmp/hf_data").exists()
+        >>> Path("/tmp/hf_data/shard_000000.arrow").exists()
         True
     """
     results = {"shard_id": shard_id, "processed_ids": [], "failed_ids": []}
@@ -529,33 +482,44 @@ def write_huggingface_shard(
 
     # Process the data using generator for memory efficiency
     total_samples = len(batch)
-    logger.info(f"Creating HuggingFace dataset for shard {shard_id:05d} with {total_samples} samples")
+    logger.info(f"Creating HuggingFace dataset for shard {shard_id:06d} with {total_samples} samples")
 
-    # Define a generator function for HF Dataset creation
-    def hf_generator():
-        for sample, sample_id in sample_generator(batch, sample_prep_function, log_every=log_every):
-            if sample is not None:
-                results["processed_ids"].append(sample_id)
-                yield sample
-            else:
-                results["failed_ids"].append(sample_id)
+    iterator = batch.iterrows() if isinstance(batch, pd.DataFrame) else enumerate(batch)
+    total_samples = len(batch)
 
-    try:
-        # Create dataset from generator, writes in batches
-        ds = Dataset.from_generator(hf_generator)
+    prepared_samples = []
+    for i, item in iterator:
+        # Get item
+        if isinstance(item, pd.Series):
+            item = item.to_dict()
 
-        # Save dataset
-        ds.save_to_disk(shard_path, storage_options=storage_options, num_proc=num_proc, num_shards=1)
+        sample_id = str(item.get("id", i))
 
-        # Move the arrow file to the final location
-        # arrow_file = F.list_files(shard_path, pattern="*.arrow")[0]
-        # F.move_file(arrow_file, output_path / (f"shard_{shard_id:06d}.arrow"))
-        # F.delete_dir(shard_path)
+        if i % log_every == 0:
+            logger.info(f"Processing sample {i}/{total_samples} (id: {sample_id})")
 
-        logger.info(f"Successfully saved HuggingFace dataset to {output_path}/shard_{shard_id:06d}.arrow")
+        try:
+            # Prepare the sample
+            prepared_sample = sample_prep_function(item) if sample_prep_function else item
+            prepared_samples.append(prepared_sample)
+            results["processed_ids"].append(sample_id)
 
-    except Exception as e:
-        logger.error(f"Error creating HuggingFace dataset for shard {shard_id}: {e}")
+        except Exception as e:
+            logger.error(f"Error processing sample {sample_id}: {e}")
+            results["failed_ids"].append(sample_id)
+            if isinstance(e, KeyboardInterrupt):
+                raise e
+
+    # Create dataset from generator, writes in batches
+    ds = Dataset.from_list(prepared_samples)
+
+    # Save dataset
+    ds.save_to_disk(shard_path, storage_options=storage_options, num_proc=num_proc, num_shards=1)
+
+    # Move the arrow file to the final location
+    arrow_file = F.list_files(shard_path, pattern="*.arrow")[0]
+    F.move_file(arrow_file, output_path / (f"shard_{shard_id:06d}.arrow"))
+    F.delete_dir(shard_path)
 
     logger.info(
         f"Finished shard {shard_id:05d} - Processed: {len(results['processed_ids'])}, Failed: {len(results['failed_ids'])}"
@@ -653,27 +617,39 @@ def compute_metadata_hash(metadata: Union[pd.DataFrame, List[dict], dict, Any]) 
 
 
 def save_checkpoint(
-    output_path: AnyPath, completed_chunks: dict, metadata: Any, checkpoint_name: str = "checkpoint.json"
+    output_path: Union[str, AnyPath], completed_chunks: dict, metadata: Any, checkpoint_name: str = "checkpoint.json"
 ) -> None:
     """
     Save checkpoint information for any type of metadata.
 
-    Args:
-        output_path: Path to save the checkpoint
-        completed_chunks: Dictionary of completed chunks
-        metadata: Metadata of any serializable type
-        checkpoint_name: Name of the checkpoint file
+    Arguments
+    ---------
+    output_path: Union[str, AnyPath]
+        Path to save the checkpoint
+    completed_chunks: dict
+        Dictionary of completed chunks
+    metadata: Any
+        Metadata of any serializable type
+    checkpoint_name: str
+        Name of the checkpoint file
 
-    Example:
+    Example
+    -------
         >>> completed_chunks = {"0": {"processed_ids": ["1", "2"], "failed_ids": []}}
         >>> save_checkpoint("/tmp", completed_chunks, {"some": "metadata"})
+        >>> from pathlib import Path
+        >>> Path("/tmp/checkpoint.json").exists()
+        True
+        >>> checkpoint = load_checkpoint("/tmp", {"some": "metadata"})
+        >>> "completed_chunks" in checkpoint
+        True
     """
+    output_path = AnyPath(output_path)
     checkpoint_data = {
         "completed_chunks": completed_chunks,
         "metadata_hash": compute_metadata_hash(metadata),
     }
 
-    # can write to a cloud path
     with (output_path / checkpoint_name).open("w") as f:
         json.dump(checkpoint_data, f)
 
@@ -685,16 +661,20 @@ def save_metadata(
 
     Arguments
     ---------
-        metadata_df: DataFrame containing metadata
-        output_path: Path to save the metadata
-        storage_options: Storage options for cloud storage
+     metadata_df: pd.DataFrame
+        DataFrame containing metadata
+    output_path: Union[str, AnyPath]
+        Path to save the metadata
+    storage_options: Optional[dict]
+        Storage options for cloud storage
 
     Example
     -------
-        >>> df = pd.DataFrame([{"id": 1, "name": "test"}, {"id": 2, "name": "example"}])
-        >>> save_metadata(df, "/tmp/metadata.parquet")
+        >>> df1 = pd.DataFrame([{"id": 1, "name": "test"}, {"id": 2, "name": "example"}])
+        >>> save_metadata(df1, "/tmp/metadata.parquet")
         >>> df2 = pd.read_parquet("/tmp/metadata.parquet")
-        >>> print(df1 == df2)
+        >>> df1.equals(df2)
+        True
     """
     output_path = AnyPath(output_path)
     ext = output_path.suffix.lstrip(".")
@@ -717,25 +697,28 @@ def save_metadata(
         logger.error(f"Error saving metadata to {output_path}: {e}")
 
 
-def load_checkpoint(output_path: AnyPath, metadata: Any, checkpoint_name: str = "checkpoint.json") -> Optional[dict]:
+def load_checkpoint(
+    output_path: str | AnyPath, metadata: Any, checkpoint_name: str = "checkpoint.json"
+) -> Optional[dict]:
     """
     Load checkpoint if it exists and is valid for any type of metadata.
 
-    Args:
-        output_path: Path to the checkpoint
+    Arguments
+    ---------
+    output_path: Path to the checkpoint
         metadata: Current metadata to compare against saved checkpoint
         checkpoint_name: Name of the checkpoint file
 
-    Returns:
+    Returns
+    -------
         Optional[dict]: Checkpoint data if valid, None otherwise
 
     Example:
-        >>> checkpoint = load_checkpoint("/tmp", {"some": "metadata"})
-        >>> if checkpoint:
-        ...     print("Checkpoint loaded")
-        ... else:
-        ...     print("No valid checkpoint found")
+        >>> checkpoint = load_checkpoint("/tmp/random/random/random", {"some": "metadata"})
+        >>> checkpoint is None
+        True
     """
+    output_path = AnyPath(output_path)
     checkpoint_path = output_path / checkpoint_name
 
     if not checkpoint_path.exists():
@@ -896,7 +879,7 @@ def create_sharded_dataset(
 
                     # Update progress bar with shard info
                     pbar.set_postfix(
-                        shard=f"{chunk_id:05d}",
+                        shard=f"{chunk_id:06d}",
                         success=len(result["processed_ids"]),
                         failed=len(result["failed_ids"]),
                     )
