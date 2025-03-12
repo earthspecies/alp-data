@@ -11,7 +11,7 @@ import torchaudio.transforms as T
 from torch.utils.data import DataLoader, IterableDataset
 from tqdm import tqdm
 
-from esp_data.dataset.datasets import load_dataset as lds
+from esp_data.dataset.esp_dataset import load_esp_dataset as lds
 from esp_data.file_io.parsers import read_audio_bytes
 from esp_data.utils import make_simple_logger
 

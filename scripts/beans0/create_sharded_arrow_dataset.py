@@ -1,10 +1,8 @@
 import argparse
 import json
 import os
-import time
-from concurrent.futures import ProcessPoolExecutor
 from functools import partial
-from typing import Any, Callable
+from typing import Any
 
 import colorama
 import numpy as np
@@ -12,11 +10,10 @@ import pandas as pd
 from beans_cfg import beans0_cfg
 from colorama import Fore, Style
 from datasets import load_dataset
-from tqdm import tqdm
 
-from esp_data.dataset.shard_creator import load_checkpoint, save_checkpoint, write_shard
+from esp_data.dataset.shard_creator_v2 import create_sharded_dataset
 from esp_data.file_io.parsers import read_audio_bytes_from_path
-from esp_data.paths import AnyPath, is_cloud_path
+from esp_data.paths import AnyPath
 from esp_data.utils import make_simple_logger
 
 # Initialize colorama for cross-platform colored terminal output
@@ -34,16 +31,21 @@ RESET_COLOR = Style.RESET_ALL
 logger = make_simple_logger("sharded_arrow_dataset_creator")
 
 
-def validate_sample(sample: dict, remove_inaturalist: bool = True) -> dict:
+def validate_sample(sample: dict, remove_inaturalist: bool = False):
     if not remove_inaturalist:
-        assert np.std(sample["audio"]) > 0.0
-    assert len(sample["output"]) > 0
-    assert sample["output"] != "nan"
-    assert "Audio" in sample["instruction"]
-    assert isinstance(sample["metadata"], str)
-    assert len(sample["file_name"]) > 0
-    assert len(sample["license"]) > 0
-    assert len(sample["task"]) > 0
+        assert np.std(sample["audio"]) > 0.0, "Audio is empty"
+    assert len(sample["output"]) > 0, "Output is empty"
+    assert sample["output"] != "nan", "Output is nan"
+    assert "Audio" in sample["instruction"], "Instruction does not contain 'Audio'"
+    assert isinstance(sample["metadata"], str), "Metadata is not a string"
+    assert len(sample["file_name"]) > 0, "File name is empty"
+    assert len(sample["license"]) > 0, "License is empty"
+    assert len(sample["task"]) > 0, "Task is empty"
+    assert sample["task"] in [
+        "detection",
+        "classification",
+        "captioning",
+    ], "Task is not one of 'detection', 'classification', 'captioning'"
     return sample
 
 
@@ -107,158 +109,6 @@ def checks(metadata_df: pd.DataFrame, original_paths_df: pd.DataFrame):
     assert metadata_df.source_dataset.isnull().sum() == 0
 
 
-def create_sharded_dataset(
-    metadata_df: pd.DataFrame | list[dict],
-    output_path: str | AnyPath,
-    sample_prep_function: Callable,
-    num_samples_per_shard: int = 1000,
-    num_workers: int = 4,
-    storage_options: dict = None,
-    shard_type: str = "arrow",
-):
-    """Create sharded dataset from information in metadata dataframe and a sample prep function,
-    in parallel with checkpointing.
-
-    Args:
-        metadata_df (pd.DataFrame): DataFrame containing metadata for samples, importantly the 'id' column.
-            the "file_name" column is also required if the sample_prep_function requires it.
-        data_root (str | AnyPath): Path to the root directory containing raw data (e.g. audio files)
-        output_path (str | AnyPath): Path to save the sharded dataset
-        sample_prep_function (Callable): Function to prepare a sample for sharding
-        num_samples_per_shard (int, optional): Number of samples per shard. Defaults to 1000.
-        num_workers (int, optional): Number of workers for parallel processing. Defaults to 4.
-        storage_options (dict, optional): Storage options for reading and writing files. Defaults to None.
-        shard_type (str, optional): Type of sharded dataset to create. Defaults to "arrow".
-
-    """
-    t0 = time.time()
-    output_path = AnyPath(output_path)
-
-    if metadata_df.empty:
-        logger.error("Metadata is empty. Nothing to process.")
-        return
-
-    # Load checkpoint if exists
-    checkpoint_data = load_checkpoint(output_path, metadata_df)
-    completed_chunks = checkpoint_data["completed_chunks"] if checkpoint_data else {}
-    logger.info(f"Loaded checkpoint with {len(completed_chunks)} completed chunks.")
-
-    # Calculate number of shards needed
-    num_samples = len(metadata_df)
-    num_shards = int(np.ceil(num_samples / num_samples_per_shard))
-
-    # Split metadata into chunks for parallel processing
-    chunks = np.array_split(metadata_df, num_shards)
-
-    logger.info(f"\n{BATCH_COLOR}=== Dataset Sharding Process ==={RESET_COLOR}")
-    logger.info(
-        f"{BATCH_COLOR}Total samples: {num_samples}, Shards: {num_shards}, Samples per shard: {num_samples_per_shard}{RESET_COLOR}\n"
-    )
-
-    # Filter out completed chunks
-    chunks_to_process = [(idx, chunk) for idx, chunk in enumerate(chunks) if str(idx) not in completed_chunks]
-
-    if not chunks_to_process:
-        logger.info("All chunks already processed. Nothing to do.")
-        return
-
-    # Create partial function with fixed arguments
-    process_chunk_partial = partial(
-        write_shard,
-        output_path=output_path,
-        sample_prep_function=sample_prep_function,
-        output_format=shard_type,
-    )
-
-    # Process chunks in parallel with progress bar
-    processed_samples = []
-    if num_workers > 1:
-        with ProcessPoolExecutor(max_workers=num_workers) as executor:
-            futures = [
-                executor.submit(process_chunk_partial, batch=chunk, shard_id=chunk_id)
-                for chunk_id, chunk in chunks_to_process
-            ]
-
-            # Track progress with tqdm
-            with tqdm(
-                total=len(chunks_to_process),
-                desc=f"{SHARD_COLOR}Processing shards{RESET_COLOR}",
-                bar_format="{l_bar}%s{bar}%s{r_bar}" % (SHARD_COLOR, RESET_COLOR),
-                ncols=100,
-            ) as pbar:
-                for future in futures:
-                    result = future.result()
-                    chunk_id = result["shard_id"]
-                    processed_samples.extend(result["processed_samples"])
-
-                    # Update checkpoint
-                    completed_chunks[str(chunk_id)] = result
-                    save_checkpoint(output_path, completed_chunks, completed_chunks)
-
-                    # Update progress bar with shard info
-                    pbar.set_postfix(
-                        shard=f"{chunk_id:05d}",
-                        success=len(result["processed_samples"]),
-                        failed=len(result["failed_ids"]),
-                    )
-                    pbar.update(1)
-    else:
-        # Track progress with tqdm
-        # Sequential processing with nested progress bars
-        with tqdm(
-            total=len(chunks_to_process),
-            desc=f"{SHARD_COLOR}Processing shards{RESET_COLOR}",
-            bar_format="{l_bar}%s{bar}%s{r_bar}" % (SHARD_COLOR, RESET_COLOR),
-            position=0,
-            leave=True,
-            ncols=100,
-        ) as pbar_shards:
-            for chunk_id, chunk in chunks_to_process:
-                result = process_chunk_partial(batch=chunk, shard_id=chunk_id)
-                processed_samples.extend(result["processed_samples"])
-
-                # Update checkpoint
-                completed_chunks[str(chunk_id)] = result
-                save_checkpoint(output_path, completed_chunks, completed_chunks)
-
-                # Update progress bar with shard info
-                pbar_shards.set_postfix(
-                    shard=f"{chunk_id:05d}", success=len(result["processed_samples"]), failed=len(result["failed_ids"])
-                )
-                pbar_shards.update(1)
-
-    # Create DataFrame with shard information
-    shard_info_df = pd.DataFrame(processed_samples)
-
-    # Merge shard information with original metadata
-    metadata_df = metadata_df.merge(shard_info_df[["id", "shard_path", "shard_id"]], on="id", how="left")
-
-    # drop any "file_path" column
-    if "file_path" in metadata_df.columns:
-        metadata_df.drop(columns=["file_path"], inplace=True)
-
-    # Save updated metadata as jsonl
-    metadata_df.to_json(
-        str(output_path / "metadata.jsonl"), orient="records", lines=True, index=False, storage_options=storage_options
-    )
-
-    # Report final statistics
-    total_successful = len(processed_samples)
-    total_failed = sum(len(chunk["failed_ids"]) for chunk in completed_chunks.values())
-    success_rate = (
-        (total_successful / (total_successful + total_failed)) * 100 if (total_successful + total_failed) > 0 else 0
-    )
-
-    tend = time.time()
-    logger.info(f"\n{BATCH_COLOR}=== Processing Summary ==={RESET_COLOR}")
-    logger.info(f"{SUCCESS_COLOR}- Total files processed successfully: {total_successful}{RESET_COLOR}")
-    logger.info(f"{ERROR_COLOR}- Total files failed: {total_failed}{RESET_COLOR}")
-    logger.info(f"{BATCH_COLOR}- Success rate: {success_rate:.2f}%{RESET_COLOR}")
-    logger.info(f"{BATCH_COLOR}- Total time taken: {tend - t0:.2f} seconds{RESET_COLOR}")
-
-    return metadata_df
-
-
 def main():
     parser = argparse.ArgumentParser(description="Create a sharded Beans0 dataset from raw audio files")
     parser.add_argument("--metadata_path", type=str, required=True, help="Path to the metadata CSV file")
@@ -310,29 +160,23 @@ def main():
     sample_prep_function = partial(prepare_audio_sample_for_beans0, remove_inaturalist=args.remove_inaturalist)
 
     output_path = os.path.join(args.dataset_path, args.version)
-    if is_cloud_path(output_path):
-        storage_options = {"project": os.getenv("GCP_DEFAULT_PROJECT")}
-    else:
-        storage_options = None
 
-    # Create an AudioDataset instance
+    # write new dataset config file
+    beans0_cfg.version = args.version.replace("v", "")
+    beans0_cfg.update_changelog(args.changelog)
+
+    # Create a sharded dataset
     create_sharded_dataset(
         metadata_df,
         output_path,
         sample_prep_function,
         num_samples_per_shard=args.num_samples_per_shard,
         num_workers=args.num_workers,
-        storage_options=storage_options,
         shard_type=args.shard_type,
+        dataset_config=beans0_cfg,
+        save_metadata_as="metadata.jsonl",
+        merge_data_and_metadata=False,
     )
-
-    # write new dataset config file
-    beans0_cfg.version = args.version.replace("v", "")
-    beans0_cfg.update_changelog(args.changelog)
-    with AnyPath(os.path.join(output_path, "dataset_config.json")).open("w") as fp:
-        json.dump(beans0_cfg.to_dict(make_serializable=True), fp)
-
-    beans0_cfg.generate_readme(AnyPath(output_path) / "README.md")
 
     # Few post-hoc checks
     ds = load_dataset(

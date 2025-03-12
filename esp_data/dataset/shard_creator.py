@@ -181,6 +181,62 @@ def determine_pa_field_type(value, default_float_type: str = "float32") -> pa.Da
     return field_type
 
 
+def write_pyarrow_table(data: list[dict], path: str | AnyPath, format: str = "parquet") -> None:
+    """Write a list of dictionaries to a PyArrow table and save to file in Arrow or Parquet format.
+
+    Arguments
+    ----------
+    data: list[dict]
+        List of dictionaries containing sample data
+    path: str | AnyPath
+        Path to save the Arrow file
+    format: str
+        Output format for the Arrow file (parquet or arrow)
+
+    Example
+    --------
+    >>> data = [
+        {"id": 1, "name": "Alice", "age": 25},
+        {"id": 2, "name": "Bob", "age": 30},
+        {"id": 3, "name": "Charlie", "age": 35},
+    ]
+    >>> write_pyarrow_table(data, "data.parquet", format="parquet")
+    >>> print(pa.parquet.read_table("data.parquet"))
+    id  name     age
+    --  -------  ---
+    1   Alice    25
+    2   Bob      30
+    3   Charlie  35
+    """
+    # infer schema
+    fields = data[0].keys()
+    values = data[0].values()
+    schema = pa.schema([pa.field(field, determine_pa_field_type(value)) for field, value in zip(fields, values)])
+
+    table = pa.Table.from_pylist(data, schema=schema)
+    # Write to file
+    opener = _make_file_opener(path)
+    with opener(str(path)) as f:
+        if format == "parquet":
+            # Write as Parquet
+            pq.write_table(table, f)
+        else:
+            with pa.ipc.new_file(f, schema) as writer:
+                writer.write_table(table)
+
+
+def write_pyarrow_streaming(data: dict, path: str | AnyPath, format: str = "parquet") -> None:
+    """Write a dictionary of data to a PyArrow table and save to file in Arrow or Parquet format.
+
+    Arguments
+    ----------
+    data: dict
+        Dictionary containing sample data
+
+    """
+    pass
+
+
 def write_arrow_shard(
     batch: Iterable[dict] | pd.DataFrame | pd.Series,
     shard_id: int,
@@ -188,18 +244,40 @@ def write_arrow_shard(
     sample_prep_function: Optional[Callable] = None,
     format: str = "parquet",
 ) -> dict:
-    """
-    Write a batch of samples to an Arrow / Parquet shard.
+    """Write a batch of samples to an Arrow / Parquet shard, after optionally preparing the samples.
 
-    Args:
-        batch: list of dictionaries or dataframe or series containing sample data
-        shard_id: ID for this shard
-        output_path: Path to save the shard
-        sample_prep_function: Function to prepare a sample for Arrow format
-        format: Output format for the sshard (parquet or arrow)
+    Arguments
+    ----------
+    batch: Iterable[dict] | pd.DataFrame | pd.Series
+        List of dictionaries or dataframe or series containing sample data
+    shard_id: int
+        ID for this shard
+    output_path: str | AnyPath
+        Path to save the shard
+    sample_prep_function: Optional[Callable]
+        Function to prepare a sample for the Arrow format, for e.g. converting audio to features or running a pydantic validation
+    format: str
+        Output format for the shard (parquet or arrow), defaults to parquet
 
-    Returns:
-        Dictionary with processing results
+    Returns
+    -------
+    dict
+        Dictionary with processing results, including successful and failed samples.
+
+    Example
+    --------
+    >>> data = [
+        {"id": 1, "name": "Alice", "age": 25},
+        {"id": 2, "name": "Bob", "age": 30},
+        {"id": 3, "name": "Charlie", "age": 35},
+    ]
+    >>> write_arrow_shard(data, 0, "data.parquet", format="parquet")
+    >>> print(pa.parquet.read_table("data.parquet"))
+    id  name     age
+    --  -------  ---
+    1   Alice    25
+    2   Bob      30
+    3   Charlie  35
     """
     results = {"shard_id": shard_id, "processed_samples": [], "failed_ids": []}
 
@@ -223,10 +301,7 @@ def write_arrow_shard(
 
             try:
                 # Prepare the sample
-                if sample_prep_function is None:
-                    shard_data = item
-                else:
-                    shard_data = sample_prep_function(item)
+                shard_data = sample_prep_function(item) if sample_prep_function else item
 
                 prepared_data.append(shard_data)
 
@@ -245,34 +320,7 @@ def write_arrow_shard(
             pbar_samples.update(1)
 
     if prepared_data:
-        # Create Arrow table
-        # We assume arrow_prep_function returns a dict with field names
-        # matching the Arrow schema
-        first_sample = prepared_data[0]
-
-        # Construct schema based on the first sample
-        fields = []
-        data_arrays = {}
-
-        for field_name, value in first_sample.items():
-            field_type = determine_pa_field_type(value)
-            fields.append(pa.field(field_name, field_type))
-            data_arrays[field_name] = [sample.get(field_name) for sample in prepared_data]
-
-        # Create schema and table
-        schema = pa.schema(fields)
-        arrays = [pa.array(data_arrays[field.name]) for field in schema]
-        table = pa.Table.from_arrays(arrays, schema=schema)
-
-        # Write to file
-        opener = _make_file_opener(shard_path)
-        with opener(str(shard_path)) as f:
-            if format == "parquet":
-                # Write as Parquet
-                pq.write_table(table, f)
-            else:
-                with pa.ipc.new_file(f, schema) as writer:
-                    writer.write_table(table)
+        write_pyarrow_table(prepared_data, shard_path, format=format)
 
     return results
 
