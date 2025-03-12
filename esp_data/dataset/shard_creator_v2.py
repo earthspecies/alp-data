@@ -21,13 +21,15 @@ from tqdm.auto import tqdm
 
 import esp_data.file_io.functional as F
 from esp_data.config import DatasetConfig
-from esp_data.config.project_config import LOG_EVERY, WRITER_BATCH_SIZE
+from esp_data.config.project_config import DEFAULT_FLOAT_TYPE, LOG_EVERY, WRITER_BATCH_SIZE
 from esp_data.paths import AnyPath, make_storage_options
-from esp_data.utils import make_simple_logger
+from esp_data.utils import make_id, make_simple_logger
 
 from .utils import _make_file_opener
 
 logger = make_simple_logger(name="shard_creator_module")
+# Only propagate logs if there are no handlers
+logger.propagate = False
 
 # Initialize colorama for cross-platform colored terminal output
 colorama.init()
@@ -40,7 +42,6 @@ SUCCESS_COLOR = Fore.GREEN
 ERROR_COLOR = Fore.RED
 RESET_COLOR = Style.RESET_ALL
 
-DEFAULT_FLOAT_TYPE = "float32"  # TODO: DISCUSS THIS!
 SHARD_TYPES = ["webdataset", "arrow", "parquet", "hf"]
 
 
@@ -99,16 +100,16 @@ def write_webdataset_shard(
     # Process each sample
     iterator = batch.iterrows() if isinstance(batch, pd.DataFrame) else enumerate(batch)
     total_samples = len(batch)
-
-    for i, item in iterator:
+    j = 0
+    for _, item in iterator:
         # get item and sample_id
         if isinstance(item, pd.Series):
             item = item.to_dict()
 
-        sample_id = str(item.get("id", i))
+        sample_id = str(item.get("id", make_id()))
 
-        if i % log_every == 0:
-            logger.info(f"Shard {shard_id:05d} - Processing sample {i}/{total_samples} (id: {sample_id})")
+        if (j + 1) % log_every == 0:
+            logger.info(f"Shard {shard_id:05d} - Processing sample {j}/{total_samples} (id: {sample_id})")
 
         try:
             shard_data = sample_prep_function(item) if sample_prep_function else item
@@ -129,6 +130,8 @@ def write_webdataset_shard(
             # if Exception is KeyboardInterrupt then raise and exit
             if isinstance(e, KeyboardInterrupt):
                 raise e
+
+        j += 1
 
     sink.close()
 
@@ -288,8 +291,11 @@ def create_iterative_writer(
     # Create appropriate writer
     if format == "parquet":
         return pq.ParquetWriter(file_obj, schema)
-    else:  # arrow
-        return pa.ipc.new_file(file_obj, schema)
+
+    writer = pa.ipc.new_file(file_obj, schema)
+    writer.schema = schema
+
+    return writer
 
 
 def write_batch_to_writer(
@@ -382,16 +388,16 @@ def write_arrow_shard(
     writer = None
     current_batch = []
 
-    # Process all samples
-    for i, item in iterator:
+    j = 0
+    for _, item in iterator:
         # Get item and sample_id
         if isinstance(item, pd.Series):
             item = item.to_dict()
 
-        sample_id = str(item.get("id", i))
+        sample_id = str(item.get("id", make_id()))
 
-        if i % log_every == 0:
-            logger.info(f"Shard {shard_id:06d} - Processing sample {i}/{total_samples} (id: {sample_id})")
+        if (j + 1) % log_every == 0:
+            logger.info(f"Shard {shard_id:06d} - Processing sample {j}/{total_samples} (id: {sample_id})")
 
         try:
             # Prepare the sample
@@ -415,6 +421,8 @@ def write_arrow_shard(
             # If Exception is KeyboardInterrupt then raise and exit
             if isinstance(e, KeyboardInterrupt):
                 raise e
+
+        j += 1
 
     # Write any remaining samples
     if current_batch and writer is not None:
@@ -488,15 +496,16 @@ def write_huggingface_shard(
     total_samples = len(batch)
 
     prepared_samples = []
-    for i, item in iterator:
+    j = 0
+    for _, item in iterator:
         # Get item
         if isinstance(item, pd.Series):
             item = item.to_dict()
 
-        sample_id = str(item.get("id", i))
+        sample_id = str(item.get("id", make_id()))
 
-        if i % log_every == 0:
-            logger.info(f"Processing sample {i}/{total_samples} (id: {sample_id})")
+        if (j + 1) % log_every == 0:
+            logger.info(f"Processing sample {j}/{total_samples} (id: {sample_id})")
 
         try:
             # Prepare the sample
@@ -510,7 +519,8 @@ def write_huggingface_shard(
             if isinstance(e, KeyboardInterrupt):
                 raise e
 
-    # Create dataset from generator, writes in batches
+        j += 1
+
     ds = Dataset.from_list(prepared_samples)
 
     # Save dataset
@@ -601,7 +611,7 @@ def compute_metadata_hash(metadata: Union[pd.DataFrame, List[dict], dict, Any]) 
         >>> assert isinstance(value, int)
     """
     if isinstance(metadata, pd.DataFrame):
-        return int(pd.util.hash_pandas_object(metadata).sum())
+        metadata = metadata.to_dict(orient="records")
 
     try:
         metadata_str = json.dumps(metadata, sort_keys=True)
@@ -753,7 +763,7 @@ def create_sharded_dataset(
     merge_data_and_metadata: bool = False,
     log_every: int = LOG_EVERY,
     **sharding_kwargs,
-):
+) -> pd.DataFrame:
     """
     Create sharded dataset from information in a dataframe (or a Iterable[dict]) and a sample prep function,
     in parallel, with checkpointing.

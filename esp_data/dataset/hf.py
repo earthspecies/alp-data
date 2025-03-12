@@ -45,7 +45,7 @@ def load_hf_dataset(hf_dataset_type: str, path: str | AnyPath, **hf_ds_kwargs) -
         )
         return HFDataset(cfg, ds=ds, streaming_dataset=hf_ds_kwargs.get("streaming", False))
 
-    elif hf_dataset_type in ["csv", "tsv", "json", "parquet", "local_hf", "bucket_hf"]:
+    elif hf_dataset_type in ["csv", "tsv", "json", "parquet", "arrow", "local_hf", "bucket_hf"]:
         return HFDataset.from_path(path, hf_dataset_type, **hf_ds_kwargs)
 
 

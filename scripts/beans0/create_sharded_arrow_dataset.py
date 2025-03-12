@@ -4,31 +4,13 @@ import os
 from functools import partial
 from typing import Any
 
-import colorama
 import numpy as np
 import pandas as pd
 from beans_cfg import beans0_cfg
-from colorama import Fore, Style
-from datasets import load_dataset
 
+from esp_data.dataset.esp_dataset import load_esp_dataset as load_dataset
 from esp_data.dataset.shard_creator_v2 import create_sharded_dataset
 from esp_data.file_io.parsers import read_audio_bytes_from_path
-from esp_data.paths import AnyPath
-from esp_data.utils import make_simple_logger
-
-# Initialize colorama for cross-platform colored terminal output
-colorama.init()
-
-# Define color schemes for different progress levels
-BATCH_COLOR = Fore.BLUE
-SHARD_COLOR = Fore.GREEN
-SAMPLE_COLOR = Fore.CYAN
-SUCCESS_COLOR = Fore.GREEN
-ERROR_COLOR = Fore.RED
-RESET_COLOR = Style.RESET_ALL
-
-
-logger = make_simple_logger("sharded_arrow_dataset_creator")
 
 
 def validate_sample(sample: dict, remove_inaturalist: bool = False):
@@ -95,7 +77,7 @@ def prepare_audio_sample_for_beans0(row: dict, remove_inaturalist: bool = True) 
     try:
         validate_sample(sample)
     except AssertionError as e:
-        logger.error(f"Validation failed for sample {row['id']}: {e}")
+        print(f"Validation failed for sample {row['id']}: {e}")
         raise e
 
     return sample
@@ -136,6 +118,7 @@ def main():
         help="Remove samples from iNaturalist dataset from the sharded dataset",
     )
     parser.add_argument("--changelog", type=str, help="Changelog for the dataset")
+    parser.add_argument("--log_every", type=int, default=50, help="Log every n samples")
 
     args = parser.parse_args()
 
@@ -166,7 +149,7 @@ def main():
     beans0_cfg.update_changelog(args.changelog)
 
     # Create a sharded dataset
-    create_sharded_dataset(
+    _ = create_sharded_dataset(
         metadata_df,
         output_path,
         sample_prep_function,
@@ -176,16 +159,12 @@ def main():
         dataset_config=beans0_cfg,
         save_metadata_as="metadata.jsonl",
         merge_data_and_metadata=False,
+        log_every=args.log_every,
     )
 
     # Few post-hoc checks
-    ds = load_dataset(
-        "arrow" if args.shard_type in ["arrow", "hf"] else "parquet",
-        data_files=str(AnyPath(output_path) / args.output_shard_pattern),
-        split="train",
-        streaming=True,
-    )
-    print(ds.column_names)
+    ds = load_dataset(args.shard_type, output_path, streaming=False, file_pattern=args.output_shard_pattern)
+    print(ds.columns)
 
 
 if __name__ == "__main__":
