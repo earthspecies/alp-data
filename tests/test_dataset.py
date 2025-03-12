@@ -2,7 +2,7 @@ import json
 
 import pandas as pd
 
-from esp_data.dataset.datasets import load_dataset as lds
+from esp_data.dataset.esp_dataset import load_esp_dataset as lds
 from esp_data.dataset.hf import HFDataset
 from esp_data.dataset.shard_creator import write_webdataset_shard
 from esp_data.dataset.webds import WebDataset, apply_fn

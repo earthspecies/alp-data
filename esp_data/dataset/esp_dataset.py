@@ -8,7 +8,7 @@ from .webds import WebDataset
 DATASET_TYPES = ["pandas", "webdataset"] + HF_DATASET_TYPES
 
 
-def load_dataset(dataset_type: str, path: str | AnyPath, **kwargs):
+def load_esp_dataset(dataset_type: str, path: str | AnyPath, **kwargs):
     f"""A function to load different types of datasets.
 
     Args:
