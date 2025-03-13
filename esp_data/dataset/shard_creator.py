@@ -139,7 +139,7 @@ def write_webdataset_shard(
             sink.write(sample)
 
             # Track successful sample
-            results["processed_ids"].append({"id": sample_id, "shard_id": shard_id, "shard_path": shard_path})
+            results["processed_ids"].append({"id": sample_id, "shard_id": shard_id, "shard_path": str(shard_path)})
 
         except Exception as e:
             results["failed_ids"].append(sample_id)
@@ -428,7 +428,7 @@ def write_arrow_shard(
                 writer = create_iterative_writer(shard_path, shard_data, format=format)
 
             current_batch.append(shard_data)
-            results["processed_ids"].append({"id": sample_id, "shard_id": shard_id, "shard_path": shard_path})
+            results["processed_ids"].append({"id": sample_id, "shard_id": shard_id, "shard_path": str(shard_path)})
 
             # Write batch if we've reached batch size
             if len(current_batch) == writer_batch_size:
@@ -541,7 +541,7 @@ def write_huggingface_shard(
             # Prepare the sample
             prepared_sample = sample_prep_function(item) if sample_prep_function else item
             prepared_samples.append(prepared_sample)
-            results["processed_ids"].append({"id": sample_id, "shard_id": shard_id, "shard_path": shard_path})
+            results["processed_ids"].append({"id": sample_id, "shard_id": shard_id, "shard_path": str(shard_path)})
 
         except Exception as e:
             results["failed_ids"].append(sample_id)
