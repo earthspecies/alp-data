@@ -160,7 +160,7 @@ def main():
         sample_prep_function,
         num_samples_per_shard=args.num_samples_per_shard,
         num_workers=args.num_workers,
-        shard_type=args.shard_type,
+        shard_type="webdataset",
         dataset_config=beans0_cfg,
         save_metadata_as="metadata.jsonl",
         merge_data_and_metadata=True,
