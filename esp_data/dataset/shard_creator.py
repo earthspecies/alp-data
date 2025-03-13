@@ -4,7 +4,6 @@ Modular functions to create sharded datasets in both WebDataset (tar) and Arrow 
 
 import hashlib
 import json
-import logging
 import time
 from concurrent.futures import ProcessPoolExecutor
 from functools import partial
@@ -24,11 +23,11 @@ import esp_data.file_io.functional as F
 from esp_data.config import DatasetConfig
 from esp_data.config.project_config import DEFAULT_FLOAT_TYPE, LOG_EVERY, WRITER_BATCH_SIZE
 from esp_data.paths import AnyPath, make_storage_options
-from esp_data.utils import make_id
+from esp_data.utils import make_id, make_simple_logger
 
 from .utils import _make_file_opener
 
-logger = logging.getLogger(__name__)
+logger = make_simple_logger("shard_creator")
 
 # Initialize colorama for cross-platform colored terminal output
 colorama.init()
@@ -44,12 +43,26 @@ RESET_COLOR = Style.RESET_ALL
 SHARD_TYPES = ["webdataset", "arrow", "parquet", "hf"]
 
 
+def _error_handler(e: Exception, sample_id: str, error_handling: str = "warn") -> None:
+    """Handle errors during sample processing."""
+    if error_handling == "warn":
+        logger.error(f"Error processing sample {sample_id}: {e}")
+    elif error_handling == "raise":
+        raise e
+    elif error_handling == "ignore":
+        pass
+
+    if isinstance(e, KeyboardInterrupt):
+        raise e
+
+
 def write_webdataset_shard(
     batch: Union[Iterable[dict], pd.DataFrame, pd.Series],
     shard_id: int,
     output_path: Union[str, AnyPath],
     sample_prep_function: Optional[Callable] = None,
     log_every: int = LOG_EVERY,
+    error_handling: str = "warn",
 ) -> dict:
     """
     Write a batch of samples to a WebDataset shard.
@@ -57,7 +70,7 @@ def write_webdataset_shard(
     Arguments
     ---------
     batch: Union[Iterable[dict], pd.DataFrame, pd.Series]
-        List of dictionaries or dataframe or series containing sample data
+        Iterable of dictionaries or dataframe or series containing sample data
     shard_id: int
         ID for this shard
     output_path: Union[str, AnyPath],
@@ -66,6 +79,8 @@ def write_webdataset_shard(
         Function to prepare a sample for the WebDataset format
     log_every: int
         Log progress every N samples
+    error_handling: str
+        How to handle errors ("warn", "raise", "ignore")
 
     Returns
     -------
@@ -124,11 +139,9 @@ def write_webdataset_shard(
             results["processed_ids"].append(sample_id)
 
         except Exception as e:
-            logger.error(f"Error processing sample {sample_id}: {e}")
             results["failed_ids"].append(sample_id)
-            # if Exception is KeyboardInterrupt then raise and exit
-            if isinstance(e, KeyboardInterrupt):
-                raise e
+
+            _error_handler(e, sample_id, error_handling)
 
         j += 1
 
@@ -338,13 +351,14 @@ def write_arrow_shard(
     format: str = "parquet",
     log_every: int = LOG_EVERY,
     writer_batch_size: int = WRITER_BATCH_SIZE,
+    error_handling: str = "warn",
 ) -> dict:
     """Write a batch of samples to an Arrow/Parquet shard iteratively, processing samples as they come in.
 
     Arguments
     ---------
     batch: Union[Iterable[dict], pd.DataFrame, pd.Series]
-        List of dictionaries or dataframe or series containing sample data
+        Iterable of dictionaries or dataframe or series containing sample data
     shard_id: int
         ID for this shard
     output_path: Union[str, AnyPath]
@@ -357,6 +371,8 @@ def write_arrow_shard(
         Log progress every N samples
     writer_batch_size: int
         Number of samples to process before writing to the shard
+    error_handling: str
+        How to handle errors ("warn", "raise", "ignore")
 
     Returns
     -------
@@ -415,11 +431,8 @@ def write_arrow_shard(
                 current_batch = []
 
         except Exception as e:
-            logger.error(f"Error processing sample {sample_id} for {format.upper()}: {e}")
             results["failed_ids"].append(sample_id)
-            # If Exception is KeyboardInterrupt then raise and exit
-            if isinstance(e, KeyboardInterrupt):
-                raise e
+            _error_handler(e, sample_id, error_handling)
 
         j += 1
 
@@ -446,19 +459,29 @@ def write_huggingface_shard(
     storage_options: Optional[dict] = None,
     num_proc: int = 1,
     log_every: int = LOG_EVERY,
+    error_handling: str = "warn",
 ) -> dict:
     """
     Write a batch of samples to an Arrow shard in the Hugging Face format using a generator.
 
     Arguments
     ---------
-        batch: List of dictionaries containing sample data
-        shard_id: ID for this shard
-        output_path: Path to save the shard
-        sample_prep_function: Function to prepare a sample for dataset Arrow format
-        storage_options: Optional storage options for saving the dataset
-        num_proc: Number of processes to use for saving the dataset
-        log_every: Log progress every N samples
+    batch: Union[Iterable[dict], pd.DataFrame, pd.Series]
+        Iterable of dictionaries containing sample data
+    shard_id: int
+        ID for this shard
+    output_path: Union[str, AnyPath]
+        Path to save the shard
+    sample_prep_function: Optional[Callable]
+        Function to prepare a sample for dataset Arrow format
+    storage_options: Optional[dict]
+        Optional storage options for saving the dataset
+    num_proc: int
+        Number of processes to use for saving the dataset
+    log_every: int
+        Log progress every N samples
+    error_handling: str
+        How to handle errors ("warn", "raise", "ignore")
 
     Returns
     -------
@@ -513,10 +536,8 @@ def write_huggingface_shard(
             results["processed_ids"].append(sample_id)
 
         except Exception as e:
-            logger.error(f"Error processing sample {sample_id}: {e}")
             results["failed_ids"].append(sample_id)
-            if isinstance(e, KeyboardInterrupt):
-                raise e
+            _error_handler(e, sample_id, error_handling)
 
         j += 1
 
@@ -544,6 +565,7 @@ def write_shard(
     sample_prep_function: Optional[Callable] = None,
     output_format: str = "webdataset",
     log_every: int = LOG_EVERY,
+    error_handling: str = "warn",
     **kwargs,
 ) -> dict:
     """
@@ -563,6 +585,8 @@ def write_shard(
         Output format for the shard ("webdataset", "arrow", "parquet", "hf")
     log_every: int
         Log progress every N samples
+    error_handling: str
+        How to handle errors ("warn", "raise", "ignore")
     kwargs:
         Additional keyword arguments for the specific shard writer
 
@@ -578,14 +602,35 @@ def write_shard(
         0
     """
     if output_format == "webdataset":
-        return write_webdataset_shard(batch, shard_id, output_path, sample_prep_function, log_every=log_every, **kwargs)
+        return write_webdataset_shard(
+            batch,
+            shard_id,
+            output_path,
+            sample_prep_function,
+            log_every=log_every,
+            error_handling=error_handling,
+            **kwargs,
+        )
     elif output_format in ["arrow", "parquet"]:
         return write_arrow_shard(
-            batch, shard_id, output_path, sample_prep_function, format=output_format, log_every=log_every, **kwargs
+            batch,
+            shard_id,
+            output_path,
+            sample_prep_function,
+            format=output_format,
+            log_every=log_every,
+            error_handling=error_handling,
+            **kwargs,
         )
     elif output_format == "hf":
         return write_huggingface_shard(
-            batch, shard_id, output_path, sample_prep_function, log_every=log_every, **kwargs
+            batch,
+            shard_id,
+            output_path,
+            sample_prep_function,
+            log_every=log_every,
+            error_handling=error_handling,
+            **kwargs,
         )
     else:
         raise ValueError(f"Unsupported output format: {output_format}, must be {', '.join(SHARD_TYPES)}.")
@@ -615,14 +660,13 @@ def compute_metadata_hash(metadata: Union[pd.DataFrame, List[dict], dict, Any]) 
     try:
         metadata_str = json.dumps(metadata, sort_keys=True)
         hash_object = hashlib.md5(metadata_str.encode())
-        # Convert first 8 bytes of MD5 to int (to keep similar scale to pandas hash)
-        return int.from_bytes(hash_object.digest()[:8], byteorder="big")
+        return int.from_bytes(hash_object.digest(), byteorder="big")
+
     except (TypeError, ValueError):
-        # If the metadata can't be converted to JSON, use its string representation
-        logger.warning("Could not JSON-serialize metadata, using string representation for hashing")
         metadata_str = str(metadata)
         hash_object = hashlib.md5(metadata_str.encode())
-        return int.from_bytes(hash_object.digest()[:8], byteorder="big")
+
+        return int.from_bytes(hash_object.digest(), byteorder="big")
 
 
 def save_checkpoint(
@@ -707,16 +751,19 @@ def save_metadata(
 
 
 def load_checkpoint(
-    output_path: str | AnyPath, metadata: Any, checkpoint_name: str = "checkpoint.json"
+    output_path: Union[str, AnyPath], metadata: Any, checkpoint_name: str = "checkpoint.json"
 ) -> Optional[dict]:
     """
     Load checkpoint if it exists and is valid for any type of metadata.
 
     Arguments
     ---------
-    output_path: Path to the checkpoint
-        metadata: Current metadata to compare against saved checkpoint
-        checkpoint_name: Name of the checkpoint file
+    output_path: Union[str, AnyPath]
+        Path to the checkpoint
+    metadata: Any
+        Current metadata to compare against saved checkpoint
+    checkpoint_name: str
+        Name of the checkpoint file
 
     Returns
     -------
@@ -761,6 +808,7 @@ def create_sharded_dataset(
     save_metadata_as: Optional[str] = None,
     merge_data_and_metadata: bool = False,
     log_every: int = LOG_EVERY,
+    error_handling: str = "warn",
     **sharding_kwargs,
 ) -> pd.DataFrame:
     """
@@ -791,6 +839,8 @@ def create_sharded_dataset(
         shard information with the original data to create a single DataFrame with shard information.
     log_every: int
         Log progress every N samples
+    error_handling: str
+        How to handle errors ("warn", "raise", "ignore")
     sharding_kwargs:
         Additional keyword arguments for the specific shard writer
 
@@ -854,6 +904,7 @@ def create_sharded_dataset(
         sample_prep_function=sample_prep_function,
         output_format=shard_type,
         log_every=log_every,
+        error_handling=error_handling,
         **sharding_kwargs,
     )
 
