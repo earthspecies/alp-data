@@ -63,6 +63,7 @@ def write_webdataset_shard(
     sample_prep_function: Optional[Callable] = None,
     log_every: int = LOG_EVERY,
     error_handling: str = "warn",
+    shard_name: str = "shard",
 ) -> dict:
     """
     Write a batch of samples to a WebDataset shard.
@@ -84,7 +85,9 @@ def write_webdataset_shard(
 
     Returns
     -------
-        Dictionary with processing results
+        dict: Dictionary with processing results. Contains "processed_ids" and "failed_ids".
+            "processed_ids" is a list of dicts, each containing the sample ID, shard ID, and shard path.
+            "failed_ids" is a list of sample IDs that failed processing.
 
     Example
     -------
@@ -101,7 +104,7 @@ def write_webdataset_shard(
 
     # Create shard path
     output_path = AnyPath(output_path)
-    shard_path = output_path / f"shard_%s{shard_id:05d}.tar"  # one 0 added by the ShardWriter class
+    shard_path = output_path / f"{shard_name}_%s{shard_id:05d}.tar"  # one 0 added by the ShardWriter class
 
     # Initialize shard writer
     sink = wds.ShardWriter(
@@ -136,7 +139,7 @@ def write_webdataset_shard(
             sink.write(sample)
 
             # Track successful sample
-            results["processed_ids"].append(sample_id)
+            results["processed_ids"].append({"id": sample_id, "shard_id": shard_id, "shard_path": shard_path})
 
         except Exception as e:
             results["failed_ids"].append(sample_id)
@@ -146,7 +149,6 @@ def write_webdataset_shard(
         j += 1
 
     sink.close()
-
     logger.info(
         f"Finished shard {shard_id:06d} - Processed: {len(results['processed_ids'])}, Failed: {len(results['failed_ids'])}"
     )
@@ -352,6 +354,7 @@ def write_arrow_shard(
     log_every: int = LOG_EVERY,
     writer_batch_size: int = WRITER_BATCH_SIZE,
     error_handling: str = "warn",
+    shard_name: str = "shard",
 ) -> dict:
     """Write a batch of samples to an Arrow/Parquet shard iteratively, processing samples as they come in.
 
@@ -376,7 +379,9 @@ def write_arrow_shard(
 
     Returns
     -------
-        dict: Dictionary with processing results
+        dict: Dictionary with processing results. Contains "processed_ids" and "failed_ids".
+            "processed_ids" is a list of dicts, each containing the sample ID, shard ID, and shard path.
+            "failed_ids" is a list of sample IDs that failed processing.
 
     Example
     -------
@@ -423,7 +428,7 @@ def write_arrow_shard(
                 writer = create_iterative_writer(shard_path, shard_data, format=format)
 
             current_batch.append(shard_data)
-            results["processed_ids"].append(sample_id)
+            results["processed_ids"].append({"id": sample_id, "shard_id": shard_id, "shard_path": shard_path})
 
             # Write batch if we've reached batch size
             if len(current_batch) == writer_batch_size:
@@ -460,6 +465,7 @@ def write_huggingface_shard(
     num_proc: int = 1,
     log_every: int = LOG_EVERY,
     error_handling: str = "warn",
+    shard_name: str = "shard",
 ) -> dict:
     """
     Write a batch of samples to an Arrow shard in the Hugging Face format using a generator.
@@ -485,7 +491,9 @@ def write_huggingface_shard(
 
     Returns
     -------
-        dict: Dictionary with processing results
+        dict: Dictionary with processing results. Contains "processed_ids" and "failed_ids".
+            "processed_ids" is a list of dicts, each containing the sample ID, shard ID, and shard path.
+            "failed_ids" is a list of sample IDs that failed processing.
 
     Example
     -------
@@ -507,7 +515,7 @@ def write_huggingface_shard(
 
     # Create shard path
     output_path = AnyPath(output_path)
-    shard_path = output_path / (f"shard_{shard_id:06d}")
+    shard_path = output_path / (f"{shard_name}_{shard_id:06d}")
     storage_options = make_storage_options(output_path) if storage_options is None else storage_options
 
     # Process the data using generator for memory efficiency
@@ -533,7 +541,7 @@ def write_huggingface_shard(
             # Prepare the sample
             prepared_sample = sample_prep_function(item) if sample_prep_function else item
             prepared_samples.append(prepared_sample)
-            results["processed_ids"].append(sample_id)
+            results["processed_ids"].append({"id": sample_id, "shard_id": shard_id, "shard_path": shard_path})
 
         except Exception as e:
             results["failed_ids"].append(sample_id)
@@ -548,7 +556,7 @@ def write_huggingface_shard(
 
     # Move the arrow file to the final location
     arrow_file = F.list_files(shard_path, pattern="*.arrow")[0]
-    F.move_file(arrow_file, output_path / (f"shard_{shard_id:06d}.arrow"))
+    F.move_file(arrow_file, output_path / (f"{shard_name}_{shard_id:06d}.arrow"))
     F.delete_dir(shard_path)
 
     logger.info(
@@ -655,7 +663,7 @@ def compute_metadata_hash(metadata: Union[pd.DataFrame, List[dict], dict, Any]) 
         >>> assert isinstance(value, int)
     """
     if isinstance(metadata, pd.DataFrame):
-        metadata = metadata.to_dict(orient="records")
+        metadata = metadata.to_dict()
 
     try:
         metadata_str = json.dumps(metadata, sort_keys=True)
@@ -970,21 +978,6 @@ def create_sharded_dataset(
                 )
                 pbar_shards.update(1)
 
-    # Create DataFrame with shard information
-    shard_info_df = pd.DataFrame(processed_samples)
-
-    if merge_data_and_metadata and len(shard_info_df) > 0:
-        # Merge shard information with original metadata
-        metadata_df = pd.DataFrame(data) if not isinstance(data, pd.DataFrame) else data
-        metadata_df = metadata_df.merge(shard_info_df[["id", "shard_path", "shard_id"]], on="id", how="left")
-    else:
-        metadata_df = shard_info_df
-
-    # Save updated metadata if requested
-    if save_metadata_as and len(metadata_df) > 0:
-        storage_options = make_storage_options(output_path)
-        save_metadata(metadata_df, output_path / save_metadata_as, storage_options)
-
     # Save dataset configuration
     if not dataset_config:
         logger.warning("No dataset config provided. Creating skeleton config..")
@@ -992,6 +985,21 @@ def create_sharded_dataset(
 
     dataset_config.write_json(output_path / "dataset_config.json")
     dataset_config.generate_readme(output_path / "README.md")
+
+    # Create DataFrame with shard information
+    shard_info_df = pd.DataFrame(processed_samples, columns=["id", "shard_path", "shard_id"])
+
+    if merge_data_and_metadata and len(shard_info_df) > 0:
+        # Merge shard information with original metadata
+        metadata_df = pd.DataFrame(data) if not isinstance(data, pd.DataFrame) else data
+        metadata_df = metadata_df.merge(shard_info_df, on="id", how="left")
+    else:
+        metadata_df = shard_info_df
+
+    # Save updated metadata if requested
+    if save_metadata_as and len(metadata_df) > 0:
+        storage_options = make_storage_options(output_path)
+        save_metadata(metadata_df, output_path / save_metadata_as, storage_options)
 
     # Report final statistics
     all_successful = sum(len(chunk.get("processed_ids", [])) for chunk in completed_chunks.values())
