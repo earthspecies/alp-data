@@ -67,7 +67,8 @@ def main():
         output_df = pd.read_json(args.output_path, orient="records", lines=True)
         print(f"Resumed from {args.output_path} with {len(output_df)} samples.")
         start = len(output_df)
-    except FileNotFoundError:
+    except Exception as e:
+        print(e)
         start = 0
         print("Starting from scratch.")
 
