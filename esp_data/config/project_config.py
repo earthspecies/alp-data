@@ -1,3 +1,5 @@
+from pydantic import BaseModel
+
 REQUIRED_DATASAMPLE_FIELDS = [
     "id",
     "source_dataset",
@@ -21,18 +23,20 @@ DEFAULT_FLOAT_TYPE = "float32"  # TODO: DISCUSS THIS!
 
 
 ### WEB DATASET LOADER PARAMS ###
-WEBDS_DEFAULT_CFG = dict(
-    load_metadata=True,
-    metadata_df=None,
-    file_pattern="shard_*.tar",
-    storage_options=None,
-    metadata_path=None,
-    data_processor=None,
-    shuffle_size=1000,
-    seed=0,
-    shard_shuffle=True,
-    shard_shuffle_size=1000,
-    batch_size=None,
-    batch_collate_fn=None,
-    split_by_worker=False,
-)
+class WebDsLoaderConfig(BaseModel):
+    load_metadata: bool = True
+    metadata_df: str = None
+    file_pattern: str = "shard_*.tar"
+    storage_options: str = None
+    metadata_path: str = None
+    data_processor: str = None
+    shuffle_size: int = None
+    seed: int = 0
+    shard_shuffle: bool = False
+    shard_shuffle_size: int = 1000
+    batch_size: int = None
+    batch_collate_fn: str = None
+    split_by_worker: bool = False
+
+
+webds_loader_config = WebDsLoaderConfig()

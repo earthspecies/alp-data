@@ -7,7 +7,7 @@ import webdataset as wds
 
 import esp_data.file_io.functional as F
 from esp_data.config import DatasetConfig
-from esp_data.config.project_config import WEBDS_DEFAULT_CFG
+from esp_data.config.project_config import webds_loader_config
 from esp_data.paths import AnyPath
 from esp_data.utils import make_simple_logger
 
@@ -28,7 +28,7 @@ def load_dataset(
     split_by_worker: bool = False,
     batch_collate_fn: Callable = None,
     seed: int | bool | None = True,
-):
+) -> wds.WebDataset:
     """Create a pipeline for loading the dataset
 
     Args:
@@ -148,21 +148,42 @@ def get_batch(
 class WebDataset(BaseMapDataset, BaseIterableDataset):
     """Class for loading and accessing a tar file based dataset.
 
-    Args:
-        path (str): Path to the directory where the sharded dataset will be stored or is already stored.
-        dataset_config (DatasetConfig, optional): DatasetConfig object. Defaults to None.
+    Arguments
+    ---------
+    path: str | AnyPath:
+            Path to the directory where the sharded dataset will be stored or is already stored.
+    dataset_config: DatasetConfig, optional
+        DatasetConfig object. Defaults to None.
             If not provided, will try to load from disk. If not found, will create a skeleton config.
-        ds (wds.WebDataset, optional): WebDataset object. Defaults to None. If provided, will be used instead of loading from disk.
-        load_metadata (bool, optional): Whether to load metadata from disk. Defaults to True.
-        metadata_df (pd.DataFrame, optional): Optional metadata DataFrame, if not provided will be read from disk. Defaults to None.
-        file_pattern (str, optional): Pattern to match the shard files. Defaults to "shard_*.tar".
-        shard_size (int, optional): Number of samples per shard. Defaults to 1000.
-        num_workers (int, optional): Number of workers for parallel processing. Defaults to 4.
-        batch_size (int, optional): Batch size for processing audio files. Defaults to 100.
-        metadata_path (str): Path to the metadata file, if different from web_dataset_path. Defaults to None.
-        sample_prep_function (Callable, optional): Function to prepare a sample for sharding. Defaults to None.
-        shuffle_size (int, optional): Size of the shuffle buffer. Defaults to 1000.
-        storage_options (dict, optional): Storage options for reading and writing files from buckets. Defaults to None.
+    ds: wds.WebDataset, optional
+        WebDataset object. Defaults to None. If provided, will be used instead of loading from disk.
+    load_metadata: bool, optional
+        Whether to load metadata from disk.
+    metadata_df: pd.DataFrame, optional
+        Optional metadata DataFrame, if not provided will be read from disk.
+    data_processor: Callable, optional
+        Function to process the data. Otherwise, the data returned will be a dict with bytes as values.
+    file_pattern: str, optional
+        Pattern to match the shard files.
+    num_workers: int, optional
+        Number of workers for parallel processing.
+    metadata_path: str | AnyPath, optional
+        Path to the metadata file, if different from web_dataset_path.
+    shuffle_size: int, optional
+        Size of the shuffle buffer.
+    storage_options: dict, optional
+        Storage options for reading and writing files from buckets.
+    shard_shuffle: bool, optional
+        Whether to shuffle the shards. Defaults to False.
+    shard_shuffle_size (int, optional):
+        Size of the shuffle buffer for shards.
+    batch_size (int, optional):
+        Batch size for processing audio files.
+    batch_collate_fn (Callable, optional):
+        Function to collate the batch.
+    split_by_worker (bool, optional):
+        Whether to split the dataset by worker.
+    seed (int, optional): Seed for shuffling. Defaults to 0.
 
     """
 
@@ -171,19 +192,19 @@ class WebDataset(BaseMapDataset, BaseIterableDataset):
         path: str | AnyPath | None = None,
         dataset_config: DatasetConfig | None = None,
         ds: wds.WebDataset = None,
-        load_metadata: bool = WEBDS_DEFAULT_CFG["load_metadata"],
-        metadata_df: pd.DataFrame = WEBDS_DEFAULT_CFG["metadata_df"],
-        file_pattern: str = WEBDS_DEFAULT_CFG["file_pattern"],
-        storage_options: dict = WEBDS_DEFAULT_CFG["storage_options"],
-        metadata_path: str | None = WEBDS_DEFAULT_CFG["metadata_path"],
-        data_processor: Callable = WEBDS_DEFAULT_CFG["data_processor"],
-        shuffle_size: int = WEBDS_DEFAULT_CFG["shuffle_size"],
-        shard_shuffle: bool = WEBDS_DEFAULT_CFG["shard_shuffle"],
-        shard_shuffle_size: int = WEBDS_DEFAULT_CFG["shard_shuffle_size"],
-        batch_size: int | None = WEBDS_DEFAULT_CFG["batch_size"],
-        batch_collate_fn: Callable = WEBDS_DEFAULT_CFG["batch_collate_fn"],
-        split_by_worker: bool = WEBDS_DEFAULT_CFG["split_by_worker"],
-        seed: int | bool | None = WEBDS_DEFAULT_CFG["seed"],
+        load_metadata: bool = webds_loader_config.load_metadata,
+        metadata_df: pd.DataFrame | None = webds_loader_config.metadata_df,
+        file_pattern: str = webds_loader_config.file_pattern,
+        storage_options: dict | None = webds_loader_config.storage_options,
+        metadata_path: str | None = webds_loader_config.metadata_path,
+        data_processor: Callable = webds_loader_config.data_processor,
+        shuffle_size: int = webds_loader_config.shuffle_size,
+        shard_shuffle: bool = webds_loader_config.shard_shuffle,
+        shard_shuffle_size: int = webds_loader_config.shard_shuffle_size,
+        batch_size: int | None = webds_loader_config.batch_size,
+        batch_collate_fn: Callable = webds_loader_config.batch_collate_fn,
+        split_by_worker: bool = webds_loader_config.split_by_worker,
+        seed: int | bool | None = webds_loader_config.seed,
     ):
         assert not (path is None and ds is None), "One of path or ds should be provided"
         self.path = AnyPath(path)
@@ -202,9 +223,12 @@ class WebDataset(BaseMapDataset, BaseIterableDataset):
                 self.metadata_df = pd.read_csv(
                     str(self.metadata_path / "metadata.csv"), storage_options=storage_options
                 )
-            elif (self.metadata_path / "metadata.json").exists():
+            elif (self.metadata_path / "metadata.jsonl").exists():
                 self.metadata_df = pd.read_json(
-                    str(self.metadata_path / "metadata.json"), storage_options=storage_options
+                    str(self.metadata_path / "metadata.jsonl"),
+                    storage_options=storage_options,
+                    lines=True,
+                    orient="records",
                 )
             else:
                 logger.warning(

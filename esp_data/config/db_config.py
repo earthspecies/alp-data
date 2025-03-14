@@ -6,8 +6,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Optional
 
-from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, field_validator
-from typing_extensions import Annotated
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from esp_data.file_io.functional import open_file
 
@@ -18,7 +17,6 @@ from ..utils import (
     utc_now_str,
     validate_datetime,
     validate_id,
-    validate_path_exists,
     validate_version,
 )
 
@@ -31,7 +29,7 @@ class LicenseEnum(str, Enum):
     CC_BY_NC_4_0 = "CC-BY-NC-4.0"
     CC_BY_NC_SA_4_0 = "CC-BY-NC-SA-4.0"
     CC_BY_NC_ND_4_0 = "CC-BY-NC-ND-4.0"
-    UNKNOWN = "UNKNOWN"
+    UNKNOWN = "unknown"
     MIT = "MIT"
     APACHE_2_0 = "Apache-2.0"
 
@@ -39,6 +37,35 @@ class LicenseEnum(str, Enum):
 class DataSample(BaseModel):
     """A Pydantic model for a data sample configuration. A data sample is a single
     row / record in a dataset.
+
+    Arguments
+    ---------
+    source_dataset : str
+        Name of the source dataset. e.g. 'Xeno-canto' or 'esc-50' or 'esc-50v0.1.0'
+    metadata: Optional[dict]
+        Metadata for the data sample, could be an empty dictionary. Must be JSON serializable.
+    id : Optional[str]
+        Unique identifier, will be auto-generated if None
+    created_at : Optional[str]
+        Datetime of creation in UTC timezone, will be auto-generated if None
+    derived_from : Optional[str | list[str]]
+        ID of the parent sample if this is derived, maybe a list of IDs if multiple parents
+    license : Optional[str]
+        License for the data sample, if applicable. For e.g. Xeno-canto can have per recording licenses. Default is 'unknown'
+    version : Optional[str]
+        Version number following semantic versioning, can be left empty but then the dataset version must be provided
+
+    Example
+    -------
+    >>> data = {
+    ...     "source_dataset": "test",
+    ...     "creator": "test",
+    ...     "metadata": {"something": "else"},
+    ...     "version": "0.0.0",
+    ... }
+    >>> sample = DataSample(**data)
+    >>> print(sample.source_dataset)
+
     """
 
     model_config = ConfigDict(arbitrary_types_allowed=True, validate_assignment=True, str_strip_whitespace=True)
@@ -50,10 +77,11 @@ class DataSample(BaseModel):
         min_length=1, description="Name of the source dataset. e.g. 'Xeno-canto' or 'esc-50' or 'esc-50v0.1.0"
     )
 
-    # metadata: Annotated[str, BeforeValidator(validate_json_str)] = Field(description="JSON metadata string")
-    metadata: dict = Field(default_factory=None, description="Metadata for the data sample")
-
     # optional or auto-generated params
+    # DISCUSS: should metadata be optional? Should it be a json string or a dictionary?
+    # metadata: Annotated[str, BeforeValidator(validate_json_str)] = Field(description="JSON metadata string")
+    metadata: dict = Field(default_factory=lambda: {}, description="Metadata for the data sample")
+
     id: str = Field(default_factory=make_id, description="Unique identifier, will be auto-generated if None")
 
     created_at: str = Field(
@@ -66,7 +94,7 @@ class DataSample(BaseModel):
     )
 
     license: Optional[str] = Field(
-        default=None,
+        default=lambda _: LicenseEnum.UNKNOWN,
         description="License for the data sample, if applicable. For e.g. Xeno-canto can have per recording licenses",
     )
 
@@ -80,6 +108,19 @@ class DataSample(BaseModel):
     @classmethod
     def validate_id(cls, v: str) -> str:
         return validate_id(v)
+
+    @field_validator("metadata", mode="after")
+    @classmethod
+    def validate_metadata(cls, v: dict) -> dict:
+        if not isinstance(v, dict):
+            raise ValueError("metadata must be a dictionary")
+        # test if metadata is JSON serializable
+        try:
+            json.dumps(v)
+        except TypeError:
+            raise ValueError("metadata must be JSON serializable")
+
+        return v
 
     @field_validator("derived_from", mode="after")
     @classmethod
@@ -158,6 +199,17 @@ class DataSample(BaseModel):
             d = self.to_dict()
             json.dump(d, f, indent=indent)
 
+    def __str__(self):
+        return f"""# {self.source_dataset}
+        ## ID\n\n{self.id}\n\n
+        ## Created At\n\n{self.created_at}\n\n
+        ## License\n\n{self.license}\n\n
+        ## Version\n\n{self.version}\n\n
+        ## Metadata\n\n{self.metadata}\n\n"""
+
+    def __repr__(self):
+        return f"DataSample(source_dataset={self.source_dataset}, id={self.id}, created_at={self.created_at})"
+
 
 class TextDataSample(DataSample):
     """A Pydantic model for a text data sample configuration. A text data sample is a single
@@ -166,41 +218,6 @@ class TextDataSample(DataSample):
 
     # required params
     text: str = Field(min_length=1, description="Text data represented by this sample")
-
-
-class AudioDataSample(DataSample):
-    """A Pydantic model for an audio data sample configuration. An audio data sample is a single
-    row / record in a dataset that contains audio data.
-    """
-
-    # required params
-    audio_path: Annotated[str, BeforeValidator(validate_path_exists)] = Field(
-        description="Path to audio file represented by this sample, maybe a local path or a cloud path"
-    )
-
-    label: str = Field(min_length=1, description="Label for the audio data")
-
-    # an audio data sample could optionally include a list of floats representing the audio data
-    audio: Optional[list[float]] = Field(
-        default=None, description="List of floats representing the audio data, if available"
-    )
-
-
-class ImageDataSample(DataSample):
-    """A Pydantic model for an image data sample configuration. An image data sample is a single
-    row / record in a dataset that contains image data.
-    """
-
-    # required params
-    image_path: Annotated[str, BeforeValidator(validate_path_exists)] = Field(
-        description="Path to image file represented by this sample, maybe a local path or a cloud path"
-    )
-
-    label: str = Field(min_length=1, description="Label for the image data")
-
-
-# class BatchDataSample(BaseModel):
-#    pass
 
 
 # Dataset Config
