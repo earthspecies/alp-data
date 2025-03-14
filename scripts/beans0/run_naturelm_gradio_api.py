@@ -9,7 +9,7 @@ from tqdm import tqdm
 
 from esp_data.dataset.esp_dataset import load_esp_dataset
 from esp_data.file_io.parsers import read_audio_bytes
-from esp_data.paths import AnyPath
+from esp_data.paths import AnyPath, make_storage_options
 
 
 def data_processor(data: dict):
@@ -26,6 +26,7 @@ def main():
     parser.add_argument("--output_path", type=str, help="The path to the output file.")
     parser.add_argument("--write_every", type=int, default=1, help="The number of samples to write to the output file.")
     parser.add_argument("--batch_size", type=int, default=1, help="The batch size.")
+    parser.add_argument("--resume", action="store_true", help="Resume from the output file.")
     args = parser.parse_args()
 
     path_to_dataset = AnyPath(args.path_to_dataset)
@@ -61,7 +62,19 @@ def main():
 
     output_df = pd.DataFrame(columns=["prediction", "task", "true_label", "instruction"])
 
-    for sample in tqdm(dataset):
+    # try to resume from the output file
+    try:
+        output_df = pd.read_json(args.output_path, orient="records", lines=True)
+        print(f"Resumed from {args.output_path} with {len(output_df)} samples.")
+        start = len(output_df)
+    except FileNotFoundError:
+        start = 0
+        print("Starting from scratch.")
+
+    for i, sample in tqdm(enumerate(dataset), total=len(dataset)):
+        if i < start:
+            continue
+
         prediction, task, label, instruction = predict(sample)
 
         # append to output_df
@@ -69,7 +82,13 @@ def main():
         output_df = pd.concat([output_df, pd.DataFrame([output_dict])], axis=0)
 
         if len(output_df) % args.write_every == 0:
-            output_df.to_json(args.output_path, orient="records", lines=True)
+            output_df.to_json(
+                args.output_path,
+                orient="records",
+                lines=True,
+                storage_options=make_storage_options(args.output_path),
+                mode="a",
+            )
 
 
 if __name__ == "__main__":
