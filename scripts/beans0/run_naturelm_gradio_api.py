@@ -19,6 +19,10 @@ def data_processor(data: dict):
     return {"audio": audio, **metadata}
 
 
+def empty_df():
+    return pd.DataFrame(columns=["prediction", "task", "true_label", "instruction", "file_name", "id"])
+
+
 def main():
     parser = argparse.ArgumentParser(description="Run the NatureLM Gradio API.")
     parser.add_argument("--api_url", type=str, default="http://localhost:7860", help="The URL of the API.")
@@ -60,15 +64,17 @@ def main():
         prediction = response.replace("Batch summary:\n", "").strip()
         prediction = prediction.split(":")[0].strip()
 
-        return prediction, sample["task"], sample["output"], query
+        return prediction, sample["task"], sample["output"], query, sample["file_name"], sample["id"]
 
-    output_df = pd.DataFrame(columns=["prediction", "task", "true_label", "instruction"])
+    output_df = empty_df()
 
     # try to resume from the output file
     try:
         output_df = pd.read_json(args.output_path, orient="records", lines=True)
         print(f"Resumed from {args.output_path} with {len(output_df)} samples.")
         start = len(output_df)
+        output_df = empty_df()
+
     except Exception as e:
         print(e)
         start = 0
@@ -78,10 +84,17 @@ def main():
         if i < start:
             continue
 
-        prediction, task, label, instruction = predict(sample)
+        prediction, task, label, instruction, fname, id = predict(sample)
 
         # append to output_df
-        output_dict = {"prediction": prediction, "task": task, "true_label": label, "instruction": instruction}
+        output_dict = {
+            "prediction": prediction,
+            "task": task,
+            "true_label": label,
+            "instruction": instruction,
+            "file_name": fname,
+            "id": id,
+        }
         output_df = pd.concat([output_df, pd.DataFrame([output_dict])], axis=0)
 
         if len(output_df) % args.write_every == 0:
@@ -92,8 +105,7 @@ def main():
                 storage_options=make_storage_options(args.output_path),
                 mode="a",
             )
-            print(f"Saved {len(output_df)} samples to {args.output_path}.")
-            output_df = pd.DataFrame(columns=["prediction", "task", "true_label", "instruction"])
+            output_df = empty_df()
 
 
 if __name__ == "__main__":

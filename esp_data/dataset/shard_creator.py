@@ -535,7 +535,7 @@ def write_huggingface_shard(
         sample_id = str(item.get("id", make_id()))
 
         if (j + 1) % log_every == 0:
-            logger.info(f"Processing sample {j}/{total_samples} (id: {sample_id})")
+            logger.info(f"Shard {shard_id:06d} - Processing sample {j}/{total_samples} (id: {sample_id})")
 
         try:
             # Prepare the sample
