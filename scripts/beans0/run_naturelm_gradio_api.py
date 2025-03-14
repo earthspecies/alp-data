@@ -24,7 +24,9 @@ def main():
     parser.add_argument("--api_url", type=str, default="http://localhost:7860", help="The URL of the API.")
     parser.add_argument("--path_to_dataset", type=str, help="The path to the dataset.")
     parser.add_argument("--output_path", type=str, help="The path to the output file.")
-    parser.add_argument("--write_every", type=int, default=1, help="The number of samples to write to the output file.")
+    parser.add_argument(
+        "--write_every", type=int, default=10, help="The number of samples to write to the output file."
+    )
     parser.add_argument("--batch_size", type=int, default=1, help="The batch size.")
     parser.add_argument("--resume", action="store_true", help="Resume from the output file.")
     args = parser.parse_args()
@@ -90,6 +92,8 @@ def main():
                 storage_options=make_storage_options(args.output_path),
                 mode="a",
             )
+            print(f"Saved {len(output_df)} samples to {args.output_path}.")
+            output_df = pd.DataFrame(columns=["prediction", "task", "true_label", "instruction"])
 
 
 if __name__ == "__main__":
