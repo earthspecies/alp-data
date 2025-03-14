@@ -55,6 +55,8 @@ def main():
 
         # respones is like f"Batch summary:\n{batch_summary}\n\n"
         prediction = response.replace("Batch summary:\n", "").strip()
+        prediction = prediction.split(":")[0].strip()
+
         return prediction, sample["task"], sample["output"], query
 
     output_df = pd.DataFrame(columns=["prediction", "task", "true_label", "instruction"])
@@ -67,7 +69,7 @@ def main():
         output_df = pd.concat([output_df, pd.DataFrame([output_dict])], axis=0)
 
         if len(output_df) % args.write_every == 0:
-            output_df.to_csv(args.output_path, index=False)
+            output_df.to_json(args.output_path, orient="records", lines=True)
 
 
 if __name__ == "__main__":
