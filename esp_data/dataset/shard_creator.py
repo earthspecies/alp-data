@@ -21,13 +21,13 @@ from tqdm.auto import tqdm
 
 import esp_data.file_io.functional as F
 from esp_data.config import DatasetConfig
-from esp_data.config.project_config import DEFAULT_FLOAT_TYPE, LOG_EVERY, WRITER_BATCH_SIZE
+from esp_data.config.project_config import default_shard_creator_cfg
 from esp_data.paths import AnyPath, make_storage_options
 from esp_data.utils import make_id, make_simple_logger
 
 from .utils import _make_file_opener
 
-logger = make_simple_logger("shard_creator")
+logger = make_simple_logger(__name__)
 
 # Initialize colorama for cross-platform colored terminal output
 colorama.init()
@@ -43,7 +43,9 @@ RESET_COLOR = Style.RESET_ALL
 SHARD_TYPES = ["webdataset", "arrow", "parquet", "hf"]
 
 
-def _error_handler(e: Exception, sample_id: str, error_handling: str = "warn") -> None:
+def _error_handler(
+    e: Exception, sample_id: str, error_handling: str = default_shard_creator_cfg.error_handling
+) -> None:
     """Handle errors during sample processing."""
     if error_handling == "warn":
         logger.error(f"Error processing sample {sample_id}: {e}")
@@ -61,9 +63,9 @@ def write_webdataset_shard(
     shard_id: int,
     output_path: Union[str, AnyPath],
     sample_prep_function: Optional[Callable] = None,
-    log_every: int = LOG_EVERY,
-    error_handling: str = "warn",
-    shard_name: str = "shard",
+    log_every: int = default_shard_creator_cfg.log_every,
+    error_handling: str = default_shard_creator_cfg.error_handling,
+    shard_name: str = default_shard_creator_cfg.shard_name,
 ) -> dict:
     """
     Write a batch of samples to a WebDataset shard.
@@ -143,7 +145,6 @@ def write_webdataset_shard(
 
         except Exception as e:
             results["failed_ids"].append(sample_id)
-
             _error_handler(e, sample_id, error_handling)
 
         j += 1
@@ -156,7 +157,9 @@ def write_webdataset_shard(
     return results
 
 
-def determine_pa_field_type(value: Any, default_float_type: str = DEFAULT_FLOAT_TYPE) -> pa.DataType:
+def determine_pa_field_type(
+    value: Any, default_float_type: str = default_shard_creator_cfg.pyarrow_default_float_type
+) -> pa.DataType:
     """
     Determine the appropriate PyArrow data type for a given value.
 
@@ -238,7 +241,9 @@ def determine_pa_field_type(value: Any, default_float_type: str = DEFAULT_FLOAT_
     return field_type
 
 
-def infer_schema_from_sample(sample: dict[str, Any], default_float_type: str = DEFAULT_FLOAT_TYPE) -> pa.Schema:
+def infer_schema_from_sample(
+    sample: dict[str, Any], default_float_type: str = default_shard_creator_cfg.pyarrow_default_float_type
+) -> pa.Schema:
     """Infer a PyArrow schema from a sample dictionary.
 
     Arguments
@@ -269,7 +274,10 @@ def infer_schema_from_sample(sample: dict[str, Any], default_float_type: str = D
 
 
 def create_iterative_writer(
-    path: Union[str, AnyPath], sample: dict, format: str = "parquet", default_float_type: str = DEFAULT_FLOAT_TYPE
+    path: Union[str, AnyPath],
+    sample: dict,
+    format: str = default_shard_creator_cfg.pyarrow_shard_type,
+    default_float_type: str = default_shard_creator_cfg.pyarrow_default_float_type,
 ) -> Union[pq.ParquetWriter, pa.ipc.RecordBatchFileWriter]:
     """Create an iterative writer for Parquet or Arrow formats based on a sample.
 
@@ -350,11 +358,11 @@ def write_arrow_shard(
     shard_id: int,
     output_path: Union[str, AnyPath],
     sample_prep_function: Optional[Callable] = None,
-    format: str = "parquet",
-    log_every: int = LOG_EVERY,
-    writer_batch_size: int = WRITER_BATCH_SIZE,
-    error_handling: str = "warn",
-    shard_name: str = "shard",
+    format: str = default_shard_creator_cfg.pyarrow_shard_type,
+    log_every: int = default_shard_creator_cfg.log_every,
+    writer_batch_size: int = default_shard_creator_cfg.pyarrow_writer_batch_size,
+    error_handling: str = default_shard_creator_cfg.error_handling,
+    shard_name: str = default_shard_creator_cfg.shard_name,
 ) -> dict:
     """Write a batch of samples to an Arrow/Parquet shard iteratively, processing samples as they come in.
 
@@ -398,7 +406,7 @@ def write_arrow_shard(
 
     # Create shard path
     output_path = AnyPath(output_path)
-    shard_path = output_path / (f"shard_{shard_id:06d}.{format}")
+    shard_path = output_path / (f"{shard_name}_{shard_id:06d}.{format}")
 
     # Process batch data
     iterator = batch.iterrows() if isinstance(batch, pd.DataFrame) else enumerate(batch)
@@ -462,10 +470,9 @@ def write_huggingface_shard(
     output_path: Union[str, AnyPath],
     sample_prep_function: Optional[Callable] = None,
     storage_options: Optional[dict] = None,
-    num_proc: int = 1,
-    log_every: int = LOG_EVERY,
-    error_handling: str = "warn",
-    shard_name: str = "shard",
+    log_every: int = default_shard_creator_cfg.log_every,
+    error_handling: str = default_shard_creator_cfg.error_handling,
+    shard_name: str = default_shard_creator_cfg.shard_name,
 ) -> dict:
     """
     Write a batch of samples to an Arrow shard in the Hugging Face format using a generator.
@@ -482,8 +489,6 @@ def write_huggingface_shard(
         Function to prepare a sample for dataset Arrow format
     storage_options: Optional[dict]
         Optional storage options for saving the dataset
-    num_proc: int
-        Number of processes to use for saving the dataset
     log_every: int
         Log progress every N samples
     error_handling: str
@@ -552,7 +557,7 @@ def write_huggingface_shard(
     ds = Dataset.from_list(prepared_samples)
 
     # Save dataset
-    ds.save_to_disk(shard_path, storage_options=storage_options, num_proc=num_proc, num_shards=1)
+    ds.save_to_disk(shard_path, storage_options=storage_options, num_proc=1, num_shards=1)
 
     # Move the arrow file to the final location
     arrow_file = F.list_files(shard_path, pattern="*.arrow")[0]
@@ -570,10 +575,10 @@ def write_shard(
     batch: Union[List[dict], pd.DataFrame, pd.Series],
     shard_id: int,
     output_path: Union[str, AnyPath],
+    output_format: str,
     sample_prep_function: Optional[Callable] = None,
-    output_format: str = "webdataset",
-    log_every: int = LOG_EVERY,
-    error_handling: str = "warn",
+    log_every: int = default_shard_creator_cfg.log_every,
+    error_handling: str = default_shard_creator_cfg.error_handling,
     **kwargs,
 ) -> dict:
     """
@@ -808,15 +813,15 @@ def load_checkpoint(
 def create_sharded_dataset(
     data: Union[pd.DataFrame, Iterable[dict]],
     output_path: Union[str, AnyPath],
-    sample_prep_function: Callable,
-    num_samples_per_shard: int = 1000,
-    num_workers: int = 1,
-    shard_type: str = "arrow",
+    sample_prep_function: Optional[Callable] = None,
     dataset_config: DatasetConfig = None,
     save_metadata_as: Optional[str] = None,
     merge_data_and_metadata: bool = False,
-    log_every: int = LOG_EVERY,
-    error_handling: str = "warn",
+    num_samples_per_shard: int = default_shard_creator_cfg.num_samples_per_shard,
+    num_workers: int = default_shard_creator_cfg.num_workers,
+    shard_type: str = default_shard_creator_cfg.shard_type,
+    log_every: int = default_shard_creator_cfg.log_every,
+    error_handling: str = default_shard_creator_cfg.error_handling,
     **sharding_kwargs,
 ) -> pd.DataFrame:
     """

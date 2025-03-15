@@ -11,13 +11,17 @@ DATASET_TYPES = ["pandas", "webdataset"] + HF_DATASET_TYPES
 def load_esp_dataset(dataset_type: str, path: str | AnyPath, **kwargs):
     f"""A function to load different types of datasets.
 
-    Args:
-        dataset_type (str): The type of dataset to load.
-            one of {DATASET_TYPES}
-        path (str | AnyPath): The path to the dataset.
-        **kwargs: Additional keyword arguments to pass to the loading function.
+    Arguments
+    ---------
+    dataset_type: str
+        The type of dataset to load, one of {DATASET_TYPES}
+    path: str | AnyPath
+        The path to the dataset.
+    **kwargs:
+        Additional keyword arguments to pass to the loading function.
 
-    Returns:
+    Returns
+    -------
         pd.DataFrame | WebDataset | HFDataset: The loaded dataset.
     """
     if dataset_type not in DATASET_TYPES:

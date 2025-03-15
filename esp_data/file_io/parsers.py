@@ -14,7 +14,7 @@ UNCOMPRESSED_AUDIO_FORMATS = ["wav", "flac", "ogg"]
 COMPRESSED_AUDIO_FORMATS = ["mp3"]
 
 
-logger = make_simple_logger("parsers")
+logger = make_simple_logger(__name__)
 
 
 def read_audio_from_bytes_sf(audio_bytes: bytes) -> tuple[np.ndarray, int]:

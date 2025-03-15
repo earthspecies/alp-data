@@ -1,65 +1,12 @@
-"""NO QA!
+"""
 Module for defining and applying data transformation pipelines
-
-Example:
-# Define a pipeline
-transforms = [
-    {
-        "module_path": "myproject.transforms.normalize",
-        "function_name": "normalize_data",
-        "parameters": {"mean": 0, "std": 1}
-    },
-    {
-        "module_path": "myproject.transforms.augment",
-        "function_name": "add_noise",
-        "parameters": {"noise_level": 0.1}
-    }
-]
-
-pipeline = create_pipeline(
-    transforms=transforms,
-    name="normalize_and_augment",
-    description="Normalizes data and adds noise",
-    git_repo_path="/path/to/repo"
-)
-
-# Save pipeline configuration
-pipeline.save("pipeline_config.json")
-
-# Load and use pipeline
-loaded_pipeline = TransformPipeline.load("pipeline_config.json")
-transformed_data = loaded_pipeline.apply(data)
-
-# The saved JSON will look something like this:
-{
-  "name": "normalize_and_augment",
-  "description": "Normalizes data and adds noise",
-  "created_at": "2025-02-04T10:30:00",
-  "git_commit": "abc123...",
-  "git_repo_path": "/path/to/repo",
-  "steps": [
-    {
-      "module_path": "myproject.transforms.normalize",
-      "function_name": "normalize_data",
-      "parameters": {"mean": 0, "std": 1},
-      "version": "1.2.3"
-    },
-    {
-      "module_path": "myproject.transforms.augment",
-      "function_name": "add_noise",
-      "parameters": {"noise_level": 0.1},
-      "version": "0.5.0"
-    }
-  ]
-}
-
 """
 
 import importlib
 import inspect
 import json
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, List, Optional, Union
+from typing import Any, Callable, Dict, List, Optional
 
 import git
 import pkg_resources
@@ -67,7 +14,7 @@ import pkg_resources
 from esp_data.paths import AnyPath
 from esp_data.utils import make_simple_logger, utc_now_str
 
-logger = make_simple_logger("esp_data.transforms")
+logger = make_simple_logger(__name__)
 
 
 @dataclass
@@ -269,6 +216,12 @@ class TransformPipeline:
             "description": self.description,
         }
 
+    @classmethod
+    def from_dict(cls, data):
+        """Create a pipeline from a dictionary"""
+        steps = [TransformStep.from_dict(step) for step in data["steps"]]
+        return cls(steps=steps, name=data["name"], git_repo_path=data["git_repo_path"])
+
     def save(self, path: str | AnyPath) -> None:
         with AnyPath(path).open("w") as f:
             json.dump(self.to_dict(), f, indent=2)
@@ -277,34 +230,19 @@ class TransformPipeline:
     def load(cls, path: str | AnyPath) -> "TransformPipeline":
         with AnyPath(path).open("r") as f:
             data = json.load(f)
-            # Convert steps back to TransformStep objects
-            data["steps"] = [TransformStep(**step) for step in data["steps"]]
-            return cls(**data)
+        return cls.from_dict(data)
 
     def __call__(self, *data) -> Any:
         """Apply all transformation steps in sequence"""
         result = data
         for step in self.steps:
             transform_fn = step.get_transform_function()
-            result = transform_fn(result, **step.parameters)
+            if isinstance(result, tuple):
+                result = transform_fn(*result, **step.parameters)
+            else:
+                result = transform_fn(result, **step.parameters)
+
         return result
-
-
-def create_pipeline(
-    transforms: List[Union[dict, TransformStep]],
-    name: str,
-    description: Optional[str] = None,
-    git_repo_path: Optional[str] = None,
-) -> TransformPipeline:
-    """Helper function to create a pipeline from a list of transform configurations"""
-    steps = []
-    for t in transforms:
-        if isinstance(t, dict):
-            steps.append(TransformStep(**t))
-        else:
-            steps.append(t)
-
-    return TransformPipeline(steps=steps, name=name, description=description, git_repo_path=git_repo_path)
 
 
 ### TEST FUNCTIONS ###

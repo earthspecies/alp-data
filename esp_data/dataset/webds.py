@@ -1,47 +1,79 @@
 import json
 from functools import partial
-from typing import Any, Callable, Generator, Literal
+from typing import Any, Callable, Generator, Literal, Union
 
 import pandas as pd
 import webdataset as wds
 
 import esp_data.file_io.functional as F
 from esp_data.config import DatasetConfig
-from esp_data.config.project_config import webds_loader_config
+from esp_data.config.project_config import default_webds_loader_cfg
 from esp_data.paths import AnyPath
 from esp_data.utils import make_simple_logger
 
 from .base import BaseIterableDataset, BaseMapDataset
 from .shard_creator import write_webdataset_shard
 
-logger = make_simple_logger("web_dataset")
+logger = make_simple_logger(__name__)
 
 
 def load_dataset(
-    path: str | AnyPath,
-    file_pattern: str = "shard_*.tar",
-    data_processor: Callable = None,
-    shuffle_size: int | None = None,
-    batch_size: int | None = None,
-    shard_shuffle: bool = False,
-    shard_shuffle_size: int = 1000,
-    split_by_worker: bool = False,
-    batch_collate_fn: Callable = None,
-    seed: int | bool | None = True,
+    path: Union[str, AnyPath],
+    file_pattern: str = default_webds_loader_cfg.file_pattern,
+    data_processor: Callable = default_webds_loader_cfg.data_processor,
+    shuffle_size: int | None = default_webds_loader_cfg.shuffle_size,
+    batch_size: int | None = default_webds_loader_cfg.batch_size,
+    shard_shuffle: bool = default_webds_loader_cfg.shard_shuffle,
+    shard_shuffle_size: int = default_webds_loader_cfg.shard_shuffle_size,
+    split_by_worker: bool = default_webds_loader_cfg.split_by_worker,
+    batch_collate_fn: Callable = default_webds_loader_cfg.batch_collate_fn,
+    seed: int | bool | None = default_webds_loader_cfg.seed,
 ) -> wds.WebDataset:
     """Create a pipeline for loading the dataset
 
-    Args:
-        path (str | AnyPath): Path to the dataset
-        file_pattern (str, optional): Pattern to match the shard files. Defaults to "shard_*.tar".
-        data_processor (Callable, optional): Function to process the data. Defaults to None.
-        shuffle_size (int, optional): Size of the shuffle buffer. Defaults to 1000.
-        batch_size (int, optional): Batch size for processing audio files. Defaults to None.
-        shard_shuffle (bool, optional): Whether to shuffle the shards. Defaults to False.
-        shard_shuffle_size (int, optional): Size of the shuffle buffer for shards. Defaults to 1000.
-        split_by_worker (bool, optional): Whether to split the dataset by worker. Defaults to False.
-        batch_collate_fn (Callable, optional): Function to collate the batch. Defaults to None.
-        seed (int, optional): Seed for shuffling. Defaults to True, random seed. If None, means no shuffling!
+    Arguments
+    ---------
+    path: str | AnyPath
+            Path to the directory where the sharded dataset will be stored or is already stored.
+    file_pattern: str, optional
+        Pattern to match the shard files.
+    data_processor: Callable, optional
+        Function to process the data.
+    shuffle_size: int, optional
+        Size of the shuffle buffer.
+    batch_size: int, optional
+        Batch size for processing audio files.
+    shard_shuffle: bool, optional
+        Whether to shuffle the shards.
+    shard_shuffle_size: int, optional
+        Size of the shuffle buffer for shards.
+    split_by_worker: bool, optional
+        Whether to split the dataset by worker.
+    batch_collate_fn: Callable, optional
+        Function to collate the batch.
+    seed Union[int, bool, None]:
+        Seed for shuffling. Defaults to True, random seed. If None, means no shuffling!
+
+    Returns
+    -------
+        wds.WebDataset: WebDataset object
+
+    Examples
+    --------
+    >>> from esp_data.dataset.webds import load_dataset
+    >>> from pathlib import Path
+    >>> path = Path("/tmp/tmp_webdss/shard_0.tar").make_dir(parents=True, exist_ok=True).write_bytes(b"hello")
+    >>> ds = load_dataset(
+    ...     path="/tmp/tmp_webdss",
+    ...     data_processor=lambda x: x,
+    ...     shuffle_size=1000,
+    ...     batch_size=32,
+    ...     shard_shuffle=True,
+    ...     shard_shuffle_size=1000,
+    ...     split_by_worker=True,
+    ...     seed=42,
+    ... )
+
     """
     path = AnyPath(path)
     shard_files = F.list_files(path, pattern=file_pattern)
@@ -68,6 +100,7 @@ def load_dataset(
 
     return webds
 
+    # DATA PIPELINE APPROACH
     # operations = [wds.SimpleShardList(shard_files, seed)]
     # if shard_shuffle:
     #     operations.append(wds.shuffle(shard_shuffle_size))
@@ -95,13 +128,19 @@ def get_item_from_dataset(
 ) -> dict[str, dict[str, Any]]:
     """Get a single item from the dataset using metadata lookup.
 
-    Args:
-        idx: Integer index to get from metadata DataFrame
-        data_processor: Function to parse the binary data into a dictionary
-        metadata_df: Optional metadata DataFrame, if not provided will be read from disk
-        dataset_path: Path to the dataset, if different from metadata path
+    Arguments
+    ---------
+    idx: int
+        Integer index to get from metadata DataFrame
+    data_processor: Callable
+        Function to parse the binary data into a dictionary
+    metadata_df: pd.DataFrame
+        metadata DataFrame, containing the shard path and sample id
+    dataset_path: str | AnyPath
+        Path to the dataset, if different from metadata path
 
-    Returns:
+    Returns
+    -------
         Dictionary containing the sample data (usually raw data and metadata)
     """
     # Get row from metadata
@@ -192,19 +231,19 @@ class WebDataset(BaseMapDataset, BaseIterableDataset):
         path: str | AnyPath | None = None,
         dataset_config: DatasetConfig | None = None,
         ds: wds.WebDataset = None,
-        load_metadata: bool = webds_loader_config.load_metadata,
-        metadata_df: pd.DataFrame | None = webds_loader_config.metadata_df,
-        file_pattern: str = webds_loader_config.file_pattern,
-        storage_options: dict | None = webds_loader_config.storage_options,
-        metadata_path: str | None = webds_loader_config.metadata_path,
-        data_processor: Callable = webds_loader_config.data_processor,
-        shuffle_size: int = webds_loader_config.shuffle_size,
-        shard_shuffle: bool = webds_loader_config.shard_shuffle,
-        shard_shuffle_size: int = webds_loader_config.shard_shuffle_size,
-        batch_size: int | None = webds_loader_config.batch_size,
-        batch_collate_fn: Callable = webds_loader_config.batch_collate_fn,
-        split_by_worker: bool = webds_loader_config.split_by_worker,
-        seed: int | bool | None = webds_loader_config.seed,
+        load_metadata: bool = default_webds_loader_cfg.load_metadata,
+        metadata_df: pd.DataFrame | None = default_webds_loader_cfg.metadata_df,
+        file_pattern: str = default_webds_loader_cfg.file_pattern,
+        storage_options: dict | None = default_webds_loader_cfg.storage_options,
+        metadata_path: str | None = default_webds_loader_cfg.metadata_path,
+        data_processor: Callable = default_webds_loader_cfg.data_processor,
+        shuffle_size: int = default_webds_loader_cfg.shuffle_size,
+        shard_shuffle: bool = default_webds_loader_cfg.shard_shuffle,
+        shard_shuffle_size: int = default_webds_loader_cfg.shard_shuffle_size,
+        batch_size: int | None = default_webds_loader_cfg.batch_size,
+        batch_collate_fn: Callable = default_webds_loader_cfg.batch_collate_fn,
+        split_by_worker: bool = default_webds_loader_cfg.split_by_worker,
+        seed: int | bool | None = default_webds_loader_cfg.seed,
     ):
         assert not (path is None and ds is None), "One of path or ds should be provided"
         self.path = AnyPath(path)

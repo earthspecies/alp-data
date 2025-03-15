@@ -18,7 +18,64 @@ from esp_data.utils import make_simple_logger
 
 from .utils import make_fs
 
-logger = make_simple_logger("fileio_functional")
+logger = make_simple_logger(__name__)
+
+
+def create_file_local(file_path: str | os.PathLike | AnyPath, data: bytes = None, exist_ok: bool = True) -> bool:
+    """Create a file at the given path.
+
+    Arguments
+    ---------
+        file_path (str | os.PathLike | AnyPath): The path to the file.
+        data (bytes, optional): The data to write to the file. Defaults to None.
+        exist_ok (bool, optional): If True, do not raise an exception if the file already exists. Defaults to True.
+
+    Returns
+    -------
+        bool: True if the file was created successfully
+
+    Example
+    -------
+        >>> create_file_local("local_file.txt", data=b"Hello, world!")
+        >>> with open("local_file.txt", "rb") as f:
+        ...     print(f.read())
+        Hello, world!
+    """
+    file_path = AnyPath(file_path)
+
+    parent_dir = file_path.parent
+    parent_dir.mkdir(parents=True, exist_ok=True)
+    file_path.touch(exist_ok=exist_ok)
+    if data:
+        file_path.write_bytes(data)
+    return True
+
+
+def create_file_fs(file_path: str | os.PathLike | AnyPath, data: bytes = None) -> bool:
+    """Create a file at the given cloud path.
+
+    Arguments
+    ---------
+        file_path (str | os.PathLike | AnyPath): The path to the file.
+        data (bytes, optional): The data to write to the file. Defaults to None.
+        exist_ok (bool, optional): If True, do not raise an exception if the file already exists. Defaults to True.
+
+    Returns
+    -------
+        bool: True if the file was created successfully
+
+    Example
+    -------
+        >>> create_file_fs("gs://esp-ci-cd-tests/esp-data-tests/create_file_fs_test.txt", data=b"Hello, world!")
+        True
+    """
+    file_path = AnyPath(file_path)
+
+    fs = make_fs(file_path)
+    file_path_str = strip_cloud_prefix(file_path)
+    with fs.open(file_path_str, "wb") as f:
+        f.write(data or b"")
+    return True
 
 
 def create_file(
@@ -39,12 +96,7 @@ def create_file(
 
     # Handle local path creation directly
     if is_local_path(file_path):
-        parent_dir = file_path.parent
-        parent_dir.mkdir(parents=True, exist_ok=True)
-        file_path.touch(exist_ok=exist_ok)
-        if data:
-            file_path.write_bytes(data)
-        return True
+        return create_file_local(file_path, data, exist_ok)
 
     # Try AnyPath method first if not using filesystem or if filesystem creation failed
     if not use_fs:
@@ -58,11 +110,7 @@ def create_file(
 
     # FileSystem approach as fallback or if specifically requested
     try:
-        fs = make_fs(file_path)
-        file_path_str = strip_cloud_prefix(file_path)
-        with fs.open(file_path_str, "wb") as f:
-            f.write(data or b"")
-        return True
+        return create_file_fs(file_path, data)
     except Exception as e:
         raise IOError(f"Failed to create file at {file_path} using both methods: {e}") from e
 

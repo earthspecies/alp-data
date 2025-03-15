@@ -9,7 +9,9 @@ from functools import partial
 from typing import Callable
 from uuid import UUID, uuid4
 
-from cloudpathlib import AnyPath
+from google.cloud import secretmanager
+
+from esp_data import AnyPath
 
 
 def utc_now() -> datetime:
@@ -123,16 +125,27 @@ def make_simple_logger(name: str, add_file_handler: bool = False) -> logging.Log
     """
     logger = logging.getLogger(name)
     logger.setLevel(logging.INFO)
-    ch = logging.StreamHandler()
-    ch.setLevel(logging.INFO)
-    formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-    ch.setFormatter(formatter)
-    logger.addHandler(ch)
 
-    if add_file_handler:
-        fh = logging.FileHandler(f"{name}.log")
-        fh.setLevel(logging.INFO)
-        fh.setFormatter(formatter)
-        logger.addHandler(fh)
+    if not logger.handlers:
+        ch = logging.StreamHandler()
+        ch.setLevel(logging.INFO)
+        formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+        ch.setFormatter(formatter)
+        logger.addHandler(ch)
+
+        if add_file_handler:
+            fh = logging.FileHandler(f"{name}.log")
+            fh.setLevel(logging.INFO)
+            fh.setFormatter(formatter)
+            logger.addHandler(fh)
 
     return logger
+
+
+def get_secret(secret_name: str, project_number: int, version: str = "latest") -> str:
+    client = secretmanager.SecretManagerServiceClient()
+    request = secretmanager.AccessSecretVersionRequest(
+        name=f"projects/{project_number}/secrets/{secret_name}/versions/{version}",
+    )
+    response = client.access_secret_version(request)
+    return response.payload.data.decode("UTF-8")

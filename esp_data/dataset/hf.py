@@ -1,5 +1,4 @@
 import os
-import warnings
 from typing import Any, Callable, Generator, Iterable, Literal, Optional
 
 from datasets import Dataset, concatenate_datasets, load_dataset, load_from_disk
@@ -12,9 +11,7 @@ from .base import BaseMapDataset
 from .shard_creator import write_huggingface_shard
 from .utils import generate_random_indices
 
-warnings.filterwarnings("ignore", "Your application has authenticated using end user credentials")
-
-logger = make_simple_logger("hf_dataset")
+logger = make_simple_logger(__name__)
 
 
 HF_DATASET_TYPES = [
@@ -45,7 +42,17 @@ def load_hf_dataset(hf_dataset_type: str, path: str | AnyPath, **hf_ds_kwargs) -
         )
         return HFDataset(cfg, ds=ds, streaming_dataset=hf_ds_kwargs.get("streaming", False))
 
-    elif hf_dataset_type in ["csv", "tsv", "json", "parquet", "arrow", "local_hf", "bucket_hf"]:
+    elif hf_dataset_type in [
+        "csv",
+        "tsv",
+        "json",
+        "parquet",
+        "arrow",
+        "audiofolder",
+        "imagefolder",
+        "local_hf",
+        "bucket_hf",
+    ]:
         return HFDataset.from_path(path, hf_dataset_type, **hf_ds_kwargs)
 
 
@@ -96,9 +103,7 @@ class HFDataset(BaseMapDataset):
         return len(self.ds)
 
     def __iter__(self):
-        if self._streaming:
-            return iter(self.ds)
-        raise TypeError("Cannot iterate over a non-streaming dataset")
+        return iter(self.ds)
 
     @classmethod
     def from_dict(cls, data: dict, dataset_config: DatasetConfig | dict) -> "HFDataset":

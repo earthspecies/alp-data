@@ -1,18 +1,12 @@
 import logging
 import os
 import subprocess
-import warnings
 from typing import TypeVar
 
-from dotenv import load_dotenv
 from gcsfs import GCSFileSystem
 from s3fs import S3FileSystem
 
 from esp_data.paths import AnyPath, is_cloudflarer2_path, is_gcs_path, is_s3_path
-
-warnings.filterwarnings("ignore", "Your application has authenticated using end user credentials")
-
-load_dotenv()
 
 logger = logging.getLogger(__name__)
 
