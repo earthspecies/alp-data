@@ -8,7 +8,6 @@
 import argparse
 import json
 import os
-import signal
 import time
 from concurrent.futures import ProcessPoolExecutor
 from functools import partial
@@ -63,17 +62,16 @@ def read_jsonl(path: str | AnyPath) -> list[dict]:
     return annotation
 
 
-def validate_sample(sample: dict, remove_inaturalist: bool = True) -> dict:
-    if remove_inaturalist:
-        assert np.std(sample["audio"]) > 0.0
+def validate_sample(sample: dict) -> dict:
+    assert np.sum(np.isnan(sample["audio"])) == 0
     assert len(sample["output"]) > 0
     assert sample["output"] != "nan"
     assert "Audio" in sample["instruction"]
     assert "<Audio>" not in sample["instruction_text"]
-    assert isinstance(sample["metadata"], str)
-    assert len(sample["file_name"]) > 0
-    assert len(sample["license"]) > 0
-    assert len(sample["task"]) > 0
+    assert isinstance(sample["metadata"], str), "Metadata is not a string"
+    assert len(sample["file_name"]) > 0, "File name is empty"
+    assert len(sample["license"]) > 0, "License is empty"
+    assert len(sample["task"]) > 0, "Task is empty"
     return sample
 
 
@@ -91,11 +89,11 @@ def prepare_audio_sample_for_naturelm(
     path = AnyPath(row["path"])
 
     # HACK David's comments on original jsonl's
-    skip_cond1 = any([c in str(path) for c in ["compa_r", "audiocaps", "animal-instruct"]])
-    skip_cond2 = row["task"] in ["compa_r", "audiocaps-qa", "audiocaps", "animal-instruct"]
+    # skip_cond1 = any([c in str(path) for c in ["compa_r", "audiocaps", "animal-instruct"]])
+    # skip_cond2 = row["task"] in ["compa_r", "audiocaps-qa", "audiocaps", "animal-instruct"]
 
-    if skip_cond1 or skip_cond2:
-        raise ValueError(f"Skipping {path} as it is not a valid audio file")
+    # if skip_cond1 or skip_cond2:
+    #     raise ValueError(f"Skipping {path} as it is not a valid audio file")
 
     # idx_go = path_parts.index("foundation-model-data")
     # file_path = os.path.join(local_path, *path_parts[idx_go:])
@@ -174,18 +172,9 @@ def create_sharded_dataset(
     """
     output_path = AnyPath(output_path)
 
-    # Setup interrupt handler in the main process
-    global _interrupt_processing
-    _interrupt_processing = False
-    signal.signal(signal.SIGINT, handle_interrupt)
-
     print(f"\n{BATCH_COLOR}=== Dataset Sharding Process ==={RESET_COLOR}")
 
     for j, path in enumerate(jsonl_paths):
-        if _interrupt_processing:
-            print(f"\n{ERROR_COLOR}Process interrupted by user. Exiting...{RESET_COLOR}")
-            return
-
         t0 = time.time()
 
         batch_output_path = output_path / f"batch_{j}"
@@ -248,44 +237,21 @@ def create_sharded_dataset(
                     ncols=100,
                 ) as pbar:
                     for i, future in enumerate(futures):
-                        try:
-                            result = future.result(timeout=0.1)
-                            chunk_id = result["shard_id"]
-                            processed_samples.extend(result["processed_samples"])
+                        result = future.result()
+                        chunk_id = result["shard_id"]
+                        processed_samples.extend(result["processed_ids"])
 
-                            completed_chunks[str(chunk_id)] = result
-                            save_checkpoint(batch_output_path, batch, completed_chunks)
+                        completed_chunks[str(chunk_id)] = result
+                        save_checkpoint(batch_output_path, batch, completed_chunks)
 
-                            # Update progress bar with shard info
-                            pbar.set_postfix(
-                                shard=f"{chunk_id:05d}",
-                                success=len(result["processed_samples"]),
-                                failed=len(result["failed_ids"]),
-                            )
-                            pbar.update(1)
+                        # Update progress bar with shard info
+                        pbar.set_postfix(
+                            shard=f"{chunk_id:05d}",
+                            success=len(result["processed_ids"]),
+                            failed=len(result["failed_ids"]),
+                        )
+                        pbar.update(1)
 
-                        except TimeoutError:
-                            # No result yet, check if we should interrupt
-                            if _interrupt_processing:
-                                print(
-                                    f"\n{ERROR_COLOR}Process interrupted by user. Waiting for current tasks to complete...{RESET_COLOR}"
-                                )
-                                # Cancel all pending futures
-                                for f in futures[i:]:
-                                    f.cancel()
-                                break
-                            # Continue waiting for this future
-                            i -= 1
-                        except Exception as e:
-                            logger.error(f"Error processing chunk: {e}")
-                            pbar.update(1)
-
-                        # Check for interrupt after each future completes
-                        if _interrupt_processing:
-                            print(
-                                f"\n{ERROR_COLOR}Process interrupted by user. Stopping after current tasks...{RESET_COLOR}"
-                            )
-                            break
         else:
             # Track progress with tqdm
             # Sequential processing with nested progress bars
@@ -298,12 +264,6 @@ def create_sharded_dataset(
                 ncols=100,
             ) as pbar_shards:
                 for chunk_id, chunk in chunks_to_process:
-                    if _interrupt_processing:
-                        print(
-                            f"\n{ERROR_COLOR}Process interrupted by user. Stopping after current shard...{RESET_COLOR}"
-                        )
-                        break
-
                     result = process_chunk_partial(batch=chunk, shard_id=chunk_id)
 
                     processed_samples.extend(result["processed_samples"])
@@ -320,12 +280,9 @@ def create_sharded_dataset(
                     )
                     pbar_shards.update(1)
 
-        tend = time.time()
+                    print(f"\n{SAMPLE_COLOR}Processed samples: {len(processed_samples)}{RESET_COLOR}")
 
-        if _interrupt_processing:
-            print(f"\n{ERROR_COLOR}Process was interrupted by user.{RESET_COLOR}")
-            print(f"{BATCH_COLOR}Progress was saved in the checkpoint.{RESET_COLOR}")
-            return
+        tend = time.time()
 
         # Report final statistics
         total_successful = len(processed_samples)
