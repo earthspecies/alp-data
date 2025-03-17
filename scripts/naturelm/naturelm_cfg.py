@@ -81,7 +81,7 @@ class NatureLMSample(DataSample):
     # duration: Optional[float] = Field(description="The duration of the audio file")
 
     # overwrite the metadata field
-    metadata: Optional[str] = Field(description="Metadata for the sample")
+    metadata: str = Field(description="Metadata for the sample")
 
 
 class NatureLMDatasetConfig(DatasetConfig):

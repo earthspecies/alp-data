@@ -118,14 +118,20 @@ def prepare_audio_sample_for_naturelm(
             print(f"Error reading audio file {e}")
             raise e
 
+        if np.std(audio_data) == 0.0:
+            print(f"WARNING: Audio is empty for sample {sample_data['id']}, filename {sample_data['file_name']}")
+
     md["sample_rate"] = sr
-    sample_data["metadata"] = json.dumps(md)
+    md["duration"] = len(audio_data) / sr
+    # sample_data["metadata"] = json.dumps(md)
+    sample_data["metadata"] = md
 
     # validate
     sample_data = NatureLMSample(**sample_data).to_dict()
     # drop some
     sample_data.pop("derived_from")
     sample_data.pop("version")
+    sample_data["metadata"] = json.dumps(md)
 
     sample_data = {"audio": audio_data, **sample_data}
 
