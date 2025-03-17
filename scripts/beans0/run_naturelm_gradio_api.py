@@ -107,6 +107,16 @@ def main():
             )
             output_df = empty_df()
 
+    # write the remaining samples
+    if len(output_df) > 0:
+        output_df.to_json(
+            args.output_path,
+            orient="records",
+            lines=True,
+            storage_options=make_storage_options(args.output_path),
+            mode="a",
+        )
+
 
 if __name__ == "__main__":
     main()
