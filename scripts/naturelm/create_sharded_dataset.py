@@ -25,15 +25,16 @@ from esp_data.dataset.shard_creator import (
 )
 from esp_data.paths import AnyPath, make_storage_options
 
-# def read_jsonl(path: str | AnyPath) -> list[dict]:
-#     try:
-#         with F.open_file(path, "r") as f:
-#             data = json.load(f)
-#             annotation = data["annotation"]
-#     except (json.JSONDecodeError, KeyError):
-#         with F.open_file(path, "r") as f:
-#             annotation = [json.loads(line) for line in f]
-#     return annotation
+
+def read_jsonl(path: str | AnyPath) -> list[dict]:
+    try:
+        with F.open_file(path, "r") as f:
+            data = json.load(f)
+            annotation = data["annotation"]
+    except (json.JSONDecodeError, KeyError):
+        with F.open_file(path, "r") as f:
+            annotation = [json.loads(line) for line in f]
+    return annotation
 
 
 def load_audio(audio_path: str) -> np.ndarray:
@@ -153,54 +154,6 @@ def create_sharded_dataset(
     """
     Create sharded dataset from information in a dataframe (or a Iterable[dict]) and a sample prep function,
     in parallel, with checkpointing.
-
-    Arguments
-    ---------
-    data: Union[pd.DataFrame, Iterable[dict]]
-        DataFrame or list of dictionaries containing sample data
-    output_path: Union[str, AnyPath]
-        Path to save the shards
-    sample_prep_function: Callable
-        Function to prepare a sample for the shard format. Must return a dictionary.
-        For e.g., this function could be tokenizer, a feature preprocessor, a pydantic validator etc.
-    num_samples_per_shard: int
-        Number of samples to include in each shard
-    num_workers: int
-        Number of workers to use for parallel processing
-    shard_type: str
-        Output format for the shards ("webdataset", "arrow", "parquet", "hf")
-    dataset_config: DatasetConfig
-        Dataset configuration object, will create skeleton config if not provided.
-    save_metadata_as: Optional[str]
-        File format to save metadata as (parquet, csv, json, jsonl, tsv). This acts as an index for the shards.
-    merge_data_and_metadata: bool
-        Merge the shard information with the original data. If your data is a small DataFrame, you can combine the
-        shard information with the original data to create a single DataFrame with shard information.
-    log_every: int
-        Log progress every N samples
-    error_handling: str
-        How to handle errors ("warn", "raise", "ignore")
-    sharding_kwargs:
-        Additional keyword arguments for the specific shard writer
-
-    Returns
-    -------
-        pd.DataFrame: DataFrame containing metadata about the created shards
-
-    Example
-    -------
-        >>> data = pd.DataFrame([
-        ...     {"id": 1, "text": "Example 1"},
-        ...     {"id": 2, "text": "Example 2"},
-        ... ])
-        >>> def prep_sample(item):
-        ...     return {"length": len(item["text"]), **item}
-        >>> metadata_df = create_sharded_dataset(
-        ...     data,
-        ...     "/tmp/output",
-        ...     prep_sample,
-        ...     num_samples_per_shard=2
-        ... )
     """
     output_path = AnyPath(output_path)
 
@@ -305,11 +258,10 @@ def create_sharded_dataset(
 def main():
     # Builder script for NatureLM dataset
     parser = argparse.ArgumentParser(description="Create NatureLM dataset")
-    parser.add_argument("--path_to_jsonl", type=str, required=True)
-    parser.add_argument("--json_read_chunk_size", type=int, default=10_000)
+    parser.add_argument("--path_to_jsonl_files", type=str, required=True)
+    parser.add_argument("--json_read_chunk_size", type=int, default=50_000)
     parser.add_argument("--output_path", type=str, required=True)
-    parser.add_argument("--local_path_for_files", type=str, default="/mnt/")
-    parser.add_argument("--num_samples_per_shard", type=int, default=1000)
+    parser.add_argument("--num_samples_per_shard", type=int, default=3000)
     parser.add_argument("--num_workers", type=int, default=4)
     parser.add_argument("--shard_type", type=str, default="hf")
     parser.add_argument("--remove_inaturalist", action="store_true")
@@ -345,39 +297,46 @@ def main():
 
     # print(f"Loading data in chunks of {args.json_read_chunk_size} from {args.path_to_json}")
 
-    with pd.read_json(
-        args.path_to_jsonl,
-        lines=True,
-        orient="records",
-        chunksize=args.json_read_chunk_size,
-        storage_options=make_storage_options(args.path_to_jsonl),
-    ) as reader:
-        for i, chunk in enumerate(reader):
-            chunk_start_id = i * args.json_read_chunk_size
-            if i < num_chunks_processed:
-                print(f"Skipping chunk {i} as it has already been processed")
-                continue
+    # Read with pandas (issues with nan values)
+    # with pd.read_json(
+    #     args.path_to_jsonl,
+    #     lines=True,
+    #     orient="records",
+    #     chunksize=args.json_read_chunk_size,
+    #     storage_options=make_storage_options(args.path_to_jsonl),
+    # ) as reader:
 
-            print(f"=========== Processing chunk {i} with {len(chunk)} samples ===========")
-            start = time.time()
-            processed_samples = create_sharded_dataset(
-                chunk,
-                start_idx=chunk_start_id,
-                processed_samples=processed_samples,
-                output_path=output_path,
-                sample_prep_function=sample_prep_function,
-                num_samples_per_shard=args.num_samples_per_shard,
-                num_workers=args.num_workers,
-                shard_type=args.shard_type,
-                log_every=args.log_every,
-            )
-            print(f"Processed chunk {i} in {time.time() - start:.2f} seconds")
+    all_json_chunks = AnyPath(args.path_to_jsonl_files).rglob("*")
+    for i, json_file in enumerate(all_json_chunks):
+        print(f"Loading data from {json_file}")
+        data = read_jsonl(json_file)
+        data = pd.DataFrame(data)
 
-            # save processed samples as global checkpoint
-            shard_metadata_df = pd.DataFrame(processed_samples)
-            shard_metadata_df.to_json(
-                metadata_path, orient="records", lines=True, storage_options=make_storage_options(metadata_path)
-            )
+        chunk_start_id = i * args.json_read_chunk_size
+        if i < num_chunks_processed:
+            print(f"Skipping chunk {i} as it has already been processed")
+            continue
+
+        print(f"{SHARD_COLOR}=========== Processing chunk {i} with {len(data)} samples ==========={SHARD_COLOR}")
+        start = time.time()
+        processed_samples: list[dict] = create_sharded_dataset(
+            data,
+            start_idx=chunk_start_id,
+            processed_samples=processed_samples,
+            output_path=output_path,
+            sample_prep_function=sample_prep_function,
+            num_samples_per_shard=args.num_samples_per_shard,
+            num_workers=args.num_workers,
+            shard_type=args.shard_type,
+            log_every=args.log_every,
+        )
+        print(f"Processed chunk {i} in {time.time() - start:.2f} seconds")
+
+        # save processed samples as global checkpoint
+        shard_metadata_df = pd.DataFrame(processed_samples)
+        shard_metadata_df.to_json(
+            metadata_path, orient="records", lines=True, storage_options=make_storage_options(metadata_path)
+        )
 
     # Few post-hoc checks
     ds = load_dataset(args.shard_type, output_path, streaming=False, file_pattern=args.output_shard_pattern)
