@@ -95,8 +95,8 @@ class GSPath(cloudpathlib.GSPath):
 
 class R2Path(cloudpathlib.S3Path):
     def __init__(self, cloud_path: str | cloudpathlib.S3Path, client=_get_r2_client()):
-        if isinstance(cloudpathlib, str):
-            cloud_path = cloudpathlib.replace("r2://", "s3://")
+        if isinstance(cloud_path, str):
+            cloud_path = cloud_path.replace("r2://", "s3://")
 
         super().__init__(cloud_path, client=client)
 
