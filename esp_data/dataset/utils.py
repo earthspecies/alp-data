@@ -8,7 +8,7 @@ from esp_data.config import DataSample
 from esp_data.paths import AnyPath, is_cloud_path, is_local_path
 
 
-def _make_file_opener(file_path: str | AnyPath, mode: str = "wb") -> Callable:
+def make_file_opener(file_path: str | AnyPath, mode: str = "wb") -> Callable:
     """Make a file opener function for WebDataset"""
     file_path = AnyPath(file_path)
 
