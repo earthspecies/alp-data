@@ -1,6 +1,13 @@
+# /// script
+# dependencies = [
+#   "torchaudio",
+#   "librosa==0.10.2",
+# ]
+# ///
 """Make NatureLM using a jsonl file"""
 
 import argparse
+import io
 import json
 import time
 from concurrent.futures import ProcessPoolExecutor
@@ -9,6 +16,7 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
+import soundfile as sf
 import torchaudio
 from datasets import load_dataset
 from naturelm_cfg import LICENSES, NatureLMSample, naturelm_cfg
@@ -48,7 +56,7 @@ def validate_sample(sample: dict) -> dict:
     assert np.sum(np.isnan(sample["audio"])) == 0
     assert len(sample["output"]) > 0
     assert sample["output"] != "nan"
-    assert "Audio" in sample["instruction"]
+    assert "<Audio>" in sample["instruction"]
     assert "<Audio>" not in sample["instruction_text"]
     assert isinstance(sample["metadata"], str), "Metadata is not a string"
     assert len(sample["file_name"]) > 0, "File name is empty"
@@ -60,6 +68,7 @@ def validate_sample(sample: dict) -> dict:
 def prepare_audio_sample_for_naturelm(
     row: dict,
     remove_inaturalist: bool = True,
+    shard_type: str = "hf",
 ) -> dict[str, Any]:
     """Prepare a sample for the NatureLM dataset."""
 
@@ -85,7 +94,9 @@ def prepare_audio_sample_for_naturelm(
 
     file_path = path
     sample_data["file_name"] = path.parts[-1]
-    sample_data["source_dataset"] = row.get("source", "NatureLM")
+    sample_data["source_dataset"] = row.get("source")
+    if len(sample_data["source_dataset"]) < 1:
+        sample_data["source_dataset"] = "NatureLM"
 
     if sample_data["source_dataset"].lower() in LICENSES:
         license = LICENSES[sample_data["source_dataset"].lower()]
@@ -132,7 +143,6 @@ def prepare_audio_sample_for_naturelm(
     sample_data.pop("derived_from")
     sample_data.pop("version")
     sample_data["metadata"] = json.dumps(md)
-
     sample_data = {"audio": audio_data, **sample_data}
 
     try:
@@ -140,6 +150,13 @@ def prepare_audio_sample_for_naturelm(
     except AssertionError as e:
         print(f"Validation failed for sample {sample_data['id']}, file_name {sample_data['file_name']}: {e}")
         raise e
+
+    if shard_type == "webdataset":
+        # Store as bytes in memory
+        audio_buffer = io.BytesIO()
+        sf.write(audio_buffer, audio_data, sr, format="WAV")
+        sample_data.pop("audio")
+        return {"audio.wav": audio_buffer.getvalue(), "metadata.json": json.dumps(sample_data)}
 
     return sample_data
 
@@ -265,8 +282,8 @@ def main():
     # Builder script for NatureLM dataset
     parser = argparse.ArgumentParser(description="Create NatureLM dataset")
     parser.add_argument("--path_to_jsonl_files", type=str, required=True)
-    parser.add_argument("--json_read_chunk_size", type=int, default=50_000)
     parser.add_argument("--output_path", type=str, required=True)
+    parser.add_argument("--json_read_chunk_size", type=int, default=50_000)
     parser.add_argument("--num_samples_per_shard", type=int, default=3000)
     parser.add_argument("--num_workers", type=int, default=4)
     parser.add_argument("--shard_type", type=str, default="hf")
@@ -281,6 +298,7 @@ def main():
     sample_prep_function = partial(
         prepare_audio_sample_for_naturelm,
         remove_inaturalist=args.remove_inaturalist,
+        shard_type=args.shard_type,
     )
 
     output_path = AnyPath(args.output_path) / args.version

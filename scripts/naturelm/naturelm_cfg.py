@@ -80,9 +80,6 @@ class NatureLMSample(DataSample):
     # recordist: Optional[str] = Field(description="The recordist of the source")
     # duration: Optional[float] = Field(description="The duration of the audio file")
 
-    # overwrite the metadata field
-    metadata: str = Field(description="Metadata for the sample")
-
 
 class NatureLMDatasetConfig(DatasetConfig):
     """Defines the structure of a Beans0 dataset config.

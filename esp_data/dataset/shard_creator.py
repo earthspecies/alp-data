@@ -27,7 +27,7 @@ from esp_data.utils import make_id, make_simple_logger
 
 from .utils import make_file_opener
 
-logger = make_simple_logger(__name__)
+logger = make_simple_logger("esp_data")
 
 # Initialize colorama for cross-platform colored terminal output
 colorama.init()
@@ -126,6 +126,7 @@ def write_webdataset_shard(
             item = item.to_dict()
 
         sample_id = str(item.get("id", make_id()))
+        item["id"] = sample_id
 
         if (j + 1) % log_every == 0:
             logger.info(f"Shard {shard_id:05d} - Processing sample {j}/{total_samples} (id: {sample_id})")
@@ -423,6 +424,7 @@ def write_arrow_shard(
             item = item.to_dict()
 
         sample_id = str(item.get("id", make_id()))
+        item["id"] = sample_id
 
         if (j + 1) % log_every == 0:
             logger.info(f"Shard {shard_id:06d} - Processing sample {j}/{total_samples} (id: {sample_id})")
@@ -538,6 +540,7 @@ def write_huggingface_shard(
             item = item.to_dict()
 
         sample_id = str(item.get("id", make_id()))
+        item["id"] = sample_id
 
         if (j + 1) % log_every == 0:
             logger.info(f"Shard {shard_id:06d} - Processing sample {j}/{total_samples} (id: {sample_id})")
