@@ -6,7 +6,7 @@ from typing import TypeVar
 from gcsfs import GCSFileSystem
 from s3fs import S3FileSystem
 
-from esp_data.paths import AnyPath, is_cloudflarer2_path, is_gcs_path, is_s3_path
+from esp_data.paths import AnyPath, is_gcs_path, is_r2_path, is_s3_path
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +43,7 @@ def make_fs(file_path: str | AnyPath) -> FileSystem | None:
         return make_gcsfs()
     if is_s3_path(file_path):
         return make_s3fs()
-    if is_cloudflarer2_path(file_path):
+    if is_r2_path(file_path):
         return make_cloudflarer2fs()
 
     logger.info("Could not determine cloud filesystem, returning None = local filesystem")

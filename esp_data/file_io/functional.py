@@ -13,7 +13,7 @@ from typing import Any
 
 from cloudpathlib import GSPath
 
-from esp_data.paths import AnyPath, get_cloud_prefix, is_local_path, strip_cloud_prefix
+from esp_data.paths import AnyPath, is_local_path, strip_cloud_prefix
 from esp_data.utils import make_simple_logger
 
 from .utils import make_fs
@@ -274,7 +274,7 @@ def yield_files(dir_path: str | os.PathLike | AnyPath, pattern: str = "*", use_f
     try:
         fs = make_fs(dir_path)
         glob_path = strip_cloud_prefix(dir_path / pattern)
-        cloud_prefix = get_cloud_prefix(dir_path)
+        cloud_prefix = AnyPath(dir_path).cloud_prefix
 
         for f in fs.glob(glob_path):
             if fs.isfile(f) and f != glob_path:
