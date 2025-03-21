@@ -18,7 +18,6 @@ import numpy as np
 import pandas as pd
 import soundfile as sf
 import torchaudio
-from datasets import load_dataset
 from naturelm_cfg import LICENSES, NatureLMSample, naturelm_cfg
 from tqdm import tqdm
 
@@ -31,7 +30,9 @@ from esp_data.dataset.shard_creator import (
     save_checkpoint,
     write_shard,
 )
-from esp_data.paths import AnyPath, make_storage_options
+from esp_data.paths import AnyPath
+
+AUDIO_PROMPT = "<Audio><AudioHere></Audio>"
 
 
 def read_jsonl(path: str | AnyPath) -> list[dict]:
@@ -45,7 +46,7 @@ def read_jsonl(path: str | AnyPath) -> list[dict]:
     return annotation
 
 
-def load_audio(audio_path: str) -> np.ndarray:
+def load_audio(audio_path: str | AnyPath) -> np.ndarray:
     with F.open_file(audio_path, "rb") as f:
         audio_data, sr = torchaudio.load(f)
     audio_data = audio_data.numpy().squeeze().tolist()
@@ -54,14 +55,13 @@ def load_audio(audio_path: str) -> np.ndarray:
 
 def validate_sample(sample: dict) -> dict:
     assert np.sum(np.isnan(sample["audio"])) == 0
-    assert len(sample["output"]) > 0
-    assert sample["output"] != "nan"
-    assert "<Audio>" in sample["instruction"]
-    assert "<Audio>" not in sample["instruction_text"]
+    assert len(sample["output"]) > 0, "Output is empty"
+    assert sample["output"] != "nan", "Output is nan"
+    assert AUDIO_PROMPT in sample["instruction"], "Instruction does not contain AUDIO_PROMPT "
+    assert AUDIO_PROMPT not in sample["instruction_text"], "Instruction text contains AUDIO_PROMPT"
     assert isinstance(sample["metadata"], str), "Metadata is not a string"
     assert len(sample["file_name"]) > 0, "File name is empty"
     assert len(sample["license"]) > 0, "License is empty"
-    assert len(sample["task"]) > 0, "Task is empty"
     return sample
 
 
@@ -73,11 +73,19 @@ def prepare_audio_sample_for_naturelm(
     """Prepare a sample for the NatureLM dataset."""
 
     row["output"] = "None" if (pd.isna(row["output"]) or row["output"] == "nan") else row["output"]
+
+    if "prompt" not in row or row["prompt"] is None or row["prompt"] == "nan" or len(row["prompt"]) < 1:
+        raise ValueError("Prompt missing!")
+
+    if AUDIO_PROMPT not in row["prompt"]:
+        row["prompt"] = f"{AUDIO_PROMPT} {row['prompt']}"
+
     sample_data = {
+        "id": row["id"],
         "instruction": row["prompt"],
         "output": row["output"],
         "task": row["task"],
-        "instruction_text": row["prompt"].replace("<Audio><AudioHere></Audio>", "").strip(),
+        "instruction_text": row["prompt"].replace(AUDIO_PROMPT, "").strip(),
     }
 
     path = AnyPath(row["path"])
@@ -92,9 +100,8 @@ def prepare_audio_sample_for_naturelm(
     # idx_go = path_parts.index("foundation-model-data")
     # file_path = os.path.join(local_path, *path_parts[idx_go:])
 
-    file_path = path
     sample_data["file_name"] = path.parts[-1]
-    sample_data["source_dataset"] = row.get("source")
+    sample_data["source_dataset"] = row.get("source", "")
     if len(sample_data["source_dataset"]) < 1:
         sample_data["source_dataset"] = "NatureLM"
 
@@ -102,7 +109,7 @@ def prepare_audio_sample_for_naturelm(
         license = LICENSES[sample_data["source_dataset"].lower()]
         sample_data["license"] = license
     else:
-        lic = row.get("license", "unknown")
+        lic = row.get("license", "")
         if len(lic) < 1:
             lic = "unknown"
         sample_data["license"] = lic
@@ -124,7 +131,7 @@ def prepare_audio_sample_for_naturelm(
     else:
         # Read audio file
         try:
-            audio_data, sr = load_audio(file_path)
+            audio_data, sr = load_audio(path)
         except Exception as e:
             print(f"Error reading audio file {e}")
             raise e
@@ -199,7 +206,7 @@ def create_sharded_dataset(
 
     # Filter out completed chunks
     chunks_to_process = [
-        (idx + start_idx, chunk) for idx, chunk in enumerate(chunks) if str(idx) not in completed_chunks
+        (idx + start_idx, chunk) for idx, chunk in enumerate(chunks) if str(idx + start_idx) not in completed_chunks
     ]
 
     if not chunks_to_process:
@@ -283,7 +290,7 @@ def main():
     parser = argparse.ArgumentParser(description="Create NatureLM dataset")
     parser.add_argument("--path_to_jsonl_files", type=str, required=True)
     parser.add_argument("--output_path", type=str, required=True)
-    parser.add_argument("--json_read_chunk_size", type=int, default=50_000)
+    parser.add_argument("--json_read_chunk_size", type=int, default=100_000)
     parser.add_argument("--num_samples_per_shard", type=int, default=3000)
     parser.add_argument("--num_workers", type=int, default=4)
     parser.add_argument("--shard_type", type=str, default="hf")
@@ -292,8 +299,11 @@ def main():
     parser.add_argument("--changelog", type=str, default="")
     parser.add_argument("--log_every", type=int, default=100)
     parser.add_argument("--output_shard_pattern", type=str, default="**/*.arrow")
+    parser.add_argument("--error_handling", type=str, default="warn")
+    parser.add_argument("--start_at_chunk", type=int, default=None)
 
     args = parser.parse_args()
+    np.random.seed(0)
 
     sample_prep_function = partial(
         prepare_audio_sample_for_naturelm,
@@ -301,7 +311,7 @@ def main():
         shard_type=args.shard_type,
     )
 
-    output_path = AnyPath(args.output_path) / args.version
+    output_path = AnyPath(args.output_path)
 
     print("Updating NatureLM dataset config")
     naturelm_cfg.version = args.version.replace("v", "")
@@ -309,17 +319,16 @@ def main():
     naturelm_cfg.write_json(output_path / "dataset_config.json")
     naturelm_cfg.generate_readme(output_path / "README.md")
 
-    # first load metadata if exists
-    metadata_path = output_path / "metadata.jsonl"
-    if metadata_path.exists():
-        print(f"Loading metadata from {metadata_path}")
-        processed_samples = pd.read_json(metadata_path, lines=True, orient="records")
-        num_chunks_processed = len(processed_samples) // args.json_read_chunk_size
+    processed_samples_file = AnyPath(output_path / "num_chunks_processed.txt")
+    if processed_samples_file.exists() and args.start_at_chunk is None:
+        with processed_samples_file.open("r") as f:
+            num_chunks_processed = int(f.read())
+    elif args.start_at_chunk is not None:
+        num_chunks_processed = args.start_at_chunk
     else:
-        processed_samples = []
         num_chunks_processed = 0
 
-    # print(f"Loading data in chunks of {args.json_read_chunk_size} from {args.path_to_json}")
+    metadata_path = output_path / "metadata.jsonl"
 
     # Read with pandas (issues with nan values)
     # with pd.read_json(
@@ -330,18 +339,32 @@ def main():
     #     storage_options=make_storage_options(args.path_to_jsonl),
     # ) as reader:
 
-    all_json_chunks = AnyPath(args.path_to_jsonl_files).rglob("*")
-    for i, json_file in enumerate(all_json_chunks):
-        print(f"Loading data from {json_file}")
-        data = read_jsonl(json_file)
-        data = pd.DataFrame(data)
+    all_json_chunks = list(AnyPath(args.path_to_jsonl_files).rglob("*"))
+    # shuffle the chunks
+    np.random.shuffle(all_json_chunks)
 
-        chunk_start_id = i * args.json_read_chunk_size
+    shards_completed = list(output_path.rglob(args.output_shard_pattern))
+    print(f"Found {len(shards_completed)} shards in {output_path}")
+    num_shards = int(np.ceil(args.json_read_chunk_size / args.num_samples_per_shard))
+
+    processed_samples = []
+
+    for i, json_file in enumerate(all_json_chunks):
+        chunk_start_id = i * num_shards
+
         if i < num_chunks_processed:
             print(f"Skipping chunk {i} as it has already been processed")
             continue
 
-        print(f"{SHARD_COLOR}=========== Processing chunk {i} with {len(data)} samples ==========={SHARD_COLOR}")
+        print(f"Loading data from {json_file}")
+        data = read_jsonl(json_file)
+        data = pd.DataFrame(data)
+        # shuffle
+        data = data.sample(frac=1, random_state=0).reset_index(drop=True)
+
+        print(
+            f"{SHARD_COLOR}=========== Processing chunk {i} with {len(data)} samples, in {num_shards} shards ==========={SHARD_COLOR}"
+        )
         start = time.time()
         processed_samples: list[dict] = create_sharded_dataset(
             data,
@@ -353,18 +376,29 @@ def main():
             num_workers=args.num_workers,
             shard_type=args.shard_type,
             log_every=args.log_every,
+            error_handling=args.error_handling,
         )
         print(f"Processed chunk {i} in {time.time() - start:.2f} seconds")
 
         # save processed samples as global checkpoint
-        shard_metadata_df = pd.DataFrame(processed_samples)
-        shard_metadata_df.to_json(
-            metadata_path, orient="records", lines=True, storage_options=make_storage_options(metadata_path)
-        )
+        # shard_metadata_df = pd.DataFrame(processed_samples)
+        # shard_metadata_df.to_json(
+        #     metadata_path, orient="records", lines=True, storage_options={"project": "okapi-274503"}, mode="a"
+        # )
+        print(f"Saving metadata for chunk {i}")
+        with metadata_path.open("a") as f:
+            for sample in processed_samples:
+                f.write(json.dumps(sample) + "\n")
+
+        # save the number of chunks processed
+        with processed_samples_file.open("w") as f:
+            f.write(str(i))
+
+        processed_samples = []
 
     # Few post-hoc checks
-    ds = load_dataset(args.shard_type, output_path, streaming=False, file_pattern=args.output_shard_pattern)
-    print(ds.columns)
+    # ds = load_dataset(args.shard_type, output_path, streaming=False, file_pattern=args.output_shard_pattern)
+    # print(ds.columns)
 
 
 if __name__ == "__main__":
