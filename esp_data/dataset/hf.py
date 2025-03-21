@@ -11,7 +11,7 @@ from .base import BaseMapDataset
 from .shard_creator import write_huggingface_shard
 from .utils import generate_random_indices
 
-logger = make_simple_logger(__name__)
+logger = make_simple_logger("esp_data")
 
 
 HF_DATASET_TYPES = [
@@ -352,11 +352,9 @@ class HFDataset(BaseMapDataset):
         self.config.write_json(g)
 
     def _save_streaming(
-        self, path: str | os.PathLike | AnyPath, num_samples_per_shard: int = 1000, storage_options: dict | None = None
+        self, path: AnyPath, num_samples_per_shard: int = 1000, storage_options: dict | None = None
     ) -> None:
         """Save a streaming dataset to a local or cloud path."""
-        path = AnyPath(path)
-
         batch = []
         shard_id = 0
         for sample in self.ds:
@@ -368,7 +366,7 @@ class HFDataset(BaseMapDataset):
                     path,
                     shard_id=shard_id,
                     num_samples_per_shard=num_samples_per_shard,
-                    sample_prep_function=None,
+                    sample_prep_function=None,  # None because the samples are already prepared in iterator
                     storage_options=storage_options,
                 )
                 shard_id += 1
@@ -414,6 +412,12 @@ class HFDataset(BaseMapDataset):
         # set storage options if not provided
         if not storage_options:
             storage_options = make_storage_options(storage_options)
+
+        if changelog:
+            self.config.update_changelog(changelog)
+
+        if version_update_mode:
+            self.config.increment_version(version_update_mode)
 
         if self._streaming:
             self._save_streaming(path, storage_options=storage_options, num_samples_per_shard=num_samples_per_shard)

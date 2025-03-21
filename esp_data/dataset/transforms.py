@@ -14,7 +14,7 @@ import pkg_resources
 from esp_data.paths import AnyPath
 from esp_data.utils import make_simple_logger, utc_now_str
 
-logger = make_simple_logger(__name__)
+logger = make_simple_logger("esp_data")
 
 
 @dataclass

@@ -14,7 +14,7 @@ from esp_data.utils import make_simple_logger
 from .base import BaseIterableDataset, BaseMapDataset
 from .shard_creator import write_webdataset_shard
 
-logger = make_simple_logger(__name__)
+logger = make_simple_logger("esp_data")
 
 
 def load_dataset(

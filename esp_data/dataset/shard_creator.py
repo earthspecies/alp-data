@@ -5,6 +5,7 @@ Modular functions to create sharded datasets in both WebDataset (tar) and Arrow 
 import hashlib
 import json
 import time
+import traceback
 from concurrent.futures import ProcessPoolExecutor
 from functools import partial
 from typing import Any, Callable, Iterable, List, Optional, Union
@@ -49,6 +50,7 @@ def _error_handler(
     """Handle errors during sample processing."""
     if error_handling == "warn":
         logger.error(f"Error processing sample {sample_id}: {e}")
+        logger.error(f"Exception traceback:\n{traceback.format_exc()}")
     elif error_handling == "raise":
         raise e
     elif error_handling == "ignore":
