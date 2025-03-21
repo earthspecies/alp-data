@@ -8,7 +8,7 @@ from s3fs import S3FileSystem
 
 from esp_data.paths import AnyPath, is_gcs_path, is_r2_path, is_s3_path
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("esp_data")
 
 
 # Make a type called FileSystem

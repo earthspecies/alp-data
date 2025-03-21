@@ -18,7 +18,7 @@ from esp_data.utils import make_simple_logger
 
 from .utils import make_fs
 
-logger = make_simple_logger(__name__)
+logger = make_simple_logger("esp_data")
 
 
 def create_file_local(file_path: str | os.PathLike | AnyPath, data: bytes = None, exist_ok: bool = True) -> bool:
