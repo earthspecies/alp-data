@@ -1,8 +1,6 @@
 """Path definitions that get rid of some issues with the AnyPath type hint."""
 
 import os
-import warnings
-from functools import lru_cache
 from pathlib import Path
 from typing import Optional
 
@@ -10,7 +8,7 @@ import cloudpathlib
 from cloudpathlib import GSClient, S3Client, S3Path
 from google.cloud.storage.client import Client as GS_Client_Official
 
-# warnings.filterwarnings("ignore", "Your application has authenticated using end user credentials")
+from esp_data.utils import read_gcp_secret
 
 
 def is_gcs_path(path: str | Path | os.PathLike) -> bool:
@@ -91,9 +89,9 @@ class R2Path(cloudpathlib.S3Path):
             if not R2Path._client:
                 # TOOD: complain if these environment variables are not defined?
                 R2Path._client = cloudpathlib.S3Client(
-                    aws_access_key_id=os.getenv("CLOUDFLARE_R2_ACCESS_KEY_ID"),
-                    aws_secret_access_key=os.getenv("CLOUDFLARE_R2_SECRET_ACCESS_KEY"),
-                    endpoint_url=os.getenv("CLOUDFLARE_R2_ENDPOINT_URL"),
+                    aws_access_key_id=read_gcp_secret("cloudflare_r2_bucket_readwrite_access_key_id"),
+                    aws_secret_access_key=read_gcp_secret("cloudflare_r2_bucket_readwrite_secret_access_key"),
+                    endpoint_url=read_gcp_secret("cloudflare_r2_bucket_readwrite_endpoint_url"),
                 )
             client = R2Path._client
 
