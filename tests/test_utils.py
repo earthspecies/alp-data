@@ -10,7 +10,6 @@ from esp_data.utils import (
     validate_datetime,
     validate_id,
     validate_json_str,
-    validate_path_exists,
     validate_version,
 )
 
@@ -34,12 +33,6 @@ def test_validate_json_str():
     assert validate_json_str('{"key": "value"}') == '{"key": "value"}'
     with pytest.raises(ValueError):
         validate_json_str("not json")
-
-
-def test_validate_path_exists(tmp_path):
-    assert validate_path_exists(tmp_path) == str(tmp_path)
-    with pytest.raises(ValueError):
-        validate_path_exists("invalid_path")
 
 
 def test_validate_version():

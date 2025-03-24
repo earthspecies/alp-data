@@ -9,9 +9,10 @@ from functools import partial
 from typing import Callable
 from uuid import UUID, uuid4
 
+import google_crc32c
 from google.cloud import secretmanager
 
-from esp_data import AnyPath
+logger = logging.getLogger("esp_data")
 
 
 def utc_now() -> datetime:
@@ -51,13 +52,6 @@ def validate_version(version: str) -> str:
     if not re.match(pattern, version):
         raise ValueError("Version must follow semantic versioning (e.g., 1.0.0)")
     return version
-
-
-def validate_path_exists(p: str | os.PathLike) -> str:
-    path = AnyPath(p)
-    if not path.exists():
-        raise ValueError(f"Path does not exist: {p}")
-    return str(path)
 
 
 def validate_datetime(v: str) -> str:
@@ -142,10 +136,25 @@ def make_simple_logger(name: str, add_file_handler: bool = False) -> logging.Log
     return logger
 
 
-def get_secret(secret_name: str, project_number: int, version: str = "latest") -> str:
+def read_gcp_secret(secret_id: str, version_id: str = "latest", project_id: str = "okapi-274503") -> str:
+    """
+    A function to read a secret from Google Secret Manager.
+
+    Implementation is based on the example in official Google documentation:
+    https://cloud.google.com/secret-manager/docs/samples/secretmanager-access-secret-version
+    """
+
     client = secretmanager.SecretManagerServiceClient()
-    request = secretmanager.AccessSecretVersionRequest(
-        name=f"projects/{project_number}/secrets/{secret_name}/versions/{version}",
-    )
-    response = client.access_secret_version(request)
-    return response.payload.data.decode("UTF-8")
+
+    resource_name = f"projects/{project_id}/secrets/{secret_id}/versions/{version_id}"
+    response = client.access_secret_version(request={"name": resource_name})
+
+    # Verify the payload
+    crc32c = google_crc32c.Checksum()
+    crc32c.update(response.payload.data)
+    if response.payload.data_crc32c != int(crc32c.hexdigest(), 16):
+        logger.error(f"Data corruption detected while reading secret: {secret_id}")
+        raise ValueError
+
+    payload = response.payload.data.decode("UTF-8")
+    return payload

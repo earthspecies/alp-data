@@ -1,15 +1,14 @@
 """Path definitions that get rid of some issues with the AnyPath type hint."""
 
 import os
-import warnings
-from functools import lru_cache
 from pathlib import Path
+from typing import Optional
 
 import cloudpathlib
-from cloudpathlib import S3Path
-from google.cloud.storage.client import Client as GSClient
+from cloudpathlib import GSClient, S3Client, S3Path
+from google.cloud.storage.client import Client as GS_Client_Official
 
-warnings.filterwarnings("ignore", "Your application has authenticated using end user credentials")
+from esp_data.utils import read_gcp_secret
 
 
 def is_gcs_path(path: str | Path | os.PathLike) -> bool:
@@ -60,23 +59,6 @@ def make_storage_options(path: str | os.PathLike) -> dict | None:
         return None
 
 
-# TODO (milad) maybe we want to use a singleton pattern here using __new__? I think
-# class variables are instantiated when class statement is executed so they will make
-# imports a tiny bit slower.
-@lru_cache(maxsize=1)
-def _get_gs_client():
-    return cloudpathlib.GSClient(storage_client=GSClient())
-
-
-@lru_cache(maxsize=1)
-def _get_r2_client():
-    return cloudpathlib.S3Client(
-        aws_access_key_id=os.getenv("CLOUDFLARE_R2_ACCESS_KEY_ID"),
-        aws_secret_access_key=os.getenv("CLOUDFLARE_R2_SECRET_ACCESS_KEY"),
-        endpoint_url=os.getenv("CLOUDFLARE_R2_ENDPOINT_URL"),
-    )
-
-
 class GSPath(cloudpathlib.GSPath):
     """
     A wrapper for the GSPath class that provides a default client to the constructor.
@@ -89,12 +71,30 @@ class GSPath(cloudpathlib.GSPath):
     For more details, see: https://github.com/drivendataorg/cloudpathlib/issues/390
     """
 
-    def __init__(self, cloud_path: str | cloudpathlib.GSPath, client=_get_gs_client()):
+    _client = None
+
+    def __init__(self, cloud_path: str | cloudpathlib.GSPath, client: Optional[GSClient] = None):
+        if not client:
+            if not GSPath._client:
+                GSPath._client = cloudpathlib.GSClient(storage_client=GS_Client_Official())
+            client = GSPath._client
         super().__init__(cloud_path, client=client)
 
 
 class R2Path(cloudpathlib.S3Path):
-    def __init__(self, cloud_path: str | cloudpathlib.S3Path, client=_get_r2_client()):
+    _client = None
+
+    def __init__(self, cloud_path: str | cloudpathlib.S3Path, client: Optional[S3Client] = None):
+        if not client:
+            if not R2Path._client:
+                # TOOD: complain if these environment variables are not defined?
+                R2Path._client = cloudpathlib.S3Client(
+                    aws_access_key_id=read_gcp_secret("cloudflare_r2_bucket_readwrite_access_key_id"),
+                    aws_secret_access_key=read_gcp_secret("cloudflare_r2_bucket_readwrite_secret_access_key"),
+                    endpoint_url=read_gcp_secret("cloudflare_r2_bucket_readwrite_endpoint_url"),
+                )
+            client = R2Path._client
+
         if isinstance(cloud_path, str):
             cloud_path = cloud_path.replace("r2://", "s3://")
 
@@ -123,7 +123,7 @@ class AnyPath:
         elif is_s3_path(path):
             # Since we are currently not using AWS we assume that all S3 paths are R2 paths.
             # TODO This must be changed if we start using AWS.
-            return R2Path(str(path), client=_get_r2_client())
+            return R2Path(str(path))
         elif is_r2_path(path):
             return R2Path(str(path))
         else:
