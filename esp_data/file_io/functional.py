@@ -127,76 +127,6 @@ def yield_files(dir_path: str | os.PathLike | AnyPath, pattern: str = "*", use_f
         raise IOError(f"Failed to yield files in {dir_path} using both methods: {e}") from e
 
 
-def write_bytes(file_path: str | os.PathLike | AnyPath, data: bytes, use_fs: bool = False) -> bool:
-    """Write the data to the file.
-
-    Args:
-        file_path (str | os.PathLike | AnyPath): The path to the file, local or cloud.
-        data (bytes): The data to write to the file.
-        use_fs (bool, optional): If True, use the FileSystem approach. Defaults to False.
-
-    Returns:
-        bool: True if the data was written successfully.
-    """
-    file_path = AnyPath(file_path)
-
-    if is_local_path(file_path):
-        file_path.write_bytes(data)
-        return True
-
-    if not use_fs:
-        try:
-            file_path.write_bytes(data)
-            return True
-        except Exception as e:
-            logger.warning(f"Could not write bytes using AnyPath method: {e}, trying FileSystem approach.")
-
-    try:
-        fs = make_fs(file_path)
-        file_path_str = strip_cloud_prefix(file_path)
-        fs.write_bytes(file_path_str, data)
-        return True
-    except Exception as e:
-        raise IOError(f"Failed to write bytes to {file_path} using both methods: {e}") from e
-
-
-def write_text(
-    file_path: str | os.PathLike | AnyPath, text: str, use_fs: bool = False, encoding: str = None, newline=None
-) -> bool:
-    """Write the text to the file.
-
-    Args:
-        file_path (str | os.PathLike | AnyPath): The path to the file, local or cloud.
-        text (str): The text to write to the file.
-        use_fs (bool, optional): If True, use the FileSystem approach. Defaults to False.
-        encoding (str, optional): The encoding to use. Defaults to None.
-        newline ([type], optional): The newline character to use. Defaults to None.
-
-    Returns:
-        bool: True if the text was written successfully
-    """
-    file_path = AnyPath(file_path)
-
-    if is_local_path(file_path):
-        file_path.write_text(text, encoding=encoding, newline=newline)
-        return True
-
-    if not use_fs:
-        try:
-            file_path.write_text(text, encoding=encoding, newline=newline)
-            return True
-        except Exception as e:
-            logger.warning(f"Could not write text using AnyPath method: {e}, trying FileSystem approach.")
-
-    try:
-        fs = make_fs(file_path)
-        file_path_str = strip_cloud_prefix(file_path)
-        fs.write_text(file_path_str, text, encoding=encoding, newline=newline)
-        return True
-    except Exception as e:
-        raise IOError(f"Failed to write text to {file_path} using both methods: {e}") from e
-
-
 def delete_file(file_path: str | os.PathLike | AnyPath, use_fs: bool = False) -> bool:
     """Delete the file at the given path.
 
@@ -397,28 +327,6 @@ def copy(
         return True
     except Exception as e:
         raise IOError(f"Failed to copy {source} to {destination} using both methods: {e}") from e
-
-
-def upload(source: str | os.PathLike | AnyPath, destination: str | os.PathLike | AnyPath, use_fs: bool = False) -> bool:
-    """Upload a file/directory from local path to destination (typically cloud).
-    Please end dirs to upload to with a trailing /.
-
-    Args:
-        source (str | os.PathLike | AnyPath): The local path to upload from.
-        destination (str | os.PathLike | AnyPath): The destination path.
-        use_fs (bool, optional): If True, use the FileSystem approach. Defaults to False.
-
-    Returns:
-        bool: True if the upload was successful.
-
-    Example:
-        # Upload a file to a cloud bucket
-        upload("local_file.txt", "gs://bucket_name/path/to/file.txt")
-
-        # Upload a dir to a cloud bucket
-        upload("local_dir/", "gs://bucket_name/path/to/dir/")
-    """
-    return copy(source, destination, use_fs)
 
 
 def download(

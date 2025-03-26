@@ -2,14 +2,12 @@ import pytest
 
 from esp_data import AnyPath
 from esp_data.file_io.functional import (
+    copy,
     delete_dir,
     delete_file,
     download,
     list_files,
     makedirs,
-    upload,
-    write_bytes,
-    write_text,
 )
 
 
@@ -37,7 +35,7 @@ def test_upload_download_cloud(local_test_dir, cloud_path):
     assert local_file.exists() is True
 
     # Upload to remote
-    assert upload(local_file, cloud_path) is True
+    assert copy(local_file, cloud_path) is True
     # Download back to a different local file
     download_target = local_test_dir / "cloud_test_download.bin"
     assert download(cloud_path, str(download_target)) is True
@@ -109,21 +107,21 @@ def test_read_text(local_test_dir):
     """Test reading text from a file."""
     test_file = local_test_dir / "test_read.txt"
     test_file.write_text("Hello")
-    content = test_file.read_text(test_file)
+    content = test_file.read_text()
     assert content == "Hello"
 
 
 def test_write_bytes(local_test_dir):
     """Test writing bytes to a file."""
     test_file = local_test_dir / "test_write.bin"
-    assert write_bytes(str(test_file), b"ABC") is True
+    assert test_file.write_bytes(b"ABC") == 3
     assert test_file.read_bytes() == b"ABC"
 
 
 def test_write_text(local_test_dir):
     """Test writing text to a file."""
     test_file = local_test_dir / "test_write.txt"
-    assert write_text(str(test_file), "Hello World") is True
+    assert test_file.write_text("Hello World") == 11
     assert test_file.read_text() == "Hello World"
 
 
@@ -172,7 +170,7 @@ def test_list_files_in_cloud(cloud_dir, local_test_dir):
     test_file = local_test_dir / "file_to_list_cloud.txt"
     test_file.write_text("Cloud content")
     remote_path = f"{cloud_dir}/file_to_list_cloud.txt"
-    assert upload(str(test_file), remote_path)
+    assert copy(str(test_file), remote_path)
     files = list_files(cloud_dir)
     assert any("file_to_list_cloud.txt" in f for f in files)
     assert delete_file(remote_path) is True
@@ -191,7 +189,7 @@ def test_delete_files_in_cloud(cloud_dir, local_test_dir):
     test_file = local_test_dir / "file_delete_cloud.txt"
     test_file.write_text("Delete from cloud")
     remote_path = f"{cloud_dir}/file_delete_cloud.txt"
-    upload(str(test_file), remote_path)
+    copy(str(test_file), remote_path)
     assert delete_file(remote_path) is True
     # Try listing again to ensure file is gone
     files = list_files(cloud_dir)
@@ -211,7 +209,7 @@ def test_delete_dir_in_cloud(cloud_dir, local_test_dir):
     test_file = local_test_dir / "file_delete_dir_cloud.txt"
     test_file.write_text("Delete from cloud")
     remote_path = f"{cloud_dir}/file_delete_dir_cloud.txt"
-    upload(str(test_file), remote_path)
+    copy(str(test_file), remote_path)
     assert delete_file(remote_path) is True
     # Try listing again to ensure file is gone
     files = list_files(cloud_dir)

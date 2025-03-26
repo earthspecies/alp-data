@@ -32,7 +32,7 @@ def create_zip_batch(files: list[str], batch_number: int, output_bucket_path: st
 
     # Upload the zip file to the output bucket
     output_zip_path = AnyPath(output_bucket_path) / f"batch_{batch_number:04d}.zip"
-    F.upload(zip_path, output_zip_path)
+    F.copy(zip_path, output_zip_path)
 
     # Remove temporary file
     os.remove(zip_path)
