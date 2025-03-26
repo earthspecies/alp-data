@@ -25,8 +25,7 @@ def test_underspecified_datasample():
     """Test underspecified DataSample."""
     # missing version, metadata
     data = {
-        "source_dataset": "test",
-        "creator": "test",
+        "id": "some-id"  # missing source_dataset
     }
     with pytest.raises(ValueError):
         DataSample(**data)

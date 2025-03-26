@@ -47,9 +47,10 @@ def test_read_mat_from_bytes(tmp_path):
     # Placeholder. In practice, prepare real .mat bytes or mock scipy.io.loadmat.
     from scipy.io import savemat
 
+    tmp_file = tmp_path / "some_mat.mat"
     m1 = np.random.rand(5, 5)
-    savemat(tmp_path, mdict={"data": m1})
-    with open(tmp_path, "rb") as f:
+    savemat(str(tmp_file), mdict={"data": m1})
+    with open(tmp_file, "rb") as f:
         m2 = f.read()
     m2 = read_mat_from_bytes(m2)["data"]
     assert np.array_equal(m1, m2)

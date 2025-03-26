@@ -183,8 +183,7 @@ class DataSample(BaseModel):
 
     def to_json(self) -> str:
         """Convert the data sample to a JSON string"""
-        data = self.to_dict()
-        return json.dumps(data, indent=2)
+        return self.model_dump_json(indent=2)
 
     @classmethod
     def from_json(cls, file_path: str | os.PathLike) -> "DataSample":

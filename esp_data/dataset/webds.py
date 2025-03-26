@@ -1,5 +1,5 @@
 import json
-from functools import partial
+from functools import lru_cache, partial
 from typing import Any, Callable, Generator, Literal, Union
 
 import pandas as pd
@@ -330,6 +330,7 @@ class WebDataset(BaseMapDataset, BaseIterableDataset):
 
         return cls(path=path, dataset_config=config, **kwargs)
 
+    @lru_cache(maxsize=None)  # TODO check if this is necessary
     def __getitem__(self, idx: int) -> Any:
         if self.metadata_df is None:
             raise ValueError("No metadata found. Cannot access individual samples.")
@@ -403,8 +404,9 @@ def apply_fn(
 ) -> Generator[dict, None, None] | WebDataset:
     """Apply a function to each sample in the dataset and save the results to new shards.
 
-    Args:
-        ds (wds.WebDataset): WebDataset object
+    Arguments
+    ---------
+        ds (WebDataset): WebDataset object
         function (Callable): Function to apply to each sample
         fn_kwargs (dict, optional): Additional keyword arguments for the function. Defaults to {}.
         batched (bool, optional): Whether to process the dataset in batches. Defaults to False.
@@ -414,11 +416,13 @@ def apply_fn(
         changelog (str, optional): Changelog for the dataset. Defaults to None.
         version_update_mode (Literal["major", "minor", "patch"], optional): Mode for updating the version number. Defaults to None.
 
-    Yields:
+    Yields
+    ------
         Generator[dict, None, None]: Generator for the processed samples if output_path is None
 
-    Returns:
-        WebDataset: WebDataset object if output_path is provided
+    Returns
+    -------
+        WebDataset: WebDataset object if output_path is provided, which is returned after saving the shards.
     """
     if fn_kwargs is not None:
         function = partial(function, **fn_kwargs)
@@ -434,6 +438,7 @@ def apply_fn(
     if output_path is None:
         for sample in ds:
             yield sample
+        return
 
     # Apply and save to new shards
     ds.save_to_path(output_path, num_samples_per_shard=num_samples_per_shard)
