@@ -1,5 +1,6 @@
 import pytest
 
+from esp_data import AnyPath
 from esp_data.file_io.functional import (
     # create_file,
     delete_dir,
@@ -8,7 +9,7 @@ from esp_data.file_io.functional import (
     # exists,
     list_files,
     makedirs,
-    open_file,w
+    open_file,
     read_bytes,
     read_text,
     upload,
@@ -28,8 +29,8 @@ def local_test_dir(tmp_path):
 @pytest.mark.parametrize(
     "cloud_path",
     [
-        "gs://esp-ci-cd-tests/esp-data-tests/test_upload_file.bin",
-        "r2://esp-ci-cd-tests/esp-data-tests/test_upload_file.bin",
+        AnyPath("gs://esp-ci-cd-tests/esp-data-tests/test_upload_file.bin"),
+        AnyPath("r2://esp-ci-cd-tests/esp-data-tests/test_upload_file.bin"),
     ],
 )
 def test_upload_download_cloud(local_test_dir, cloud_path):
@@ -37,8 +38,8 @@ def test_upload_download_cloud(local_test_dir, cloud_path):
     local_file = local_test_dir / "cloud_test.bin"
     local_file.write_bytes(b"Hello Cloud")
 
-    assert exists(cloud_path) is False
-    assert exists(local_file) is True
+    assert cloud_path.exists() is False
+    assert local_file.exists() is True
 
     # Upload to remote
     assert upload(local_file, cloud_path) is True
@@ -151,23 +152,23 @@ def test_makedirs(local_test_dir):
 @pytest.mark.parametrize(
     "cloud_dir",
     [
-        "gs://esp-ci-cd-tests/esp-data-tests/dir_tests",
-        "r2://esp-ci-cd-tests/esp-data-tests/dir_tests",
+        AnyPath("gs://esp-ci-cd-tests/esp-data-tests/dir_tests"),
+        AnyPath("r2://esp-ci-cd-tests/esp-data-tests/dir_tests"),
     ],
 )
 def test_makedirs_in_cloud(cloud_dir):
     """Test creating directories in the cloud."""
     assert makedirs(cloud_dir) is True
-    assert exists(cloud_dir) is True
+    assert cloud_dir.exists() is True
     assert delete_dir(cloud_dir) is True
-    assert exists(cloud_dir) is False
+    assert cloud_dir.exists() is False
 
 
 @pytest.mark.parametrize(
     "cloud_dir",
     [
-        "gs://esp-ci-cd-tests/esp-data-tests/dir_tests_list",
-        "r2://esp-ci-cd-tests/esp-data-tests/dir_tests_list",
+        AnyPath("gs://esp-ci-cd-tests/esp-data-tests/dir_tests_list"),
+        AnyPath("r2://esp-ci-cd-tests/esp-data-tests/dir_tests_list"),
     ],
 )
 def test_list_files_in_cloud(cloud_dir, local_test_dir):
@@ -185,8 +186,8 @@ def test_list_files_in_cloud(cloud_dir, local_test_dir):
 @pytest.mark.parametrize(
     "cloud_dir",
     [
-        "gs://esp-ci-cd-tests/esp-data-tests/delete_files_tests",
-        "r2://esp-ci-cd-tests/esp-data-tests/delete_files_tests",
+        AnyPath("gs://esp-ci-cd-tests/esp-data-tests/delete_files_tests"),
+        AnyPath("r2://esp-ci-cd-tests/esp-data-tests/delete_files_tests"),
     ],
 )
 def test_delete_files_in_cloud(cloud_dir, local_test_dir):
@@ -205,8 +206,8 @@ def test_delete_files_in_cloud(cloud_dir, local_test_dir):
 @pytest.mark.parametrize(
     "cloud_dir",
     [
-        "gs://esp-ci-cd-tests/esp-data-tests/delete_dir_tests",
-        "r2://esp-ci-cd-tests/esp-data-tests/delete_dir_tests",
+        AnyPath("gs://esp-ci-cd-tests/esp-data-tests/delete_dir_tests"),
+        AnyPath("r2://esp-ci-cd-tests/esp-data-tests/delete_dir_tests"),
     ],
 )
 def test_delete_dir_in_cloud(cloud_dir, local_test_dir):
