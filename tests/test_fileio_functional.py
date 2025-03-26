@@ -7,8 +7,6 @@ from esp_data.file_io.functional import (
     download,
     list_files,
     makedirs,
-    read_bytes,
-    read_text,
     upload,
     write_bytes,
     write_text,
@@ -111,7 +109,7 @@ def test_read_text(local_test_dir):
     """Test reading text from a file."""
     test_file = local_test_dir / "test_read.txt"
     test_file.write_text("Hello")
-    content = read_text(str(test_file))
+    content = test_file.read_text(test_file)
     assert content == "Hello"
 
 

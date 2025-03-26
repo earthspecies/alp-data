@@ -127,38 +127,6 @@ def yield_files(dir_path: str | os.PathLike | AnyPath, pattern: str = "*", use_f
         raise IOError(f"Failed to yield files in {dir_path} using both methods: {e}") from e
 
 
-def read_text(file_path: str | os.PathLike | AnyPath, use_fs: bool = False) -> str:
-    """Read the contents of the file as text.
-
-    Args:
-        file_path (str | os.PathLike | AnyPath): The path to the file, local or cloud.
-        use_fs (bool, optional): If True, use the FileSystem approach. Defaults to False.
-
-    Returns:
-        str: The contents of the file as text if successful.
-    """
-    file_path = AnyPath(file_path)
-
-    if not file_path.exists():
-        raise FileNotFoundError(f"File {file_path} does not exist")
-
-    if is_local_path(file_path):
-        return file_path.read_text()
-
-    if not use_fs:
-        try:
-            return file_path.read_text()
-        except Exception as e:
-            logger.warning(f"Could not read file as text using AnyPath method: {e}, trying FileSystem approach.")
-
-    try:
-        fs = make_fs(file_path)
-        file_path_str = strip_cloud_prefix(file_path)
-        return fs.read_text(file_path_str)
-    except Exception as e:
-        raise IOError(f"Failed to read file {file_path} as text using both methods: {e}") from e
-
-
 def write_bytes(file_path: str | os.PathLike | AnyPath, data: bytes, use_fs: bool = False) -> bool:
     """Write the data to the file.
 
