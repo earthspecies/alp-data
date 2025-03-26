@@ -103,7 +103,7 @@ def test_read_bytes(local_test_dir):
     """Test reading bytes from a file."""
     test_file = local_test_dir / "test_read.bin"
     test_file.write_bytes(b"\x00\xff\x10")
-    data = read_bytes(str(test_file))
+    data = test_file.read_bytes()
     assert data == b"\x00\xff\x10"
 
 
