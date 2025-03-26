@@ -10,7 +10,6 @@ import os
 import shutil
 import subprocess
 from io import StringIO
-from typing import Any
 
 from cloudpathlib import GSPath
 
@@ -19,37 +18,6 @@ from esp_data.paths import AnyPath, is_local_path, strip_cloud_prefix
 from .utils import make_fs
 
 logger = logging.getLogger("esp_data")
-
-
-def open_file(file_path: str | os.PathLike | AnyPath, mode: str, use_fs: bool = False, **open_kwargs) -> Any:
-    """Open the file at the given path.
-
-    Args:
-        file_path (str | os.PathLike | AnyPath): The path to the file.
-        mode (str): The mode to open the file in.
-        use_fs (bool, optional): If True, use the FileSystem approach. Defaults to False, which is using cloudpathlib.
-        **open_kwargs: Additional keyword arguments to pass to the open function.
-
-    Returns:
-        Any: The file object.
-    """
-    file_path = AnyPath(file_path)
-
-    if is_local_path(file_path):
-        return file_path.open(mode, **open_kwargs)
-
-    if not use_fs:
-        try:
-            return file_path.open(mode, **open_kwargs)
-        except Exception as e:
-            logger.warning(f"Could not open file using AnyPath method: {e}, trying FileSystem approach.")
-
-    try:
-        fs = make_fs(file_path)
-        file_path_str = strip_cloud_prefix(file_path)
-        return fs.open(str(file_path_str), mode, **open_kwargs)
-    except Exception as e:
-        raise IOError(f"Failed to open file at {file_path} using both methods: {e}") from e
 
 
 def move_file(

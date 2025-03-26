@@ -2,14 +2,11 @@ import pytest
 
 from esp_data import AnyPath
 from esp_data.file_io.functional import (
-    # create_file,
     delete_dir,
     delete_file,
     download,
-    # exists,
     list_files,
     makedirs,
-    open_file,
     read_bytes,
     read_text,
     upload,
@@ -75,14 +72,14 @@ def test_open_file_read_write(local_test_dir):
     test_file = local_test_dir / "test_open.txt"
     test_file.write_text("Line1")
 
-    with open_file(str(test_file), "r") as f:
+    with test_file.open("r") as f:
         data = f.read()
     assert data == "Line1"
 
-    with open_file(str(test_file), "a") as f:
+    with test_file.open("a") as f:
         f.write("Line2")
 
-    with open_file(str(test_file), "r") as f:
+    with test_file.open("r") as f:
         data = f.read()
     assert data == "Line1Line2"
 
