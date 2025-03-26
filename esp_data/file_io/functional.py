@@ -329,30 +329,6 @@ def copy(
         raise IOError(f"Failed to copy {source} to {destination} using both methods: {e}") from e
 
 
-def download(
-    source: str | os.PathLike | AnyPath, destination: str | os.PathLike | AnyPath, use_fs: bool = False
-) -> bool:
-    """Download a file/directory from source (typically cloud) to local path.
-    Please end dirs to download with a trailing /.
-
-    Args:
-        source (str | os.PathLike | AnyPath): The source path to download from.
-        destination (str | os.PathLike | AnyPath): The local destination path.
-        use_fs (bool, optional): If True, use the FileSystem approach. Defaults to False.
-
-    Returns:
-        bool: True if the download was successful.
-
-    Example:
-        # Download a file from a cloud bucket
-        download("gs://bucket_name/path/to/file.txt", "local_file.txt")
-
-        # Download a dir from a cloud bucket
-        download("gs://bucket_name/path/to/dir/", "local_dir/")
-    """
-    return copy(source, destination, use_fs)
-
-
 def gcloud_rsync(
     source: str | os.PathLike | AnyPath,
     destination: str | os.PathLike | AnyPath,

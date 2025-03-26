@@ -5,7 +5,6 @@ from esp_data.file_io.functional import (
     copy,
     delete_dir,
     delete_file,
-    download,
     list_files,
     makedirs,
 )
@@ -38,7 +37,7 @@ def test_upload_download_cloud(local_test_dir, cloud_path):
     assert copy(local_file, cloud_path) is True
     # Download back to a different local file
     download_target = local_test_dir / "cloud_test_download.bin"
-    assert download(cloud_path, str(download_target)) is True
+    assert copy(cloud_path, str(download_target)) is True
     assert download_target.read_bytes() == b"Hello Cloud"
     assert delete_file(cloud_path) is True
 
