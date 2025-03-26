@@ -36,11 +36,11 @@ def strip_cloud_prefix(path: str | Path | os.PathLike) -> str:
     return str(path).replace("gs://", "").replace("s3://", "").replace("r2://", "")
 
 
-def make_gscs_storage_options() -> dict:
+def _make_gscs_storage_options() -> dict:
     return {"project": os.getenv("GCP_DEFAULT_PROJECT")}
 
 
-def make_s3_storage_options() -> dict:
+def _make_s3_storage_options() -> dict:
     return {
         "client_kwargs": {
             "aws_access_key_id": os.getenv("CLOUDFLARE_R2_ACCESS_KEY_ID"),
@@ -52,9 +52,9 @@ def make_s3_storage_options() -> dict:
 
 def make_storage_options(path: str | os.PathLike) -> dict | None:
     if is_gcs_path(path):
-        return make_gscs_storage_options()
+        return _make_gscs_storage_options()
     elif is_s3_path(path) or is_r2_path(path):
-        return make_s3_storage_options()
+        return _make_s3_storage_options()
     else:
         return None
 

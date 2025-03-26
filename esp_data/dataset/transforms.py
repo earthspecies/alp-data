@@ -5,6 +5,7 @@ Module for defining and applying data transformation pipelines
 import importlib
 import inspect
 import json
+import logging
 from dataclasses import dataclass
 from typing import Any, Callable, Dict, List, Optional
 
@@ -12,9 +13,9 @@ import git
 import pkg_resources
 
 from esp_data.paths import AnyPath
-from esp_data.utils import make_simple_logger, utc_now_str
+from esp_data.utils import utc_now_str
 
-logger = make_simple_logger("esp_data")
+logger = logging.getLogger("esp_data")
 
 
 @dataclass

@@ -8,7 +8,7 @@ from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from esp_data.file_io.functional import open_file
+from esp_data import AnyPath
 
 from ..utils import (
     increment_version,
@@ -188,13 +188,13 @@ class DataSample(BaseModel):
     @classmethod
     def from_json(cls, file_path: str | os.PathLike) -> "DataSample":
         """Load data sample from a JSON file"""
-        with open_file(file_path, "r") as f:
+        with AnyPath(file_path).open("r") as f:
             data = json.load(f)
         return cls(**data)
 
     def write_json(self, file_path: str | os.PathLike, indent: int = 2) -> None:
         """Write the data sample to a JSON file"""
-        with open_file(file_path, "w") as f:
+        with AnyPath(file_path).open("w") as f:
             d = self.to_dict()
             json.dump(d, f, indent=indent)
 
@@ -269,7 +269,7 @@ class DatasetConfig(BaseModel):
     @classmethod
     def from_json(cls, file_path: str | os.PathLike) -> None:
         """Load data sample from a JSON file"""
-        with open_file(file_path, "r") as f:
+        with AnyPath(file_path).open("r") as f:
             data = json.load(f)
         data["created_at"] = datetime.fromisoformat(data["created_at"])
         return cls(**data)
@@ -293,7 +293,7 @@ class DatasetConfig(BaseModel):
 
     def write_json(self, file_path: str | os.PathLike) -> None:
         """Write the dataset to a JSON file"""
-        with open_file(file_path, "w") as f:
+        with AnyPath(file_path).open("w") as f:
             d = self.to_dict()
             d["created_at"] = self.created_at.isoformat()
             json.dump(d, f, indent=2)

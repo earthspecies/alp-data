@@ -4,6 +4,7 @@ Modular functions to create sharded datasets in both WebDataset (tar) and Arrow 
 
 import hashlib
 import json
+import logging
 import time
 import traceback
 from concurrent.futures import ProcessPoolExecutor
@@ -24,11 +25,9 @@ import esp_data.file_io.functional as F
 from esp_data.config import DatasetConfig
 from esp_data.config.project_config import default_shard_creator_cfg
 from esp_data.paths import AnyPath, make_storage_options
-from esp_data.utils import make_id, make_simple_logger
+from esp_data.utils import make_id
 
-from .utils import make_file_opener
-
-logger = make_simple_logger("esp_data")
+logger = logging.getLogger("esp_data")
 
 # Initialize colorama for cross-platform colored terminal output
 colorama.init()
@@ -115,7 +114,7 @@ def write_webdataset_shard(
         str(shard_path),
         maxcount=100_000_000_000,  # Set very high to ensure all samples go in one shard
         maxsize=100_000_000_000,
-        opener=make_file_opener(shard_path),
+        opener=lambda: AnyPath(shard_path).open("wb"),
     )
 
     # Process each sample
@@ -309,9 +308,7 @@ def create_iterative_writer(
     # Infer schema from the sample
     schema = infer_schema_from_sample(sample, default_float_type)
 
-    # Create opener and file
-    opener = make_file_opener(path, mode="wb")
-    file_obj = opener(path)
+    file_obj = AnyPath(path).open("wb")
 
     # Create appropriate writer
     if format == "parquet":
