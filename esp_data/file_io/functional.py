@@ -21,100 +21,6 @@ from .utils import make_fs
 logger = logging.getLogger("esp_data")
 
 
-# def create_file_local(file_path: str | os.PathLike | AnyPath, data: bytes = None, exist_ok: bool = True) -> bool:
-#     """Create a file at the given path.
-
-#     Arguments
-#     ---------
-#         file_path (str | os.PathLike | AnyPath): The path to the file.
-#         data (bytes, optional): The data to write to the file. Defaults to None.
-#         exist_ok (bool, optional): If True, do not raise an exception if the file already exists. Defaults to True.
-
-#     Returns
-#     -------
-#         bool: True if the file was created successfully
-
-#     Example
-#     -------
-#         >>> create_file_local("local_file.txt", data=b"Hello, world!")
-#         >>> with open("local_file.txt", "rb") as f:
-#         ...     print(f.read())
-#         Hello, world!
-#     """
-#     file_path = AnyPath(file_path)
-
-#     parent_dir = file_path.parent
-#     parent_dir.mkdir(parents=True, exist_ok=True)
-#     file_path.touch(exist_ok=exist_ok)
-#     if data:
-#         file_path.write_bytes(data)
-#     return True
-
-
-# def create_file_fs(file_path: str | os.PathLike | AnyPath, data: bytes = None) -> bool:
-#     """Create a file at the given cloud path.
-
-#     Arguments
-#     ---------
-#         file_path (str | os.PathLike | AnyPath): The path to the file.
-#         data (bytes, optional): The data to write to the file. Defaults to None.
-#         exist_ok (bool, optional): If True, do not raise an exception if the file already exists. Defaults to True.
-
-#     Returns
-#     -------
-#         bool: True if the file was created successfully
-
-#     Example
-#     -------
-#         >>> create_file_fs("gs://esp-ci-cd-tests/esp-data-tests/create_file_fs_test.txt", data=b"Hello, world!")
-#         True
-#     """
-#     file_path = AnyPath(file_path)
-
-#     fs = make_fs(file_path)
-#     file_path_str = strip_cloud_prefix(file_path)
-#     with fs.open(file_path_str, "wb") as f:
-#         f.write(data or b"")
-#     return True
-
-
-# def create_file(
-#     file_path: str | os.PathLike | AnyPath, use_fs: bool = False, data: bytes = None, exist_ok: bool = True
-# ) -> bool:
-#     """Create a file at the given path.
-
-#     Args:
-#         file_path (str | os.PathLike | AnyPath): The path to the file.
-#         use_fs (bool, optional): If True, use the FileSystem approach. Defaults to False, which is using cloudpathlib.
-#         data (bytes, optional): The data to write to the file. Defaults to None.
-#         exist_ok (bool, optional): If True, do not raise an exception if the file already exists. Defaults to True.
-
-#     Returns:
-#         bool: True if the file was created successfully
-#     """
-#     file_path = AnyPath(file_path)
-
-#     # Handle local path creation directly
-#     if is_local_path(file_path):
-#         return create_file_local(file_path, data, exist_ok)
-
-#     # Try AnyPath method first if not using filesystem or if filesystem creation failed
-#     if not use_fs:
-#         try:
-#             file_path.touch(exist_ok=exist_ok)
-#             if data:
-#                 file_path.write_bytes(data)
-#             return True
-#         except Exception as e:
-#             logger.warning(f"Could not create file using AnyPath method: {e}, trying FileSystem approach.")
-
-#     # FileSystem approach as fallback or if specifically requested
-#     try:
-#         return create_file_fs(file_path, data)
-#     except Exception as e:
-#         raise IOError(f"Failed to create file at {file_path} using both methods: {e}") from e
-
-
 def open_file(file_path: str | os.PathLike | AnyPath, mode: str, use_fs: bool = False, **open_kwargs) -> Any:
     """Open the file at the given path.
 
@@ -144,37 +50,6 @@ def open_file(file_path: str | os.PathLike | AnyPath, mode: str, use_fs: bool = 
         return fs.open(str(file_path_str), mode, **open_kwargs)
     except Exception as e:
         raise IOError(f"Failed to open file at {file_path} using both methods: {e}") from e
-
-
-# def exists(file_path: str | os.PathLike | AnyPath, use_fs: bool = False) -> bool:
-#     """Check if the file exists.
-
-#     Args:
-#         file_path (str | os.PathLike | AnyPath): The path to the file.
-#         use_fs (bool, optional): If True, use the FileSystem approach. Defaults to True, which is using cloudpathlib.
-
-#     Returns:
-#         bool: True if the file exists.
-#     """
-#     file_path = AnyPath(file_path)
-
-#     if is_local_path(file_path):
-#         return file_path.exists()
-
-#     if not use_fs:
-#         try:
-#             return file_path.exists()
-#         except Exception as e:
-#             logger.warning(
-#                 f"Could not check for existence of file using AnyPath method: {e}, trying FileSystem approach."
-#             )
-
-#     try:
-#         fs = make_fs(file_path)
-#         file_path = strip_cloud_prefix(file_path)
-#         return fs.exists(file_path)
-#     except Exception as e:
-#         raise IOError(f"Failed to check file exists at {file_path} using both methods: {e}") from e
 
 
 def move_file(
