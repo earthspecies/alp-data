@@ -4,6 +4,7 @@ from typing import Optional
 from pydantic import Field
 
 import esp_data.file_io.functional as F
+from esp_data import AnyPath
 from esp_data.config import DataSample, DatasetConfig
 
 CREATOR = """M.Hagiwara, masato at earthspecies dot org;
@@ -106,7 +107,7 @@ def download_jsonl_files(exists_ok: Optional[bool] = True):
         if exists_ok:
             F.download(path, LOCAL_PATHS[name])
 
-        if not exists_ok and not F.exists(LOCAL_PATHS[name]):
+        if not exists_ok and not AnyPath(LOCAL_PATHS[name]).exists():
             F.download(path, LOCAL_PATHS[name])
 
 

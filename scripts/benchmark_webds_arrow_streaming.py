@@ -13,7 +13,8 @@ from tqdm import tqdm
 
 from esp_data.dataset.esp_dataset import load_esp_dataset as lds
 from esp_data.file_io.parsers import read_audio_bytes
-from esp_data.utils import make_simple_logger
+
+from .temp_utils import make_simple_logger
 
 logger = make_simple_logger("benchmark_webds_arrow_streaming", add_file_handler=True)
 

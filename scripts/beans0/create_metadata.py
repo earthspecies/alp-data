@@ -7,7 +7,8 @@ from beans_cfg import ALL_DATASET_NAMES, LOCAL_PATHS, Beans0SampleNoAudio, beans
 from tqdm import tqdm
 
 from esp_data.paths import AnyPath
-from esp_data.utils import make_simple_logger
+
+from .temp_utils import make_simple_logger
 
 logger = make_simple_logger("prepare_beans0", add_file_handler=True)
 

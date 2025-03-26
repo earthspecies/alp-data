@@ -1,4 +1,5 @@
 import io
+import logging
 
 import numpy as np
 import pandas as pd
@@ -8,13 +9,12 @@ from PIL import Image
 from pydub import AudioSegment
 
 from esp_data.paths import AnyPath
-from esp_data.utils import make_simple_logger
 
 UNCOMPRESSED_AUDIO_FORMATS = ["wav", "flac", "ogg"]
 COMPRESSED_AUDIO_FORMATS = ["mp3"]
 
 
-logger = make_simple_logger("esp_data")
+logger = logging.getLogger("esp_data")
 
 
 def read_audio_from_bytes_sf(audio_bytes: bytes) -> tuple[np.ndarray, int]:

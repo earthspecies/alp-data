@@ -1,4 +1,5 @@
 import json
+import logging
 from functools import lru_cache, partial
 from typing import Any, Callable, Generator, Literal, Union
 
@@ -9,12 +10,11 @@ import esp_data.file_io.functional as F
 from esp_data.config import DatasetConfig
 from esp_data.config.project_config import default_webds_loader_cfg
 from esp_data.paths import AnyPath
-from esp_data.utils import make_simple_logger
 
 from .base import BaseIterableDataset, BaseMapDataset
 from .shard_creator import write_webdataset_shard
 
-logger = make_simple_logger("esp_data")
+logger = logging.getLogger("esp_data")
 
 
 def load_dataset(

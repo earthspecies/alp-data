@@ -1,14 +1,14 @@
 import pytest
 
 from esp_data.file_io.functional import (
-    create_file,
+    # create_file,
     delete_dir,
     delete_file,
     download,
-    exists,
+    # exists,
     list_files,
     makedirs,
-    open_file,
+    open_file,w
     read_bytes,
     read_text,
     upload,
@@ -49,24 +49,24 @@ def test_upload_download_cloud(local_test_dir, cloud_path):
     assert delete_file(cloud_path) is True
 
 
-def test_create_local_file(local_test_dir):
-    """Test creating a local file."""
-    test_file = local_test_dir / "test_create.txt"
-    assert create_file(str(test_file), data=b"Hello") is True
-    assert test_file.exists()
-    assert test_file.read_bytes() == b"Hello"
+# def test_create_local_file(local_test_dir):
+#     """Test creating a local file."""
+#     test_file = local_test_dir / "test_create.txt"
+#     assert create_file(str(test_file), data=b"Hello") is True
+#     assert test_file.exists()
+#     assert test_file.read_bytes() == b"Hello"
 
 
-def test_create_and_delete_file_cloud(local_test_dir):
-    """Test creating a file in a cloud bucket."""
-    test_file = "gs://esp-ci-cd-tests/esp-data-tests/test_create_cloud.txt"
-    assert create_file(test_file, data=b"Hello") is True
-    assert exists(test_file) is True
-    assert download(test_file, str(local_test_dir / "test_create_cloud.txt")) is True
-    assert (local_test_dir / "test_create_cloud.txt").read_bytes() == b"Hello"
-    # delete remote file
-    assert delete_file(test_file) is True
-    assert exists(test_file) is False
+# def test_create_and_delete_file_cloud(local_test_dir):
+#     """Test creating a file in a cloud bucket."""
+#     test_file = "gs://esp-ci-cd-tests/esp-data-tests/test_create_cloud.txt"
+#     assert create_file(test_file, data=b"Hello") is True
+#     assert exists(test_file) is True
+#     assert download(test_file, str(local_test_dir / "test_create_cloud.txt")) is True
+#     assert (local_test_dir / "test_create_cloud.txt").read_bytes() == b"Hello"
+#     # delete remote file
+#     assert delete_file(test_file) is True
+#     assert exists(test_file) is False
 
 
 def test_open_file_read_write(local_test_dir):
