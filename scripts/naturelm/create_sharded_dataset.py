@@ -37,17 +37,20 @@ AUDIO_PROMPT = "<Audio><AudioHere></Audio>"
 
 def read_jsonl(path: str | AnyPath) -> list[dict]:
     try:
-        with F.open_file(path, "r") as f:
+        path = AnyPath(path)
+        with path.open(path, "r") as f:
             data = json.load(f)
             annotation = data["annotation"]
     except (json.JSONDecodeError, KeyError):
-        with F.open_file(path, "r") as f:
+        with path.open(path, "r") as f:
             annotation = [json.loads(line) for line in f]
     return annotation
 
 
 def load_audio(audio_path: str | AnyPath) -> np.ndarray:
-    with F.open_file(audio_path, "rb") as f:
+    audio_path = AnyPath(audio_path)
+
+    with audio_path.open("rb") as f:
         audio_data, sr = torchaudio.load(f)
     audio_data = audio_data.numpy().squeeze().tolist()
     return audio_data, sr
