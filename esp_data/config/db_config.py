@@ -321,7 +321,7 @@ class DatasetConfig(BaseModel):
     def generate_readme(self, file_path: str | os.PathLike) -> None:
         """Generate a README file for the dataset"""
         text = str(self)
-        with open_file(file_path, "w") as f:
+        with AnyPath(file_path).open("w") as f:
             f.write(text)
 
     @classmethod
