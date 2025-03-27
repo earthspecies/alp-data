@@ -6,7 +6,7 @@ import pytest
 import esp_data.file_io.functional as F
 from esp_data.config import DataSample, DatasetConfig
 from esp_data.dataset import HFDataset
-from esp_data.paths import AnyPath, make_storage_options
+from esp_data.paths import AnyPath
 
 # constants for all tests
 cfg = DatasetConfig(
@@ -174,7 +174,7 @@ def test_saving_methods():
 
     ds.save_to_path(
         "gs://esp-ci-cd-tests/esp-data-tests/hf_test_dataset",
-        storage_options=make_storage_options("gs://esp-ci-cd-tests/esp-data-tests/hf_test_dataset"),
+        storage_options=AnyPath("gs://esp-ci-cd-tests/esp-data-tests/hf_test_dataset").storage_options,
     )
 
     assert AnyPath("gs://esp-ci-cd-tests/esp-data-tests/hf_test_dataset").exists()

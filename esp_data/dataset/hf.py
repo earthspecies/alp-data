@@ -5,7 +5,7 @@ from typing import Any, Callable, Generator, Iterable, Literal, Optional
 from datasets import Dataset, concatenate_datasets, load_dataset, load_from_disk
 
 from esp_data.config.db_config import DataSample, DatasetConfig
-from esp_data.paths import AnyPath, make_storage_options
+from esp_data.paths import AnyPath
 
 from .base import BaseMapDataset
 from .shard_creator import write_huggingface_shard
@@ -411,7 +411,7 @@ class HFDataset(BaseMapDataset):
 
         # set storage options if not provided
         if not storage_options:
-            storage_options = make_storage_options(storage_options)
+            storage_options = path.storage_options
 
         if changelog:
             self.config.update_changelog(changelog)

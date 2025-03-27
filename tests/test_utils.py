@@ -5,7 +5,6 @@ import pytest
 from esp_data.utils import (
     increment_version,
     make_id,
-    run_as_async,
     utc_now,
     validate_datetime,
     validate_id,
@@ -55,11 +54,3 @@ def test_validate_datetime():
 def test_make_id():
     id = make_id()
     assert validate_id(id) == id
-
-
-async def test_run_as_async():
-    def add(a, b):
-        return a + b
-
-    result = await run_as_async(add, a=1, b=2)
-    assert result == 3

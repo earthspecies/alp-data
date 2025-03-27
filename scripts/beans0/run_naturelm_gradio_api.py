@@ -9,7 +9,7 @@ from tqdm import tqdm
 
 from esp_data.dataset.esp_dataset import load_esp_dataset
 from esp_data.file_io.parsers import read_audio_bytes
-from esp_data.paths import AnyPath, make_storage_options
+from esp_data.paths import AnyPath
 
 
 def data_processor(data: dict):
@@ -102,7 +102,7 @@ def main():
                 args.output_path,
                 orient="records",
                 lines=True,
-                storage_options=make_storage_options(args.output_path),
+                storage_options=AnyPath(args.output_path).storage_options,
                 mode="a",
             )
             output_df = empty_df()
@@ -113,7 +113,7 @@ def main():
             args.output_path,
             orient="records",
             lines=True,
-            storage_options=make_storage_options(args.output_path),
+            storage_options=AnyPath(args.output_path).storage_options,
             mode="a",
         )
 
