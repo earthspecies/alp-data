@@ -127,10 +127,10 @@ def read_gcp_secret(secret_id: str, version_id: str = "latest", project_id: str 
 
 
 # TODO (milad) add unit tests for this
-class CachedClassAttribute:
+class CachedClassProperty:
     def __init__(self, method):
         self.method = method
-        self.cache_attrname = f"_cached_class_attribute_{method.__name__}"
+        self.cache_attrname = f"_cached_class_attr_{method.__name__}"
 
     def __get__(self, instance, owner=None):
         if owner is None:
@@ -141,5 +141,5 @@ class CachedClassAttribute:
         return getattr(owner, self.cache_attrname)
 
 
-def cached_class_attribute(method):
-    return CachedClassAttribute(method)
+def cached_class_property(method):
+    return CachedClassProperty(method)

@@ -8,7 +8,7 @@ import cloudpathlib
 from cloudpathlib import GSClient, S3Client, S3Path
 from google.cloud.storage.client import Client as GS_Client_Official
 
-from esp_data.utils import cached_class_attribute, read_gcp_secret
+from esp_data.utils import cached_class_property, read_gcp_secret
 
 _DEFAULT_GCP_PROJECT = "okapi-274503"
 
@@ -32,7 +32,7 @@ class GSPath(cloudpathlib.GSPath):
             client = GSPath.__client
         super().__init__(cloud_path, client=client)
 
-    @cached_class_attribute
+    @cached_class_property
     def __client(cls) -> cloudpathlib.GSClient:
         return cloudpathlib.GSClient(storage_client=GS_Client_Official())
 
@@ -47,7 +47,7 @@ class R2Path(cloudpathlib.S3Path):
 
         super().__init__(cloud_path, client=client)
 
-    @cached_class_attribute
+    @cached_class_property
     def __client(cls) -> S3Client:
         return cloudpathlib.S3Client(
             aws_access_key_id=read_gcp_secret("cloudflare_r2_bucket_readwrite_access_key_id"),
@@ -55,7 +55,7 @@ class R2Path(cloudpathlib.S3Path):
             endpoint_url=read_gcp_secret("cloudflare_r2_bucket_readwrite_endpoint_url"),
         )
 
-    @cached_class_attribute
+    @cached_class_property
     def storage_options(self) -> dict:
         return {
             "client_kwargs": {
