@@ -329,67 +329,6 @@ def copy(
         raise IOError(f"Failed to copy {source} to {destination} using both methods: {e}") from e
 
 
-def gcloud_rsync(
-    source: str | os.PathLike | AnyPath,
-    destination: str | os.PathLike | AnyPath,
-    avoid_copy_if_same: bool = False,
-    delete_unmatched: bool = False,
-    continue_on_error: bool = True,
-    recursive: bool = True,
-    gzip_in_flight: str = "",
-) -> None:
-    """Sync the bucket directory with a local / cloud directory.
-
-    Args:
-        source (str | os.PathLike | AnyPath): The source path to sync from.
-        destination (str | os.PathLike | AnyPath): The destination path to sync to.
-        avoid_copy_if_same: Whether to avoid copying files that are the same in source and destination. Default is False
-        delete_unmatched: Whether to delete files in the destination that are not in the source. Default is False
-        continue_on_error: Whether to continue syncing if an error occurs. Default is True
-        recursive: Whether to sync recursively. Default is True
-        gzip_in_flight: Whether to compress files with the given extensions in flight for faster transfer.
-            For e.g. gzip_in_flight="txt,csv,jpg". Default is "" which means none. If "all",
-            will try to compress everything, but this may be counterproductive for files that should not be
-            compressed.
-
-    Raises:
-        subprocess.CalledProcessError: If rsync command fails
-    """
-    # uses gcloud storage rsync command
-    cmd = ["gcloud", "storage", "rsync", str(source), str(destination)]
-
-    if recursive:
-        cmd.append("--recursive")
-    if delete_unmatched:
-        cmd.append("--delete-unmatched-destination-objects")
-    if continue_on_error:
-        cmd.append("--continue-on-error")
-    if avoid_copy_if_same:
-        cmd.append("--no-clobber")
-
-    if gzip_in_flight == "all":
-        cmd.append("--gzip-in-flight-all")
-    elif gzip_in_flight != "":
-        cmd.append(f"--gzip-in-flight={gzip_in_flight}")
-
-    p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    stdout, stderr = p.communicate()
-
-    if p.returncode != 0:
-        error_msg = stderr.decode("utf-8").strip()
-        logger.error(f"Rsync failed with return code {p.returncode}: {error_msg}")
-        logger.error(f"Command used: {' '.join(cmd)}")
-        if not continue_on_error:
-            raise subprocess.CalledProcessError(p.returncode, cmd, stdout, stderr)
-    else:
-        # Log success message with some stats if available
-        output = stdout.decode("utf-8").strip()
-        if output:
-            logger.info(f"Rsync completed successfully: {output}")
-        else:
-            logger.info("Rsync completed successfully")
-
-
 def write_rows_to_csv(rows: list[dict], *, file_path: str | AnyPath, mode: str = "a", use_fs: bool = False) -> None:
     """Write a list of dicts to a remote CSV file. Allows appending to the file.
 
