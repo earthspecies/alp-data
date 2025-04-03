@@ -2,6 +2,7 @@ import json
 import logging
 import re
 from datetime import datetime, timedelta, timezone
+from typing import Callable
 from uuid import UUID, uuid4
 
 import google_crc32c
@@ -85,21 +86,21 @@ def increment_version(version: str, mode: str = "patch") -> str:
     return f"{major}.{minor}.{patch}"
 
 
-# async def run_as_async(func: Callable, new_event_loop: bool = False, **func_kwargs) -> Callable:
-#     """Run the function asynchronously.
+async def run_as_async(func: Callable, new_event_loop: bool = False, **func_kwargs) -> Callable:
+    """Run the function asynchronously.
 
-#     Args:
-#         func (Callable): The function to run asynchronously.
+    Args:
+        func (Callable): The function to run asynchronously.
 
-#     Returns:
-#         Callable: The function that runs asynchronously.
-#     """
-#     if new_event_loop:
-#         loop = asyncio.new_event_loop()
-#     else:
-#         loop = asyncio.get_event_loop()
-#     with concurrent.futures.ThreadPoolExecutor() as pool:
-#         return await loop.run_in_executor(pool, partial(func, **func_kwargs))
+    Returns:
+        Callable: The function that runs asynchronously.
+    """
+    if new_event_loop:
+        loop = asyncio.new_event_loop()
+    else:
+        loop = asyncio.get_event_loop()
+    with concurrent.futures.ThreadPoolExecutor() as pool:
+        return await loop.run_in_executor(pool, partial(func, **func_kwargs))
 
 
 def read_gcp_secret(secret_id: str, version_id: str = "latest", project_id: str = "okapi-274503") -> str:
