@@ -127,7 +127,6 @@ def read_gcp_secret(secret_id: str, version_id: str = "latest", project_id: str 
     return payload
 
 
-# TODO (milad) add unit tests for this
 class CachedClassProperty:
     def __init__(self, method):
         self.method = method
