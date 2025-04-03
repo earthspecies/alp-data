@@ -76,7 +76,7 @@ def load_dataset(
 
     """
     path = AnyPath(path)
-    shard_files = F.list_files(path, pattern=file_pattern)
+    shard_files = list(F.yield_files(path, pattern=file_pattern))
 
     if not shard_files:
         raise FileNotFoundError(f"No shard files found in {path}")

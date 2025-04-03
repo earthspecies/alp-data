@@ -8,7 +8,6 @@ We prefer using the FileSystem approach, defaulting to cloudpathlib if it doesn'
 import logging
 import os
 import shutil
-from io import StringIO
 
 from cloudpathlib import GSPath
 
@@ -66,20 +65,6 @@ def move_file(
         raise IOError(f"Failed to move file {source} to {destination} using both methods: {e}") from e
 
 
-def list_files(dir_path: str | os.PathLike | AnyPath, pattern: str = "*", use_fs: bool = False) -> list[str]:
-    """List files in the given directory.
-
-    Args:
-        dir_path (str | os.PathLike | AnyPath): The path to the directory.
-        pattern (str, optional): A pattern to match the files. Defaults to "*".
-        use_fs (bool, optional): If True, use the FileSystem approach. Defaults to False, which is using cloudpathlib.
-
-    Returns:
-        list[str]: A list of file paths if successful.
-    """
-    return [f for f in yield_files(dir_path, pattern, use_fs)]
-
-
 def yield_files(dir_path: str | os.PathLike | AnyPath, pattern: str = "*", use_fs: bool = False):
     """Yield files in the given directory.
 
@@ -126,42 +111,6 @@ def yield_files(dir_path: str | os.PathLike | AnyPath, pattern: str = "*", use_f
         raise IOError(f"Failed to yield files in {dir_path} using both methods: {e}") from e
 
 
-def delete_file(file_path: str | os.PathLike | AnyPath, use_fs: bool = False) -> bool:
-    """Delete the file at the given path.
-
-    Args:
-        file_path (str | os.PathLike | AnyPath): The path to the file, local or cloud.
-        use_fs (bool, optional): If True, use the FileSystem approach. Defaults to False.
-
-    Returns:
-        bool: True if the file was deleted successfully
-    """
-    file_path = AnyPath(file_path)
-
-    if not file_path.exists():
-        logger.warning(f"File {file_path} does not exist, aborting.")
-        return False
-
-    if is_local_path(file_path):
-        file_path.unlink()
-        return True
-
-    if not use_fs:
-        try:
-            file_path.unlink()
-            return True
-        except Exception as e:
-            logger.warning(f"Could not delete file using AnyPath method: {e}, trying FileSystem approach.")
-
-    try:
-        fs = make_fs(file_path)
-        file_path_str = strip_cloud_prefix(file_path)
-        fs.rm(file_path_str)
-        return True
-    except Exception as e:
-        raise IOError(f"Failed to delete file {file_path} using both methods: {e}") from e
-
-
 def delete_dir(dir_path: str | os.PathLike | AnyPath, use_fs: bool = False) -> bool:
     """Delete the directory at the given path.
 
@@ -196,7 +145,7 @@ def delete_dir(dir_path: str | os.PathLike | AnyPath, use_fs: bool = False) -> b
 
     try:
         fs = make_fs(dir_path)
-        files = list_files(dir_path)
+        files = list(yield_files(dir_path))
         # Remove all files
         if files:
             fs.rm(files)
@@ -326,39 +275,3 @@ def copy(
         return True
     except Exception as e:
         raise IOError(f"Failed to copy {source} to {destination} using both methods: {e}") from e
-
-
-def write_rows_to_csv(rows: list[dict], *, file_path: str | AnyPath, mode: str = "a", use_fs: bool = False) -> None:
-    """Write a list of dicts to a remote CSV file. Allows appending to the file.
-
-    Args:
-        rows (list[dict]): The list of rows to write.
-        file_path (str | AnyPath): The path to the CSV file.
-        mode (str, optional): The mode to open the file in. Defaults to "a".
-        use_fs (bool, optional): If True, use the FileSystem approach. Defaults to False.
-    """
-    import csv
-
-    if not rows:
-        logger.warning("No rows to write, aborting.")
-        return
-
-    fs = None
-    if use_fs:
-        fs = make_fs(file_path)
-
-    fieldnames = list(rows[0].keys())
-    # Write batch to string buffer
-    output = StringIO()
-    writer = csv.DictWriter(output, fieldnames=fieldnames)
-    if not exists(file_path):
-        writer.writeheader()
-
-    writer.writerows(rows)
-
-    if fs is None:
-        with AnyPath(file_path).open(mode=mode) as f:
-            f.write(output.getvalue())
-    else:
-        with fs.open(file_path, mode=mode) as f:
-            f.write(output.getvalue())

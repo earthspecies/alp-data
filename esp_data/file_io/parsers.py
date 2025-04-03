@@ -10,23 +10,20 @@ from pydub import AudioSegment
 
 from esp_data.paths import AnyPath
 
-UNCOMPRESSED_AUDIO_FORMATS = ["wav", "flac", "ogg"]
-COMPRESSED_AUDIO_FORMATS = ["mp3"]
-
-
 logger = logging.getLogger("esp_data")
 
+UNCOMPRESSED_AUDIO_FORMATS = (".wav", ".flac", ".ogg")
+COMPRESSED_AUDIO_FORMATS = (".mp3",)
 
-def read_audio_from_bytes_sf(audio_bytes: bytes) -> tuple[np.ndarray, int]:
+
+def _read_audio_from_bytes_sf(audio_bytes: bytes) -> tuple[np.ndarray, int]:
     with io.BytesIO(audio_bytes) as audio_buffer:
         data, samplerate = sf.read(audio_buffer)
-
     return data, samplerate
 
 
-def read_audio_from_bytes_pydub(audio_bytes: bytes) -> tuple[np.ndarray, int]:
+def _read_audio_from_bytes_pydub(audio_bytes: bytes) -> tuple[np.ndarray, int]:
     audio = AudioSegment.from_mp3(io.BytesIO(audio_bytes))
-
     return np.array(audio.get_array_of_samples()), audio.frame_rate
 
 
@@ -34,29 +31,22 @@ def read_audio_bytes(audio_bytes: bytes, extension: str) -> tuple[np.ndarray, in
     extension = extension.lower()
 
     if extension in UNCOMPRESSED_AUDIO_FORMATS:
-        read_func = read_audio_from_bytes_sf
-
+        read_func = _read_audio_from_bytes_sf
     elif extension in COMPRESSED_AUDIO_FORMATS:
-        read_func = read_audio_from_bytes_pydub
-
+        read_func = _read_audio_from_bytes_pydub
     else:
         raise ValueError(f"Unsupported audio format: {extension}")
 
     return read_func(audio_bytes)
 
 
-def read_audio_bytes_from_path(file_path: AnyPath, fs=None) -> tuple[np.ndarray, int]:
+def read_audio(file_path: AnyPath) -> tuple[np.ndarray, int]:
     file_path = AnyPath(file_path)
-    extension = file_path.suffix[1:]
+    extension = file_path.suffix
 
     try:
-        if fs is None:
-            with file_path.open("rb") as f:
-                return read_audio_bytes(f.read(), extension)
-
-        with fs.open(str(file_path), "rb") as f:
+        with file_path.open("rb") as f:
             return read_audio_bytes(f.read(), extension)
-
     except Exception as e:
         logger.error(f"Error reading audio file {e}")
         raise e
@@ -69,39 +59,6 @@ def read_image_from_bytes(image_bytes: bytes) -> np.ndarray:
     """
     image = Image.open(io.BytesIO(image_bytes))
     return np.array(image)
-
-
-# def read_video_from_bytes(video_bytes: bytes) -> tuple[np.ndarray, float]:
-#     """Convert video bytes to numpy array.
-#     Supports common video formats (mp4, avi, mov, mpeg)
-#     Returns:
-#         tuple containing:
-#         - frames array with shape (frames, height, width, channels)
-#         - fps (frames per second)
-#     """
-#     # Write bytes to temporary file because OpenCV can't read directly from memory
-#     temp_file = io.BytesIO(video_bytes)
-#     temp_file.write(video_bytes)
-
-#     # Create video capture object
-#     video = cv2.VideoCapture(temp_file.name)
-
-#     # Get video properties
-#     fps = video.get(cv2.CAP_PROP_FPS)
-#     frame_count = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
-
-#     # Read all frames
-#     frames = []
-#     for _ in range(frame_count):
-#         ret, frame = video.read()
-#         if ret:
-#             # Convert BGR to RGB
-#             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-#             frames.append(frame)
-
-#     video.release()
-
-#     return np.array(frames), fps
 
 
 def read_npy_from_bytes(npy_bytes: bytes) -> np.ndarray:

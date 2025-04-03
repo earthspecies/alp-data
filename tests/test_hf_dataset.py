@@ -159,7 +159,8 @@ def test_saving_methods():
     ds.save_config("gs://esp-ci-cd-tests/esp-data-tests/hf_test_dataset")
     f = AnyPath("gs://esp-ci-cd-tests/esp-data-tests/hf_test_dataset/dataset_config.json")
     assert f.exists()
-    F.delete_file(f)
+    f.unlink()
+    assert not f.exists()
 
     # test save dataset locally
     with tempfile.TemporaryDirectory() as tmpdir:
