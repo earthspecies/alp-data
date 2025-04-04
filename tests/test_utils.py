@@ -3,9 +3,9 @@ from datetime import datetime
 import pytest
 
 from esp_data.utils import (
+    cached_class_property,
     increment_version,
     make_id,
-    run_as_async,
     utc_now,
     validate_datetime,
     validate_id,
@@ -57,9 +57,55 @@ def test_make_id():
     assert validate_id(id) == id
 
 
-async def test_run_as_async():
-    def add(a, b):
-        return a + b
+def test_cached_class_property_print_output(capsys):
+    class PrintTestClass:
+        @cached_class_property
+        def expensive_property(cls):
+            print("computing expensive value")
+            return "expensive_value"
 
-    result = await run_as_async(add, a=1, b=2)
-    assert result == 3
+    # First access should print the message
+    test_instance = PrintTestClass()
+    assert test_instance.expensive_property == "expensive_value"
+    captured = capsys.readouterr()
+    assert "computing expensive value" in captured.out
+
+    # Second access should not print the message
+    assert test_instance.expensive_property == "expensive_value"
+    captured = capsys.readouterr()
+    assert "computing expensive value" not in captured.out
+
+    # Access through another instance should not print the message
+    another_instance = PrintTestClass()
+    assert another_instance.expensive_property == "expensive_value"
+    captured = capsys.readouterr()
+    assert "computing expensive value" not in captured.out
+
+    # Access through class should not print the message
+    assert PrintTestClass.expensive_property == "expensive_value"
+    captured = capsys.readouterr()
+    assert "computing expensive value" not in captured.out
+
+
+def test_cached_class_property_without_instantiation(capsys):
+    class DirectAccessClass:
+        @cached_class_property
+        def expensive_property(cls):
+            print("computing expensive value")
+            return "expensive_value"
+
+    # Access directly through class without any instances
+    assert DirectAccessClass.expensive_property == "expensive_value"
+    captured = capsys.readouterr()
+    assert "computing expensive value" in captured.out
+
+    # Second access should not print the message
+    assert DirectAccessClass.expensive_property == "expensive_value"
+    captured = capsys.readouterr()
+    assert "computing expensive value" not in captured.out
+
+    # Now create an instance and verify it uses the cached value
+    instance = DirectAccessClass()
+    assert instance.expensive_property == "expensive_value"
+    captured = capsys.readouterr()
+    assert "computing expensive value" not in captured.out

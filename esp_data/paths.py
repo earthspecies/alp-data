@@ -1,62 +1,16 @@
 """Path definitions that get rid of some issues with the AnyPath type hint."""
 
 import os
-from pathlib import Path
+from pathlib import PosixPath
 from typing import Optional
 
 import cloudpathlib
 from cloudpathlib import GSClient, S3Client, S3Path
 from google.cloud.storage.client import Client as GS_Client_Official
 
-from esp_data.utils import read_gcp_secret
+from esp_data.utils import cached_class_property, read_gcp_secret
 
-
-def is_gcs_path(path: str | Path | os.PathLike) -> bool:
-    return str(path).startswith("gs://")
-
-
-def is_s3_path(path: str | Path | os.PathLike) -> bool:
-    return str(path).startswith("s3://")
-
-
-def is_r2_path(path: str | Path | os.PathLike) -> bool:
-    # FIXME: This is a temporary solution
-    return "r2://" in str(path)
-
-
-def is_local_path(path: str | Path | os.PathLike) -> bool:
-    return not (is_gcs_path(path) or is_s3_path(path) or is_r2_path(path))
-
-
-def is_cloud_path(path: str | Path | os.PathLike) -> bool:
-    return is_gcs_path(path) or is_s3_path(path) or is_r2_path(path)
-
-
-def strip_cloud_prefix(path: str | Path | os.PathLike) -> str:
-    return str(path).replace("gs://", "").replace("s3://", "").replace("r2://", "")
-
-
-def _make_gscs_storage_options() -> dict:
-    return {"project": os.getenv("GCP_DEFAULT_PROJECT")}
-
-
-def _make_s3_storage_options() -> dict:
-    return {
-        "client_kwargs": {
-            "aws_access_key_id": os.getenv("CLOUDFLARE_R2_ACCESS_KEY_ID"),
-            "aws_secret_access_key": os.getenv("CLOUDFLARE_R2_SECRET_ACCESS_KEY"),
-            "endpoint_url": os.getenv("CLOUDFLARE_R2_ENDPOINT_URL"),
-        }
-    }
-
-
-def make_storage_options(path: str | os.PathLike) -> dict | None:
-    if is_gcs_path(path):
-        return _make_gscs_storage_options()
-    elif is_s3_path(path) or is_r2_path(path):
-        return _make_s3_storage_options()
-    else:
-        return None
+_DEFAULT_GCP_PROJECT = "okapi-274503"
 
 
 class GSPath(cloudpathlib.GSPath):
@@ -71,34 +25,50 @@ class GSPath(cloudpathlib.GSPath):
     For more details, see: https://github.com/drivendataorg/cloudpathlib/issues/390
     """
 
-    _client = None
+    storage_options: dict = {"project": _DEFAULT_GCP_PROJECT}
 
     def __init__(self, cloud_path: str | cloudpathlib.GSPath, client: Optional[GSClient] = None):
         if not client:
-            if not GSPath._client:
-                GSPath._client = cloudpathlib.GSClient(storage_client=GS_Client_Official())
-            client = GSPath._client
+            client = GSPath.__client
         super().__init__(cloud_path, client=client)
+
+    @cached_class_property
+    def __client(cls) -> cloudpathlib.GSClient:
+        return cloudpathlib.GSClient(storage_client=GS_Client_Official())
 
 
 class R2Path(cloudpathlib.S3Path):
-    _client = None
-
     def __init__(self, cloud_path: str | cloudpathlib.S3Path, client: Optional[S3Client] = None):
         if not client:
-            if not R2Path._client:
-                # TOOD: complain if these environment variables are not defined?
-                R2Path._client = cloudpathlib.S3Client(
-                    aws_access_key_id=read_gcp_secret("cloudflare_r2_bucket_readwrite_access_key_id"),
-                    aws_secret_access_key=read_gcp_secret("cloudflare_r2_bucket_readwrite_secret_access_key"),
-                    endpoint_url=read_gcp_secret("cloudflare_r2_bucket_readwrite_endpoint_url"),
-                )
-            client = R2Path._client
+            client = R2Path.__client
 
         if isinstance(cloud_path, str):
             cloud_path = cloud_path.replace("r2://", "s3://")
 
         super().__init__(cloud_path, client=client)
+
+    @cached_class_property
+    def __client(cls) -> S3Client:
+        return cloudpathlib.S3Client(
+            aws_access_key_id=read_gcp_secret("cloudflare_r2_bucket_readwrite_access_key_id"),
+            aws_secret_access_key=read_gcp_secret("cloudflare_r2_bucket_readwrite_secret_access_key"),
+            endpoint_url=read_gcp_secret("cloudflare_r2_bucket_readwrite_endpoint_url"),
+        )
+
+    @cached_class_property
+    def storage_options(self) -> dict:
+        return {
+            "client_kwargs": {
+                "aws_access_key_id": read_gcp_secret("cloudflare_r2_bucket_readwrite_access_key_id"),
+                "aws_secret_access_key": read_gcp_secret("cloudflare_r2_bucket_readwrite_secret_access_key"),
+                "endpoint_url": read_gcp_secret("cloudflare_r2_bucket_readwrite_endpoint_url"),
+            }
+        }
+
+
+class Path(PosixPath):
+    # TODO: Path is a factory class and we're dropping support for WindowsPath class. Let's see if we can bring it back.
+    storage_options = None
 
 
 class AnyPath:
@@ -128,3 +98,28 @@ class AnyPath:
             return R2Path(str(path))
         else:
             return Path(path)
+
+
+def is_gcs_path(path: str | Path | os.PathLike) -> bool:
+    return str(path).startswith("gs://")
+
+
+def is_s3_path(path: str | Path | os.PathLike) -> bool:
+    return str(path).startswith("s3://")
+
+
+def is_r2_path(path: str | Path | os.PathLike) -> bool:
+    # FIXME: This is a temporary solution
+    return "r2://" in str(path)
+
+
+def is_local_path(path: str | Path | os.PathLike) -> bool:
+    return not (is_gcs_path(path) or is_s3_path(path) or is_r2_path(path))
+
+
+def is_cloud_path(path: str | Path | os.PathLike) -> bool:
+    return is_gcs_path(path) or is_s3_path(path) or is_r2_path(path)
+
+
+def strip_cloud_prefix(path: str | Path | os.PathLike) -> str:
+    return str(path).replace("gs://", "").replace("s3://", "").replace("r2://", "")

@@ -24,7 +24,7 @@ from tqdm.auto import tqdm
 import esp_data.file_io.functional as F
 from esp_data.config import DatasetConfig
 from esp_data.config.project_config import default_shard_creator_cfg
-from esp_data.paths import AnyPath, make_storage_options
+from esp_data.paths import AnyPath
 from esp_data.utils import make_id
 
 logger = logging.getLogger("esp_data")
@@ -522,7 +522,7 @@ def write_huggingface_shard(
     # Create shard path
     output_path = AnyPath(output_path)
     shard_path = output_path / (f"{shard_name}_{shard_id:06d}")
-    storage_options = make_storage_options(output_path) if storage_options is None else storage_options
+    storage_options = output_path.storage_options if storage_options is None else storage_options
 
     # Process the data using generator for memory efficiency
     total_samples = len(batch)
@@ -1005,7 +1005,7 @@ def create_sharded_dataset(
 
     # Save updated metadata if requested
     if save_metadata_as and len(metadata_df) > 0:
-        storage_options = make_storage_options(output_path)
+        storage_options = AnyPath(output_path).storage_options
         save_metadata(metadata_df, output_path / save_metadata_as, storage_options)
 
     # Report final statistics

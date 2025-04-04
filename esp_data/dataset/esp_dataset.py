@@ -1,6 +1,6 @@
 import pandas as pd
 
-from esp_data.paths import AnyPath, make_storage_options
+from esp_data.paths import AnyPath
 
 from .hf import HF_DATASET_TYPES, load_hf_dataset
 from .webds import WebDataset
@@ -24,28 +24,27 @@ def load_esp_dataset(dataset_type: str, path: str | AnyPath, **kwargs):
     -------
         pd.DataFrame | WebDataset | HFDataset: The loaded dataset.
     """
+    path = AnyPath(path)
+
     if dataset_type not in DATASET_TYPES:
         raise ValueError(f"Unsupported dataset type: {dataset_type}, supported types are: {DATASET_TYPES}")
 
-    storage_options = make_storage_options(path)
-
     if dataset_type == "webdataset":
-        return WebDataset.from_path(path, storage_options=storage_options, **kwargs)
+        return WebDataset.from_path(str(path), storage_options=path.storage_options, **kwargs)
 
     elif dataset_type in HF_DATASET_TYPES:
-        return load_hf_dataset(dataset_type, path, storage_options=storage_options, **kwargs)
+        return load_hf_dataset(dataset_type, str(path), storage_options=path.storage_options, **kwargs)
 
     elif dataset_type == "pandas":
-        # get extension
-        ext = AnyPath(path).suffix
+        ext = path.suffix
         if ext == ".csv":
-            return pd.read_csv(path, storage_options=storage_options, **kwargs)
+            return pd.read_csv(str(path), storage_options=path.storage_options, **kwargs)
         elif ext == ".tsv":
-            return pd.read_csv(path, sep="\t", storage_options=storage_options, **kwargs)
+            return pd.read_csv(str(path), sep="\t", storage_options=path.storage_options, **kwargs)
         elif ext == ".json":
-            return pd.read_json(path, storage_options=storage_options, **kwargs)
+            return pd.read_json(str(path), storage_options=path.storage_options, **kwargs)
         elif ext == ".parquet":
-            return pd.read_parquet(path, storage_options=storage_options, **kwargs)
+            return pd.read_parquet(str(path), storage_options=path.storage_options, **kwargs)
 
     else:
         raise ValueError(f"Unsupported dataset type: {dataset_type}")

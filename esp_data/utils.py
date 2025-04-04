@@ -1,11 +1,7 @@
-import asyncio
-import concurrent.futures
 import json
 import logging
-import os
 import re
 from datetime import datetime, timedelta, timezone
-from functools import partial
 from typing import Callable
 from uuid import UUID, uuid4
 
@@ -129,3 +125,22 @@ def read_gcp_secret(secret_id: str, version_id: str = "latest", project_id: str 
 
     payload = response.payload.data.decode("UTF-8")
     return payload
+
+
+# TODO (milad) add unit tests for this
+class CachedClassProperty:
+    def __init__(self, method):
+        self.method = method
+        self.cache_attrname = f"_cached_class_attr_{method.__name__}"
+
+    def __get__(self, instance, owner=None):
+        if owner is None:
+            owner = type(instance)
+        if not hasattr(owner, self.cache_attrname):
+            value = self.method(owner)
+            setattr(owner, self.cache_attrname, value)
+        return getattr(owner, self.cache_attrname)
+
+
+def cached_class_property(method):
+    return CachedClassProperty(method)
