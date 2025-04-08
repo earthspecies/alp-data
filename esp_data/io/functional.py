@@ -9,12 +9,36 @@ import logging
 import os
 import shutil
 
-from cloudpathlib import GSPath
+from gcsfs import GCSFileSystem
+from s3fs import S3FileSystem
 
-from .paths import AnyPath, is_local_path, strip_cloud_prefix
-from .utils import make_fs
+from .paths import AnyPath, GSPath, R2Path, is_local_path, strip_cloud_prefix
 
 logger = logging.getLogger("esp_data")
+
+
+def _make_gcsfs() -> GCSFileSystem:
+    return GCSFileSystem(access="full_control")
+
+
+def _make_cloudflarer2fs() -> S3FileSystem:
+    return S3FileSystem(
+        key=os.getenv("CLOUDFLARE_R2_ACCESS_KEY_ID"),
+        secret=os.getenv("CLOUDFLARE_R2_SECRET_ACCESS_KEY"),
+        endpoint_url=os.getenv("CLOUDFLARE_R2_ENDPOINT_URL"),
+        asynchronous=False,
+    )
+
+
+def _make_fs(f: str | AnyPath) -> GCSFileSystem | S3FileSystem | None:
+    f = AnyPath(f)
+    if isinstance(f, GSPath):
+        return _make_gcsfs()
+    if isinstance(f, R2Path):
+        return _make_cloudflarer2fs()
+    else:
+        logger.info("Could not determine cloud filesystem, returning None = local filesystem")
+        return None
 
 
 def move_file(
@@ -55,7 +79,7 @@ def move_file(
             logger.warning(f"Could not move file using AnyPath method: {e}, trying FileSystem approach.")
 
     try:
-        fs = make_fs(cloud_path)
+        fs = _make_fs(cloud_path)
         source_str = strip_cloud_prefix(source)
         destination_str = strip_cloud_prefix(destination)
         fs.mv(source_str, destination_str)
@@ -98,7 +122,7 @@ def yield_files(dir_path: str | os.PathLike | AnyPath, pattern: str = "*", use_f
 
     # FileSystem approach as fallback or if specifically requested
     try:
-        fs = make_fs(dir_path)
+        fs = _make_fs(dir_path)
         glob_path = strip_cloud_prefix(dir_path / pattern)
         cloud_prefix = AnyPath(dir_path).cloud_prefix
 
@@ -143,7 +167,7 @@ def delete_dir(dir_path: str | os.PathLike | AnyPath, use_fs: bool = False) -> b
             logger.warning(f"Could not delete directory using AnyPath method: {e}, trying FileSystem approach.")
 
     try:
-        fs = make_fs(dir_path)
+        fs = _make_fs(dir_path)
         files = list(yield_files(dir_path))
         # Remove all files
         if files:
@@ -189,7 +213,7 @@ def makedirs(dir_path: str | os.PathLike | AnyPath, use_fs: bool = False, exist_
             logger.warning(f"Could not create directory using AnyPath method: {e}, trying FileSystem approach.")
 
     try:
-        fs = make_fs(dir_path)
+        fs = _make_fs(dir_path)
         dir_path_str = strip_cloud_prefix(dir_path)
         temp_file_str = strip_cloud_prefix(dir_path / ".temp")
         # Create a temp file for cloud storage services
@@ -256,7 +280,7 @@ def copy(
             logger.warning(f"Could not copy using AnyPath method: {e}, trying FileSystem approach.")
 
     try:
-        fs = make_fs(cloud_path)
+        fs = _make_fs(cloud_path)
         source_str = strip_cloud_prefix(source)
         destination_str = strip_cloud_prefix(destination)
 
