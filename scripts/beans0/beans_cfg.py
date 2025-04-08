@@ -105,10 +105,10 @@ LOCAL_PATHS = {k: os.path.join(local_path, (k + ".jsonl")) for k in DATASET_JSON
 def download_jsonl_files(exists_ok: Optional[bool] = True):
     for name, path in DATASET_JSONL_PATHS.items():
         if exists_ok:
-            F.copy(path, LOCAL_PATHS[name])
+            F.get_fs(backend="gcs").get(path, LOCAL_PATHS[name])
 
         if not exists_ok and not AnyPath(LOCAL_PATHS[name]).exists():
-            F.copy(path, LOCAL_PATHS[name])
+            F.get_fs(backend="gcs").get(path, LOCAL_PATHS[name])
 
 
 METADATA = {
