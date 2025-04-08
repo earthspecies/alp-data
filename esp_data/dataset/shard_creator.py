@@ -21,10 +21,10 @@ from colorama import Fore, Style
 from datasets import Dataset
 from tqdm.auto import tqdm
 
-import esp_data.file_io.functional as F
+import esp_data.io.functional as F
 from esp_data.config import DatasetConfig
 from esp_data.config.project_config import default_shard_creator_cfg
-from esp_data.paths import AnyPath
+from esp_data.io import AnyPath
 from esp_data.utils import make_id
 
 logger = logging.getLogger("esp_data")

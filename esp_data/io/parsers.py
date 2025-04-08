@@ -8,7 +8,7 @@ import soundfile as sf
 from PIL import Image
 from pydub import AudioSegment
 
-from esp_data.paths import AnyPath
+from esp_data.io import AnyPath
 
 logger = logging.getLogger("esp_data")
 

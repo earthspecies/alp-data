@@ -21,7 +21,7 @@ import torchaudio
 from naturelm_cfg import LICENSES, NatureLMSample, naturelm_cfg
 from tqdm import tqdm
 
-import esp_data.file_io.functional as F
+import esp_data.io.functional as F
 from esp_data.dataset.shard_creator import (
     BATCH_COLOR,
     RESET_COLOR,
@@ -30,7 +30,7 @@ from esp_data.dataset.shard_creator import (
     save_checkpoint,
     write_shard,
 )
-from esp_data.paths import AnyPath
+from esp_data.io import AnyPath
 
 AUDIO_PROMPT = "<Audio><AudioHere></Audio>"
 

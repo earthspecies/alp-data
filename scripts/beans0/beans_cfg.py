@@ -3,9 +3,9 @@ from typing import Optional
 
 from pydantic import Field
 
-import esp_data.file_io.functional as F
-from esp_data import AnyPath
+import esp_data.io.functional as F
 from esp_data.config import DataSample, DatasetConfig
+from esp_data.io import AnyPath
 
 CREATOR = """M.Hagiwara, masato at earthspecies dot org;
 D. Robinson, david at earthspecies dot org;

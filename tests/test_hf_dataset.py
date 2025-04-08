@@ -3,10 +3,10 @@ from datetime import datetime
 
 import pytest
 
-import esp_data.file_io.functional as F
+import esp_data.io.functional as F
 from esp_data.config import DataSample, DatasetConfig
 from esp_data.dataset import HFDataset
-from esp_data.paths import AnyPath
+from esp_data.io import AnyPath
 
 # constants for all tests
 cfg = DatasetConfig(

@@ -7,8 +7,8 @@ from concurrent.futures import ThreadPoolExecutor
 import pandas as pd
 from tqdm import tqdm
 
-import esp_data.file_io.functional as F
-from esp_data.paths import AnyPath
+import esp_data.io.functional as F
+from esp_data.io import AnyPath
 
 
 def create_zip_batch(files: list[str], batch_number: int, output_bucket_path: str, temp_dir: str):

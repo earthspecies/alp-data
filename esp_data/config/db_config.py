@@ -8,7 +8,7 @@ from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from esp_data import AnyPath
+from esp_data.io import AnyPath
 
 from ..utils import (
     increment_version,

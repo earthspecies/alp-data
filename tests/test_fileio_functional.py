@@ -1,7 +1,7 @@
 import pytest
 
-from esp_data import AnyPath
 from esp_data.file_io.functional import copy, delete_dir, makedirs, yield_files
+from esp_data.io import AnyPath
 
 
 @pytest.fixture
