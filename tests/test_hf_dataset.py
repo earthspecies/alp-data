@@ -32,7 +32,7 @@ samples = [
 ]
 
 
-def test_hf_empty_init():
+def test_hf_empty_init() -> None:
     with pytest.raises(TypeError):
         HFDataset()
 
@@ -41,9 +41,9 @@ def test_hf_empty_init():
     assert ds.config == cfg
 
 
-def test_hf_from_dict():
+def test_hf_from_dict() -> None:
     cfg = DatasetConfig(
-        name="test",
+        name="test1",
         creator="test",
         version="0.0.0",
         description="test",
@@ -69,7 +69,7 @@ def test_hf_from_dict():
     assert ds[0] == {"id": "1", "source_dataset": "test", "metadata": {}, "col1": 1, "col2": "a"}
 
 
-def test_hf_from_samples():
+def test_hf_from_samples() -> None:
     ds = HFDataset.from_samples(samples, cfg)
     assert ds.ds is not None
     assert len(ds) == 2
@@ -92,7 +92,7 @@ def test_hf_from_samples():
     assert ds[0]["derived_from"] is None
 
 
-def test_hf_methods():
+def test_hf_methods() -> None:
     ds = HFDataset.from_samples(samples, cfg)
 
     # subset
@@ -121,7 +121,7 @@ def test_hf_methods():
     assert "col3" in new_ds.columns
 
     # map
-    def fn(x):
+    def fn(x: int) -> int:
         x["col1"] += 1
         return x
 
@@ -131,7 +131,7 @@ def test_hf_methods():
     assert mapped_ds[0]["col1"] == 2
 
 
-def test_concatenate():
+def test_concatenate() -> None:
     ds1 = HFDataset.from_samples(samples, cfg)
     ds2 = HFDataset.from_samples(samples, cfg)
     ds3 = ds1.concatenate(ds2, version_update_mode="minor")
@@ -142,7 +142,7 @@ def test_concatenate():
     assert ds3[2] == ds2[0]
 
 
-def test_saving_methods():
+def test_saving_methods() -> None:
     ds = HFDataset.from_samples(samples, cfg)
 
     # test save config as json
@@ -183,7 +183,7 @@ def test_saving_methods():
     F.delete_dir("gs://esp-ci-cd-tests/esp-data-tests/hf_test_dataset")
 
 
-def test_load_from_path():
+def test_load_from_path() -> None:
     ds = HFDataset.from_samples(samples, cfg)
 
     with tempfile.TemporaryDirectory() as tmpdir:
