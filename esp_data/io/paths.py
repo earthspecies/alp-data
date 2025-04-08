@@ -26,6 +26,8 @@ class GSPath(cloudpathlib.GSPath):
     """
 
     storage_options: dict = {"project": _DEFAULT_GCP_PROJECT}
+    is_cloud: bool = True
+    is_local: bool = False
 
     def __init__(self, cloud_path: str | cloudpathlib.GSPath, client: Optional[GSClient] = None):
         if not client:
@@ -36,8 +38,15 @@ class GSPath(cloudpathlib.GSPath):
     def __client(cls) -> cloudpathlib.GSClient:
         return cloudpathlib.GSClient(storage_client=GS_Client_Official())
 
+    @property
+    def no_prefix(self) -> str:
+        return str(self)[len(self.cloud_prefix) :]
+
 
 class R2Path(cloudpathlib.S3Path):
+    is_cloud: bool = True
+    is_local: bool = False
+
     def __init__(self, cloud_path: str | cloudpathlib.S3Path, client: Optional[S3Client] = None):
         if not client:
             client = R2Path.__client
@@ -65,10 +74,17 @@ class R2Path(cloudpathlib.S3Path):
             }
         }
 
+    @property
+    def no_prefix(self) -> str:
+        return str(self)[len(self.cloud_prefix) :]
+
 
 class Path(PosixPath):
     # TODO: Path is a factory class and we're dropping support for WindowsPath class. Let's see if we can bring it back.
     storage_options = None
+
+    is_cloud: bool = False
+    is_local: bool = True
 
 
 class AnyPath:
@@ -111,14 +127,6 @@ def _is_s3_path(path: str | Path | os.PathLike) -> bool:
 def _is_r2_path(path: str | Path | os.PathLike) -> bool:
     # FIXME: This is a temporary solution
     return "r2://" in str(path)
-
-
-def is_local_path(path: str | Path | os.PathLike) -> bool:
-    return not (_is_gcs_path(path) or _is_s3_path(path) or _is_r2_path(path))
-
-
-def is_cloud_path(path: str | Path | os.PathLike) -> bool:
-    return _is_gcs_path(path) or _is_s3_path(path) or _is_r2_path(path)
 
 
 def strip_cloud_prefix(path: str | Path | os.PathLike) -> str:

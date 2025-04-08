@@ -1,7 +1,7 @@
 import pytest
 
 from esp_data.io import AnyPath
-from esp_data.io.functional import copy, delete_dir, makedirs, yield_files
+from esp_data.io.functional import copy, delete_dir, yield_files
 
 
 @pytest.fixture
@@ -130,25 +130,10 @@ def test_delete_file(local_test_dir):
 
 def test_makedirs(local_test_dir):
     """Test creating directories."""
-    new_dir = local_test_dir / "nested" / "dir"
-    assert makedirs(str(new_dir)) is True
+    new_dir = AnyPath(local_test_dir / "nested" / "dir")
+    assert new_dir.mkdir(parents=True, exist_ok=False)
     assert new_dir.exists()
     assert new_dir.is_dir()
-
-
-@pytest.mark.parametrize(
-    "cloud_dir",
-    [
-        AnyPath("gs://esp-ci-cd-tests/esp-data-tests/dir_tests"),
-        AnyPath("r2://esp-ci-cd-tests/esp-data-tests/dir_tests"),
-    ],
-)
-def test_makedirs_in_cloud(cloud_dir):
-    """Test creating directories in the cloud."""
-    assert makedirs(cloud_dir) is True
-    assert cloud_dir.exists() is True
-    cloud_dir.unlink()
-    assert cloud_dir.exists() is False
 
 
 @pytest.mark.parametrize(

@@ -3,7 +3,6 @@ from pathlib import PosixPath
 import pytest
 
 from esp_data.io import AnyPath
-from esp_data.io.paths import is_cloud_path, is_local_path
 
 
 def test_local_path():
@@ -11,7 +10,7 @@ def test_local_path():
     assert isinstance(path, PosixPath)
     assert path.is_file()
     assert path.read_text().strip() == "hello"
-    assert is_local_path(path)
+    assert path.is_local
     assert path.exists()
 
 
@@ -25,8 +24,8 @@ def test_local_path():
 def test_cloud_path(cloud_path):
     path = AnyPath(cloud_path)
     path.upload_from("tests/fileio_test_folder/file1.txt")
-    assert not is_local_path(path)
-    assert is_cloud_path(path)
+    assert not path.is_local
+    assert path.is_cloud
     assert path.exists()
     assert path.is_file()
     assert path.read_bytes() == b"hello\n"

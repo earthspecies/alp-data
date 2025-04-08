@@ -8,84 +8,96 @@ We prefer using the FileSystem approach, defaulting to cloudpathlib if it doesn'
 import logging
 import os
 import shutil
+from functools import cache
+from typing import Literal
 
+import fsspec
 from gcsfs import GCSFileSystem
 from s3fs import S3FileSystem
 
-from .paths import AnyPath, GSPath, R2Path, is_local_path, strip_cloud_prefix
+from esp_data.utils import read_gcp_secret
+
+from .paths import AnyPath, GSPath, strip_cloud_prefix
 
 logger = logging.getLogger("esp_data")
 
 
-def _make_gcsfs() -> GCSFileSystem:
-    return GCSFileSystem(access="full_control")
-
-
-def _make_cloudflarer2fs() -> S3FileSystem:
-    return S3FileSystem(
-        key=os.getenv("CLOUDFLARE_R2_ACCESS_KEY_ID"),
-        secret=os.getenv("CLOUDFLARE_R2_SECRET_ACCESS_KEY"),
-        endpoint_url=os.getenv("CLOUDFLARE_R2_ENDPOINT_URL"),
-        asynchronous=False,
-    )
-
-
-def _make_fs(f: str | AnyPath) -> GCSFileSystem | S3FileSystem | None:
-    f = AnyPath(f)
-    if isinstance(f, GSPath):
-        return _make_gcsfs()
-    if isinstance(f, R2Path):
-        return _make_cloudflarer2fs()
+@cache
+def get_fs(
+    protocol: Literal["gcs", "gs", "r2", "local"] = "local",
+    **kwargs,
+) -> GCSFileSystem | S3FileSystem | "fsspec.implementations.local.LocalFileSystem":
+    if protocol in ["gcs", "gs"]:
+        return GCSFileSystem(**kwargs)
+    elif protocol == "r2":
+        return S3FileSystem(
+            key=read_gcp_secret("cloudflare_r2_bucket_readwrite_access_key_id"),
+            secret=read_gcp_secret("cloudflare_r2_bucket_readwrite_secret_access_key"),
+            endpoint_url=read_gcp_secret("cloudflare_r2_bucket_readwrite_endpoint_url"),
+            asynchronous=False,
+            **kwargs,
+        )
+    elif protocol == "local":
+        return fsspec.filesystem("local", **kwargs)
     else:
-        logger.info("Could not determine cloud filesystem, returning None = local filesystem")
-        return None
+        raise ValueError(f"Unknown backend: {protocol}. Supported backends are: gcs, r2.")
 
 
-def move_file(
-    source: str | os.PathLike | AnyPath, destination: str | os.PathLike | AnyPath, use_fs: bool = False
+# def _make_gcsfs() -> GCSFileSystem:
+#     return GCSFileSystem(access="full_control")
+
+
+# def _make_cloudflarer2fs() -> S3FileSystem:
+#     return S3FileSystem(
+#         key=os.getenv("CLOUDFLARE_R2_ACCESS_KEY_ID"),
+#         secret=os.getenv("CLOUDFLARE_R2_SECRET_ACCESS_KEY"),
+#         endpoint_url=os.getenv("CLOUDFLARE_R2_ENDPOINT_URL"),
+#         asynchronous=False,
+#     )
+
+
+# def _make_fs(f: str | AnyPath) -> GCSFileSystem | S3FileSystem | None:
+#     f = AnyPath(f)
+#     if isinstance(f, GSPath):
+#         return _make_gcsfs()
+#     if isinstance(f, R2Path):
+#         return _make_cloudflarer2fs()
+#     else:
+#         logger.info("Could not determine cloud filesystem, returning None = local filesystem")
+#         return None
+
+
+def cp_to_cloud(
+    src: str | os.PathLike | AnyPath,
+    dst: str | os.PathLike | AnyPath,
 ) -> bool:
     """Move a file from the source to the destination.
 
     Args:
         source (str | os.PathLike | AnyPath): The path to the source file.
         destination (str | os.PathLike | AnyPath): The path to the destination file.
-        use_fs (bool, optional): If True, use the FileSystem approach. Defaults to False.
 
     Returns:
         bool: True if the file was moved successfully.
     """
-    source = AnyPath(source)
-    destination = AnyPath(destination)
+    src = AnyPath(src)
+    dst = AnyPath(dst)
 
-    if not source.exists():
-        raise FileNotFoundError(f"Source {source} does not exist")
+    if not src.exists():
+        raise FileNotFoundError(f"Source {src} does not exist")
 
-    # Handle local path move directly
-    if is_local_path(source) and is_local_path(destination):
-        try:
-            shutil.move(source, destination)
-            return True
-        except Exception as e:
-            raise IOError(f"Failed to move local file {source} to {destination}: {e}") from e
+    if dst.exists():
+        raise FileExistsError(f"Destination {dst} already exists")
 
-    # For cloud paths, determine which path needs the filesystem
-    cloud_path = destination if not is_local_path(destination) else source
-
-    if not use_fs:
-        try:
-            source.rename(destination)
-            return True
-        except Exception as e:
-            logger.warning(f"Could not move file using AnyPath method: {e}, trying FileSystem approach.")
+    if src.is_cloud or dst.is_local:
+        raise TypeError("Source must be a local path and destination must be a cloud path")
 
     try:
-        fs = _make_fs(cloud_path)
-        source_str = strip_cloud_prefix(source)
-        destination_str = strip_cloud_prefix(destination)
-        fs.mv(source_str, destination_str)
-        return True
+        fs = get_fs(dst)
+        fs.put(src, dst)
+        return dst.exists()
     except Exception as e:
-        raise IOError(f"Failed to move file {source} to {destination} using both methods: {e}") from e
+        raise IOError(f"Failed to move file {src} to {dst} using both methods: {e}") from e
 
 
 def yield_files(dir_path: str | os.PathLike | AnyPath, pattern: str = "*", use_fs: bool = False):
@@ -105,7 +117,7 @@ def yield_files(dir_path: str | os.PathLike | AnyPath, pattern: str = "*", use_f
         logger.warning(f"Directory {dir_path} does not exist, aborting.")
         return
 
-    if is_local_path(dir_path):
+    if dir_path.is_local:
         for f in dir_path.rglob(pattern):
             if f.is_file() and str(f) != str(dir_path):
                 yield str(f)
@@ -150,7 +162,7 @@ def delete_dir(dir_path: str | os.PathLike | AnyPath, use_fs: bool = False) -> b
         logger.info(f"Directory {dir_path} does not exist, aborting.")
         return False
 
-    if is_local_path(dir_path):
+    if dir_path.is_local:
         try:
             shutil.rmtree(dir_path)
             return True
@@ -177,53 +189,6 @@ def delete_dir(dir_path: str | os.PathLike | AnyPath, use_fs: bool = False) -> b
         raise IOError(f"Failed to delete directory {dir_path} using both methods: {e}") from e
 
 
-def makedirs(dir_path: str | os.PathLike | AnyPath, use_fs: bool = False, exist_ok: bool = True) -> bool:
-    """Create a directory at the given path.
-
-    CAUTION: Most cloud storage services do not allow creation of empty directories
-    (because they are not real filesystems).
-    So, this function will create a temporary file called ".temp" with 0 bytes
-    in the directory to check if it can be created.
-
-    Args:
-        dir_path (str | os.PathLike | AnyPath): The path to the directory.
-        use_fs (bool, optional): If True, use the FileSystem approach. Defaults to False.
-        exist_ok (bool, optional): If True, do not raise an exception if the directory already exists. Defaults to True.
-
-    Returns:
-        bool: True if the directory was created successfully
-    """
-    dir_path = AnyPath(dir_path)
-
-    if is_local_path(dir_path):
-        try:
-            dir_path.mkdir(parents=True, exist_ok=exist_ok)
-            return True
-        except Exception as e:
-            raise IOError(f"Failed to create local directory {dir_path}: {e}") from e
-
-    if not use_fs:
-        try:
-            # Cloud paths - create a temporary file to ensure directory exists
-            temp_file = dir_path / ".temp"
-            temp_file.touch()
-            dir_path.mkdir(parents=True, exist_ok=exist_ok)
-            return True
-        except Exception as e:
-            logger.warning(f"Could not create directory using AnyPath method: {e}, trying FileSystem approach.")
-
-    try:
-        fs = _make_fs(dir_path)
-        dir_path_str = strip_cloud_prefix(dir_path)
-        temp_file_str = strip_cloud_prefix(dir_path / ".temp")
-        # Create a temp file for cloud storage services
-        fs.touch(temp_file_str)
-        fs.mkdirs(dir_path_str, exist_ok=exist_ok)
-        return True
-    except Exception as e:
-        raise IOError(f"Failed to create directory {dir_path} using both methods: {e}") from e
-
-
 def copy(
     source: str | os.PathLike | AnyPath, destination: str | os.PathLike | AnyPath, use_fs: bool = False, **gcloud_kwargs
 ) -> bool:
@@ -248,11 +213,11 @@ def copy(
         raise FileNotFoundError(f"Source {source} does not exist")
 
     # Create parent directories for destination if it's a local path
-    if is_local_path(destination):
+    if destination.is_local:
         os.makedirs(os.path.dirname(str(destination)), exist_ok=True)
 
     # If both paths are local, use standard file operations
-    if is_local_path(source) and is_local_path(destination):
+    if source.is_local and destination.is_local:
         try:
             if source.is_file():
                 shutil.copy2(source, destination)
@@ -262,10 +227,10 @@ def copy(
         except Exception as e:
             raise IOError(f"Failed to copy local {source} to {destination}: {e}") from e
 
-    is_upload = is_local_path(source) and not is_local_path(destination)
-    is_download = not is_local_path(source) and is_local_path(destination)
+    is_upload = source.is_local and not destination.is_local
+    is_download = not source.is_local and destination.is_local
     # For cloud paths, determine which path needs the filesystem
-    cloud_path = destination if not is_local_path(destination) else source
+    cloud_path = destination if not destination.is_local else source
 
     if not use_fs:
         try:

@@ -563,7 +563,7 @@ def write_huggingface_shard(
 
     # Move the arrow file to the final location
     arrow_file = next(F.yield_files(shard_path, pattern="*.arrow"))
-    F.move_file(arrow_file, output_path / (f"{shard_name}_{shard_id:06d}.arrow"))
+    F.cp_to_cloud(arrow_file, output_path / (f"{shard_name}_{shard_id:06d}.arrow"))
     F.delete_dir(shard_path)
 
     logger.info(
