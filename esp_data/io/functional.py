@@ -26,7 +26,7 @@ logger = logging.getLogger("esp_data")
 def get_fs(
     protocol: Literal["gcs", "gs", "r2", "local"] = "local",
     **kwargs,
-) -> GCSFileSystem | S3FileSystem | "fsspec.implementations.local.LocalFileSystem":
+):
     if protocol in ["gcs", "gs"]:
         return GCSFileSystem(**kwargs)
     elif protocol == "r2":
@@ -41,30 +41,6 @@ def get_fs(
         return fsspec.filesystem("local", **kwargs)
     else:
         raise ValueError(f"Unknown backend: {protocol}. Supported backends are: gcs, r2.")
-
-
-# def _make_gcsfs() -> GCSFileSystem:
-#     return GCSFileSystem(access="full_control")
-
-
-# def _make_cloudflarer2fs() -> S3FileSystem:
-#     return S3FileSystem(
-#         key=os.getenv("CLOUDFLARE_R2_ACCESS_KEY_ID"),
-#         secret=os.getenv("CLOUDFLARE_R2_SECRET_ACCESS_KEY"),
-#         endpoint_url=os.getenv("CLOUDFLARE_R2_ENDPOINT_URL"),
-#         asynchronous=False,
-#     )
-
-
-# def _make_fs(f: str | AnyPath) -> GCSFileSystem | S3FileSystem | None:
-#     f = AnyPath(f)
-#     if isinstance(f, GSPath):
-#         return _make_gcsfs()
-#     if isinstance(f, R2Path):
-#         return _make_cloudflarer2fs()
-#     else:
-#         logger.info("Could not determine cloud filesystem, returning None = local filesystem")
-#         return None
 
 
 def cp_to_cloud(
