@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 from PIL import Image
 
-from esp_data.file_io.parsers import (
+from esp_data.io.parsers import (
     read_bytes_to_array,
     read_csv_from_bytes,
     read_image_from_bytes,

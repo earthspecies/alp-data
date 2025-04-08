@@ -1,6 +1,6 @@
 import pandas as pd
 
-from esp_data.paths import AnyPath
+from esp_data.io import AnyPath
 
 from .hf import HF_DATASET_TYPES, load_hf_dataset
 from .webds import WebDataset

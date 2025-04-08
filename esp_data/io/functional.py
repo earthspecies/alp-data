@@ -8,15 +8,37 @@ We prefer using the FileSystem approach, defaulting to cloudpathlib if it doesn'
 import logging
 import os
 import shutil
-from io import StringIO
 
-from cloudpathlib import GSPath
+from gcsfs import GCSFileSystem
+from s3fs import S3FileSystem
 
-from esp_data.paths import AnyPath, is_local_path, strip_cloud_prefix
-
-from .utils import make_fs
+from .paths import AnyPath, GSPath, R2Path, is_local_path, strip_cloud_prefix
 
 logger = logging.getLogger("esp_data")
+
+
+def _make_gcsfs() -> GCSFileSystem:
+    return GCSFileSystem(access="full_control")
+
+
+def _make_cloudflarer2fs() -> S3FileSystem:
+    return S3FileSystem(
+        key=os.getenv("CLOUDFLARE_R2_ACCESS_KEY_ID"),
+        secret=os.getenv("CLOUDFLARE_R2_SECRET_ACCESS_KEY"),
+        endpoint_url=os.getenv("CLOUDFLARE_R2_ENDPOINT_URL"),
+        asynchronous=False,
+    )
+
+
+def _make_fs(f: str | AnyPath) -> GCSFileSystem | S3FileSystem | None:
+    f = AnyPath(f)
+    if isinstance(f, GSPath):
+        return _make_gcsfs()
+    if isinstance(f, R2Path):
+        return _make_cloudflarer2fs()
+    else:
+        logger.info("Could not determine cloud filesystem, returning None = local filesystem")
+        return None
 
 
 def move_file(
@@ -57,27 +79,13 @@ def move_file(
             logger.warning(f"Could not move file using AnyPath method: {e}, trying FileSystem approach.")
 
     try:
-        fs = make_fs(cloud_path)
+        fs = _make_fs(cloud_path)
         source_str = strip_cloud_prefix(source)
         destination_str = strip_cloud_prefix(destination)
         fs.mv(source_str, destination_str)
         return True
     except Exception as e:
         raise IOError(f"Failed to move file {source} to {destination} using both methods: {e}") from e
-
-
-def list_files(dir_path: str | os.PathLike | AnyPath, pattern: str = "*", use_fs: bool = False) -> list[str]:
-    """List files in the given directory.
-
-    Args:
-        dir_path (str | os.PathLike | AnyPath): The path to the directory.
-        pattern (str, optional): A pattern to match the files. Defaults to "*".
-        use_fs (bool, optional): If True, use the FileSystem approach. Defaults to False, which is using cloudpathlib.
-
-    Returns:
-        list[str]: A list of file paths if successful.
-    """
-    return [f for f in yield_files(dir_path, pattern, use_fs)]
 
 
 def yield_files(dir_path: str | os.PathLike | AnyPath, pattern: str = "*", use_fs: bool = False):
@@ -114,7 +122,7 @@ def yield_files(dir_path: str | os.PathLike | AnyPath, pattern: str = "*", use_f
 
     # FileSystem approach as fallback or if specifically requested
     try:
-        fs = make_fs(dir_path)
+        fs = _make_fs(dir_path)
         glob_path = strip_cloud_prefix(dir_path / pattern)
         cloud_prefix = AnyPath(dir_path).cloud_prefix
 
@@ -124,42 +132,6 @@ def yield_files(dir_path: str | os.PathLike | AnyPath, pattern: str = "*", use_f
 
     except Exception as e:
         raise IOError(f"Failed to yield files in {dir_path} using both methods: {e}") from e
-
-
-def delete_file(file_path: str | os.PathLike | AnyPath, use_fs: bool = False) -> bool:
-    """Delete the file at the given path.
-
-    Args:
-        file_path (str | os.PathLike | AnyPath): The path to the file, local or cloud.
-        use_fs (bool, optional): If True, use the FileSystem approach. Defaults to False.
-
-    Returns:
-        bool: True if the file was deleted successfully
-    """
-    file_path = AnyPath(file_path)
-
-    if not file_path.exists():
-        logger.warning(f"File {file_path} does not exist, aborting.")
-        return False
-
-    if is_local_path(file_path):
-        file_path.unlink()
-        return True
-
-    if not use_fs:
-        try:
-            file_path.unlink()
-            return True
-        except Exception as e:
-            logger.warning(f"Could not delete file using AnyPath method: {e}, trying FileSystem approach.")
-
-    try:
-        fs = make_fs(file_path)
-        file_path_str = strip_cloud_prefix(file_path)
-        fs.rm(file_path_str)
-        return True
-    except Exception as e:
-        raise IOError(f"Failed to delete file {file_path} using both methods: {e}") from e
 
 
 def delete_dir(dir_path: str | os.PathLike | AnyPath, use_fs: bool = False) -> bool:
@@ -195,8 +167,8 @@ def delete_dir(dir_path: str | os.PathLike | AnyPath, use_fs: bool = False) -> b
             logger.warning(f"Could not delete directory using AnyPath method: {e}, trying FileSystem approach.")
 
     try:
-        fs = make_fs(dir_path)
-        files = list_files(dir_path)
+        fs = _make_fs(dir_path)
+        files = list(yield_files(dir_path))
         # Remove all files
         if files:
             fs.rm(files)
@@ -241,7 +213,7 @@ def makedirs(dir_path: str | os.PathLike | AnyPath, use_fs: bool = False, exist_
             logger.warning(f"Could not create directory using AnyPath method: {e}, trying FileSystem approach.")
 
     try:
-        fs = make_fs(dir_path)
+        fs = _make_fs(dir_path)
         dir_path_str = strip_cloud_prefix(dir_path)
         temp_file_str = strip_cloud_prefix(dir_path / ".temp")
         # Create a temp file for cloud storage services
@@ -308,7 +280,7 @@ def copy(
             logger.warning(f"Could not copy using AnyPath method: {e}, trying FileSystem approach.")
 
     try:
-        fs = make_fs(cloud_path)
+        fs = _make_fs(cloud_path)
         source_str = strip_cloud_prefix(source)
         destination_str = strip_cloud_prefix(destination)
 
@@ -326,39 +298,3 @@ def copy(
         return True
     except Exception as e:
         raise IOError(f"Failed to copy {source} to {destination} using both methods: {e}") from e
-
-
-def write_rows_to_csv(rows: list[dict], *, file_path: str | AnyPath, mode: str = "a", use_fs: bool = False) -> None:
-    """Write a list of dicts to a remote CSV file. Allows appending to the file.
-
-    Args:
-        rows (list[dict]): The list of rows to write.
-        file_path (str | AnyPath): The path to the CSV file.
-        mode (str, optional): The mode to open the file in. Defaults to "a".
-        use_fs (bool, optional): If True, use the FileSystem approach. Defaults to False.
-    """
-    import csv
-
-    if not rows:
-        logger.warning("No rows to write, aborting.")
-        return
-
-    fs = None
-    if use_fs:
-        fs = make_fs(file_path)
-
-    fieldnames = list(rows[0].keys())
-    # Write batch to string buffer
-    output = StringIO()
-    writer = csv.DictWriter(output, fieldnames=fieldnames)
-    if not exists(file_path):
-        writer.writeheader()
-
-    writer.writerows(rows)
-
-    if fs is None:
-        with AnyPath(file_path).open(mode=mode) as f:
-            f.write(output.getvalue())
-    else:
-        with fs.open(file_path, mode=mode) as f:
-            f.write(output.getvalue())

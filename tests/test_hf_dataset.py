@@ -3,10 +3,10 @@ from datetime import datetime
 
 import pytest
 
-import esp_data.file_io.functional as F
+import esp_data.io.functional as F
 from esp_data.config import DataSample, DatasetConfig
 from esp_data.dataset import HFDataset
-from esp_data.paths import AnyPath
+from esp_data.io import AnyPath
 
 # constants for all tests
 cfg = DatasetConfig(
@@ -159,7 +159,8 @@ def test_saving_methods():
     ds.save_config("gs://esp-ci-cd-tests/esp-data-tests/hf_test_dataset")
     f = AnyPath("gs://esp-ci-cd-tests/esp-data-tests/hf_test_dataset/dataset_config.json")
     assert f.exists()
-    F.delete_file(f)
+    f.unlink()
+    assert not f.exists()
 
     # test save dataset locally
     with tempfile.TemporaryDirectory() as tmpdir:

@@ -8,8 +8,8 @@ from gradio_client import Client, file
 from tqdm import tqdm
 
 from esp_data.dataset.esp_dataset import load_esp_dataset
-from esp_data.file_io.parsers import read_audio_bytes
-from esp_data.paths import AnyPath
+from esp_data.io import AnyPath
+from esp_data.io.parsers import read_audio_bytes
 
 
 def data_processor(data: dict):

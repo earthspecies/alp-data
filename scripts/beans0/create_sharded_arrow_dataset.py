@@ -10,7 +10,7 @@ from beans_cfg import beans0_cfg
 
 from esp_data.dataset.esp_dataset import load_esp_dataset as load_dataset
 from esp_data.dataset.shard_creator import create_sharded_dataset
-from esp_data.file_io.parsers import read_audio_bytes_from_path
+from esp_data.io.parsers import read_audio
 
 
 def validate_sample(sample: dict, remove_inaturalist: bool = False):
@@ -55,7 +55,7 @@ def prepare_audio_sample_for_beans0(row: dict, remove_inaturalist: bool = True) 
         sr = 0
     else:
         # Read audio file
-        audio_data, sr = read_audio_bytes_from_path(row["file_path"])
+        audio_data, sr = read_audio(row["file_path"])
         # compute duration
         duration = len(audio_data) / sr
         if np.std(audio_data) == 0.0:

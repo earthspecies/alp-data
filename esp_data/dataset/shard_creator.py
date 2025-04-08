@@ -21,10 +21,10 @@ from colorama import Fore, Style
 from datasets import Dataset
 from tqdm.auto import tqdm
 
-import esp_data.file_io.functional as F
+import esp_data.io.functional as F
 from esp_data.config import DatasetConfig
 from esp_data.config.project_config import default_shard_creator_cfg
-from esp_data.paths import AnyPath
+from esp_data.io import AnyPath
 from esp_data.utils import make_id
 
 logger = logging.getLogger("esp_data")
@@ -562,7 +562,7 @@ def write_huggingface_shard(
     ds.save_to_disk(shard_path, storage_options=storage_options, num_proc=1, num_shards=1)
 
     # Move the arrow file to the final location
-    arrow_file = F.list_files(shard_path, pattern="*.arrow")[0]
+    arrow_file = next(F.yield_files(shard_path, pattern="*.arrow"))
     F.move_file(arrow_file, output_path / (f"{shard_name}_{shard_id:06d}.arrow"))
     F.delete_dir(shard_path)
 
