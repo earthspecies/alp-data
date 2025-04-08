@@ -88,37 +88,37 @@ class AnyPath:
         if isinstance(path, (Path, GSPath, R2Path | S3Path)):
             path = str(path)
 
-        if is_gcs_path(path):
+        if _is_gcs_path(path):
             return GSPath(str(path))
-        elif is_s3_path(path):
+        elif _is_s3_path(path):
             # Since we are currently not using AWS we assume that all S3 paths are R2 paths.
             # TODO This must be changed if we start using AWS.
             return R2Path(str(path))
-        elif is_r2_path(path):
+        elif _is_r2_path(path):
             return R2Path(str(path))
         else:
             return Path(path)
 
 
-def is_gcs_path(path: str | Path | os.PathLike) -> bool:
+def _is_gcs_path(path: str | Path | os.PathLike) -> bool:
     return str(path).startswith("gs://")
 
 
-def is_s3_path(path: str | Path | os.PathLike) -> bool:
+def _is_s3_path(path: str | Path | os.PathLike) -> bool:
     return str(path).startswith("s3://")
 
 
-def is_r2_path(path: str | Path | os.PathLike) -> bool:
+def _is_r2_path(path: str | Path | os.PathLike) -> bool:
     # FIXME: This is a temporary solution
     return "r2://" in str(path)
 
 
 def is_local_path(path: str | Path | os.PathLike) -> bool:
-    return not (is_gcs_path(path) or is_s3_path(path) or is_r2_path(path))
+    return not (_is_gcs_path(path) or _is_s3_path(path) or _is_r2_path(path))
 
 
 def is_cloud_path(path: str | Path | os.PathLike) -> bool:
-    return is_gcs_path(path) or is_s3_path(path) or is_r2_path(path)
+    return _is_gcs_path(path) or _is_s3_path(path) or _is_r2_path(path)
 
 
 def strip_cloud_prefix(path: str | Path | os.PathLike) -> str:
