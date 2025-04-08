@@ -17,7 +17,7 @@ def _read_audio_from_bytes(audio_bytes: bytes, frames: int = -1, start: int = 0)
     reads the entire buffer.
     """
     with io.BytesIO(audio_bytes) as audio_buffer:
-        data, samplerate = sf.read(audio_buffer)
+        data, samplerate = sf.read(audio_buffer, frames=frames, start=start)
     return data, samplerate
 
 
