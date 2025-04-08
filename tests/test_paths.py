@@ -2,7 +2,7 @@ from pathlib import PosixPath
 
 import pytest
 
-from esp_data.paths import AnyPath, is_cloud_path, is_local_path
+from esp_data.io import AnyPath, is_cloud_path, is_local_path
 
 
 def test_local_path():

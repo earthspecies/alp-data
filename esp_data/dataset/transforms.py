@@ -12,7 +12,7 @@ from typing import Any, Callable, Dict, List, Optional
 import git
 import pkg_resources
 
-from esp_data.paths import AnyPath
+from esp_data.io import AnyPath
 from esp_data.utils import utc_now_str
 
 logger = logging.getLogger("esp_data")

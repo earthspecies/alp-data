@@ -11,7 +11,7 @@ import soundfile as sf
 from beans_cfg import beans0_cfg
 
 from esp_data.dataset.shard_creator import create_sharded_dataset
-from esp_data.file_io.parsers import read_audio
+from esp_data.io.parsers import read_audio
 
 
 def validate_sample(sample: dict, remove_inaturalist: bool = False):

@@ -5,7 +5,7 @@ from typing import TypeVar
 from gcsfs import GCSFileSystem
 from s3fs import S3FileSystem
 
-from esp_data.io import AnyPath, is_gcs_path, is_r2_path, is_s3_path
+from .paths import AnyPath, is_gcs_path, is_r2_path, is_s3_path
 
 logger = logging.getLogger("esp_data")
 

@@ -11,8 +11,7 @@ import shutil
 
 from cloudpathlib import GSPath
 
-from esp_data.io import AnyPath, is_local_path, strip_cloud_prefix
-
+from .paths import AnyPath, is_local_path, strip_cloud_prefix
 from .utils import make_fs
 
 logger = logging.getLogger("esp_data")
