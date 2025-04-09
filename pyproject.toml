@@ -24,7 +24,6 @@ dependencies = [
     "scipy>=1.15.2",
     "setuptools>=75.8.0",
     "soundfile>=0.13.1",
-    "torch>=2.6.0",
     "webdataset>=0.2.111",
 ]
 

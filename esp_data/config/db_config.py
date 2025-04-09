@@ -13,7 +13,6 @@ from esp_data import AnyPath
 from ..utils import (
     increment_version,
     make_id,
-    utc_now,
     utc_now_str,
     validate_datetime,
     validate_id,
@@ -55,8 +54,8 @@ class DataSample(BaseModel):
     version : Optional[str]
         Version number following semantic versioning, can be left empty but then the dataset version must be provided
 
-    Example
-    -------
+    Examples
+    --------
     >>> data = {
     ...     "source_dataset": "test",
     ...     "creator": "test",
@@ -65,7 +64,11 @@ class DataSample(BaseModel):
     ... }
     >>> sample = DataSample(**data)
     >>> print(sample.source_dataset)
-
+    >>> data = {"creator": "me", "metadata": {"something": "new"}}
+    >>> sample = DataSample(**data)
+    Traceback (most recent call last):
+    ...
+    pydantic.error_wrappers.ValidationError: 1 validation error for DataSample
     """
 
     model_config = ConfigDict(arbitrary_types_allowed=True, validate_assignment=True, str_strip_whitespace=True)
@@ -94,7 +97,7 @@ class DataSample(BaseModel):
     )
 
     license: Optional[str] = Field(
-        default=lambda _: LicenseEnum.UNKNOWN,
+        default=LicenseEnum.UNKNOWN,
         description="License for the data sample, if applicable. For e.g. Xeno-canto can have per recording licenses",
     )
 
@@ -212,7 +215,7 @@ class DataSample(BaseModel):
 
 class TextDataSample(DataSample):
     """A Pydantic model for a text data sample configuration. A text data sample is a single
-    row / record in a dataset that contains text data.
+    row / record in a dataset that contains text data. This is
     """
 
     # required params
@@ -223,6 +226,44 @@ class TextDataSample(DataSample):
 class DatasetConfig(BaseModel):
     """A Pydantic model for a dataset configuration. A dataset configuration defines the
     schema of the dataset and the path to the dataset.
+
+    Arguments
+    ---------
+    name : str
+        Name of the dataset
+    creator : str
+        Creator of the dataset
+    version : str
+        Version of the dataset, root dataset is 0.0
+    description : str
+        Description of the dataset, could act as a README, preferably in markdown format, and include changelog to previous version
+    sources : list[str] | str
+        Source(s) of the dataset e.g. 'Xeno-canto' or a url to website(s), or multiple sources in a comma-separated list
+    created_at : Optional[str]
+        Datetime of creation in UTC timezone, will be auto-generated if None
+    license : Optional[str]
+        License for the dataset, if applicable
+    changelog : Optional[str]
+        Changelog from previous version
+
+
+    Examples
+    --------
+    >>> data = {
+    ...     "name": "test",
+    ...     "creator": "test",
+    ...     "version": "0.0.0",
+    ...     "description": "test dataset",
+    ...     "sources": "test",
+    ... }
+    >>> dataset = DatasetConfig(**data)
+    >>> print(dataset.name)
+    test
+    >>> data = {"creator": "me", "description": "new dataset"}
+    >>> dataset = DatasetConfig(**data)
+    Traceback (most recent call last):
+    ...
+    pydantic.error_wrappers.ValidationError: 3 validation errors for DatasetConfig
     """
 
     model_config = ConfigDict(arbitrary_types_allowed=True, validate_assignment=True, str_strip_whitespace=True)
@@ -232,7 +273,7 @@ class DatasetConfig(BaseModel):
 
     creator: str = Field(min_length=1, description="Creator of the dataset")
 
-    version: str = Field(min_length=5, description="Version of the dataset, root dataset is 0.0")
+    version: str = Field(min_length=5, description="Version of the dataset")
 
     description: str = Field(
         min_length=1,
@@ -245,8 +286,8 @@ class DatasetConfig(BaseModel):
     )
 
     # optional or auto-generated params
-    created_at: datetime = Field(
-        default_factory=utc_now,
+    created_at: str = Field(
+        default_factory=utc_now_str,
         description="Datetime of creation in UTC timezone, will be auto-generated if None",
     )
 
@@ -271,31 +312,24 @@ class DatasetConfig(BaseModel):
         """Load data sample from a JSON file"""
         with AnyPath(file_path).open("r") as f:
             data = json.load(f)
-        data["created_at"] = datetime.fromisoformat(data["created_at"])
         return cls(**data)
 
     def copy(self) -> "DataSample":
         """Return a copy of the data sample"""
         return self.model_copy(deep=True)
 
-    def to_dict(self, make_serializable: bool = False) -> dict:
+    def to_dict(self) -> dict:
         """Convert the dataset to a dictionary"""
-        data = self.model_dump()
-        if make_serializable:
-            data["created_at"] = self.created_at.isoformat()
-        return data
+        return self.model_dump()
 
     def to_json(self) -> str:
         """Convert the dataset to a JSON string"""
-        data = self.to_dict()
-        data["created_at"] = self.created_at.isoformat()
-        return json.dumps(data, indent=2)
+        return self.model_dump_json(indent=2)
 
     def write_json(self, file_path: str | os.PathLike) -> None:
         """Write the dataset to a JSON file"""
         with AnyPath(file_path).open("w") as f:
             d = self.to_dict()
-            d["created_at"] = self.created_at.isoformat()
             json.dump(d, f, indent=2)
 
     def update_changelog(self, new_log: str) -> None:
@@ -320,9 +354,8 @@ class DatasetConfig(BaseModel):
 
     def generate_readme(self, file_path: str | os.PathLike) -> None:
         """Generate a README file for the dataset"""
-        text = str(self)
-        with open_file(file_path, "w") as f:
-            f.write(text)
+        with AnyPath(file_path).open("w") as f:
+            f.write(str(self))
 
     @classmethod
     def from_skeleton(cls) -> "DatasetConfig":

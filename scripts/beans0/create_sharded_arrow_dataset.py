@@ -1,5 +1,6 @@
 import argparse
 import json
+import logging
 import os
 from functools import partial
 from typing import Any
@@ -8,9 +9,10 @@ import numpy as np
 import pandas as pd
 from beans_cfg import beans0_cfg
 
-from esp_data.dataset.esp_dataset import load_esp_dataset as load_dataset
 from esp_data.dataset.shard_creator import create_sharded_dataset
 from esp_data.file_io.parsers import read_audio_bytes_from_path
+
+logger = logging.getLogger("beans0")
 
 
 def validate_sample(sample: dict, remove_inaturalist: bool = False):
@@ -59,7 +61,7 @@ def prepare_audio_sample_for_beans0(row: dict, remove_inaturalist: bool = True) 
         # compute duration
         duration = len(audio_data) / sr
         if np.std(audio_data) == 0.0:
-            print(f"WARNING: Audio is empty for sample {row['id']}, filename {row['file_name']}")
+            logger.info(f"WARNING: Audio is empty for sample {row['id']}, filename {row['file_name']}")
 
     row["metadata"]["duration"] = duration
     row["metadata"]["sample_rate"] = sr
@@ -80,7 +82,7 @@ def prepare_audio_sample_for_beans0(row: dict, remove_inaturalist: bool = True) 
     try:
         validate_sample(sample)
     except AssertionError as e:
-        print(f"Validation failed for sample {row['id']}: {e}")
+        logger.error(f"Validation failed for sample {row['id']}: {e}")
         raise e
 
     return sample
@@ -109,10 +111,30 @@ def main():
         required=True,
         help="Path to the file containing the original paths of the audio files",
     )
-    parser.add_argument("--shard_type", type=str, default="arrow", help="Type of sharded dataset to create")
-    parser.add_argument("--output_shard_pattern", type=str, default="**/*.arrow", help="Output shard pattern")
-    parser.add_argument("--num_samples_per_shard", type=int, default=1000, help="Number of samples per shard")
-    parser.add_argument("--num_workers", type=int, default=4, help="Number of workers for parallel processing")
+    parser.add_argument(
+        "--shard_type",
+        type=str,
+        default="arrow",
+        help="Type of sharded dataset to create",
+    )
+    parser.add_argument(
+        "--output_shard_pattern",
+        type=str,
+        default="**/*.arrow",
+        help="Output shard pattern",
+    )
+    parser.add_argument(
+        "--num_samples_per_shard",
+        type=int,
+        default=1000,
+        help="Number of samples per shard",
+    )
+    parser.add_argument(
+        "--num_workers",
+        type=int,
+        default=4,
+        help="Number of workers for parallel processing",
+    )
     parser.add_argument("--version", type=str, required=True, help="Version of the dataset, e.g. v0.1.1")
     parser.add_argument(
         "-r",
@@ -166,8 +188,8 @@ def main():
     )
 
     # Few post-hoc checks
-    ds = load_dataset(args.shard_type, output_path, streaming=False, file_pattern=args.output_shard_pattern)
-    print(ds.columns)
+    # ds = load_dataset(args.shard_type, output_path, streaming=False, file_pattern=args.output_shard_pattern)
+    # print(ds.columns)
 
 
 if __name__ == "__main__":

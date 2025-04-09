@@ -79,7 +79,7 @@ TASKS = {
     "hiceas": "detection",
     "watkins": "classification",
     "gibbons": "detection",
-    "dcase": "classification",
+    "dcase": "detection",
     "lifestage": "classification",
     "call-type": "classification",
     "unseen-species-cmn": "classification",
@@ -739,6 +739,7 @@ METADATA = {
             "sample_rate": 9600,
             "window_width": 4,
             "window_shift": 2,
+            "max_duration": None,
         },
         {
             "name": "dcase",

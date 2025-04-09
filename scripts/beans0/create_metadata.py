@@ -1,5 +1,6 @@
 import argparse
 import json
+import logging
 import os
 
 import pandas as pd
@@ -8,9 +9,7 @@ from tqdm import tqdm
 
 from esp_data.paths import AnyPath
 
-from .temp_utils import make_simple_logger
-
-logger = make_simple_logger("prepare_beans0", add_file_handler=True)
+logger = logging.getLogger("beans0")
 
 
 def make_sample(
@@ -211,13 +210,13 @@ def main():
         metadata_df = pd.DataFrame(samples)
         original_paths_df = pd.Series(original_paths, name="path")
 
-    metadata_df.to_json(args.metadata_file_path.split(".")[0] + ".jsonl", orient="records", lines=True)
-    metadata_df["output"] = metadata_df["output"].astype(str)
-    metadata_df.to_csv(args.metadata_file_path, index=False, na_rep="NULL")
+    metadata_df.to_json(args.metadata_file_path, orient="records", lines=True)
+    # metadata_df["output"] = metadata_df["output"].astype(str)
+    # metadata_df.to_csv(args.metadata_file_path, index=False, na_rep="NULL")
     original_paths_df.to_csv(args.original_paths_file_path, index=False, na_rep="NULL")
 
     with open("dataset_config.json", "w") as fp:
-        json.dump(beans0_cfg.to_dict(make_serializable=True), fp)
+        json.dump(beans0_cfg.to_dict(), fp)
 
 
 if __name__ == "__main__":

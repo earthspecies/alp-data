@@ -2,6 +2,7 @@
 # dependencies = [
 #   "torchaudio",
 #   "librosa==0.10.2",
+#   "mlflow",
 # ]
 # ///
 """Make NatureLM using a jsonl file"""
@@ -9,6 +10,7 @@
 import argparse
 import io
 import json
+import os
 import time
 from concurrent.futures import ProcessPoolExecutor
 from functools import partial
@@ -88,7 +90,7 @@ def prepare_audio_sample_for_naturelm(
         "instruction_text": row["prompt"].replace(AUDIO_PROMPT, "").strip(),
     }
 
-    path = AnyPath(row["path"])
+    path = AnyPath("/home/milad_earthspecies_org/data-migration/marius-highmem") / AnyPath(row["path"]).relative_to("/")
 
     # HACK David's comments on original jsonl's
     # skip_cond1 = any([c in str(path) for c in ["compa_r", "audiocaps", "animal-instruct"]])
@@ -163,7 +165,10 @@ def prepare_audio_sample_for_naturelm(
         audio_buffer = io.BytesIO()
         sf.write(audio_buffer, audio_data, sr, format="WAV")
         sample_data.pop("audio")
-        return {"audio.wav": audio_buffer.getvalue(), "metadata.json": json.dumps(sample_data)}
+        return {
+            "audio.wav": audio_buffer.getvalue(),
+            "metadata.json": json.dumps(sample_data),
+        }
 
     return sample_data
 
@@ -250,6 +255,7 @@ def create_sharded_dataset(
                     completed_chunks[str(chunk_id)] = result
                     save_checkpoint(output_path, completed_chunks, data)
 
+                    mlflow.log_metric("chunk_done", chunk_id)
                     # Update progress bar with shard info
                     pbar.set_postfix(
                         shard=f"{chunk_id:06d}",
@@ -278,7 +284,9 @@ def create_sharded_dataset(
 
                 # Update progress bar with shard info
                 pbar_shards.set_postfix(
-                    shard=f"{chunk_id:05d}", success=len(result["processed_ids"]), failed=len(result["failed_ids"])
+                    shard=f"{chunk_id:05d}",
+                    success=len(result["processed_ids"]),
+                    failed=len(result["failed_ids"]),
                 )
                 pbar_shards.update(1)
 
@@ -330,15 +338,6 @@ def main():
 
     metadata_path = output_path / "metadata.jsonl"
 
-    # Read with pandas (issues with nan values)
-    # with pd.read_json(
-    #     args.path_to_jsonl,
-    #     lines=True,
-    #     orient="records",
-    #     chunksize=args.json_read_chunk_size,
-    #     storage_options=make_storage_options(args.path_to_jsonl),
-    # ) as reader:
-
     all_json_chunks = list(AnyPath(args.path_to_jsonl_files).rglob("*"))
     # shuffle the chunks
     np.random.shuffle(all_json_chunks)
@@ -366,7 +365,7 @@ def main():
             f"{SHARD_COLOR}=========== Processing chunk {i} with {len(data)} samples, in {num_shards} shards ==========={SHARD_COLOR}"
         )
         start = time.time()
-        processed_samples: list[dict] = create_sharded_dataset(
+        processed_samples: list[dict] | None = create_sharded_dataset(
             data,
             start_idx=chunk_start_id,
             processed_samples=processed_samples,
@@ -380,26 +379,37 @@ def main():
         )
         print(f"Processed chunk {i} in {time.time() - start:.2f} seconds")
 
-        # save processed samples as global checkpoint
-        # shard_metadata_df = pd.DataFrame(processed_samples)
-        # shard_metadata_df.to_json(
-        #     metadata_path, orient="records", lines=True, storage_options={"project": "okapi-274503"}, mode="a"
-        # )
-        print(f"Saving metadata for chunk {i}")
-        with metadata_path.open("a") as f:
-            for sample in processed_samples:
-                f.write(json.dumps(sample) + "\n")
+        if processed_samples:
+            print(f"Saving metadata for chunk {i}")
+            with metadata_path.open("a") as f:
+                for sample in processed_samples:
+                    f.write(json.dumps(sample) + "\n")
 
         # save the number of chunks processed
         with processed_samples_file.open("w") as f:
             f.write(str(i))
 
+        print(f"Num chunks processed: {i}")
+
         processed_samples = []
 
-    # Few post-hoc checks
-    # ds = load_dataset(args.shard_type, output_path, streaming=False, file_pattern=args.output_shard_pattern)
-    # print(ds.columns)
+        # clear tmp files
+        print(f"Clearing tmp files in {output_path}")
+        job_tmpdir = os.getenv("JOB_TMPDIR")
+        if job_tmpdir:
+            tmp_files = list(AnyPath(job_tmpdir).rglob("*"))
+            for tmp_file in tmp_files:
+                if tmp_file.is_file():
+                    os.remove(tmp_file)
+
+            print(f"Removed {len(tmp_files)} tmp files from {job_tmpdir}")
 
 
 if __name__ == "__main__":
-    main()
+    import mlflow
+
+    mlflow.set_tracking_uri(uri="http://milad-dev.tail3ea00b.ts.net:8080")
+    mlflow.set_experiment("naturelm_dataset_creation")
+
+    with mlflow.start_run(log_system_metrics=True):
+        main()
