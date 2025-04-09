@@ -21,10 +21,10 @@ from colorama import Fore, Style
 from datasets import Dataset
 from tqdm.auto import tqdm
 
-import esp_data.io.filesystem as F
 from esp_data.config import DatasetConfig
 from esp_data.config.project_config import default_shard_creator_cfg
 from esp_data.io import AnyPath
+from esp_data.io.filesystem import filesystem, filesystem_from_path
 from esp_data.utils import make_id
 
 logger = logging.getLogger("esp_data")
@@ -566,12 +566,12 @@ def write_huggingface_shard(
     #               then we should probably assert that otherwise what happens if there
     #               are multiple files? Don't we know the exact path of the .arrow a
     #               priori? If yes we don't need to use a glob
-    arrow_file = F.filesystem("local").glob(shard_path / "*.arrow")[0]
-    F.filesystem_from_path(output_path).put(
+    arrow_file = filesystem("local").glob(shard_path / "*.arrow")[0]
+    filesystem_from_path(output_path).put(
         str(arrow_file),
         str(output_path / (f"{shard_name}_{shard_id:06d}.arrow")),
     )
-    F.filesystem_from_path(shard_path).rm(shard_path, recursive=True)
+    filesystem_from_path(shard_path).rm(shard_path, recursive=True)
 
     logger.info(
         f"Finished shard {shard_id:05d} - Processed: {len(results['processed_ids'])}, Failed: {len(results['failed_ids'])}"
