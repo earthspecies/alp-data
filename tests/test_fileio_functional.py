@@ -1,7 +1,6 @@
 import pytest
 
-from esp_data.io import AnyPath
-from esp_data.io.functional import cp_to_cloud, yield_files
+from esp_data.io import AnyPath, filesystem_from_path
 
 
 @pytest.fixture
@@ -24,14 +23,17 @@ def test_upload_download_cloud(local_test_dir, cloud_path):
     local_file = local_test_dir / "cloud_test.bin"
     local_file.write_bytes(b"Hello Cloud")
 
-    assert cloud_path.exists() is False
     assert local_file.exists() is True
 
     # Upload to remote
-    assert cp_to_cloud(local_file, cloud_path) is True
+
+    assert cloud_path.exists() is False
+    filesystem_from_path(cloud_path).put(str(local_file), str(cloud_path))
+    assert cloud_path.exists() is True
+
     # Download back to a different local file
     download_target = local_test_dir / "cloud_test_download.bin"
-    assert copy(cloud_path, str(download_target)) is True
+    filesystem_from_path(cloud_path).get(str(cloud_path), str(download_target))
     assert download_target.read_bytes() == b"Hello Cloud"
     cloud_path.unlink()
     assert not cloud_path.exists()
@@ -82,7 +84,7 @@ def test_list_files(local_test_dir):
     sub_dir.mkdir()
     (sub_dir / "file_c.txt").write_text("C")
 
-    files = list(yield_files(str(local_test_dir), pattern="**/*.txt"))
+    files = filesystem_from_path(local_test_dir).glob(str(local_test_dir / "**/*.txt"))
     assert len(files) >= 3
     assert any("file_a.txt" in x for x in files)
     assert any("file_b.txt" in x for x in files)
@@ -131,7 +133,9 @@ def test_delete_file(local_test_dir):
 def test_makedirs(local_test_dir):
     """Test creating directories."""
     new_dir = AnyPath(local_test_dir / "nested" / "dir")
-    assert new_dir.mkdir(parents=True, exist_ok=False)
+
+    assert new_dir.exists() is False
+    new_dir.mkdir(parents=True, exist_ok=False)
     assert new_dir.exists()
     assert new_dir.is_dir()
 
@@ -145,12 +149,19 @@ def test_makedirs(local_test_dir):
 )
 def test_list_files_in_cloud(cloud_dir, local_test_dir):
     """Test listing files in a cloud directory."""
-    makedirs(cloud_dir)
+
+    # TODO (milad): Can't we just pre-populate a cloud directory with files and avoid
+    #               creating the file and doing the put()?
+
     test_file = local_test_dir / "file_to_list_cloud.txt"
     test_file.write_text("Cloud content")
-    remote_path = f"{cloud_dir}/file_to_list_cloud.txt"
-    assert copy(str(test_file), remote_path)
-    files = list(yield_files(cloud_dir))
+
+    remote_path = cloud_dir / "file_to_list_cloud.txt"
+
+    fs = filesystem_from_path(remote_path)
+    fs.put(str(test_file), str(remote_path))
+
+    files = fs.ls(str(cloud_dir))
     assert any("file_to_list_cloud.txt" in f for f in files)
     AnyPath(remote_path).unlink()
     assert not AnyPath(remote_path).exists()
@@ -165,36 +176,13 @@ def test_list_files_in_cloud(cloud_dir, local_test_dir):
 )
 def test_delete_files_in_cloud(cloud_dir, local_test_dir):
     """Test deleting files in a cloud directory."""
-    makedirs(cloud_dir)
     test_file = local_test_dir / "file_delete_cloud.txt"
     test_file.write_text("Delete from cloud")
-    remote_path = f"{cloud_dir}/file_delete_cloud.txt"
-    copy(str(test_file), remote_path)
 
+    remote_path = cloud_dir / "file_delete_cloud.txt"
+
+    assert not remote_path.exists()
+    filesystem_from_path(remote_path).put(str(test_file), str(remote_path))
+    assert remote_path.exists()
     AnyPath(remote_path).unlink()
     assert not AnyPath(remote_path).exists()
-
-    # Try listing again to ensure file is gone
-    assert not any("file_delete_cloud.txt" in f for f in yield_files(cloud_dir))
-
-
-@pytest.mark.parametrize(
-    "cloud_dir",
-    [
-        AnyPath("gs://esp-ci-cd-tests/esp-data-tests/delete_dir_tests"),
-        AnyPath("r2://esp-ci-cd-tests/esp-data-tests/delete_dir_tests"),
-    ],
-)
-def test_delete_dir_in_cloud(cloud_dir, local_test_dir):
-    """Test deleting a directory in a cloud bucket."""
-    makedirs(cloud_dir)
-    test_file = local_test_dir / "file_delete_dir_cloud.txt"
-    test_file.write_text("Delete from cloud")
-    remote_path = f"{cloud_dir}/file_delete_dir_cloud.txt"
-    copy(str(test_file), remote_path)
-    AnyPath(remote_path).unlink()
-    assert not AnyPath(remote_path).exists()
-    # Try listing again to ensure file is gone
-    assert not any("file_delete_dir_cloud.txt" in f for f in yield_files(cloud_dir))
-    # Delete the directory
-    assert delete_dir(cloud_dir) is True

@@ -7,7 +7,7 @@ from concurrent.futures import ThreadPoolExecutor
 import pandas as pd
 from tqdm import tqdm
 
-import esp_data.io.functional as F
+import esp_data.io.filesystem as F
 from esp_data.io import AnyPath
 
 

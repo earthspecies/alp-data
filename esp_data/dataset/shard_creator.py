@@ -21,7 +21,7 @@ from colorama import Fore, Style
 from datasets import Dataset
 from tqdm.auto import tqdm
 
-import esp_data.io.functional as F
+import esp_data.io.filesystem as F
 from esp_data.config import DatasetConfig
 from esp_data.config.project_config import default_shard_creator_cfg
 from esp_data.io import AnyPath
@@ -562,9 +562,15 @@ def write_huggingface_shard(
     ds.save_to_disk(shard_path, storage_options=storage_options, num_proc=1, num_shards=1)
 
     # Move the arrow file to the final location
-    arrow_file = next(F.yield_files(shard_path, pattern="*.arrow"))
-    F.cp_to_cloud(arrow_file, output_path / (f"{shard_name}_{shard_id:06d}.arrow"))
-
+    # TODO (Gagan): We're using a glob but expect the result to be a list of one? If yes
+    #               then we should probably assert that otherwise what happens if there
+    #               are multiple files? Don't we know the exact path of the .arrow a
+    #               priori? If yes we don't need to use a glob
+    arrow_file = F.filesystem("local").glob(shard_path / "*.arrow")[0]
+    F.filesystem_from_path(output_path).put(
+        str(arrow_file),
+        str(output_path / (f"{shard_name}_{shard_id:06d}.arrow")),
+    )
     F.filesystem_from_path(shard_path).rm(shard_path, recursive=True)
 
     logger.info(

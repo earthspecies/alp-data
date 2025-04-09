@@ -21,7 +21,7 @@ import torchaudio
 from naturelm_cfg import LICENSES, NatureLMSample, naturelm_cfg
 from tqdm import tqdm
 
-import esp_data.io.functional as F
+import esp_data.io.filesystem as F
 from esp_data.dataset.shard_creator import (
     BATCH_COLOR,
     RESET_COLOR,
