@@ -1,7 +1,7 @@
 import pytest
 
 from esp_data.io import AnyPath
-from esp_data.io.functional import copy, delete_dir, yield_files
+from esp_data.io.functional import cp_to_cloud, yield_files
 
 
 @pytest.fixture
@@ -28,7 +28,7 @@ def test_upload_download_cloud(local_test_dir, cloud_path):
     assert local_file.exists() is True
 
     # Upload to remote
-    assert copy(local_file, cloud_path) is True
+    assert cp_to_cloud(local_file, cloud_path) is True
     # Download back to a different local file
     download_target = local_test_dir / "cloud_test_download.bin"
     assert copy(cloud_path, str(download_target)) is True

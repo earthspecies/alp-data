@@ -16,13 +16,13 @@ from s3fs import S3FileSystem
 
 from esp_data.utils import read_gcp_secret
 
-from .paths import AnyPath, strip_cloud_prefix
+from .paths import AnyPath, GSPath, R2Path
 
 logger = logging.getLogger("esp_data")
 
 
 @cache
-def get_fs(
+def filesystem(
     protocol: Literal["gcs", "gs", "r2", "local"] = "local",
     **kwargs,
 ):
@@ -40,6 +40,18 @@ def get_fs(
         return fsspec.filesystem("local", **kwargs)
     else:
         raise ValueError(f"Unknown backend: {protocol}. Supported backends are: gcs, r2.")
+
+
+def filesystem_from_path(path: str | os.PathLike | AnyPath):
+    path = AnyPath(path)
+    if path.is_local:
+        return filesystem("local")
+    elif isinstance(path, GSPath):
+        return filesystem("gcs")
+    elif isinstance(path, R2Path):
+        return filesystem("r2")
+    else:
+        raise ValueError(f"Unknown path type: {path}. Supported types are: local, gcs, r2.")
 
 
 def cp_to_cloud(
@@ -68,7 +80,7 @@ def cp_to_cloud(
         raise TypeError("Source must be a local path and destination must be a cloud path")
 
     try:
-        fs = get_fs(dst)
+        fs = filesystem(dst)
         fs.put(src, dst)
         return dst.exists()
     except Exception as e:

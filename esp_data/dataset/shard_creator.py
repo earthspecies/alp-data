@@ -565,8 +565,7 @@ def write_huggingface_shard(
     arrow_file = next(F.yield_files(shard_path, pattern="*.arrow"))
     F.cp_to_cloud(arrow_file, output_path / (f"{shard_name}_{shard_id:06d}.arrow"))
 
-    # TODO (milad) better support for other backends?
-    F.get_fs("gcs").rm(shard_path, recursive=True)
+    F.filesystem_from_path(shard_path).rm(shard_path, recursive=True)
 
     logger.info(
         f"Finished shard {shard_id:05d} - Processed: {len(results['processed_ids'])}, Failed: {len(results['failed_ids'])}"
