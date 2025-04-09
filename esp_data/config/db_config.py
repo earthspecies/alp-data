@@ -13,7 +13,6 @@ from esp_data.io import AnyPath
 from ..utils import (
     increment_version,
     make_id,
-    utc_now,
     utc_now_str,
     validate_datetime,
     validate_id,
@@ -68,13 +67,18 @@ class DataSample(BaseModel):
 
     """
 
-    model_config = ConfigDict(arbitrary_types_allowed=True, validate_assignment=True, str_strip_whitespace=True)
+    model_config = ConfigDict(
+        arbitrary_types_allowed=True,
+        validate_assignment=True,
+        str_strip_whitespace=True,
+    )
 
     # required params
     # dataset_name is included in sample because some datasets may be aggregated from multiple sources
     # e.g. AnimalSpeak or NatureLM dataset have component datasets like Xeno-canto, esc-50, etc.
     source_dataset: str = Field(
-        min_length=1, description="Name of the source dataset. e.g. 'Xeno-canto' or 'esc-50' or 'esc-50v0.1.0"
+        min_length=1,
+        description="Name of the source dataset. e.g. 'Xeno-canto' or 'esc-50' or 'esc-50v0.1.0",
     )
 
     # optional or auto-generated params
@@ -82,7 +86,10 @@ class DataSample(BaseModel):
     # metadata: Annotated[str, BeforeValidator(validate_json_str)] = Field(description="JSON metadata string")
     metadata: dict = Field(default_factory=lambda: {}, description="Metadata for the data sample")
 
-    id: str = Field(default_factory=make_id, description="Unique identifier, will be auto-generated if None")
+    id: str = Field(
+        default_factory=make_id,
+        description="Unique identifier, will be auto-generated if None",
+    )
 
     created_at: str = Field(
         default_factory=utc_now_str,
@@ -90,11 +97,12 @@ class DataSample(BaseModel):
     )
 
     derived_from: Optional[str | list[str]] = Field(
-        default=None, description="ID of the parent sample if this is derived, maybe a list of IDs if multiple parents"
+        default=None,
+        description="ID of the parent sample if this is derived, maybe a list of IDs if multiple parents",
     )
 
     license: Optional[str] = Field(
-        default=lambda _: LicenseEnum.UNKNOWN,
+        default_factory=lambda: LicenseEnum.UNKNOWN,
         description="License for the data sample, if applicable. For e.g. Xeno-canto can have per recording licenses",
     )
 
@@ -225,7 +233,11 @@ class DatasetConfig(BaseModel):
     schema of the dataset and the path to the dataset.
     """
 
-    model_config = ConfigDict(arbitrary_types_allowed=True, validate_assignment=True, str_strip_whitespace=True)
+    model_config = ConfigDict(
+        arbitrary_types_allowed=True,
+        validate_assignment=True,
+        str_strip_whitespace=True,
+    )
 
     # required params
     name: str = Field(min_length=1, description="Name of the dataset")
@@ -245,13 +257,14 @@ class DatasetConfig(BaseModel):
     )
 
     # optional or auto-generated params
-    created_at: datetime = Field(
-        default_factory=utc_now,
+    created_at: str = Field(
+        default_factory=utc_now_str,
         description="Datetime of creation in UTC timezone, will be auto-generated if None",
     )
 
     license: Optional[str] = Field(
-        default_factory=lambda: LicenseEnum.UNKNOWN, description="License for the dataset, if applicable"
+        default_factory=lambda: LicenseEnum.UNKNOWN,
+        description="License for the dataset, if applicable",
     )
 
     changelog: Optional[str] = Field(default_factory=lambda: "", description="Changelog from previous version")
@@ -271,31 +284,25 @@ class DatasetConfig(BaseModel):
         """Load data sample from a JSON file"""
         with AnyPath(file_path).open("r") as f:
             data = json.load(f)
-        data["created_at"] = datetime.fromisoformat(data["created_at"])
         return cls(**data)
 
     def copy(self) -> "DataSample":
         """Return a copy of the data sample"""
         return self.model_copy(deep=True)
 
-    def to_dict(self, make_serializable: bool = False) -> dict:
+    def to_dict(self) -> dict:
         """Convert the dataset to a dictionary"""
-        data = self.model_dump()
-        if make_serializable:
-            data["created_at"] = self.created_at.isoformat()
-        return data
+        return self.model_dump()
 
     def to_json(self) -> str:
         """Convert the dataset to a JSON string"""
         data = self.to_dict()
-        data["created_at"] = self.created_at.isoformat()
         return json.dumps(data, indent=2)
 
     def write_json(self, file_path: str | os.PathLike) -> None:
         """Write the dataset to a JSON file"""
         with AnyPath(file_path).open("w") as f:
             d = self.to_dict()
-            d["created_at"] = self.created_at.isoformat()
             json.dump(d, f, indent=2)
 
     def update_changelog(self, new_log: str) -> None:

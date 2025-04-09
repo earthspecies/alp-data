@@ -44,7 +44,9 @@ SHARD_TYPES = ["webdataset", "arrow", "parquet", "hf"]
 
 
 def _error_handler(
-    e: Exception, sample_id: str, error_handling: str = default_shard_creator_cfg.error_handling
+    e: Exception,
+    sample_id: str,
+    error_handling: str = default_shard_creator_cfg.error_handling,
 ) -> None:
     """Handle errors during sample processing."""
     if error_handling == "warn":
@@ -114,7 +116,7 @@ def write_webdataset_shard(
         str(shard_path),
         maxcount=100_000_000_000,  # Set very high to ensure all samples go in one shard
         maxsize=100_000_000_000,
-        opener=lambda: AnyPath(shard_path).open("wb"),
+        opener=lambda _: AnyPath(shard_path).open("wb"),
     )
 
     # Process each sample
@@ -160,7 +162,8 @@ def write_webdataset_shard(
 
 
 def determine_pa_field_type(
-    value: Any, default_float_type: str = default_shard_creator_cfg.pyarrow_default_float_type
+    value: Any,
+    default_float_type: str = default_shard_creator_cfg.pyarrow_default_float_type,
 ) -> pa.DataType:
     """
     Determine the appropriate PyArrow data type for a given value.
@@ -244,7 +247,8 @@ def determine_pa_field_type(
 
 
 def infer_schema_from_sample(
-    sample: dict[str, Any], default_float_type: str = default_shard_creator_cfg.pyarrow_default_float_type
+    sample: dict[str, Any],
+    default_float_type: str = default_shard_creator_cfg.pyarrow_default_float_type,
 ) -> pa.Schema:
     """Infer a PyArrow schema from a sample dictionary.
 
@@ -321,7 +325,8 @@ def create_iterative_writer(
 
 
 def write_batch_to_writer(
-    batch_data: List[dict], writer: Union[pq.ParquetWriter, pa.ipc.RecordBatchFileWriter]
+    batch_data: List[dict],
+    writer: Union[pq.ParquetWriter, pa.ipc.RecordBatchFileWriter],
 ) -> None:
     """Write a batch of dictionaries to an open writer.
 
@@ -692,7 +697,10 @@ def compute_metadata_hash(metadata: Union[pd.DataFrame, List[dict], dict, Any]) 
 
 
 def save_checkpoint(
-    output_path: Union[str, AnyPath], completed_chunks: dict, metadata: Any, checkpoint_name: str = "checkpoint.json"
+    output_path: Union[str, AnyPath],
+    completed_chunks: dict,
+    metadata: Any,
+    checkpoint_name: str = "checkpoint.json",
 ) -> None:
     """
     Save checkpoint information for any type of metadata.
@@ -730,7 +738,9 @@ def save_checkpoint(
 
 
 def save_metadata(
-    metadata_df: pd.DataFrame, output_path: Union[str, AnyPath], storage_options: Optional[dict] = None
+    metadata_df: pd.DataFrame,
+    output_path: Union[str, AnyPath],
+    storage_options: Optional[dict] = None,
 ) -> None:
     """Save metadata DataFrame to a file in the appropriate format based on the file extension.
 
@@ -760,12 +770,22 @@ def save_metadata(
         elif ext == "csv":
             metadata_df.to_csv(str(output_path), index=False, storage_options=storage_options)
         elif ext == "json" or ext == "jsonl":
-            metadata_df.to_json(str(output_path), orient="records", lines=True, storage_options=storage_options)
+            metadata_df.to_json(
+                str(output_path),
+                orient="records",
+                lines=True,
+                storage_options=storage_options,
+            )
         elif ext == "tsv":
             metadata_df.to_csv(str(output_path), sep="\t", index=False, storage_options=storage_options)
         else:
             logger.warning(f"Unsupported metadata format: {ext}. Saving as JSON.")
-            metadata_df.to_json(str(output_path), orient="records", lines=True, storage_options=storage_options)
+            metadata_df.to_json(
+                str(output_path),
+                orient="records",
+                lines=True,
+                storage_options=storage_options,
+            )
 
         logger.info(f"Saved metadata to {output_path} ({len(metadata_df)} records)")
     except Exception as e:
@@ -773,7 +793,9 @@ def save_metadata(
 
 
 def load_checkpoint(
-    output_path: Union[str, AnyPath], metadata: Any, checkpoint_name: str = "checkpoint.json"
+    output_path: Union[str, AnyPath],
+    metadata: Any,
+    checkpoint_name: str = "checkpoint.json",
 ) -> Optional[dict]:
     """
     Load checkpoint if it exists and is valid for any type of metadata.
@@ -988,7 +1010,9 @@ def create_sharded_dataset(
 
                 # Update progress bar with shard info
                 pbar_shards.set_postfix(
-                    shard=f"{chunk_id:05d}", success=len(result["processed_ids"]), failed=len(result["failed_ids"])
+                    shard=f"{chunk_id:05d}",
+                    success=len(result["processed_ids"]),
+                    failed=len(result["failed_ids"]),
                 )
                 pbar_shards.update(1)
 
