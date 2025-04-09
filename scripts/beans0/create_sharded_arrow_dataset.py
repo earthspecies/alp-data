@@ -167,7 +167,7 @@ def main():
 
     sample_prep_function = partial(prepare_audio_sample_for_beans0, remove_inaturalist=args.remove_inaturalist)
 
-    output_path = os.path.join(args.dataset_path, args.version)
+    output_path = os.path.join(args.dataset_path)
 
     # write new dataset config file
     beans0_cfg.version = args.version.replace("v", "")
