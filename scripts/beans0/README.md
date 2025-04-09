@@ -1,17 +1,49 @@
 ---
 license: other
 task_categories:
-- audio-classification
+  - audio-classification
 language:
-- en
+  - en
 tags:
-- biology
-pretty_name: Beans0
+  - biology
+  -
+pretty_name: BEANS-Zero
 size_categories:
 - 100K<n<1M
+configs:
+  - config_name:
+    features:
+      - name: file_name
+        dtype: string
+      - name: metadata
+        dtype: string
+      - name: audio
+        dtype:
+          audio:
+            sample_rate: 16000
+            decode: false
+      - name: source_dataset
+        dtype: string
+      - name: id
+        dtype: string
+      - name: license
+        dtype: string
+      - name: instruction
+        dtype: string
+      - name: instruction_text
+        dtype: string
+      - name: output
+        dtype: string
+      - name: task
+        dtype: string
+      - name: dataset_name
+        dtype: string
+    data_files:
+      - split: test
+        path: data/shard*
 ---
 
-# Beans0
+# BEANS-Zero
 
 **Version:** 0.1.0
 **Created on:** 2025-02-25
@@ -20,7 +52,7 @@ size_categories:
 
 ## Overview
 
-Beans0 is a **benchmark bioacoustic dataset** designed for zero-shot bioacoustic evaluation tasks. Introduced in the paper [NATURELM-AUDIO: AN AUDIO-LANGUAGE FOUNDATION MODEL FOR BIOACOUSTICS](https://arxiv.org/pdf/2411.07186), this dataset aggregates multiple subsets from both established component datasets and newly curated ones. It is a benchmark dataset only to be used to evaluate audio-text multimodal models that accept a bioacoustic audio input (query audio) and a text prompt (e.g. 'What species is in this audio?') and generate text as output (e.g. "Taeniopygia guttata").
+BEANS-Zero is a **benchmark bioacoustic dataset** designed for zero-shot bioacoustic evaluation tasks. Introduced in the paper [NATURELM-AUDIO: AN AUDIO-LANGUAGE FOUNDATION MODEL FOR BIOACOUSTICS](https://arxiv.org/pdf/2411.07186), this dataset aggregates multiple subsets from both established component datasets and newly curated ones. It is a benchmark dataset only to be used to evaluate audio-text multimodal models that accept a bioacoustic audio input (query audio) and a text prompt (e.g. 'What species is in this audio?') and generate text as output (e.g. "Taeniopygia guttata").
 
 <div class="alert alert-block alert-warning">
 <b>NOTE:</b> Some of the examples (27,899) were sourced from the iNaturalist database
@@ -30,10 +62,10 @@ Beans0 is a **benchmark bioacoustic dataset** designed for zero-shot bioacoustic
 
 ## Dataset Composition
 
-Beans0 combines data from several well-known sources. There are total of 113,679 samples (examples). It consists of two main groups:
+BEANS-Zero combines data from several well-known sources. There are total of 113,679 samples (examples). It consists of two main groups:
 
 ### Already Part of the BEANS Benchmark
-- **ESC-50:** A labeled collection of 2000 environmental audio recordings (5 seconds each) spanning 50 classes. ([CC-BY-NC](http://dx.doi.org/10.1145/2733373.2806390))
+- **esc-50:** A labeled collection of 2000 environmental audio recordings (5 seconds each) spanning 50 classes. ([CC-BY-NC](http://dx.doi.org/10.1145/2733373.2806390))
 - **Watkins:** Marine mammal sound recordings.
 - **CBI:** Cornell Birdcall Identification dataset. ([CC-BY-NC-SA](https://www.kaggle.com/competitions/birdsong-recognition/overview))
 - **HumBugDB:** A large-scale, multi-species dataset of mosquito sounds. ([CC-BY](https://openreview.net/forum?id=vhjsBtq9OxO))
@@ -50,13 +82,12 @@ Beans0 combines data from several well-known sources. There are total of 113,679
 - **Unseen-family-cmn / sci / tax:** Tasks for classifying family-level names (common, scientific, taxonomic) of unseen species.
 - **Captioning:** English captions for bioacoustic recordings.
 - **ZF-Indiv:** A zebra finch dataset with individual and call-type annotations.
-- **BirdVox70k_pitch:** A pitch estimation task derived from BirdVox-70k clips.
 
-Each subset carries its own metadata and licensing details.
+Each subset has its own metadata and licensing details. Each sample
 
 ## Sources
 
-Beans0 was assembled using data from:
+BEANS-Zero was assembled using data from:
 - **Xeno-canto**
 - **iNaturalist**
 - **Animal Sound Archive**
@@ -69,14 +100,12 @@ Beans0 was assembled using data from:
 - **HICEAS**
 - **Watkins**
 - **Hainan Gibbons**
-- **BirdVox70k**
 
 ## Tasks and Applications
 
-Beans0 supports various research tasks:
+BEANS-Zero supports various research tasks:
 - **Audio Classification:** Identify and categorize animal sounds.
 - **Audio Detection:** Detect specific sound events in recordings.
-- **Pitch Estimation:** Analyze and estimate pitch in audio signals.
 - **Audio Captioning:** Generate natural language descriptions of bioacoustic recordings.
 
 These tasks are particularly useful for exploring zero-shot learning applications in bioacoustics.
@@ -84,9 +113,11 @@ These tasks are particularly useful for exploring zero-shot learning application
 ## Data Fields
 The following fields are present in each example:
 - **source_dataset** (str): One of the source datasets mentioned above
+- **audio** (Sequence[float]): The audio data in float32 format. The audio is not decoded, and the sample rate is 16000 Hz.
 - **id** (str): Sample uuid.
 - **created_at** (str): Sample creation datetime in utc
-- **license** (str): Each sample can have a different license
+- **metadata** (str): Each sample can have a different duration
+
 - **file_name** (str): Sample file_name
 - **instruction** (str): A prompt for created with a placeholder for audio tokens. E.g. '<Audio><AudioHere></Audio> What is the scientific name for the focal species in the audio?'
 - **output** (str): The expected output from the model
@@ -95,11 +126,11 @@ The following fields are present in each example:
 
 ## Licensing
 
-Due to its composite nature, Beans0 is subject to multiple licenses. Individual subsets may have per-file licenses; consult the corresponding documentation for each component.
+Due to its composite nature, BEANS-Zero is subject to multiple licenses. Individual subsets may have per-file licenses; consult the corresponding documentation for each component.
 
 ## Citation
 
-If you use Beans0, please cite the following:
+If you use BEANS-Zero, please cite the following:
 
 ```bibtex
 @misc{naturelm-audio,
@@ -112,7 +143,7 @@ If you use Beans0, please cite the following:
 
 ## How to Use
 
-Beans0 is provided with a default configuration. Data files are belong to a sing
+BEANS-Zero is provided with a default configuration. Data files are belong to a sing
 
 ## Contact
 

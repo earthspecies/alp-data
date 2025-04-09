@@ -12,6 +12,7 @@ from beans_cfg import beans0_cfg
 from esp_data.dataset.shard_creator import create_sharded_dataset
 from esp_data.file_io.parsers import read_audio_bytes_from_path
 
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("beans0")
 
 
@@ -144,6 +145,7 @@ def main():
     )
     parser.add_argument("--changelog", type=str, help="Changelog for the dataset")
     parser.add_argument("--log_every", type=int, default=50, help="Log every n samples")
+    parser.add_argument("--error_handling", type=str, default="warn", help="Error handling strategy")
 
     args = parser.parse_args()
 
@@ -185,6 +187,7 @@ def main():
         save_metadata_as="metadata.jsonl",
         merge_data_and_metadata=False,
         log_every=args.log_every,
+        error_handling=args.error_handling,
     )
 
     # Few post-hoc checks
