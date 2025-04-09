@@ -566,7 +566,7 @@ def write_huggingface_shard(
     #               then we should probably assert that otherwise what happens if there
     #               are multiple files? Don't we know the exact path of the .arrow a
     #               priori? If yes we don't need to use a glob
-    arrow_file = filesystem("local").glob(shard_path / "*.arrow")[0]
+    arrow_file = filesystem("local").glob(str(shard_path / "*.arrow"))[0]
     filesystem_from_path(output_path).put(
         str(arrow_file),
         str(output_path / (f"{shard_name}_{shard_id:06d}.arrow")),
