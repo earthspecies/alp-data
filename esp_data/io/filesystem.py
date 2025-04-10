@@ -1,10 +1,3 @@
-"""This is a functional implementation of fileio using the FileSystem approach.
-
-The idea is to simplify the api, moving towards a functional, stateless approach.
-
-We prefer using the FileSystem approach, defaulting to cloudpathlib if it doesn't work.
-"""
-
 import logging
 import os
 from functools import cache
