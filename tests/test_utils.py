@@ -1,5 +1,3 @@
-from datetime import datetime
-
 import pytest
 
 from esp_data.utils import (
@@ -44,12 +42,13 @@ def test_validate_version():
 
 
 def test_validate_datetime():
-    assert validate_datetime("2021-01-01T00:00:00") == datetime(2021, 1, 1, 0, 0, 0)
     with pytest.raises(ValueError):
         validate_datetime("invalid_datetime")
 
     with pytest.raises(ValueError):
         validate_datetime("2021-01-1")
+    t = utc_now().isoformat()
+    assert validate_datetime(t) == t
 
 
 def test_make_id():

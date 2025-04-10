@@ -6,7 +6,7 @@ from typing import Any, Callable, Generator, Literal, Union
 import pandas as pd
 import webdataset as wds
 
-import esp_data.io.functional as F
+import esp_data.io.filesystem as F
 from esp_data.config import DatasetConfig
 from esp_data.config.project_config import default_webds_loader_cfg
 from esp_data.io import AnyPath
@@ -76,10 +76,16 @@ def load_dataset(
 
     """
     path = AnyPath(path)
-    shard_files = list(F.yield_files(path, pattern=file_pattern))
+    shard_files = F.filesystem_from_path(path).glob(str(path / file_pattern))
 
     if not shard_files:
         raise FileNotFoundError(f"No shard files found in {path}")
+
+    # .glob() removes the prefix from the path, so we need to add it back
+    # TODO (milad) Gagan used to deal with this in yield_files(). Decide if it's worth
+    #              adding it to a wrapper
+    if path.is_cloud:
+        shard_files = [path.cloud_prefix + str(p) for p in shard_files]
 
     # Log what we found for debugging
     logger.debug(f"Found {len(shard_files)} shard files in {path}")

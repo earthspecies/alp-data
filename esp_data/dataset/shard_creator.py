@@ -21,10 +21,10 @@ from colorama import Fore, Style
 from datasets import Dataset
 from tqdm.auto import tqdm
 
-import esp_data.io.functional as F
 from esp_data.config import DatasetConfig
 from esp_data.config.project_config import default_shard_creator_cfg
 from esp_data.io import AnyPath
+from esp_data.io.filesystem import filesystem, filesystem_from_path
 from esp_data.utils import make_id
 
 logger = logging.getLogger("esp_data")
@@ -44,7 +44,9 @@ SHARD_TYPES = ["webdataset", "arrow", "parquet", "hf"]
 
 
 def _error_handler(
-    e: Exception, sample_id: str, error_handling: str = default_shard_creator_cfg.error_handling
+    e: Exception,
+    sample_id: str,
+    error_handling: str = default_shard_creator_cfg.error_handling,
 ) -> None:
     """Handle errors during sample processing."""
     if error_handling == "warn":
@@ -114,7 +116,7 @@ def write_webdataset_shard(
         str(shard_path),
         maxcount=100_000_000_000,  # Set very high to ensure all samples go in one shard
         maxsize=100_000_000_000,
-        opener=lambda: AnyPath(shard_path).open("wb"),
+        opener=lambda _: AnyPath(shard_path).open("wb"),
     )
 
     # Process each sample
@@ -160,7 +162,8 @@ def write_webdataset_shard(
 
 
 def determine_pa_field_type(
-    value: Any, default_float_type: str = default_shard_creator_cfg.pyarrow_default_float_type
+    value: Any,
+    default_float_type: str = default_shard_creator_cfg.pyarrow_default_float_type,
 ) -> pa.DataType:
     """
     Determine the appropriate PyArrow data type for a given value.
@@ -244,7 +247,8 @@ def determine_pa_field_type(
 
 
 def infer_schema_from_sample(
-    sample: dict[str, Any], default_float_type: str = default_shard_creator_cfg.pyarrow_default_float_type
+    sample: dict[str, Any],
+    default_float_type: str = default_shard_creator_cfg.pyarrow_default_float_type,
 ) -> pa.Schema:
     """Infer a PyArrow schema from a sample dictionary.
 
@@ -321,7 +325,8 @@ def create_iterative_writer(
 
 
 def write_batch_to_writer(
-    batch_data: List[dict], writer: Union[pq.ParquetWriter, pa.ipc.RecordBatchFileWriter]
+    batch_data: List[dict],
+    writer: Union[pq.ParquetWriter, pa.ipc.RecordBatchFileWriter],
 ) -> None:
     """Write a batch of dictionaries to an open writer.
 
@@ -562,9 +567,16 @@ def write_huggingface_shard(
     ds.save_to_disk(shard_path, storage_options=storage_options, num_proc=1, num_shards=1)
 
     # Move the arrow file to the final location
-    arrow_file = next(F.yield_files(shard_path, pattern="*.arrow"))
-    F.move_file(arrow_file, output_path / (f"{shard_name}_{shard_id:06d}.arrow"))
-    F.delete_dir(shard_path)
+    # TODO (Gagan): We're using a glob but expect the result to be a list of one? If yes
+    #               then we should probably assert that otherwise what happens if there
+    #               are multiple files? Don't we know the exact path of the .arrow a
+    #               priori? If yes we don't need to use a glob
+    arrow_file = filesystem("local").glob(str(shard_path / "*.arrow"))[0]
+    filesystem_from_path(output_path).put(
+        str(arrow_file),
+        str(output_path / (f"{shard_name}_{shard_id:06d}.arrow")),
+    )
+    filesystem_from_path(shard_path).rm(shard_path, recursive=True)
 
     logger.info(
         f"Finished shard {shard_id:05d} - Processed: {len(results['processed_ids'])}, Failed: {len(results['failed_ids'])}"
@@ -685,7 +697,10 @@ def compute_metadata_hash(metadata: Union[pd.DataFrame, List[dict], dict, Any]) 
 
 
 def save_checkpoint(
-    output_path: Union[str, AnyPath], completed_chunks: dict, metadata: Any, checkpoint_name: str = "checkpoint.json"
+    output_path: Union[str, AnyPath],
+    completed_chunks: dict,
+    metadata: Any,
+    checkpoint_name: str = "checkpoint.json",
 ) -> None:
     """
     Save checkpoint information for any type of metadata.
@@ -723,7 +738,9 @@ def save_checkpoint(
 
 
 def save_metadata(
-    metadata_df: pd.DataFrame, output_path: Union[str, AnyPath], storage_options: Optional[dict] = None
+    metadata_df: pd.DataFrame,
+    output_path: Union[str, AnyPath],
+    storage_options: Optional[dict] = None,
 ) -> None:
     """Save metadata DataFrame to a file in the appropriate format based on the file extension.
 
@@ -753,12 +770,22 @@ def save_metadata(
         elif ext == "csv":
             metadata_df.to_csv(str(output_path), index=False, storage_options=storage_options)
         elif ext == "json" or ext == "jsonl":
-            metadata_df.to_json(str(output_path), orient="records", lines=True, storage_options=storage_options)
+            metadata_df.to_json(
+                str(output_path),
+                orient="records",
+                lines=True,
+                storage_options=storage_options,
+            )
         elif ext == "tsv":
             metadata_df.to_csv(str(output_path), sep="\t", index=False, storage_options=storage_options)
         else:
             logger.warning(f"Unsupported metadata format: {ext}. Saving as JSON.")
-            metadata_df.to_json(str(output_path), orient="records", lines=True, storage_options=storage_options)
+            metadata_df.to_json(
+                str(output_path),
+                orient="records",
+                lines=True,
+                storage_options=storage_options,
+            )
 
         logger.info(f"Saved metadata to {output_path} ({len(metadata_df)} records)")
     except Exception as e:
@@ -766,7 +793,9 @@ def save_metadata(
 
 
 def load_checkpoint(
-    output_path: Union[str, AnyPath], metadata: Any, checkpoint_name: str = "checkpoint.json"
+    output_path: Union[str, AnyPath],
+    metadata: Any,
+    checkpoint_name: str = "checkpoint.json",
 ) -> Optional[dict]:
     """
     Load checkpoint if it exists and is valid for any type of metadata.
@@ -981,7 +1010,9 @@ def create_sharded_dataset(
 
                 # Update progress bar with shard info
                 pbar_shards.set_postfix(
-                    shard=f"{chunk_id:05d}", success=len(result["processed_ids"]), failed=len(result["failed_ids"])
+                    shard=f"{chunk_id:05d}",
+                    success=len(result["processed_ids"]),
+                    failed=len(result["failed_ids"]),
                 )
                 pbar_shards.update(1)
 
