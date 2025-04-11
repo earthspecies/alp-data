@@ -1,6 +1,7 @@
 name: Build and Publish Package
 
 on:
+  # TODO (milad): Only trigger when we make a release
   workflow_dispatch:
   push:
     branches: ["main"]
