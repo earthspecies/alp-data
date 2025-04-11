@@ -29,12 +29,12 @@ from esp_data.dataset.shard_creator import (
     save_checkpoint,
     write_shard,
 )
-from esp_data.io import AnyPath, anypath
+from esp_data.io import AnyPathT, anypath
 
 AUDIO_PROMPT = "<Audio><AudioHere></Audio>"
 
 
-def read_jsonl(path: str | AnyPath) -> list[dict]:
+def read_jsonl(path: str | AnyPathT) -> list[dict]:
     try:
         path = anypath(path)
         with path.open(path, "r") as f:
@@ -46,7 +46,7 @@ def read_jsonl(path: str | AnyPath) -> list[dict]:
     return annotation
 
 
-def load_audio(audio_path: str | AnyPath) -> np.ndarray:
+def load_audio(audio_path: str | AnyPathT) -> np.ndarray:
     audio_path = anypath(audio_path)
 
     with audio_path.open("rb") as f:

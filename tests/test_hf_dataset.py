@@ -180,7 +180,7 @@ def test_saving_methods():
 
     assert anypath("gs://esp-ci-cd-tests/esp-data-tests/hf_test_dataset").exists()
     assert anypath("gs://esp-ci-cd-tests/esp-data-tests/hf_test_dataset/dataset_config.json").exists()
-    # Deleting a dir doesn't work with gcsfs or AnyPath because cloud folders
+    # Deleting a dir doesn't work with gcsfs or AnyPathT because cloud folders
     # are not folders, so you have to delete each file inside.
     # F.delete_dir("gs://esp-ci-cd-tests/esp-data-tests/hf_test_dataset")
 

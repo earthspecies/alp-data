@@ -23,7 +23,7 @@ from tqdm.auto import tqdm
 
 from esp_data.config import DatasetConfig
 from esp_data.config.project_config import default_shard_creator_cfg
-from esp_data.io import AnyPath, anypath
+from esp_data.io import AnyPathT, anypath
 from esp_data.io.filesystem import filesystem, filesystem_from_path
 from esp_data.utils import make_id
 
@@ -64,7 +64,7 @@ def _error_handler(
 def write_webdataset_shard(
     batch: Union[Iterable[dict], pd.DataFrame, pd.Series],
     shard_id: int,
-    output_path: str | AnyPath,
+    output_path: str | AnyPathT,
     sample_prep_function: Optional[Callable] = None,
     log_every: int = default_shard_creator_cfg.log_every,
     error_handling: str = default_shard_creator_cfg.error_handling,
@@ -79,7 +79,7 @@ def write_webdataset_shard(
         Iterable of dictionaries or dataframe or series containing sample data
     shard_id: int
         ID for this shard
-    output_path: str | AnyPath,
+    output_path: str | AnyPathT,
         Path to save the shard
     sample_prep_function: Optional[Callable]
         Function to prepare a sample for the WebDataset format
@@ -280,7 +280,7 @@ def infer_schema_from_sample(
 
 
 def create_iterative_writer(
-    path: str | AnyPath,
+    path: str | AnyPathT,
     sample: dict,
     format: str = default_shard_creator_cfg.pyarrow_shard_type,
     default_float_type: str = default_shard_creator_cfg.pyarrow_default_float_type,
@@ -289,7 +289,7 @@ def create_iterative_writer(
 
     Arguments
     ---------
-    path: str | AnyPath
+    path: str | AnyPathT
         Path to write the file to
     sample: dict
         A sample dictionary to infer the schema from
@@ -361,7 +361,7 @@ def write_batch_to_writer(
 def write_arrow_shard(
     batch: Union[Iterable[dict], pd.DataFrame, pd.Series],
     shard_id: int,
-    output_path: str | AnyPath,
+    output_path: str | AnyPathT,
     sample_prep_function: Optional[Callable] = None,
     format: str = default_shard_creator_cfg.pyarrow_shard_type,
     log_every: int = default_shard_creator_cfg.log_every,
@@ -377,7 +377,7 @@ def write_arrow_shard(
         Iterable of dictionaries or dataframe or series containing sample data
     shard_id: int
         ID for this shard
-    output_path: str | AnyPath
+    output_path: str | AnyPathT
         Path to save the shard
     sample_prep_function: Optional[Callable]
         Function to prepare a sample for the Arrow format
@@ -473,7 +473,7 @@ def write_arrow_shard(
 def write_huggingface_shard(
     batch: Union[Iterable[dict], pd.DataFrame, pd.Series],
     shard_id: int,
-    output_path: str | AnyPath,
+    output_path: str | AnyPathT,
     sample_prep_function: Optional[Callable] = None,
     storage_options: Optional[dict] = None,
     log_every: int = default_shard_creator_cfg.log_every,
@@ -489,7 +489,7 @@ def write_huggingface_shard(
         Iterable of dictionaries containing sample data
     shard_id: int
         ID for this shard
-    output_path: str | AnyPath
+    output_path: str | AnyPathT
         Path to save the shard
     sample_prep_function: Optional[Callable]
         Function to prepare a sample for dataset Arrow format
@@ -588,7 +588,7 @@ def write_huggingface_shard(
 def write_shard(
     batch: Union[List[dict], pd.DataFrame, pd.Series],
     shard_id: int,
-    output_path: str | AnyPath,
+    output_path: str | AnyPathT,
     output_format: str,
     sample_prep_function: Optional[Callable] = None,
     log_every: int = default_shard_creator_cfg.log_every,
@@ -604,7 +604,7 @@ def write_shard(
         List of dictionaries or dataframe or series containing sample data
     shard_id: int
         ID for this shard
-    output_path: str | AnyPath
+    output_path: str | AnyPathT
         Path to save the shard
     sample_prep_function: Optional[Callable]
         Function to prepare a sample for the shard format
@@ -697,7 +697,7 @@ def compute_metadata_hash(metadata: Union[pd.DataFrame, List[dict], dict, Any]) 
 
 
 def save_checkpoint(
-    output_path: str | AnyPath,
+    output_path: str | AnyPathT,
     completed_chunks: dict,
     metadata: Any,
     checkpoint_name: str = "checkpoint.json",
@@ -707,7 +707,7 @@ def save_checkpoint(
 
     Arguments
     ---------
-    output_path: str | AnyPath
+    output_path: str | AnyPathT
         Path to save the checkpoint
     completed_chunks: dict
         Dictionary of completed chunks
@@ -739,7 +739,7 @@ def save_checkpoint(
 
 def save_metadata(
     metadata_df: pd.DataFrame,
-    output_path: str | AnyPath,
+    output_path: str | AnyPathT,
     storage_options: Optional[dict] = None,
 ) -> None:
     """Save metadata DataFrame to a file in the appropriate format based on the file extension.
@@ -748,7 +748,7 @@ def save_metadata(
     ---------
      metadata_df: pd.DataFrame
         DataFrame containing metadata
-    output_path: str | AnyPath
+    output_path: str | AnyPathT
         Path to save the metadata
     storage_options: Optional[dict]
         Storage options for cloud storage
@@ -793,7 +793,7 @@ def save_metadata(
 
 
 def load_checkpoint(
-    output_path: str | AnyPath,
+    output_path: str | AnyPathT,
     metadata: Any,
     checkpoint_name: str = "checkpoint.json",
 ) -> Optional[dict]:
@@ -802,7 +802,7 @@ def load_checkpoint(
 
     Arguments
     ---------
-    output_path: str | AnyPath
+    output_path: str | AnyPathT
         Path to the checkpoint
     metadata: Any
         Current metadata to compare against saved checkpoint
@@ -843,7 +843,7 @@ def load_checkpoint(
 
 def create_sharded_dataset(
     data: Union[pd.DataFrame, Iterable[dict]],
-    output_path: str | AnyPath,
+    output_path: str | AnyPathT,
     sample_prep_function: Optional[Callable] = None,
     dataset_config: DatasetConfig = None,
     save_metadata_as: Optional[str] = None,
@@ -863,7 +863,7 @@ def create_sharded_dataset(
     ---------
     data: Union[pd.DataFrame, Iterable[dict]]
         DataFrame or list of dictionaries containing sample data
-    output_path: str | AnyPath
+    output_path: str | AnyPathT
         Path to save the shards
     sample_prep_function: Callable
         Function to prepare a sample for the shard format. Must return a dictionary.

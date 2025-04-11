@@ -88,17 +88,17 @@ class Path(PosixPath):
 
 # TODO (milad) Python 3.12 introduces `type`. It will probably deprecate TypeAlias at
 # some point. We should use that instead when 3.12 is not too new anymore.
-AnyPath: TypeAlias = Path | GSPath | R2Path
+AnyPathT: TypeAlias = Path | GSPath | R2Path
 
 
-def anypath(path: str | Path | GSPath | R2Path) -> AnyPath:
+def anypath(path: str | Path | GSPath | R2Path) -> AnyPathT:
     """A factory function that returns the correct path object based on the path string.
 
     Args:
         path (str | Path | GSPath | R2Path): The path to a local or Bucket file
 
     Returns:
-        AnyPath: The correct path object based on the path string.
+        AnyPathT: The correct path object based on the path string.
     """
 
     path = str(path)

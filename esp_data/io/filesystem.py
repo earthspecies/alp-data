@@ -8,7 +8,7 @@ from s3fs import S3FileSystem
 
 from esp_data.utils import read_gcp_secret
 
-from .paths import AnyPath, GSPath, R2Path, anypath
+from .paths import AnyPathT, GSPath, R2Path, anypath
 
 logger = logging.getLogger("esp_data")
 
@@ -34,7 +34,7 @@ def filesystem(
         raise ValueError(f"Unknown backend: {protocol}. Supported backends are: gcs, r2.")
 
 
-def filesystem_from_path(path: str | AnyPath):
+def filesystem_from_path(path: str | AnyPathT):
     path = anypath(path)
     if path.is_local:
         return filesystem("local")
