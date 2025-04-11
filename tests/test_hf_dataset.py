@@ -4,7 +4,7 @@ import pytest
 
 from esp_data.config import DataSample, DatasetConfig
 from esp_data.dataset import HFDataset
-from esp_data.io import AnyPath
+from esp_data.io import anypath
 
 # constants for all tests
 cfg = DatasetConfig(
@@ -152,7 +152,7 @@ def test_saving_methods():
     # test save config as json
     with tempfile.TemporaryDirectory() as tmpdir:
         ds.save_config(tmpdir)
-        f = AnyPath(tmpdir) / "dataset_config.json"
+        f = anypath(tmpdir) / "dataset_config.json"
         assert f.exists()
         # load the config back
         cfg2 = DatasetConfig.from_json(f)
@@ -161,7 +161,7 @@ def test_saving_methods():
 
     # test save config to cloud
     ds.save_config("gs://esp-ci-cd-tests/esp-data-tests/hf_test_dataset")
-    f = AnyPath("gs://esp-ci-cd-tests/esp-data-tests/hf_test_dataset/dataset_config.json")
+    f = anypath("gs://esp-ci-cd-tests/esp-data-tests/hf_test_dataset/dataset_config.json")
     assert f.exists()
     f.unlink()
     assert not f.exists()
@@ -169,17 +169,17 @@ def test_saving_methods():
     # test save dataset locally
     with tempfile.TemporaryDirectory() as tmpdir:
         ds.save_to_path(tmpdir)
-        b = AnyPath(tmpdir)
+        b = anypath(tmpdir)
         assert b.exists()
-        assert (AnyPath(tmpdir) / "dataset_config.json").exists()
+        assert (anypath(tmpdir) / "dataset_config.json").exists()
 
     # test save dataset to cloud
     ds.save_to_path(
         "gs://esp-ci-cd-tests/esp-data-tests/hf_test_dataset",
     )
 
-    assert AnyPath("gs://esp-ci-cd-tests/esp-data-tests/hf_test_dataset").exists()
-    assert AnyPath("gs://esp-ci-cd-tests/esp-data-tests/hf_test_dataset/dataset_config.json").exists()
+    assert anypath("gs://esp-ci-cd-tests/esp-data-tests/hf_test_dataset").exists()
+    assert anypath("gs://esp-ci-cd-tests/esp-data-tests/hf_test_dataset/dataset_config.json").exists()
     # Deleting a dir doesn't work with gcsfs or AnyPath because cloud folders
     # are not folders, so you have to delete each file inside.
     # F.delete_dir("gs://esp-ci-cd-tests/esp-data-tests/hf_test_dataset")

@@ -1,6 +1,6 @@
 import pytest
 
-from esp_data.io import AnyPath, filesystem_from_path
+from esp_data.io import anypath, filesystem_from_path
 
 
 @pytest.fixture
@@ -14,8 +14,8 @@ def local_test_dir(tmp_path):
 @pytest.mark.parametrize(
     "cloud_path",
     [
-        AnyPath("gs://esp-ci-cd-tests/esp-data-tests/test_upload_file.bin"),
-        AnyPath("r2://esp-ci-cd-tests/esp-data-tests/test_upload_file.bin"),
+        anypath("gs://esp-ci-cd-tests/esp-data-tests/test_upload_file.bin"),
+        anypath("r2://esp-ci-cd-tests/esp-data-tests/test_upload_file.bin"),
     ],
 )
 def test_upload_download_cloud(local_test_dir, cloud_path):
@@ -132,7 +132,7 @@ def test_delete_file(local_test_dir):
 
 def test_makedirs(local_test_dir):
     """Test creating directories."""
-    new_dir = AnyPath(local_test_dir / "nested" / "dir")
+    new_dir = anypath(local_test_dir / "nested" / "dir")
 
     assert new_dir.exists() is False
     new_dir.mkdir(parents=True, exist_ok=False)
@@ -143,8 +143,8 @@ def test_makedirs(local_test_dir):
 @pytest.mark.parametrize(
     "cloud_dir",
     [
-        AnyPath("gs://esp-ci-cd-tests/esp-data-tests/dir_tests_list"),
-        AnyPath("r2://esp-ci-cd-tests/esp-data-tests/dir_tests_list"),
+        anypath("gs://esp-ci-cd-tests/esp-data-tests/dir_tests_list"),
+        anypath("r2://esp-ci-cd-tests/esp-data-tests/dir_tests_list"),
     ],
 )
 def test_list_files_in_cloud(cloud_dir, local_test_dir):
@@ -163,15 +163,15 @@ def test_list_files_in_cloud(cloud_dir, local_test_dir):
 
     files = fs.ls(str(cloud_dir))
     assert any("file_to_list_cloud.txt" in f for f in files)
-    AnyPath(remote_path).unlink()
-    assert not AnyPath(remote_path).exists()
+    anypath(remote_path).unlink()
+    assert not anypath(remote_path).exists()
 
 
 @pytest.mark.parametrize(
     "cloud_dir",
     [
-        AnyPath("gs://esp-ci-cd-tests/esp-data-tests/delete_files_tests"),
-        AnyPath("r2://esp-ci-cd-tests/esp-data-tests/delete_files_tests"),
+        anypath("gs://esp-ci-cd-tests/esp-data-tests/delete_files_tests"),
+        anypath("r2://esp-ci-cd-tests/esp-data-tests/delete_files_tests"),
     ],
 )
 def test_delete_files_in_cloud(cloud_dir, local_test_dir):
@@ -184,5 +184,5 @@ def test_delete_files_in_cloud(cloud_dir, local_test_dir):
     assert not remote_path.exists()
     filesystem_from_path(remote_path).put(str(test_file), str(remote_path))
     assert remote_path.exists()
-    AnyPath(remote_path).unlink()
-    assert not AnyPath(remote_path).exists()
+    anypath(remote_path).unlink()
+    assert not anypath(remote_path).exists()

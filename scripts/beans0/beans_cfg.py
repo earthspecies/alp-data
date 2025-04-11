@@ -5,7 +5,7 @@ from pydantic import Field
 
 import esp_data.io.filesystem as F
 from esp_data.config import DataSample, DatasetConfig
-from esp_data.io import AnyPath
+from esp_data.io import anypath
 
 CREATOR = """M.Hagiwara, masato at earthspecies dot org;
 D. Robinson, david at earthspecies dot org;
@@ -107,7 +107,7 @@ def download_jsonl_files(exists_ok: Optional[bool] = True):
         if exists_ok:
             F.filesystem_from_path(path).get(path, LOCAL_PATHS[name])
 
-        if not exists_ok and not AnyPath(LOCAL_PATHS[name]).exists():
+        if not exists_ok and not anypath(LOCAL_PATHS[name]).exists():
             F.filesystem_from_path(path).get(path, LOCAL_PATHS[name])
 
 

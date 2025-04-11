@@ -6,7 +6,7 @@ import pandas as pd
 from beans_cfg import ALL_DATASET_NAMES, LOCAL_PATHS, Beans0SampleNoAudio, beans0_cfg
 from tqdm import tqdm
 
-from esp_data.io import AnyPath
+from esp_data.io import AnyPath, anypath
 
 from .temp_utils import make_simple_logger
 
@@ -34,7 +34,7 @@ def make_sample(
     Returns:
         dict: The Beans0Sample.
     """
-    path_parts = AnyPath(row["path"]).parts
+    path_parts = anypath(row["path"]).parts
 
     # HACK, issue many paths are local to David's VM
     animal_speak = False

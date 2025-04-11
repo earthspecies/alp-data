@@ -29,14 +29,14 @@ from esp_data.dataset.shard_creator import (
     save_checkpoint,
     write_shard,
 )
-from esp_data.io import AnyPath
+from esp_data.io import AnyPath, anypath
 
 AUDIO_PROMPT = "<Audio><AudioHere></Audio>"
 
 
 def read_jsonl(path: str | AnyPath) -> list[dict]:
     try:
-        path = AnyPath(path)
+        path = anypath(path)
         with path.open(path, "r") as f:
             data = json.load(f)
             annotation = data["annotation"]
@@ -47,7 +47,7 @@ def read_jsonl(path: str | AnyPath) -> list[dict]:
 
 
 def load_audio(audio_path: str | AnyPath) -> np.ndarray:
-    audio_path = AnyPath(audio_path)
+    audio_path = anypath(audio_path)
 
     with audio_path.open("rb") as f:
         audio_data, sr = torchaudio.load(f)
@@ -90,7 +90,7 @@ def prepare_audio_sample_for_naturelm(
         "instruction_text": row["prompt"].replace(AUDIO_PROMPT, "").strip(),
     }
 
-    path = AnyPath(row["path"])
+    path = anypath(row["path"])
 
     # HACK David's comments on original jsonl's
     # skip_cond1 = any([c in str(path) for c in ["compa_r", "audiocaps", "animal-instruct"]])
@@ -187,7 +187,7 @@ def create_sharded_dataset(
     Create sharded dataset from information in a dataframe (or a Iterable[dict]) and a sample prep function,
     in parallel, with checkpointing.
     """
-    output_path = AnyPath(output_path)
+    output_path = anypath(output_path)
 
     # Load checkpoint if exists
     checkpoint_data = load_checkpoint(output_path, data)
@@ -313,7 +313,7 @@ def main():
         shard_type=args.shard_type,
     )
 
-    output_path = AnyPath(args.output_path)
+    output_path = anypath(args.output_path)
 
     print("Updating NatureLM dataset config")
     naturelm_cfg.version = args.version.replace("v", "")
@@ -321,7 +321,7 @@ def main():
     naturelm_cfg.write_json(output_path / "dataset_config.json")
     naturelm_cfg.generate_readme(output_path / "README.md")
 
-    processed_samples_file = AnyPath(output_path / "num_chunks_processed.txt")
+    processed_samples_file = anypath(output_path / "num_chunks_processed.txt")
     if processed_samples_file.exists() and args.start_at_chunk is None:
         with processed_samples_file.open("r") as f:
             num_chunks_processed = int(f.read())
@@ -341,7 +341,7 @@ def main():
     #     storage_options=make_storage_options(args.path_to_jsonl),
     # ) as reader:
 
-    all_json_chunks = list(AnyPath(args.path_to_jsonl_files).rglob("*"))
+    all_json_chunks = list(anypath(args.path_to_jsonl_files).rglob("*"))
     # shuffle the chunks
     np.random.shuffle(all_json_chunks)
 

@@ -12,7 +12,7 @@ from typing import Any, Callable, Dict, List, Optional
 import git
 import pkg_resources
 
-from esp_data.io import AnyPath
+from esp_data.io import AnyPath, anypath
 from esp_data.utils import utc_now_str
 
 logger = logging.getLogger("esp_data")
@@ -224,12 +224,12 @@ class TransformPipeline:
         return cls(steps=steps, name=data["name"], git_repo_path=data["git_repo_path"])
 
     def save(self, path: str | AnyPath) -> None:
-        with AnyPath(path).open("w") as f:
+        with anypath(path).open("w") as f:
             json.dump(self.to_dict(), f, indent=2)
 
     @classmethod
     def load(cls, path: str | AnyPath) -> "TransformPipeline":
-        with AnyPath(path).open("r") as f:
+        with anypath(path).open("r") as f:
             data = json.load(f)
         return cls.from_dict(data)
 

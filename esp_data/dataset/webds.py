@@ -1,7 +1,7 @@
 import json
 import logging
 from functools import lru_cache, partial
-from typing import Any, Callable, Generator, Literal, Union
+from typing import Any, Callable, Generator, Literal
 
 import pandas as pd
 import webdataset as wds
@@ -9,7 +9,7 @@ import webdataset as wds
 import esp_data.io.filesystem as F
 from esp_data.config import DatasetConfig
 from esp_data.config.project_config import default_webds_loader_cfg
-from esp_data.io import AnyPath
+from esp_data.io import AnyPath, anypath
 
 from .base import BaseIterableDataset, BaseMapDataset
 from .shard_creator import write_webdataset_shard
@@ -18,7 +18,7 @@ logger = logging.getLogger("esp_data")
 
 
 def load_dataset(
-    path: Union[str, AnyPath],
+    path: str | AnyPath,
     file_pattern: str = default_webds_loader_cfg.file_pattern,
     data_processor: Callable = default_webds_loader_cfg.data_processor,
     shuffle_size: int | None = default_webds_loader_cfg.shuffle_size,
@@ -75,7 +75,7 @@ def load_dataset(
     ... )
 
     """
-    path = AnyPath(path)
+    path = anypath(path)
     shard_files = F.filesystem_from_path(path).glob(str(path / file_pattern))
 
     if not shard_files:
@@ -155,7 +155,7 @@ def get_item_from_dataset(
     sample_id = str(row["id"])
 
     # Load the specific shard
-    ds = wds.WebDataset(str(AnyPath(dataset_path) / shard_path))
+    ds = wds.WebDataset(str(anypath(dataset_path) / shard_path))
 
     # Find the specific sample by id
     for sample in ds:
@@ -252,9 +252,9 @@ class WebDataset(BaseMapDataset, BaseIterableDataset):
         seed: int | bool | None = default_webds_loader_cfg.seed,
     ):
         assert not (path is None and ds is None), "One of path or ds should be provided"
-        self.path = AnyPath(path)
+        self.path = anypath(path)
         self.config = dataset_config
-        self.metadata_path = AnyPath(metadata_path if metadata_path is not None else self.path)
+        self.metadata_path = anypath(metadata_path if metadata_path is not None else self.path)
         self.metadata_df = metadata_df
         self.storage_options = storage_options
 
@@ -323,10 +323,10 @@ class WebDataset(BaseMapDataset, BaseIterableDataset):
 
     @classmethod
     def from_path(cls, path: str | AnyPath, **kwargs):
-        path = AnyPath(path)
+        path = anypath(path)
 
         # load config from json
-        config_file = AnyPath(path / "dataset_config.json")
+        config_file = anypath(path / "dataset_config.json")
         if not config_file.exists():
             logger.warning("No dataset config found, making skeleton config")
             config = DatasetConfig.from_skeleton()
@@ -370,7 +370,7 @@ class WebDataset(BaseMapDataset, BaseIterableDataset):
         self, path: str | AnyPath, num_samples_per_shard: int = 1000, sample_prep_function: Callable = None
     ):
         """Save the dataset to a new path."""
-        path = AnyPath(path)
+        path = anypath(path)
 
         if self.metadata_df is not None:
             # get num_shards from metadata

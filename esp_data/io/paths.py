@@ -1,8 +1,6 @@
-"""Path definitions that get rid of some issues with the AnyPath type hint."""
-
 import os
 from pathlib import PosixPath
-from typing import Optional
+from typing import Optional, TypeAlias
 
 import cloudpathlib
 from cloudpathlib import GSClient, S3Client
@@ -12,7 +10,8 @@ from esp_data.utils import cached_class_property, read_gcp_secret
 
 _DEFAULT_GCP_PROJECT = "okapi-274503"
 
-# I want to use GSPath and R2Path as type hints in other places. Define a type that is basically eitehr GSPath or R2Path. give it a good name but maybe something like AnyPath or AnyPathT? AI!
+
+# Define a type alias for cloud paths
 class GSPath(cloudpathlib.GSPath):
     """
     A wrapper for the GSPath class that provides a default client to the constructor.
@@ -87,14 +86,19 @@ class Path(PosixPath):
     is_local: bool = True
 
 
-def anypath(path: str | Path | GSPath | R2Path) -> Path | GSPath | R2Path:
+# TODO (milad) Python 3.12 introduces `type`. It will probably deprecate TypeAlias at
+# some point. We should use that instead when 3.12 is not too new anymore.
+AnyPath: TypeAlias = Path | GSPath | R2Path
+
+
+def anypath(path: str | Path | GSPath | R2Path) -> AnyPath:
     """A factory function that returns the correct path object based on the path string.
 
     Args:
         path (str | Path | GSPath | R2Path): The path to a local or Bucket file
 
     Returns:
-        Path | GSPath | R2Path: The correct path object based on the path string.
+        AnyPath: The correct path object based on the path string.
     """
 
     path = str(path)
