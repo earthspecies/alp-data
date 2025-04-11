@@ -40,5 +40,8 @@ jobs:
       - name: Build the package
         run: uv build
 
+      - name: Debug auth outputs
+        run: echo "Outputs: ${{ toJson(steps.auth.outputs) }}"
+
       - name: Publish the package
         run: uv publish --index esp-pypi --password ${{ steps.auth.outputs.access_token }}
