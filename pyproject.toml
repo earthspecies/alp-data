@@ -27,6 +27,9 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "mkdocs>=1.6.1",
+    "mkdocs-material>=9.6.11",
+    "mkdocstrings-python>=1.16.10",
     "pre-commit>=4.0.1",
     "pytest>=7.1.2",
     "ruff>=0.8.1",

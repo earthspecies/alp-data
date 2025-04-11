@@ -1,0 +1,28 @@
+site_name: esp-data
+site_description: TODO
+strict: true
+site_url: http://go/python/docs
+
+# TODO: https://mkdocstrings.github.io/recipes/
+
+repo_name: earthspecies/esp-data
+repo_url: https://github.com/earthspecies/esp-data
+
+nav:
+  - Home: index.md
+  - Getting Started: getting_started.md
+  - API Reference: reference.md
+
+theme:
+  name: material
+  features:
+    - navigation.instant
+    - navigation.instant.prefetch
+    - navigation.instant.progress
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.path
+
+plugins:
+- mkdocstrings:
+    default_handler: python
