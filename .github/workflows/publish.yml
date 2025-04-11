@@ -19,6 +19,7 @@ jobs:
 
       - name: Authenticate to Google Cloud
         uses: "google-github-actions/auth@v2"
+        id: auth
         with:
           workload_identity_provider: ${{ secrets.WORKLOAD_IDENTITY_PROVIDER_ID }}
           service_account: ${{ secrets.GH_ACTIONS_SA }}
@@ -40,7 +41,4 @@ jobs:
         run: uv build
 
       - name: Publish the package
-        # env:
-        #   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        #   PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
-        run: uv publish --publish-url https://us-central1-python.pkg.dev/okapi-274503/esp-pypi/delme
+        run: uv publish --index esp-pypi --password ${{ steps.auth.outputs.access_token }}
