@@ -66,3 +66,8 @@ select = [
   "F", # Flake8
   "I", # isort
 ]
+
+[[tool.uv.index]]
+name = "esp-pypi"
+url = "https://us-central1-python.pkg.dev/okapi-274503/esp-pypi/delme/"
+publish-url = "https://us-central1-python.pkg.dev/okapi-274503/esp-pypi/"

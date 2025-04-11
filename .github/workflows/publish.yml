@@ -38,3 +38,9 @@ jobs:
 
       - name: Build the package
         run: uv build
+
+      - name: Publish the package
+        # env:
+        #   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        #   PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
+        run: uv publish --publish-url https://us-central1-python.pkg.dev/okapi-274503/esp-pypi/delme
