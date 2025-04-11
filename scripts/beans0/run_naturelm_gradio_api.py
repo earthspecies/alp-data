@@ -8,7 +8,7 @@ from gradio_client import Client, file
 from tqdm import tqdm
 
 from esp_data.dataset.esp_dataset import load_esp_dataset
-from esp_data.io import AnyPath
+from esp_data.io import anypath
 from esp_data.io.parsers import read_audio_bytes
 
 
@@ -35,7 +35,7 @@ def main():
     parser.add_argument("--resume", action="store_true", help="Resume from the output file.")
     args = parser.parse_args()
 
-    path_to_dataset = AnyPath(args.path_to_dataset)
+    path_to_dataset = anypath(args.path_to_dataset)
 
     print(f"Loading dataset from {path_to_dataset}...")
     dataset = load_esp_dataset(
@@ -102,7 +102,7 @@ def main():
                 args.output_path,
                 orient="records",
                 lines=True,
-                storage_options=AnyPath(args.output_path).storage_options,
+                storage_options=anypath(args.output_path).storage_options,
                 mode="a",
             )
             output_df = empty_df()
@@ -113,7 +113,7 @@ def main():
             args.output_path,
             orient="records",
             lines=True,
-            storage_options=AnyPath(args.output_path).storage_options,
+            storage_options=anypath(args.output_path).storage_options,
             mode="a",
         )
 

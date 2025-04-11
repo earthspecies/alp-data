@@ -1,6 +1,6 @@
 import pandas as pd
 
-from esp_data.io import AnyPath
+from esp_data.io import AnyPathT, anypath
 
 from .hf import HF_DATASET_TYPES, load_hf_dataset
 from .webds import WebDataset
@@ -8,14 +8,14 @@ from .webds import WebDataset
 DATASET_TYPES = ["pandas", "webdataset"] + HF_DATASET_TYPES
 
 
-def load_esp_dataset(dataset_type: str, path: str | AnyPath, **kwargs):
+def load_esp_dataset(dataset_type: str, path: str | AnyPathT, **kwargs):
     f"""A function to load different types of datasets.
 
     Arguments
     ---------
     dataset_type: str
         The type of dataset to load, one of {DATASET_TYPES}
-    path: str | AnyPath
+    path: str | AnyPathT
         The path to the dataset.
     **kwargs:
         Additional keyword arguments to pass to the loading function.
@@ -24,7 +24,7 @@ def load_esp_dataset(dataset_type: str, path: str | AnyPath, **kwargs):
     -------
         pd.DataFrame | WebDataset | HFDataset: The loaded dataset.
     """
-    path = AnyPath(path)
+    path = anypath(path)
 
     if dataset_type not in DATASET_TYPES:
         raise ValueError(f"Unsupported dataset type: {dataset_type}, supported types are: {DATASET_TYPES}")

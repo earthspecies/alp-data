@@ -1,11 +1,9 @@
-"""Path definitions that get rid of some issues with the AnyPath type hint."""
-
 import os
 from pathlib import PosixPath
-from typing import Optional
+from typing import Optional, TypeAlias
 
 import cloudpathlib
-from cloudpathlib import GSClient, S3Client, S3Path
+from cloudpathlib import GSClient, S3Client
 from google.cloud.storage.client import Client as GS_Client_Official
 
 from esp_data.utils import cached_class_property, read_gcp_secret
@@ -13,6 +11,7 @@ from esp_data.utils import cached_class_property, read_gcp_secret
 _DEFAULT_GCP_PROJECT = "okapi-274503"
 
 
+# Define a type alias for cloud paths
 class GSPath(cloudpathlib.GSPath):
     """
     A wrapper for the GSPath class that provides a default client to the constructor.
@@ -87,46 +86,31 @@ class Path(PosixPath):
     is_local: bool = True
 
 
-class AnyPath:
-    """A class that returns the correct path object based on the path string."""
-
-    def __new__(cls, path: str | Path | GSPath | R2Path) -> Path | GSPath | R2Path:
-        """This is a factory function. It returns the correct path object based on the path string.
-        Solves the issue of disappearing // in the path string when using cloudpathlib.AnyPath.
-
-        Args:
-            path (str | Path | GSPath | R2Path): The path to a file or directory.
-
-        Returns:
-            Path | GSPath | S3Path: The correct path object based on the path string.
-        """
-
-        if isinstance(path, (Path, GSPath, R2Path | S3Path)):
-            path = str(path)
-
-        if _is_gcs_path(path):
-            return GSPath(str(path))
-        elif _is_s3_path(path):
-            # Since we are currently not using AWS we assume that all S3 paths are R2 paths.
-            # TODO This must be changed if we start using AWS.
-            return R2Path(str(path))
-        elif _is_r2_path(path):
-            return R2Path(str(path))
-        else:
-            return Path(path)
+# TODO (milad) Python 3.12 introduces `type`. It will probably deprecate TypeAlias at
+# some point. We should use that instead when 3.12 is not too new anymore.
+AnyPathT: TypeAlias = Path | GSPath | R2Path
 
 
-def _is_gcs_path(path: str | Path | os.PathLike) -> bool:
-    return str(path).startswith("gs://")
+def anypath(path: str | Path | GSPath | R2Path) -> AnyPathT:
+    """A factory function that returns the correct path object based on the path string.
 
+    Args:
+        path (str | Path | GSPath | R2Path): The path to a local or Bucket file
 
-def _is_s3_path(path: str | Path | os.PathLike) -> bool:
-    return str(path).startswith("s3://")
+    Returns:
+        AnyPathT: The correct path object based on the path string.
+    """
 
+    path = str(path)
 
-def _is_r2_path(path: str | Path | os.PathLike) -> bool:
-    # FIXME: This is a temporary solution
-    return "r2://" in str(path)
+    if path.startswith("gs://"):
+        return GSPath(path)
+    elif path.startswith("s3://") or path.startswith("r2://"):
+        # Since we are currently not using AWS we assume that all S3 paths are R2 paths.
+        # TODO This must be changed if we start using AWS.
+        return R2Path(path)
+    else:
+        return Path(path)
 
 
 def strip_cloud_prefix(path: str | Path | os.PathLike) -> str:

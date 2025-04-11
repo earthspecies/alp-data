@@ -6,7 +6,7 @@ import pandas as pd
 from beans_cfg import ALL_DATASET_NAMES, LOCAL_PATHS, Beans0SampleNoAudio, beans0_cfg
 from tqdm import tqdm
 
-from esp_data.io import AnyPath
+from esp_data.io import AnyPathT, anypath
 
 from .temp_utils import make_simple_logger
 
@@ -34,7 +34,7 @@ def make_sample(
     Returns:
         dict: The Beans0Sample.
     """
-    path_parts = AnyPath(row["path"]).parts
+    path_parts = anypath(row["path"]).parts
 
     # HACK, issue many paths are local to David's VM
     animal_speak = False
@@ -124,7 +124,7 @@ def make_sample(
         return None, None
 
 
-def read_jsonl(path: str | AnyPath) -> list[dict]:
+def read_jsonl(path: str | AnyPathT) -> list[dict]:
     try:
         with open(path, "r") as f:
             data = json.load(f)
