@@ -3,7 +3,7 @@ from typing import Optional
 
 from pydantic import Field
 
-import esp_data.io.functional as F
+import esp_data.io.filesystem as F
 from esp_data.config import DataSample, DatasetConfig
 from esp_data.io import AnyPath
 
@@ -105,10 +105,10 @@ LOCAL_PATHS = {k: os.path.join(local_path, (k + ".jsonl")) for k in DATASET_JSON
 def download_jsonl_files(exists_ok: Optional[bool] = True):
     for name, path in DATASET_JSONL_PATHS.items():
         if exists_ok:
-            F.get_fs(backend="gcs").get(path, LOCAL_PATHS[name])
+            F.filesystem_from_path(path).get(path, LOCAL_PATHS[name])
 
         if not exists_ok and not AnyPath(LOCAL_PATHS[name]).exists():
-            F.get_fs(backend="gcs").get(path, LOCAL_PATHS[name])
+            F.filesystem_from_path(path).get(path, LOCAL_PATHS[name])
 
 
 METADATA = {

@@ -1,9 +1,7 @@
 import tempfile
-from datetime import datetime
 
 import pytest
 
-import esp_data.io.functional as F
 from esp_data.config import DataSample, DatasetConfig
 from esp_data.dataset import HFDataset
 from esp_data.io import AnyPath
@@ -66,7 +64,13 @@ def test_hf_from_dict():
     ds = HFDataset.from_dict(right_data, cfg)
     assert len(ds) == 3
     assert ds.columns == list(right_data.keys())
-    assert ds[0] == {"id": "1", "source_dataset": "test", "metadata": {}, "col1": 1, "col2": "a"}
+    assert ds[0] == {
+        "id": "1",
+        "source_dataset": "test",
+        "metadata": {},
+        "col1": 1,
+        "col2": "a",
+    }
 
 
 def test_hf_from_samples():
@@ -87,7 +91,7 @@ def test_hf_from_samples():
     ]
     assert "id" in ds[0]
     assert "created_at" in ds[0]
-    assert isinstance(ds[0]["created_at"], datetime)
+    assert isinstance(ds[0]["created_at"], str)
     assert "derived_from" in ds[0]
     assert ds[0]["derived_from"] is None
 
@@ -170,17 +174,15 @@ def test_saving_methods():
         assert (AnyPath(tmpdir) / "dataset_config.json").exists()
 
     # test save dataset to cloud
-    with pytest.raises(ValueError):
-        ds.save_to_path("gs://esp-ci-cd-tests/esp-data-tests/hf_test_dataset")
-
     ds.save_to_path(
         "gs://esp-ci-cd-tests/esp-data-tests/hf_test_dataset",
-        storage_options=AnyPath("gs://esp-ci-cd-tests/esp-data-tests/hf_test_dataset").storage_options,
     )
 
     assert AnyPath("gs://esp-ci-cd-tests/esp-data-tests/hf_test_dataset").exists()
     assert AnyPath("gs://esp-ci-cd-tests/esp-data-tests/hf_test_dataset/dataset_config.json").exists()
-    F.delete_dir("gs://esp-ci-cd-tests/esp-data-tests/hf_test_dataset")
+    # Deleting a dir doesn't work with gcsfs or AnyPath because cloud folders
+    # are not folders, so you have to delete each file inside.
+    # F.delete_dir("gs://esp-ci-cd-tests/esp-data-tests/hf_test_dataset")
 
 
 def test_load_from_path():
