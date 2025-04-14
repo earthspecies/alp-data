@@ -2,7 +2,7 @@
 
 import logging
 from functools import cache
-from typing import Literal
+from typing import Literal, Union
 
 import fsspec
 from gcsfs import GCSFileSystem
@@ -19,7 +19,7 @@ logger = logging.getLogger("esp_data")
 def filesystem(
     protocol: Literal["gcs", "gs", "r2", "local"] = "local",
     **kwargs: dict,
-) -> GCSFileSystem | S3FileSystem | fsspec.filesystem:
+) -> Union[GCSFileSystem, S3FileSystem, fsspec.filesystem]:
     """Initializes and returns a cached filesystem instance.
 
     This function acts as a factory for creating filesystem objects based on the
@@ -77,7 +77,7 @@ def filesystem(
         raise ValueError(f"Unknown backend: {protocol}. Supported backends are: gcs, r2.")
 
 
-def filesystem_from_path(path: str | AnyPathT) -> GCSFileSystem | S3FileSystem | fsspec.filesystem:
+def filesystem_from_path(path: str | AnyPathT) -> Union[GCSFileSystem, S3FileSystem, fsspec.filesystem]:
     """Determines and returns the appropriate cached filesystem based on the path.
 
     Uses the `anypath` utility to normalize the input path and identify its
@@ -103,7 +103,7 @@ def filesystem_from_path(path: str | AnyPathT) -> GCSFileSystem | S3FileSystem |
 
     Examples
     --------
-    >>> # gcs_fs = filesystem_from_path("gs://my-bucket/data.csv")
+    >>> # gcs_fs = filesystem_from_path("gs://esp-ci-cd-tests/esp-data-tests/file1.txt")
     >>> # isinstance(gcs_fs, GCSFileSystem) # Should be True if configured
     True
     """
