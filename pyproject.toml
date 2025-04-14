@@ -71,6 +71,7 @@ select = [
   "E9",
   "F", # Flake8
 ]
+
 extend-select = ["DOC", "B9", "B", "E", "W", "ANN"]
 fixable = ["ALL"]
 unfixable = []
@@ -94,3 +95,8 @@ skip = "*.csv"
 profile = "black"
 line_length = 80
 filter_files = true
+
+[[tool.uv.index]]
+name = "esp-pypi"
+url = "https://oauth2accesstoken@us-central1-python.pkg.dev/okapi-274503/esp-pypi/"
+publish-url = "https://oauth2accesstoken@us-central1-python.pkg.dev/okapi-274503/esp-pypi/"
