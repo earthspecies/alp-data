@@ -1,4 +1,5 @@
-import os
+"""This file offers path functionalities for homogeneous resource access."""
+
 from pathlib import PosixPath
 from typing import Optional, TypeAlias
 
@@ -22,31 +23,80 @@ class GSPath(cloudpathlib.GSPath):
     default client that handles this correctly.
 
     For more details, see: https://github.com/drivendataorg/cloudpathlib/issues/390
+
+    Parameters
+    ----------
+    cloud_path : str or cloudpathlib.GSPath
+        The Google Cloud Storage path string (e.g., "gs://bucket/blob") or
+        an existing `cloudpathlib.GSPath` instance.
+    client : cloudpathlib.GSClient, optional
+        An explicit `cloudpathlib.GSClient` instance to use. If None, the
+        default cached client (`__client`) configured with the official
+        Google Cloud Storage library is used. Defaults to None.
+
+    Examples
+    --------
+    >>> p = GSPath("gs://esp-ci-cd-tests/esp-data-tests/file1.txt")
+    >>> isinstance(p, GSPath)
+    True
+    >>> isinstance(p, cloudpathlib.GSPath)
+    True
+    >>> str(p)
+    'gs://esp-ci-cd-tests/esp-data-tests/file1.txt'
+    >>> p.bucket
+    'esp-ci-cd-tests'
     """
 
     storage_options: dict = {"project": _DEFAULT_GCP_PROJECT}
     is_cloud: bool = True
     is_local: bool = False
 
-    def __init__(self, cloud_path: str | cloudpathlib.GSPath, client: Optional[GSClient] = None):
+    def __init__(self, cloud_path: str | cloudpathlib.GSPath, client: Optional[GSClient] = None) -> None:
+        """Initializes the GSPath instance."""
         if not client:
             client = GSPath.__client
         super().__init__(cloud_path, client=client)
 
     @cached_class_property
     def __client(cls) -> cloudpathlib.GSClient:
+        """Gets the cached default cloudpathlib GSClient.
+
+        Returns
+        -------
+        cloudpathlib.GSClient
+            The default client instance.
+        """
         return cloudpathlib.GSClient(storage_client=GS_Client_Official())
 
     @property
     def no_prefix(self) -> str:
+        """str: The path string without the 'gs://' prefix."""
         return str(self)[len(self.cloud_prefix) :]
 
 
 class R2Path(cloudpathlib.S3Path):
+    """A cloudpathlib.S3Path wrapper for Cloudflare R2 storage paths.
+
+    Handles paths starting with `r2://` by internally converting them to `s3://` for compatibility
+    with `cloudpathlib.S3Path`.
+    Automatically configures a default client using R2 credentials fetched from GCP Secret Manager.
+
+    Parameters
+    ----------
+    cloud_path : str or cloudpathlib.S3Path
+        The Cloudflare R2 path string (e.g., "r2://bucket/key" or "s3://...")
+        or an existing `cloudpathlib.S3Path` instance.
+    client : cloudpathlib.S3Client, optional
+        An explicit `cloudpathlib.S3Client` instance to use. If None, the
+        default cached client (`__client`) configured with R2 credentials
+        is used. Defaults to None.
+    """
+
     is_cloud: bool = True
     is_local: bool = False
 
-    def __init__(self, cloud_path: str | cloudpathlib.S3Path, client: Optional[S3Client] = None):
+    def __init__(self, cloud_path: str | cloudpathlib.S3Path, client: Optional[S3Client] = None) -> None:
+        """Initializes the R2Path, converting 'r2://' prefix if needed."""
         if not client:
             client = R2Path.__client
 
@@ -57,6 +107,13 @@ class R2Path(cloudpathlib.S3Path):
 
     @cached_class_property
     def __client(cls) -> S3Client:
+        """Gets the cached default S3Client configured for R2.
+
+        Returns
+        -------
+        cloudpathlib.S3Client
+            The default client instance for R2.
+        """
         return cloudpathlib.S3Client(
             aws_access_key_id=read_gcp_secret("cloudflare_r2_bucket_readwrite_access_key_id"),
             aws_secret_access_key=read_gcp_secret("cloudflare_r2_bucket_readwrite_secret_access_key"),
@@ -65,6 +122,13 @@ class R2Path(cloudpathlib.S3Path):
 
     @cached_class_property
     def storage_options(self) -> dict:
+        """Gets cached R2 credentials.
+
+        Returns
+        -------
+        dict
+            A dictionary containing R2 client keyword arguments.
+        """
         return {
             "client_kwargs": {
                 "aws_access_key_id": read_gcp_secret("cloudflare_r2_bucket_readwrite_access_key_id"),
@@ -75,10 +139,13 @@ class R2Path(cloudpathlib.S3Path):
 
     @property
     def no_prefix(self) -> str:
+        """str: The path string without the 's3://' prefix."""
         return str(self)[len(self.cloud_prefix) :]
 
 
 class Path(PosixPath):
+    """TODO: write the docstring once the class is consolidated."""
+
     # TODO: Path is a factory class and we're dropping support for WindowsPath class. Let's see if we can bring it back.
     storage_options = None
 
@@ -92,13 +159,39 @@ AnyPathT: TypeAlias = Path | GSPath | R2Path
 
 
 def anypath(path: str | Path | GSPath | R2Path) -> AnyPathT:
-    """A factory function that returns the correct path object based on the path string.
+    """Creates the appropriate path object based on the input path string or object.
 
-    Args:
-        path (str | Path | GSPath | R2Path): The path to a local or Bucket file
+    This factory function inspects the input `path` to determine if it's a Google
+    Cloud Storage path, an S3-compatible path (assumed to be Cloudflare R2),
+    or a local path. It then returns an instance of the corresponding path class
+    (`GSPath`, `R2Path`, or `Path`).
 
-    Returns:
-        AnyPathT: The correct path object based on the path string.
+    Parameters
+    ----------
+    path : str | Path | GSPath | R2Path
+        The path string (e.g., "/local/file.txt", "gs://bucket/blob", "r2://bucket/key")
+        or an existing `Path`, `GSPath`, or `R2Path` object.
+
+    Returns
+    -------
+    AnyPathT
+        An instance of `Path` for local paths, `GSPath` for Google Cloud Storage
+        paths, or `R2Path` for Cloudflare R2 paths (including those starting
+        with "s3://").
+
+
+    Examples
+    --------
+    >>> local_p = anypath("tests/samples/noise.wav")
+    >>> isinstance(local_p, Path)
+    True
+    >>> print(local_p)
+    tests/samples/noise.wav
+    >>> gs_p = anypath("gs://esp-ci-cd-tests/esp-data-tests/file1.txt")
+    >>> isinstance(gs_p, GSPath)
+    True
+    >>> print(gs_p)
+    gs://esp-ci-cd-tests/esp-data-tests/file1.txt
     """
 
     path = str(path)
@@ -111,7 +204,3 @@ def anypath(path: str | Path | GSPath | R2Path) -> AnyPathT:
         return R2Path(path)
     else:
         return Path(path)
-
-
-def strip_cloud_prefix(path: str | Path | os.PathLike) -> str:
-    return str(path).replace("gs://", "").replace("s3://", "").replace("r2://", "")
