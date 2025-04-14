@@ -50,7 +50,8 @@ class DataSample(BaseModel):
     derived_from : Optional[str | list[str]]
         ID of the parent sample if this is derived, maybe a list of IDs if multiple parents
     license : Optional[str]
-        License for the data sample, if applicable. For e.g. Xeno-canto can have per recording licenses. Default is 'unknown'
+        License for the data sample, if applicable. For e.g. Xeno-canto can
+        have per recording licenses. Default is 'unknown'
     version : Optional[str]
         Version number following semantic versioning, can be left empty but then the dataset version must be provided
 
@@ -108,7 +109,7 @@ class DataSample(BaseModel):
 
     version: Optional[str] = Field(
         default=None,
-        description="Version number following semantic versioning, can be left empty but then the dataset version must be provided",
+        description="Version number following versioning, can be left empty but the dataset version must be provided",
     )
 
     # Additional validators
@@ -165,12 +166,18 @@ class DataSample(BaseModel):
 
     # Helper methods
     def created_at_timestamp(self) -> int:
-        """Return created_at as a Unix timestamp"""
+        """Returns created_at as a Unix timestamp"""
         # get datetime object
         return datetime.fromisoformat(self.created_at).timestamp()
 
     def get_metadata_dict(self) -> dict:
-        """Return metadata as a Python dictionary"""
+        """Returns metadata as a Python dictionary
+
+        Returns
+        ------
+        dict
+            Metadata as a Python dictionary.
+        """
         return self.metadata
 
     def update_metadata(self, new_metadata: dict) -> None:
@@ -182,20 +189,44 @@ class DataSample(BaseModel):
         self.version = increment_version(self.version, mode)
 
     def copy(self) -> "DataSample":
-        """Return a copy of the data sample"""
+        """Returns a copy of the data sample
+
+        Returns
+        ------
+        DataSample
+            A copy of the data sample.
+        """
         return self.model_copy(deep=True)
 
     def to_dict(self) -> dict:
-        """Convert the data sample to a dictionary"""
+        """Convert the data sample to a dictionary.
+
+        Returns
+        ------
+        dict
+            A dictionary representation of the data sample.
+        """
         return self.model_dump()
 
     def to_json(self) -> str:
-        """Convert the data sample to a JSON string"""
+        """Convert the data sample to a JSON string
+
+        Returns
+        ------
+        str
+            A JSON representation of the data sample.
+        """
         return self.model_dump_json(indent=2)
 
     @classmethod
     def from_json(cls, file_path: str | os.PathLike) -> "DataSample":
-        """Load data sample from a JSON file"""
+        """Load data sample from a JSON file
+
+        Returns
+        ------
+        DataSample
+            A data sample loaded from the JSON file.
+        """
         with anypath(file_path).open("r") as f:
             data = json.load(f)
         return cls(**data)
@@ -248,12 +279,15 @@ class DatasetConfig(BaseModel):
 
     description: str = Field(
         min_length=1,
-        description="Description of the dataset, could act as a README, preferably in markdown format, and include changelog to previous version",
+        description="Description of the dataset like a README, preferably in markdown format, and include changelog.",
     )
 
     sources: list[str] | str = Field(
         min_length=1,
-        description="Source(s) of the dataset e.g. 'Xeno-canto' or a url to website(s), or multiple sources in a comma-separated list",
+        description=(
+            "Source(s) of the dataset e.g. 'Xeno-canto' or a url to website(s), "
+            "or multiple sources in a comma-separated list."
+        ),
     )
 
     # optional or auto-generated params
@@ -272,6 +306,13 @@ class DatasetConfig(BaseModel):
     @field_validator("version", mode="before")
     @classmethod
     def validate_version(cls, v: str) -> str:
+        """
+
+        Returns
+        ------
+        str
+            Version number following semantic versioning.
+        """
         # raises ValueError if format not like "0.0.0"
         return validate_version(v)
 
@@ -281,13 +322,19 @@ class DatasetConfig(BaseModel):
 
     @classmethod
     def from_json(cls, file_path: str | os.PathLike) -> None:
-        """Load data sample from a JSON file"""
+        """Load data sample from a JSON file
+
+        Returns
+        ------
+        DataSample
+            A data sample loaded from the JSON file.
+        """
         with anypath(file_path).open("r") as f:
             data = json.load(f)
         return cls(**data)
 
     def copy(self) -> "DataSample":
-        """Return a copy of the data sample"""
+        """Returns a copy of the data sample"""
         return self.model_copy(deep=True)
 
     def to_dict(self) -> dict:
@@ -316,6 +363,12 @@ class DatasetConfig(BaseModel):
             self.changelog += f"\n\n{dt_str}:\n{new_log}"
 
     def __str__(self) -> str:
+        """
+        Returns
+        ------
+        str
+            A string representation of the dataset.
+        """
         return f"""# {self.name}
         ## Version\n\n{self.version}\n\n
         ## Created At\n\n{self.created_at}\n\n
@@ -333,7 +386,13 @@ class DatasetConfig(BaseModel):
 
     @classmethod
     def from_skeleton(cls) -> "DatasetConfig":
-        """Return a skeleton dataset configuration"""
+        """Returns a skeleton dataset configuratio
+
+        Returns
+        ------
+        DatasetConfig
+            A skeleton dataset configuration.
+        """
         return cls(
             name="unknown",
             creator="unknown",
