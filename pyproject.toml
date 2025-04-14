@@ -55,6 +55,8 @@ exclude = [
   "esp_data/config",
   "esp_data/dataset",
   "esp_data/db",
+  "tests",
+  "scripts",
 ]
 [tool.ruff.lint.isort]
 known-third-party = ["wandb"]
