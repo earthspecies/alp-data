@@ -3,7 +3,7 @@ site_description: TODO
 strict: true
 site_url: http://go/python/docs
 
-# TODO: https://mkdocstrings.github.io/recipes/
+# TODO (milad) check out https://mkdocstrings.github.io/recipes/
 
 repo_name: earthspecies/esp-data
 repo_url: https://github.com/earthspecies/esp-data
@@ -22,7 +22,34 @@ theme:
     - navigation.tabs
     - navigation.tabs.sticky
     - navigation.path
+  favicon: assets/favicon.png
+
+  palette:
+    # Palette toggle for dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      toggle:
+        icon: material/brightness-4
+        name: Switch to system preference
+
+    # Palette toggle for light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
 
 plugins:
 - mkdocstrings:
     default_handler: python
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
