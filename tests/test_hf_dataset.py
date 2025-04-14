@@ -1,12 +1,10 @@
 import tempfile
-from datetime import datetime
 
 import pytest
 
-import esp_data.io.functional as F
 from esp_data.config import DataSample, DatasetConfig
 from esp_data.dataset import HFDataset
-from esp_data.io import AnyPath
+from esp_data.io import anypath
 
 # constants for all tests
 cfg = DatasetConfig(
@@ -66,7 +64,13 @@ def test_hf_from_dict() -> None:
     ds = HFDataset.from_dict(right_data, cfg)
     assert len(ds) == 3
     assert ds.columns == list(right_data.keys())
-    assert ds[0] == {"id": "1", "source_dataset": "test", "metadata": {}, "col1": 1, "col2": "a"}
+    assert ds[0] == {
+        "id": "1",
+        "source_dataset": "test",
+        "metadata": {},
+        "col1": 1,
+        "col2": "a",
+    }
 
 
 def test_hf_from_samples() -> None:
@@ -87,7 +91,7 @@ def test_hf_from_samples() -> None:
     ]
     assert "id" in ds[0]
     assert "created_at" in ds[0]
-    assert isinstance(ds[0]["created_at"], datetime)
+    assert isinstance(ds[0]["created_at"], str)
     assert "derived_from" in ds[0]
     assert ds[0]["derived_from"] is None
 
@@ -148,7 +152,7 @@ def test_saving_methods() -> None:
     # test save config as json
     with tempfile.TemporaryDirectory() as tmpdir:
         ds.save_config(tmpdir)
-        f = AnyPath(tmpdir) / "dataset_config.json"
+        f = anypath(tmpdir) / "dataset_config.json"
         assert f.exists()
         # load the config back
         cfg2 = DatasetConfig.from_json(f)
@@ -157,7 +161,7 @@ def test_saving_methods() -> None:
 
     # test save config to cloud
     ds.save_config("gs://esp-ci-cd-tests/esp-data-tests/hf_test_dataset")
-    f = AnyPath("gs://esp-ci-cd-tests/esp-data-tests/hf_test_dataset/dataset_config.json")
+    f = anypath("gs://esp-ci-cd-tests/esp-data-tests/hf_test_dataset/dataset_config.json")
     assert f.exists()
     f.unlink()
     assert not f.exists()
@@ -165,22 +169,20 @@ def test_saving_methods() -> None:
     # test save dataset locally
     with tempfile.TemporaryDirectory() as tmpdir:
         ds.save_to_path(tmpdir)
-        b = AnyPath(tmpdir)
+        b = anypath(tmpdir)
         assert b.exists()
-        assert (AnyPath(tmpdir) / "dataset_config.json").exists()
+        assert (anypath(tmpdir) / "dataset_config.json").exists()
 
     # test save dataset to cloud
-    with pytest.raises(ValueError):
-        ds.save_to_path("gs://esp-ci-cd-tests/esp-data-tests/hf_test_dataset")
-
     ds.save_to_path(
         "gs://esp-ci-cd-tests/esp-data-tests/hf_test_dataset",
-        storage_options=AnyPath("gs://esp-ci-cd-tests/esp-data-tests/hf_test_dataset").storage_options,
     )
 
-    assert AnyPath("gs://esp-ci-cd-tests/esp-data-tests/hf_test_dataset").exists()
-    assert AnyPath("gs://esp-ci-cd-tests/esp-data-tests/hf_test_dataset/dataset_config.json").exists()
-    F.delete_dir("gs://esp-ci-cd-tests/esp-data-tests/hf_test_dataset")
+    assert anypath("gs://esp-ci-cd-tests/esp-data-tests/hf_test_dataset").exists()
+    assert anypath("gs://esp-ci-cd-tests/esp-data-tests/hf_test_dataset/dataset_config.json").exists()
+    # Deleting a dir doesn't work with gcsfs or AnyPathT because cloud folders
+    # are not folders, so you have to delete each file inside.
+    # F.delete_dir("gs://esp-ci-cd-tests/esp-data-tests/hf_test_dataset")
 
 
 def test_load_from_path() -> None:

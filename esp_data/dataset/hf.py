@@ -5,7 +5,7 @@ from typing import Any, Callable, Generator, Iterable, Literal, Optional
 from datasets import Dataset, concatenate_datasets, load_dataset, load_from_disk
 
 from esp_data.config.db_config import DataSample, DatasetConfig
-from esp_data.io import AnyPath
+from esp_data.io import AnyPathT, anypath
 
 from .base import BaseMapDataset
 from .shard_creator import write_huggingface_shard
@@ -28,7 +28,7 @@ HF_DATASET_TYPES = [
 ]
 
 
-def load_hf_dataset(hf_dataset_type: str, path: str | AnyPath, **hf_ds_kwargs) -> "HFDataset":
+def load_hf_dataset(hf_dataset_type: str, path: str | AnyPathT, **hf_ds_kwargs) -> "HFDataset":
     if hf_dataset_type == "hf_hub":
         ds = load_dataset(path, **hf_ds_kwargs)
 
@@ -58,7 +58,10 @@ def load_hf_dataset(hf_dataset_type: str, path: str | AnyPath, **hf_ds_kwargs) -
 
 class HFDataset(BaseMapDataset):
     def __init__(
-        self, dataset_config: DatasetConfig | dict | None, ds: Optional[Dataset] = None, streaming_dataset: bool = False
+        self,
+        dataset_config: DatasetConfig | dict | None,
+        ds: Optional[Dataset] = None,
+        streaming_dataset: bool = False,
     ):
         self.config = self._set_config(dataset_config)
         self.ds: Dataset = ds
@@ -156,10 +159,10 @@ class HFDataset(BaseMapDataset):
         Returns:
             The loaded HFDataset.
         """
-        path = AnyPath(path)
+        path = anypath(path)
 
         # load config from json
-        config_file = AnyPath(path / "dataset_config.json")
+        config_file = anypath(path / "dataset_config.json")
         if not config_file.exists():
             logger.warning(f"Config file not found at {config_file}, creating an empty new one")
             config = DatasetConfig.from_skeleton()
@@ -195,7 +198,11 @@ class HFDataset(BaseMapDataset):
 
     def subset(self, indices: Iterable[int]) -> "HFDataset":
         """Return a subset of the dataset."""
-        return HFDataset(self.config.copy(), ds=self.ds.select(indices), streaming_dataset=self._streaming)
+        return HFDataset(
+            self.config.copy(),
+            ds=self.ds.select(indices),
+            streaming_dataset=self._streaming,
+        )
 
     def sample(
         self,
@@ -275,7 +282,10 @@ class HFDataset(BaseMapDataset):
         return new_ds
 
     def filter(
-        self, condition: Callable, version_update_mode: str | None = None, change_log: str | None = None
+        self,
+        condition: Callable,
+        version_update_mode: str | None = None,
+        change_log: str | None = None,
     ) -> "HFDataset":
         """Filter the dataset for samples that meet a condition.
 
@@ -346,13 +356,16 @@ class HFDataset(BaseMapDataset):
 
         return new_ds
 
-    def save_config(self, path: str | os.PathLike | AnyPath) -> None:
+    def save_config(self, path: str | os.PathLike | AnyPathT) -> None:
         """Save the dataset config to a local or cloud path."""
-        g = AnyPath(path) / "dataset_config.json"
+        g = anypath(path) / "dataset_config.json"
         self.config.write_json(g)
 
     def _save_streaming(
-        self, path: AnyPath, num_samples_per_shard: int = 1000, storage_options: dict | None = None
+        self,
+        path: AnyPathT,
+        num_samples_per_shard: int = 1000,
+        storage_options: dict | None = None,
     ) -> None:
         """Save a streaming dataset to a local or cloud path."""
         batch = []
@@ -384,14 +397,13 @@ class HFDataset(BaseMapDataset):
 
     def save_to_path(
         self,
-        path: str | os.PathLike | AnyPath,
+        path: str | AnyPathT,
         changelog: str | None = None,
         version_update_mode: Literal["major", "minor", "patch"] = None,
         num_samples_per_shard: int = 1000,
         max_shard_size: int | str | None = None,
         num_shards: int | None = None,
         num_proc: int | None = None,
-        storage_options: dict | None = None,
     ) -> None:
         """Save the dataset to a local or cloud path.
 
@@ -401,17 +413,11 @@ class HFDataset(BaseMapDataset):
             max_shard_size: The maximum size of a shard in bytes.
             num_shards: The number of shards to make. DO NOT provide both max_shard_size and num_shards.
             num_proc: The number of processes to use for saving.
-            storage_options: The storage options for saving to cloud.
-                see https://huggingface.co/docs/datasets/v3.2.0/en/filesystems#google-cloud-storage
 
         Raises:
             ValueError: If both max_shard_size and num_shards are provided.
         """
-        path = AnyPath(path)
-
-        # set storage options if not provided
-        if not storage_options:
-            storage_options = path.storage_options
+        path = anypath(path)
 
         if changelog:
             self.config.update_changelog(changelog)
@@ -420,7 +426,11 @@ class HFDataset(BaseMapDataset):
             self.config.increment_version(version_update_mode)
 
         if self._streaming:
-            self._save_streaming(path, storage_options=storage_options, num_samples_per_shard=num_samples_per_shard)
+            self._save_streaming(
+                path,
+                storage_options=path.storage_options,
+                num_samples_per_shard=num_samples_per_shard,
+            )
 
         if max_shard_size and num_shards:
             raise ValueError("Provide either max_shard_size or num_shards, not both")
@@ -430,7 +440,7 @@ class HFDataset(BaseMapDataset):
             max_shard_size=max_shard_size,
             num_shards=num_shards,
             num_proc=num_proc,
-            storage_options=storage_options,
+            storage_options=path.storage_options,
         )
 
         self.save_config(path)
@@ -511,7 +521,7 @@ def concatenate_hf_datasets(
 
 
 def build_concatenated_dataset(
-    dataset_paths: str | os.PathLike | AnyPath,
+    dataset_paths: str | AnyPathT,
     storage_options: dict,
     sharded: bool = False,
     new_dataset_config: DatasetConfig | dict = None,
@@ -522,7 +532,9 @@ def build_concatenated_dataset(
     # load all datasets
     datasets = [HFDataset.from_path(p, storage_options=storage_options, sharded=sharded) for p in dataset_paths]
     new_ds = concatenate_hf_datasets(
-        datasets, new_dataset_config=new_dataset_config, version_update_mode=version_update_mode
+        datasets,
+        new_dataset_config=new_dataset_config,
+        version_update_mode=version_update_mode,
     )
 
     return new_ds

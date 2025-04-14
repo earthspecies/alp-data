@@ -1,15 +1,15 @@
 import json
 import logging
 from functools import lru_cache, partial
-from typing import Any, Callable, Generator, Literal, Union
+from typing import Any, Callable, Generator, Literal
 
 import pandas as pd
 import webdataset as wds
 
-import esp_data.io.functional as F
 from esp_data.config import DatasetConfig
 from esp_data.config.project_config import default_webds_loader_cfg
-from esp_data.io import AnyPath
+from esp_data.io import AnyPathT, anypath
+from esp_data.io.filesystem import filesystem_from_path
 
 from .base import BaseIterableDataset, BaseMapDataset
 from .shard_creator import write_webdataset_shard
@@ -18,7 +18,7 @@ logger = logging.getLogger("esp_data")
 
 
 def load_dataset(
-    path: Union[str, AnyPath],
+    path: str | AnyPathT,
     file_pattern: str = default_webds_loader_cfg.file_pattern,
     data_processor: Callable = default_webds_loader_cfg.data_processor,
     shuffle_size: int | None = default_webds_loader_cfg.shuffle_size,
@@ -33,7 +33,7 @@ def load_dataset(
 
     Arguments
     ---------
-    path: str | AnyPath
+    path: str | AnyPathT
             Path to the directory where the sharded dataset will be stored or is already stored.
     file_pattern: str, optional
         Pattern to match the shard files.
@@ -75,11 +75,17 @@ def load_dataset(
     ... )
 
     """
-    path = AnyPath(path)
-    shard_files = list(F.yield_files(path, pattern=file_pattern))
+    path = anypath(path)
+    shard_files = filesystem_from_path(path).glob(str(path / file_pattern))
 
     if not shard_files:
         raise FileNotFoundError(f"No shard files found in {path}")
+
+    # .glob() removes the prefix from the path, so we need to add it back
+    # TODO (milad) Gagan used to deal with this in yield_files(). Decide if it's worth
+    #              adding it to a wrapper
+    if path.is_cloud:
+        shard_files = [path.cloud_prefix + str(p) for p in shard_files]
 
     # Log what we found for debugging
     logger.debug(f"Found {len(shard_files)} shard files in {path}")
@@ -122,7 +128,7 @@ def load_dataset(
 
 def get_item_from_dataset(
     idx: int,
-    dataset_path: str | AnyPath,
+    dataset_path: str | AnyPathT,
     data_processor: Callable,
     metadata_df: pd.DataFrame,
 ) -> dict[str, dict[str, Any]]:
@@ -136,7 +142,7 @@ def get_item_from_dataset(
         Function to parse the binary data into a dictionary
     metadata_df: pd.DataFrame
         metadata DataFrame, containing the shard path and sample id
-    dataset_path: str | AnyPath
+    dataset_path: str | AnyPathT
         Path to the dataset, if different from metadata path
 
     Returns
@@ -149,7 +155,7 @@ def get_item_from_dataset(
     sample_id = str(row["id"])
 
     # Load the specific shard
-    ds = wds.WebDataset(str(AnyPath(dataset_path) / shard_path))
+    ds = wds.WebDataset(str(anypath(dataset_path) / shard_path))
 
     # Find the specific sample by id
     for sample in ds:
@@ -161,7 +167,7 @@ def get_item_from_dataset(
 
 def get_batch(
     indices: list[int],
-    dataset_path: str | AnyPath,
+    dataset_path: str | AnyPathT,
     data_processor: Callable,
     metadata_df: pd.DataFrame,
 ) -> list[dict[str, dict[str, Any]]]:
@@ -189,7 +195,7 @@ class WebDataset(BaseMapDataset, BaseIterableDataset):
 
     Arguments
     ---------
-    path: str | AnyPath:
+    path: str | AnyPathT:
             Path to the directory where the sharded dataset will be stored or is already stored.
     dataset_config: DatasetConfig, optional
         DatasetConfig object. Defaults to None.
@@ -206,7 +212,7 @@ class WebDataset(BaseMapDataset, BaseIterableDataset):
         Pattern to match the shard files.
     num_workers: int, optional
         Number of workers for parallel processing.
-    metadata_path: str | AnyPath, optional
+    metadata_path: str | AnyPathT, optional
         Path to the metadata file, if different from web_dataset_path.
     shuffle_size: int, optional
         Size of the shuffle buffer.
@@ -228,7 +234,7 @@ class WebDataset(BaseMapDataset, BaseIterableDataset):
 
     def __init__(
         self,
-        path: str | AnyPath | None = None,
+        path: str | AnyPathT | None = None,
         dataset_config: DatasetConfig | None = None,
         ds: wds.WebDataset = None,
         load_metadata: bool = default_webds_loader_cfg.load_metadata,
@@ -246,9 +252,9 @@ class WebDataset(BaseMapDataset, BaseIterableDataset):
         seed: int | bool | None = default_webds_loader_cfg.seed,
     ):
         assert not (path is None and ds is None), "One of path or ds should be provided"
-        self.path = AnyPath(path)
+        self.path = anypath(path)
         self.config = dataset_config
-        self.metadata_path = AnyPath(metadata_path if metadata_path is not None else self.path)
+        self.metadata_path = anypath(metadata_path if metadata_path is not None else self.path)
         self.metadata_df = metadata_df
         self.storage_options = storage_options
 
@@ -316,11 +322,11 @@ class WebDataset(BaseMapDataset, BaseIterableDataset):
             return DatasetConfig.from_skeleton()
 
     @classmethod
-    def from_path(cls, path: str | AnyPath, **kwargs):
-        path = AnyPath(path)
+    def from_path(cls, path: str | AnyPathT, **kwargs):
+        path = anypath(path)
 
         # load config from json
-        config_file = AnyPath(path / "dataset_config.json")
+        config_file = anypath(path / "dataset_config.json")
         if not config_file.exists():
             logger.warning("No dataset config found, making skeleton config")
             config = DatasetConfig.from_skeleton()
@@ -361,10 +367,10 @@ class WebDataset(BaseMapDataset, BaseIterableDataset):
         return self
 
     def save_to_path(
-        self, path: str | AnyPath, num_samples_per_shard: int = 1000, sample_prep_function: Callable = None
+        self, path: str | AnyPathT, num_samples_per_shard: int = 1000, sample_prep_function: Callable = None
     ):
         """Save the dataset to a new path."""
-        path = AnyPath(path)
+        path = anypath(path)
 
         if self.metadata_df is not None:
             # get num_shards from metadata
@@ -397,7 +403,7 @@ def apply_fn(
     ds: WebDataset,
     function: Callable,
     fn_kwargs: dict = {},
-    output_path: str | AnyPath | None = None,
+    output_path: str | AnyPathT | None = None,
     num_samples_per_shard: int = 1000,
     changelog: str | None = None,
     version_update_mode: Literal["major", "minor", "patch"] = None,
@@ -411,7 +417,7 @@ def apply_fn(
         fn_kwargs (dict, optional): Additional keyword arguments for the function. Defaults to {}.
         batched (bool, optional): Whether to process the dataset in batches. Defaults to False.
         batch_size (int, optional): Batch size for processing audio files. Defaults to 1000.
-        output_path (str | AnyPath, optional): Path to the output directory. Defaults to None.
+        output_path (str | AnyPathT, optional): Path to the output directory. Defaults to None.
         num_samples_per_shard (int, optional): Number of samples per output shard. Defaults to 1000.
         changelog (str, optional): Changelog for the dataset. Defaults to None.
         version_update_mode (Literal["major", "minor", "patch"], optional): Mode for updating the version number. Defaults to None.
