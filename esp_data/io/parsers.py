@@ -18,6 +18,7 @@ def _read_audio_from_bytes(audio_bytes: bytes) -> tuple[np.ndarray, int]:
 
 
 def read_audio(file_path: str | AnyPathT) -> tuple[np.ndarray, int]:
+    """TODO"""
     file_path = anypath(file_path)
     extension = file_path.suffix
 

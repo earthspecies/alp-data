@@ -4,13 +4,13 @@ strict: true
 site_url: http://go/python/docs
 
 # TODO (milad) check out https://mkdocstrings.github.io/recipes/
+# TODO (milad) check out options here: https://github.com/mkdocstrings/mkdocstrings/blob/main/mkdocs.yml
 
 repo_name: earthspecies/esp-data
 repo_url: https://github.com/earthspecies/esp-data
 
 nav:
-  - Home: index.md
-  - Getting Started: getting_started.md
+  - Getting Started: index.md
   - API Reference: reference.md
 
 theme:
@@ -22,26 +22,36 @@ theme:
     - navigation.tabs
     - navigation.tabs.sticky
     - navigation.path
+    - toc.integrate
   favicon: assets/favicon.png
+  logo: assets/favicon.png
 
   palette:
-    # Palette toggle for dark mode
     - media: "(prefers-color-scheme: dark)"
       scheme: slate
       toggle:
         icon: material/brightness-4
         name: Switch to system preference
-
-    # Palette toggle for light mode
+      primary: teal
+      accent: pink
     - media: "(prefers-color-scheme: light)"
       scheme: default
       toggle:
         icon: material/brightness-7
         name: Switch to dark mode
-
+      primary: teal
+      accent: pink
 plugins:
 - mkdocstrings:
     default_handler: python
+    handlers:
+      python:
+          options:
+            docstring_style: numpy
+            show_category_heading: true
+            show_symbol_type_toc: true
+            show_symbol_type_heading: true
+            modernize_annotations: true
 
 markdown_extensions:
   - admonition

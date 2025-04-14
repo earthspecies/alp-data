@@ -18,6 +18,16 @@ def filesystem(
     protocol: Literal["gcs", "gs", "r2", "local"] = "local",
     **kwargs,
 ):
+    """Create a filesystem object based on the protocol.
+
+    PARAMETERS
+    ----------
+    protocol : str
+        The protocol to use. Supported protocols are "gcs", "r2", and "local".
+    kwargs : dict
+        Additional keyword arguments to pass to the filesystem constructor.
+    """
+
     if protocol in ["gcs", "gs"]:
         return GCSFileSystem(**kwargs)
     elif protocol == "r2":
@@ -35,6 +45,7 @@ def filesystem(
 
 
 def filesystem_from_path(path: str | AnyPathT):
+    """TODO"""
     path = anypath(path)
     if path.is_local:
         return filesystem("local")

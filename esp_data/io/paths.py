@@ -43,6 +43,7 @@ class GSPath(cloudpathlib.GSPath):
 
 
 class R2Path(cloudpathlib.S3Path):
+    """TODO"""
     is_cloud: bool = True
     is_local: bool = False
 
@@ -79,7 +80,9 @@ class R2Path(cloudpathlib.S3Path):
 
 
 class Path(PosixPath):
+    """TODO"""
     # TODO: Path is a factory class and we're dropping support for WindowsPath class. Let's see if we can bring it back.
+
     storage_options = None
 
     is_cloud: bool = False
@@ -89,7 +92,7 @@ class Path(PosixPath):
 # TODO (milad) Python 3.12 introduces `type`. It will probably deprecate TypeAlias at
 # some point. We should use that instead when 3.12 is not too new anymore.
 AnyPathT: TypeAlias = Path | GSPath | R2Path
-
+"""TODO: AnyPathT"""
 
 def anypath(path: str | Path | GSPath | R2Path) -> AnyPathT:
     """A factory function that returns the correct path object based on the path string.
@@ -114,4 +117,5 @@ def anypath(path: str | Path | GSPath | R2Path) -> AnyPathT:
 
 
 def strip_cloud_prefix(path: str | Path | os.PathLike) -> str:
+    """Strip the cloud prefix from a path."""
     return str(path).replace("gs://", "").replace("s3://", "").replace("r2://", "")
