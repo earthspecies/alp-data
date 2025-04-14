@@ -4,7 +4,7 @@ import logging
 import numpy as np
 import soundfile as sf
 
-from .paths import AnyPath
+from .paths import AnyPathT, anypath
 
 logger = logging.getLogger("esp_data")
 
@@ -21,12 +21,12 @@ def _read_audio_from_bytes(audio_bytes: bytes, frames: int = -1, start: int = 0)
     return data, samplerate
 
 
-def read_audio(file_path: AnyPath, frames: int = -1, start: int = 0) -> tuple[np.ndarray, int]:
+def read_audio(file_path: anypath | AnyPathT, frames: int = -1, start: int = 0) -> tuple[np.ndarray, int]:
     """
     Reads from an audio file while indexing if necessary. By default,
     reads the entire file.
     """
-    file_path = AnyPath(file_path)
+    file_path = anypath(file_path)
     extension = file_path.suffix
 
     if extension not in _AUDIO_FORMATS:
