@@ -11,14 +11,21 @@ logger = logging.getLogger("esp_data")
 _AUDIO_FORMATS = (".wav", ".flac", ".ogg", ".mp3")
 
 
-def _read_audio_from_bytes(audio_bytes: bytes) -> tuple[np.ndarray, int]:
+def _read_audio_from_bytes(audio_bytes: bytes, frames: int = -1, start: int = 0) -> tuple[np.ndarray, int]:
+    """
+    Reads from an audio buffer while indexing if necessary. By default,
+    reads the entire buffer.
+    """
     with io.BytesIO(audio_bytes) as audio_buffer:
-        data, samplerate = sf.read(audio_buffer)
+        data, samplerate = sf.read(audio_buffer, frames=frames, start=start)
     return data, samplerate
 
 
-def read_audio(file_path: str | AnyPathT) -> tuple[np.ndarray, int]:
-    """TODO"""
+def read_audio(file_path: str | AnyPathT, frames: int = -1, start: int = 0) -> tuple[np.ndarray, int]:
+    """
+    Reads from an audio file while indexing if necessary. By default,
+    reads the entire file.
+    """
     file_path = anypath(file_path)
     extension = file_path.suffix
 
@@ -27,7 +34,7 @@ def read_audio(file_path: str | AnyPathT) -> tuple[np.ndarray, int]:
 
     try:
         with file_path.open("rb") as f:
-            return _read_audio_from_bytes(f.read())
+            return _read_audio_from_bytes(f.read(), frames, start)
     except Exception as e:
         logger.error(f"Error reading audio file {e}")
         raise e
