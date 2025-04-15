@@ -18,7 +18,7 @@ def _read_audio_from_bytes(audio_bytes: bytes, frames: int = -1, start: int = 0)
     Reads from an audio buffer while indexing if necessary. By default,
     reads the entire buffer.
 
-    Parameters
+    Arguments
     ----------
     audio_bytes : bytes
         The byte string containing the encoded audio data (e.g., WAV, FLAC).
@@ -49,7 +49,7 @@ def read_audio(file_path: str | AnyPathT, frames: int = -1, start: int = 0) -> t
     Checks if the file extension is a supported audio format.
     Allows specifying a number of frames to read and a starting frame offset.
 
-    Parameters
+    Arguments
     ----------
     file_path : str or AnyPathT
         The path string or path object (e.g., Path, GSPath, R2Path) pointing

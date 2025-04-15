@@ -32,7 +32,7 @@ def filesystem(
     The results are cached so subsequent calls with the same protocol and keyword
     arguments will return the identical filesystem instance.
 
-    Parameters
+    Arguments
     ----------
         protocol: Literal["gcs", "gs", "r2", "local"]
             The type of filesystem to initialize. Defaults to "local".
@@ -84,7 +84,7 @@ def filesystem_from_path(path: str | AnyPathT) -> Union[GCSFileSystem, S3FileSys
     protocol (local, GCS, R2). It then calls the `filesystem` factory function
     to retrieve the corresponding cached fsspec-compatible filesystem instance.
 
-    Parameters
+    Arguments
     ----------
     path : str or AnyPathT
         The path string or path object (e.g., Path, GSPath, R2Path) whose

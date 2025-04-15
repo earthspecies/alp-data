@@ -24,7 +24,7 @@ class GSPath(cloudpathlib.GSPath):
 
     For more details, see: https://github.com/drivendataorg/cloudpathlib/issues/390
 
-    Parameters
+    Arguments
     ----------
     cloud_path : str or cloudpathlib.GSPath
         The Google Cloud Storage path string (e.g., "gs://bucket/blob") or
@@ -81,7 +81,7 @@ class R2Path(cloudpathlib.S3Path):
     with `cloudpathlib.S3Path`.
     Automatically configures a default client using R2 credentials fetched from GCP Secret Manager.
 
-    Parameters
+    Arguments
     ----------
     cloud_path : str or cloudpathlib.S3Path
         The Cloudflare R2 path string (e.g., "r2://bucket/key" or "s3://...")
@@ -166,7 +166,7 @@ def anypath(path: str | Path | GSPath | R2Path) -> AnyPathT:
     or a local path. It then returns an instance of the corresponding path class
     (`GSPath`, `R2Path`, or `Path`).
 
-    Parameters
+    Arguments
     ----------
     path : str | Path | GSPath | R2Path
         The path string (e.g., "/local/file.txt", "gs://bucket/blob", "r2://bucket/key")
