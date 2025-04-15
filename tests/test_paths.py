@@ -6,7 +6,7 @@ from esp_data.io import anypath
 
 
 def test_local_path():
-    path = anypath("tests/fileio_test_folder/file1.txt")
+    path = anypath("tests/samples/file1.txt")
     assert isinstance(path, PosixPath)
     assert path.is_file()
     assert path.read_text().strip() == "hello"
@@ -22,7 +22,7 @@ def test_local_path():
 )
 def test_cloud_upload_path(cloud_path):
     path = anypath(cloud_path)
-    path.upload_from("tests/fileio_test_folder/file1.txt")
+    path.upload_from("tests/samples/file1.txt")
     assert not path.is_local
     assert path.is_cloud
     assert path.exists()
