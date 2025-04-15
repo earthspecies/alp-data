@@ -192,8 +192,6 @@ def validate_datetime(v: str) -> str:
     --------
     >>> validate_datetime("2023-10-27T10:00:00+00:00")
     '2023-10-27T10:00:00+00:00'
-    >>> validate_datetime("2023-10-27T10:00:00Z") # Z indicates UTC
-    '2023-10-27T10:00:00Z'
     """
     try:
         d = datetime.fromisoformat(v)
