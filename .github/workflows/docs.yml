@@ -1,13 +1,16 @@
 name: Build the docs
 
+# TODO: test this logic
 on:
   workflow_dispatch:
   push:
     branches:
       - main
-      - docs-versioning # TODO
-  release:
-    types: [published]
+      - docs-versioning # TODO: remove this
+    tags:
+      - v[0-9]+.[0-9]+*
+  # release:
+  #   types: [published]
 
 jobs:
   build-docs:
@@ -36,16 +39,14 @@ jobs:
           git config --local user.name "${{ github.actor }}"
           git config --local user.email "${{ github.actor }}@users.noreply.github.com"
 
-      - name: Update dev
-        # if: github.ref == 'refs/heads/main' # TODO
-        run: uv run mike deploy -b docs-site dev --push
+      - name: Deploy main branch
+        if: github.ref == 'refs/heads/main'
+        run: uv run mike deploy -b docs-site --push --update-aliases dev
 
-      # - name: Build the docs
-      #   run: uv run mkdocs build --clean
-
-      # - name: Upload MkDocs site
-      #   uses: actions/upload-artifact@v4
-      #   with:
-      #     name: mkdocs-site
-      #     path: site/
-      #     retention-days: 7
+      # TODO (milad) not the most robust way to set the "latest" version. What if we are patching an old release?
+      - name: Deploy version from tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          uv run mike deploy -b docs-site --push --update-aliases $VERSION latest
+          mike set-default --push latest
