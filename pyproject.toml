@@ -21,7 +21,7 @@ dependencies = [
     "s3fs>=2024.9.0",
     "setuptools>=75.8.0",
     "soundfile>=0.13.1",
-    "torch>=2.6.0",
+    "torch>=2.2.0",
     "webdataset>=0.2.111",
 ]
 
@@ -49,8 +49,14 @@ pythonpath = [
 
 [tool.ruff]
 line-length = 120
+indent-width = 4
 exclude = [
-  "**/*.ipynb"
+  "**/*.ipynb",
+  "esp_data/config",
+  "esp_data/dataset",
+  "esp_data/db",
+  "tests",
+  "scripts",
 ]
 [tool.ruff.lint.isort]
 known-third-party = ["wandb"]
@@ -64,8 +70,31 @@ select = [
   "E7",
   "E9",
   "F", # Flake8
-  "I", # isort
 ]
+
+extend-select = ["DOC", "B9", "B", "E", "W", "ANN"]
+fixable = ["ALL"]
+unfixable = []
+preview = true
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
+docstring-code-line-length = "dynamic"
+
+[tool.ruff.lint.mccabe]
+# Flag errors (`C901`) whenever the complexity level exceeds 10.
+max-complexity = 10
+
+[tool.codespell]
+skip = "*.csv"
+
+[tool.isort]
+profile = "black"
+line_length = 80
+filter_files = true
 
 [[tool.uv.index]]
 name = "esp-pypi"
