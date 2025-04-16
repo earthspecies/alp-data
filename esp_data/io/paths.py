@@ -147,6 +147,7 @@ class Path(PosixPath):
     """TODO: write the docstring once the class is consolidated."""
 
     # TODO: Path is a factory class and we're dropping support for WindowsPath class. Let's see if we can bring it back.
+
     storage_options = None
 
     is_cloud: bool = False
@@ -156,6 +157,7 @@ class Path(PosixPath):
 # TODO (milad) Python 3.12 introduces `type`. It will probably deprecate TypeAlias at
 # some point. We should use that instead when 3.12 is not too new anymore.
 AnyPathT: TypeAlias = Path | GSPath | R2Path
+"""TODO: AnyPathT"""
 
 
 def anypath(path: str | Path | GSPath | R2Path) -> AnyPathT:
