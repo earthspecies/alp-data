@@ -10,7 +10,7 @@ on:
     branches: ["main"]
 
 jobs:
-  build-and-publish:
+  build-docs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -18,14 +18,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-
-      - name: Authenticate to Google Cloud
-        uses: "google-github-actions/auth@v2"
-        id: auth
-        with:
-          workload_identity_provider: ${{ secrets.WORKLOAD_IDENTITY_PROVIDER_ID }}
-          service_account: ${{ secrets.GH_ACTIONS_SA }}
-          token_format: access_token
 
       - name: Install uv
         uses: astral-sh/setup-uv@v4
