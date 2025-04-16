@@ -5,7 +5,7 @@ on:
   push:
     branches:
       - main
-      - docs-versioning
+      - docs-versioning # TODO
   release:
     types: [published]
 
@@ -38,7 +38,7 @@ jobs:
           git config --local user.email "${{ github.actor }}@users.noreply.github.com"
 
       - name: Update dev
-        if: github.ref == 'refs/heads/main'
+        # if: github.ref == 'refs/heads/main' # TODO
         run: uv run mike deploy -b docs-site dev --push
 
       # - name: Build the docs
