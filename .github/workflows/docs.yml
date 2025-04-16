@@ -1,13 +1,9 @@
 name: Build and store the docs
 
 on:
-  # TODO (milad): Keep like while prepare for the first release but then only
-  # trigger when we make a release
   workflow_dispatch:
-  push:
-    branches: ["main"]
-  pull_request:
-    branches: ["main"]
+  release:
+    types: [published]
 
 jobs:
   build-docs:
