@@ -5,8 +5,13 @@ import io
 import numpy as np
 import soundfile as sf
 
-from esp_data.io.parsers import _read_audio_from_bytes
+from esp_data.io.read_utils import _read_audio_from_bytes, read_audio
 
+def test_read_from_file():
+    path = "tests/samples/noise.wav"
+    data, sr = read_audio(path)
+    assert sr == 16000
+    assert data.shape == (524288,)
 
 def test_read_no_offset():
     # Create some dummy audio data (pretend it's a short, single-channel sound)
