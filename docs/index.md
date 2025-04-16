@@ -14,7 +14,7 @@ Install `keyring` library system-wide (i.e. not inside a virtual environment) wi
 uv tool install keyring --with keyrings.google-artifactregistry-auth
 ```
 
-This step is not needed for running code on Slurm compute nodes but you need this if you're setting up your VM or laptop. 
+This step is not needed for running code on Slurm compute nodes but you need this if you're setting up your VM or laptop.
 
 !!! info
     You only need to this once on your system.
@@ -28,7 +28,7 @@ You then need to tell your project about the index by adding the following secti
 ```toml
 [[tool.uv.index]]
 name = "esp-pypi"
-url = "https://oauth2accesstoken@us-central1-python.pkg.dev/okapi-274503/esp-pypi/"
+url = "https://oauth2accesstoken@us-central1-python.pkg.dev/okapi-274503/esp-pypi/simple/"
 explicit = true
 
 [tool.uv.sources]
