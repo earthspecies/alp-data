@@ -1,7 +1,10 @@
-name: Build and store the docs
+name: Build the docs
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
   release:
     types: [published]
 
@@ -28,12 +31,21 @@ jobs:
       - name: Install the project
         run: uv sync --all-extras --dev
 
-      - name: Build the docs
-        run: uv run mkdocs build --clean
+      - name: Configure Git user
+        run: |
+          git config --local user.name "${{ github.actor }}"
+          git config --local user.email "${{ github.actor }}@users.noreply.github.com"
 
-      - name: Upload MkDocs site
-        uses: actions/upload-artifact@v4
-        with:
-          name: mkdocs-site
-          path: site/
-          retention-days: 7
+      - name: Update dev
+        if: github.ref == 'refs/heads/main'
+        run: uv run mike deploy -b docs-site dev --push
+
+      # - name: Build the docs
+      #   run: uv run mkdocs build --clean
+
+      # - name: Upload MkDocs site
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: mkdocs-site
+      #     path: site/
+      #     retention-days: 7
