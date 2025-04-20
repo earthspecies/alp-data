@@ -67,7 +67,10 @@ class NatureLMSample(DataSample):
     file_name: str = Field(description="Audio filename, could be a url")
     instruction: str = Field(min_length=1, description="Prompt for naturelm")
     instruction_text: str = Field(min_length=1, description="Prompt for naturelm without Audio token placeholder")
-    output: str = Field(min_length=1, description="Some kind of expected output: text caption / label / answer")
+    output: str = Field(
+        min_length=1,
+        description="Some kind of expected output: text caption / label / answer",
+    )
     task: Optional[str] = Field(default=None, description="The task the model is trying to solve")
     # class_: Optional[str] = Field(description="The class of the output")
     # family: Optional[str] = Field(description="The family of the output")

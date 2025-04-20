@@ -3,6 +3,7 @@
 #   "torchaudio",
 #   "librosa==0.10.2",
 #   "mlflow",
+#   "fastparquet",
 # ]
 # ///
 """Make NatureLM using a jsonl file"""
@@ -10,7 +11,6 @@
 import argparse
 import io
 import json
-import os
 import time
 from concurrent.futures import ProcessPoolExecutor
 from functools import partial
@@ -61,7 +61,7 @@ def validate_sample(sample: dict) -> dict:
     assert sample["output"] != "nan", "Output is nan"
     assert AUDIO_PROMPT in sample["instruction"], "Instruction does not contain AUDIO_PROMPT "
     assert AUDIO_PROMPT not in sample["instruction_text"], "Instruction text contains AUDIO_PROMPT"
-    assert isinstance(sample["metadata"], str), "Metadata is not a string"
+    # assert isinstance(sample["metadata"], dif), "Metadata is not a string"
     assert len(sample["file_name"]) > 0, "File name is empty"
     assert len(sample["license"]) > 0, "License is empty"
     return sample
@@ -143,7 +143,6 @@ def prepare_audio_sample_for_naturelm(
 
     md["sample_rate"] = sr
     md["duration"] = len(audio_data) / sr
-    # sample_data["metadata"] = json.dumps(md)
     sample_data["metadata"] = md
 
     # validate
@@ -151,6 +150,7 @@ def prepare_audio_sample_for_naturelm(
     # drop some
     sample_data.pop("derived_from")
     sample_data.pop("version")
+    sample_data.pop("created_at")
     sample_data["metadata"] = json.dumps(md)
     sample_data = {"audio": audio_data, **sample_data}
 
@@ -385,24 +385,51 @@ def main():
                 for sample in processed_samples:
                     f.write(json.dumps(sample) + "\n")
 
-        # save the number of chunks processed
-        with processed_samples_file.open("w") as f:
-            f.write(str(i))
+            # Create DataFrame with shard information
+            shard_info_df = pd.DataFrame(processed_samples, columns=["id", "shard_path", "shard_id"])
+
+            # concatenate with 'data'
+            data = pd.concat([data, shard_info_df], axis=1)
+
+            # append to a annotations.parquet file in the output path
+            annotations_path = output_path / "annotations.parquet"
+
+            if annotations_path.exists():
+                data.to_parquet(
+                    str(annotations_path),
+                    index=False,
+                    engine="fastparquet",
+                    append=True,
+                    storage_options={"project_id": "okapi-274503"},
+                )
+                print(f"Annotations file updated at {annotations_path}")
+            else:
+                data.to_parquet(
+                    str(annotations_path),
+                    index=False,
+                    engine="fastparquet",
+                    storage_options={"project_id": "okapi-274503"},
+                )
+                print(f"Annotations file created at {annotations_path}")
+
+            # save the number of chunks processed
+            with processed_samples_file.open("w") as f:
+                f.write(str(i))
 
         print(f"Num chunks processed: {i}")
 
         processed_samples = []
 
         # clear tmp files
-        print(f"Clearing tmp files in {output_path}")
-        job_tmpdir = os.getenv("JOB_TMPDIR")
-        if job_tmpdir:
-            tmp_files = list(AnyPath(job_tmpdir).rglob("*"))
-            for tmp_file in tmp_files:
-                if tmp_file.is_file():
-                    os.remove(tmp_file)
+        # print(f"Clearing tmp files in {output_path}")
+        # job_tmpdir = os.getenv("JOB_TMPDIR")
+        # if job_tmpdir:
+        #     tmp_files = list(AnyPath(job_tmpdir).rglob("*"))
+        #     for tmp_file in tmp_files:
+        #         if tmp_file.is_file():
+        #             os.remove(tmp_file)
 
-            print(f"Removed {len(tmp_files)} tmp files from {job_tmpdir}")
+        #     print(f"Removed {len(tmp_files)} tmp files from {job_tmpdir}")
 
 
 if __name__ == "__main__":
