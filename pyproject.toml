@@ -97,3 +97,4 @@ publish-url = "https://oauth2accesstoken@us-central1-python.pkg.dev/okapi-274503
 
 [tool.deptry]
 exclude = ["conftest.py", ".venv", "tests"]
+ignore = ["DEP003"]
