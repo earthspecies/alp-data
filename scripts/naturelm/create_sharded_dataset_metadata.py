@@ -11,6 +11,7 @@
 import argparse
 import io
 import json
+import logging
 import time
 from concurrent.futures import ProcessPoolExecutor
 from functools import partial
@@ -18,6 +19,8 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
+import pyarrow as pa
+import pyarrow.parquet as pq
 import soundfile as sf
 import torchaudio
 from naturelm_cfg import LICENSES, NatureLMSample, naturelm_cfg
@@ -28,6 +31,7 @@ from esp_data.dataset.shard_creator import (
     BATCH_COLOR,
     RESET_COLOR,
     SHARD_COLOR,
+    infer_schema_from_sample,
     load_checkpoint,
     save_checkpoint,
     write_shard,
@@ -35,6 +39,12 @@ from esp_data.dataset.shard_creator import (
 from esp_data.paths import AnyPath
 
 AUDIO_PROMPT = "<Audio><AudioHere></Audio>"
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+)
+logger = logging.getLogger("naturelm")
 
 
 def read_jsonl(path: str | AnyPath) -> list[dict]:
@@ -92,16 +102,6 @@ def prepare_audio_sample_for_naturelm(
 
     path = AnyPath("/home/milad_earthspecies_org/data-migration/marius-highmem") / AnyPath(row["path"]).relative_to("/")
 
-    # HACK David's comments on original jsonl's
-    # skip_cond1 = any([c in str(path) for c in ["compa_r", "audiocaps", "animal-instruct"]])
-    # skip_cond2 = row["task"] in ["compa_r", "audiocaps-qa", "audiocaps", "animal-instruct"]
-
-    # if skip_cond1 or skip_cond2:
-    #     raise ValueError(f"Skipping {path} as it is not a valid audio file")
-
-    # idx_go = path_parts.index("foundation-model-data")
-    # file_path = os.path.join(local_path, *path_parts[idx_go:])
-
     sample_data["file_name"] = path.parts[-1]
     sample_data["source_dataset"] = row.get("source", "")
     if len(sample_data["source_dataset"]) < 1:
@@ -135,11 +135,11 @@ def prepare_audio_sample_for_naturelm(
         try:
             audio_data, sr = load_audio(path)
         except Exception as e:
-            print(f"Error reading audio file {e}")
+            logger.info(f"Error reading audio file {e}")
             raise e
 
         if np.std(audio_data) == 0.0:
-            print(f"WARNING: Audio is empty for sample {sample_data['id']}, filename {sample_data['file_name']}")
+            logger.info(f"WARNING: Audio is empty for sample {sample_data['id']}, filename {sample_data['file_name']}")
 
     md["sample_rate"] = sr
     md["duration"] = len(audio_data) / sr
@@ -157,7 +157,7 @@ def prepare_audio_sample_for_naturelm(
     try:
         validate_sample(sample_data)
     except AssertionError as e:
-        print(f"Validation failed for sample {sample_data['id']}, file_name {sample_data['file_name']}: {e}")
+        logger.info(f"Validation failed for sample {sample_data['id']}, file_name {sample_data['file_name']}: {e}")
         raise e
 
     if shard_type == "webdataset":
@@ -195,7 +195,7 @@ def create_sharded_dataset(
     # Load checkpoint if exists
     checkpoint_data = load_checkpoint(output_path, data)
     completed_chunks = checkpoint_data["completed_chunks"] if checkpoint_data else {}
-    print(f"Loaded checkpoint with {len(completed_chunks)} completed chunks.")
+    logger.info(f"Loaded checkpoint with {len(completed_chunks)} completed chunks.")
 
     # Calculate number of shards needed
     num_samples = len(data)
@@ -204,8 +204,8 @@ def create_sharded_dataset(
     # Split metadata into chunks for parallel processing
     chunks = [data[i * num_samples_per_shard : (i + 1) * num_samples_per_shard] for i in range(num_shards)]
 
-    print(f"\n{BATCH_COLOR}=== Dataset Sharding Process ==={RESET_COLOR}")
-    print(
+    logger.info(f"\n{BATCH_COLOR}=== Dataset Sharding Process ==={RESET_COLOR}")
+    logger.info(
         f"{BATCH_COLOR}Total samples: {num_samples}, Shards: {num_shards}, Samples per shard: {num_samples_per_shard}{RESET_COLOR}\n"
     )
 
@@ -215,7 +215,7 @@ def create_sharded_dataset(
     ]
 
     if not chunks_to_process:
-        print("All chunks already processed. Nothing to do.")
+        logger.info("All chunks already processed. Nothing to do.")
         return
 
     # Create partial function with fixed arguments
@@ -231,7 +231,7 @@ def create_sharded_dataset(
 
     if num_workers > 1:
         # Parallel processing using ProcessPoolExecutor
-        print(f"Processing {len(chunks_to_process)} shards using {num_workers} workers")
+        logger.info(f"Processing {len(chunks_to_process)} shards using {num_workers} workers")
 
         with ProcessPoolExecutor(max_workers=num_workers) as executor:
             futures = [
@@ -265,7 +265,7 @@ def create_sharded_dataset(
                     pbar.update(1)
     else:
         # Sequential processing
-        print(f"Processing {len(chunks_to_process)} shards sequentially")
+        logger.info(f"Processing {len(chunks_to_process)} shards sequentially")
 
         with tqdm(
             total=len(chunks_to_process),
@@ -321,7 +321,7 @@ def main():
 
     output_path = AnyPath(args.output_path)
 
-    print("Updating NatureLM dataset config")
+    logger.info("Updating NatureLM dataset config")
     naturelm_cfg.version = args.version.replace("v", "")
     naturelm_cfg.update_changelog(args.changelog)
     naturelm_cfg.write_json(output_path / "dataset_config.json")
@@ -343,25 +343,27 @@ def main():
     np.random.shuffle(all_json_chunks)
 
     shards_completed = list(output_path.rglob(args.output_shard_pattern))
-    print(f"Found {len(shards_completed)} shards in {output_path}")
+    logger.info(f"Found {len(shards_completed)} shards in {output_path}")
     num_shards = int(np.ceil(args.json_read_chunk_size / args.num_samples_per_shard))
 
     processed_samples = []
+    writer = None
+    schema = None
 
     for i, json_file in enumerate(all_json_chunks):
         chunk_start_id = i * num_shards
 
         if i < num_chunks_processed:
-            print(f"Skipping chunk {i} as it has already been processed")
+            logger.info(f"Skipping chunk {i} as it has already been processed")
             continue
 
-        print(f"Loading data from {json_file}")
+        logger.info(f"Loading data from {json_file}")
         data = read_jsonl(json_file)
         data = pd.DataFrame(data)
         # shuffle
         data = data.sample(frac=1, random_state=0).reset_index(drop=True)
 
-        print(
+        logger.info(
             f"{SHARD_COLOR}=========== Processing chunk {i} with {len(data)} samples, in {num_shards} shards ==========={SHARD_COLOR}"
         )
         start = time.time()
@@ -377,10 +379,10 @@ def main():
             log_every=args.log_every,
             error_handling=args.error_handling,
         )
-        print(f"Processed chunk {i} in {time.time() - start:.2f} seconds")
+        logger.info(f"Processed chunk {i} in {time.time() - start:.2f} seconds")
 
         if processed_samples:
-            print(f"Saving metadata for chunk {i}")
+            logger.info(f"Saving metadata for chunk {i}")
             with metadata_path.open("a") as f:
                 for sample in processed_samples:
                     f.write(json.dumps(sample) + "\n")
@@ -390,46 +392,47 @@ def main():
 
             # concatenate with 'data'
             data = pd.concat([data, shard_info_df], axis=1)
+            if schema is None:
+                sample = data.iloc[0].to_dict()
+                schema = infer_schema_from_sample(sample)
 
             # append to a annotations.parquet file in the output path
             annotations_path = output_path / "annotations.parquet"
 
             if annotations_path.exists():
-                data.to_parquet(
-                    str(annotations_path),
-                    index=False,
-                    engine="fastparquet",
-                    append=True,
-                    storage_options={"project_id": "okapi-274503"},
-                )
-                print(f"Annotations file updated at {annotations_path}")
+                # data.to_parquet(
+                #     str(annotations_path),
+                #     index=False,
+                #     engine="fastparquet",
+                #     append=True,
+                #     storage_options={"project_id": "okapi-274503"},
+                # )
+                # file_obj = AnyPath(path).open("wb")
+                file_obj = F.open_file(annotations_path, mode="ab")
+                logger.info(f"Annotations file updated at {annotations_path}")
             else:
-                data.to_parquet(
-                    str(annotations_path),
-                    index=False,
-                    engine="fastparquet",
-                    storage_options={"project_id": "okapi-274503"},
-                )
-                print(f"Annotations file created at {annotations_path}")
+                # data.to_parquet(
+                #     str(annotations_path),
+                #     index=False,
+                #     engine="fastparquet",
+                #     storage_options={"project_id": "okapi-274503"},
+                # )
+                file_obj = F.open_file(annotations_path, mode="wb")
+                logger.info(f"Annotations file created at {annotations_path}")
+
+            # Create appropriate writer
+            if writer is None:
+                writer = pq.ParquetWriter(file_obj, schema)
+            table = pa.Table.from_pandas(data, schema=schema)
+            writer.write_table(table)
 
             # save the number of chunks processed
             with processed_samples_file.open("w") as f:
-                f.write(str(i))
+                f.write(str(i + 1))
 
-        print(f"Num chunks processed: {i}")
+        logger.info(f"Num chunks processed: {i}")
 
         processed_samples = []
-
-        # clear tmp files
-        # print(f"Clearing tmp files in {output_path}")
-        # job_tmpdir = os.getenv("JOB_TMPDIR")
-        # if job_tmpdir:
-        #     tmp_files = list(AnyPath(job_tmpdir).rglob("*"))
-        #     for tmp_file in tmp_files:
-        #         if tmp_file.is_file():
-        #             os.remove(tmp_file)
-
-        #     print(f"Removed {len(tmp_files)} tmp files from {job_tmpdir}")
 
 
 if __name__ == "__main__":

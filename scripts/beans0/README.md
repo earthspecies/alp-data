@@ -6,7 +6,10 @@ language:
   - en
 tags:
   - biology
-  -
+  - bioacoustics
+  - audio-classification
+  - multimodal
+  - zero-shot
 pretty_name: BEANS-Zero
 size_categories:
 - 100K<n<1M
@@ -40,13 +43,13 @@ configs:
         dtype: string
     data_files:
       - split: test
-        path: data/shard*
+        path: shard*
 ---
 
 # BEANS-Zero
 
 **Version:** 0.1.0
-**Created on:** 2025-02-25
+**Created on:** 2025-04-12
 **Creators:**
 - EarthSpeciesProject (https://www.earthspecies.org)
 
@@ -54,12 +57,12 @@ configs:
 
 BEANS-Zero is a **benchmark bioacoustic dataset** designed for zero-shot bioacoustic evaluation tasks. Introduced in the paper [NATURELM-AUDIO: AN AUDIO-LANGUAGE FOUNDATION MODEL FOR BIOACOUSTICS](https://arxiv.org/pdf/2411.07186), this dataset aggregates multiple subsets from both established component datasets and newly curated ones. It is a benchmark dataset only to be used to evaluate audio-text multimodal models that accept a bioacoustic audio input (query audio) and a text prompt (e.g. 'What species is in this audio?') and generate text as output (e.g. "Taeniopygia guttata").
 
-<div class="alert alert-block alert-warning">
-<b>NOTE:</b> Some of the examples (27,899) were sourced from the iNaturalist database
-  https://www.gbif.org/dataset/50c9509d-22c7-4a22-a47d-8c48425ef4a7
-  At this point we are not able to share the audio from the examples, just the metadata.
-</div>
+## Usage
+```python
+from datasets import load_dataset
 
+dataset = load_dataset("EarthSpeciesProject/BEANS-Zero", split="test")
+```
 ## Dataset Composition
 
 BEANS-Zero combines data from several well-known sources. There are total of 113,679 samples (examples). It consists of two main groups:
@@ -117,16 +120,18 @@ The following fields are present in each example:
 - **id** (str): Sample uuid.
 - **created_at** (str): Sample creation datetime in utc
 - **metadata** (str): Each sample can have a different duration
-
 - **file_name** (str): Sample file_name
-- **instruction** (str): A prompt for created with a placeholder for audio tokens. E.g. '<Audio><AudioHere></Audio> What is the scientific name for the focal species in the audio?'
+- **instruction** (str): A prompt (a query) corresponding to the audio for your audio-text model with a placeholder for audio tokens. E.g. '<Audio><AudioHere></Audio> What is the scientific name for the focal species in the audio?'
+- **instruction_text** (str): Same as **instruction** but without the placeholder for audio tokens.
 - **output** (str): The expected output from the model
 - **task** (str): The task type e.g. classification / detection / pitch estimation / captioning.
 - **dataset_name** (str): Names corresponding to the evaluation tasks, e.g. 'esc50' or 'unseen-family-sci'.
+- **license** (str): The license of the dataset. For example, 'CC-BY-NC' or 'CC0'.
 
 ## Licensing
 
-Due to its composite nature, BEANS-Zero is subject to multiple licenses. Individual subsets may have per-file licenses; consult the corresponding documentation for each component.
+Due to its composite nature, BEANS-Zero is subject to multiple licenses. Individual samples have the "license" field
+indicating the specific license for that sample. The dataset is not intended for commercial use, and users should adhere to the licenses of the individual datasets.
 
 ## Citation
 
