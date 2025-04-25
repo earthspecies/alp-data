@@ -4,8 +4,9 @@
 `esp-data` is an EarthSpeciesProject internal package intended to help with all things data related.
 
 Release v1 (version 1.0.0) has the following features:
-- `esp-data.io`: a utility that lets you do file and bucket level operations on google cloud storage (GCS) and Cloudflare R2
-buckets.
+
+`esp-data.io`: a utility that lets you do file and bucket level operations on google cloud storage (GCS) and Cloudflare R2
+buckets. Info [here](io.md)
 
 ## Installation
 

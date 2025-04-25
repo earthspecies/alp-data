@@ -3,15 +3,17 @@
 The `io` module provides a set of functions for reading and writing data to and from various file formats and storage systems. It supports local files, Google Cloud Storage (GCS), and Cloudflare R2 buckets.
 
 You can use this module to:
-1. Conduct file operations like "exists", "unlink" (delete), "open" (read/write), and "glob" (list files).
-2. Download and upload files (and folders) to and from cloud storage locations
-3. List the contents of buckets
-4. Delete files
-5. Read audio from a remote file directly into memory as a numpy array
+
+1.  Conduct file operations like "exists", "unlink" (delete), "open" (read/write), and "glob" (list files).
+2.  Download and upload files (and folders) to and from cloud storage locations
+3.  List the contents of buckets
+4.  Delete files
+5.  Read audio from a remote file directly into memory as a numpy array
 
 There are two interfaces available:
-- `esp_data.io.anypath` a path-like interface, if you're familiar with `pathlib` you can use this interface to read and write files.
-- `esp_data.io.filesystem` a filesystem type interface
+
+-   `esp_data.io.anypath` a path-like interface, if you're familiar with `pathlib` you can use this interface to read and write files.
+-   `esp_data.io.filesystem` a filesystem type interface
 
 ## `esp_data.io.anypath`
 
