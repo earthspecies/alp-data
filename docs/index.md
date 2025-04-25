@@ -1,8 +1,11 @@
 # Getting Started
 
-
 ## What is esp-data?
+`esp-data` is an EarthSpeciesProject internal package intended to help with all things data related.
 
+Release v1 (version 1.0.0) has the following features:
+- `esp-data.io`: a utility that lets you do file and bucket level operations on google cloud storage (GCS) and Cloudflare R2
+buckets. More info [here](io.md).
 
 ## Installation
 
@@ -17,7 +20,7 @@ uv tool install keyring --with keyrings.google-artifactregistry-auth
 This step is not needed for running code on Slurm compute nodes but you need this if you're setting up your VM or laptop.
 
 !!! info
-    You only need to this once on your system.
+    You only need to do this once on your system.
 
 !!! tip
     `uv tool` allows installing Python packages that provide command-line interfaces for system-wide use. The dependencies of the package are installed in a temporary virtual environment isolated from the current project.
