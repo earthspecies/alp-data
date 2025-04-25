@@ -5,7 +5,7 @@
 
 Release v1 (version 1.0.0) has the following features:
 - `esp-data.io`: a utility that lets you do file and bucket level operations on google cloud storage (GCS) and Cloudflare R2
-buckets. More info [here](io.md).
+buckets.
 
 ## Installation
 
