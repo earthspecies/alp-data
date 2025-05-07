@@ -16,3 +16,13 @@ This repository contains data tools for managing data operations in ESP's AI / s
 7. Run tests: In root, run ```uv run pytest tests```.
 
 If tests pass, you're set up!
+
+## Serving Documentation Locally
+
+To preview the documentation site locally, use the following command:
+
+```sh
+make serve-docs
+```
+
+This will start a local server using [mike](https://github.com/jimporter/mike) and serve the docs at the default address (usually http://localhost:8000). The docs will be built from the `docs-site` branch.
