@@ -42,6 +42,7 @@ theme:
         name: Switch to dark mode
       primary: teal
       accent: pink
+
 plugins:
 - mkdocstrings:
     default_handler: python
@@ -64,3 +65,7 @@ markdown_extensions:
   - pymdownx.inlinehilite
   - pymdownx.snippets
   - pymdownx.superfences
+
+extra:
+  version:
+    provider: mike

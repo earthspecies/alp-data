@@ -1,16 +1,19 @@
-name: Build and store the docs
+name: Build the docs
 
 on:
   workflow_dispatch:
-  release:
-    types: [published]
+  push:
+    branches:
+      - main
+    tags:
+      - v[0-9]+.[0-9]+*
+      - latest
 
 jobs:
   build-docs:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
-      id-token: write
+      contents: write
 
     steps:
       - uses: actions/checkout@v4
@@ -28,12 +31,22 @@ jobs:
       - name: Install the project
         run: uv sync --all-extras --dev
 
-      - name: Build the docs
-        run: uv run mkdocs build --clean
+      - name: Configure Git user
+        run: |
+          git config --local user.name "${{ github.actor }}"
+          git config --local user.email "${{ github.actor }}@users.noreply.github.com"
 
-      - name: Upload MkDocs site
-        uses: actions/upload-artifact@v4
-        with:
-          name: mkdocs-site
-          path: site/
-          retention-days: 7
+      # - name: Deploy main branch
+      #   if: github.ref == 'refs/heads/main'
+      #   run: uv run mike deploy -b docs-site --push --update-aliases main-branch
+
+      - name: Deploy version from tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          uv run mike deploy -b docs-site --push --update-aliases $VERSION
+
+      - name: Update latest tag
+        if: if: github.ref == 'refs/tags/latest'
+        run: |
+          uv run mike deploy -b docs-site --push --update-aliases latest

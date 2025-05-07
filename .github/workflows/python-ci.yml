@@ -2,9 +2,9 @@ name: Pytests
 
 on:
   push:
-    branches: ["main"]
+    branches: ["main", "dev"]
   pull_request:
-    branches: ["main"]
+    branches: ["main", "dev"]
 
 jobs:
   test:
@@ -35,6 +35,9 @@ jobs:
 
       - name: Install the project
         run: uv sync --all-extras --dev
+
+      - name: Checking dependencies
+        run: uv run deptry .
 
       - name: Run Doctests
         run: uv run pytest --doctest-modules esp_data
