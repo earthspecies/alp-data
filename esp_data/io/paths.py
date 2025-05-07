@@ -66,7 +66,7 @@ class GSPath(cloudpathlib.GSPath):
         cloudpathlib.GSClient
             The default client instance.
         """
-        return cloudpathlib.GSClient(storage_client=GS_Client_Official())
+        return cloudpathlib.GSClient(storage_client=GS_Client_Official(), file_cache_mode="close_file")
 
     @property
     def no_prefix(self) -> str:
