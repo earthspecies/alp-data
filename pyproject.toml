@@ -6,23 +6,13 @@ readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
     "cloudpathlib[all]>=0.20.0",
-    "colorama>=0.4.6",
     "datasets==3.4.0", # 📌 this lib needs extra care not to break things
-    "db-dtypes>=1.3.1",
     "gcsfs>=2024.9.0.post1",
-    "gitpython>=3.1.44",
     "google-cloud-bigquery>=3.27.0",
     "google-cloud-secret-manager>=2.23.1",
     "google-cloud-storage>=2.19.0",
-    "pandas>=2.2.3",
-    "pydantic>=2.10.5",
-    "pytest-aio>=1.9.0",
-    "python-dotenv>=1.0.1",
     "s3fs>=2024.9.0",
-    "setuptools>=75.8.0",
     "soundfile>=0.13.1",
-    "torch>=2.2.0",
-    "webdataset>=0.2.111",
 ]
 
 [dependency-groups]
@@ -34,6 +24,7 @@ dev = [
     "pre-commit>=4.0.1",
     "pytest>=7.1.2",
     "ruff>=0.8.1",
+    "deptry>=0.23.0"
 ]
 
 [build-system]
@@ -104,3 +95,7 @@ filter_files = true
 name = "esp-pypi"
 url = "https://oauth2accesstoken@us-central1-python.pkg.dev/okapi-274503/esp-pypi/"
 publish-url = "https://oauth2accesstoken@us-central1-python.pkg.dev/okapi-274503/esp-pypi/"
+
+[tool.deptry]
+exclude = ["conftest.py", ".venv", "tests"]
+ignore = ["DEP003"]
