@@ -1,33 +1,35 @@
 # Getting Started
 
 ## What is esp-data?
-`esp-data` is an EarthSpeciesProject internal package intended to help with all things data related.
 
-Release v1 (version 1.0.0) has the following features:
+`esp-data` is an internal Python package that helps with all data-related tasks at ESP. It aims to make working with datasets easier, regardless of where they are stored.
 
-`esp-data.io`: a utility that lets you do file and bucket level operations on google cloud storage (GCS) and Cloudflare R2
-buckets. Info [here](io.md)
+In the future, it will also become the main interface for accessing and exploring datasets commonly used at ESP (this feature is on the roadmap and not yet implemented).
+
+In the first version, the only available module is `esp_data.io`, which makes working with Google Cloud Storage (GCS) and Cloudflare R2 buckets more seamless. It provides utilities for file and bucket level operations. More information is available [here](io.md).
 
 ## Installation
 
-`esp-data` is currently not public and therefore hosted on ESP's private Python package repository.
+`esp-data` is currently a private package, hosted on ESP's internal Python package repository. Because it isn't available on the public PyPI index, you'll need to configure your project to use ESP's private package index in order to install and update `esp-data`:
 
-Install `keyring` library system-wide (i.e. not inside a virtual environment) with the additional Google Artifact Registry backend. needed only once and is needed to to authenticate and interact with Python repositories hosted on Artifact Registry:
+### 1. Install `keyring` (one-time setup)
 
-```
+To authenticate and interact with Python repositories hosted on Artifact Registry, you'll need to install the `keyring` library system-wide (not inside a virtual environment), along with the Google Artifact Registry backend. This step is required only once per system, typically when setting up your VM or laptop (not needed on Slurm compute nodes):
+
+```sh
 uv tool install keyring --with keyrings.google-artifactregistry-auth
 ```
 
-This step is not needed for running code on Slurm compute nodes but you need this if you're setting up your VM or laptop.
-
 !!! info
-    You only need to do this once on your system.
+    You only need to perform this installation once on your system.
+
 
 !!! tip
-    `uv tool` allows installing Python packages that provide command-line interfaces for system-wide use. The dependencies of the package are installed in a temporary virtual environment isolated from the current project.
+    `uv tool` allows you to install Python packages that provide command-line interfaces for system-wide use. The dependencies are installed in an isolated virtual environment, separate from your current project.
 
+### 2. Configure your project to use the private index
 
-You then need to tell your project about the index by adding the following section to your `pyproject.toml`:
+Next, add the following to your `pyproject.toml` to configure your project to use the private package index:
 
 ```toml
 [[tool.uv.index]]
@@ -42,4 +44,16 @@ esp-data = { index = "esp-pypi" }
 keyring-provider = "subprocess"
 ```
 
-You can now add `esp-data` to your project by doing `uv add esp-data` or manually updating the the `dependencies` section of your `pyproject.toml` and issuing a `uv sync`.
+### 3. Add `esp-data` as a dependency
+
+You can now add `esp-data` to your project by running:
+
+```sh
+uv add esp-data
+```
+
+Alternatively, you can manually update the `dependencies` section of your `pyproject.toml` and then run:
+
+```sh
+uv sync
+```

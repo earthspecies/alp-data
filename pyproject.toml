@@ -6,9 +6,7 @@ readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
     "cloudpathlib[all]>=0.20.0",
-    "datasets==3.4.0", # 📌 this lib needs extra care not to break things
     "gcsfs>=2024.9.0.post1",
-    "google-cloud-bigquery>=3.27.0",
     "google-cloud-secret-manager>=2.23.1",
     "google-cloud-storage>=2.19.0",
     "s3fs>=2024.9.0",

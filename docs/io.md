@@ -1,4 +1,6 @@
-# The `esp_data.io` module
+# `esp_data.io` module
+
+## What does it do?
 
 The `io` module provides a set of functions for reading and writing data to and from various file formats and storage systems. It supports local files, Google Cloud Storage (GCS), and Cloudflare R2 buckets.
 
@@ -17,7 +19,7 @@ There are two interfaces available:
 -   `esp_data.io.anypath` a [path-like interface](#esp_dataioanypath), if you're familiar with `pathlib` you can use this interface to read and write files.
 -   `esp_data.io.filesystem` a [filesystem type interface](#filesystem-approach-with-esp_dataiofilesystem)
 
-### Why two interfaces?
+## Why two interfaces?
 The `anypath` interface is more user-friendly and is similar to the `pathlib` module in Python. It allows you to work with paths in a more intuitive way, especially if you're already familiar with `pathlib`. However, we've noticed some issues with the underlying `cloudpathlib` library that `anypath` uses, which can lead to unexpected behavior in certain cases.
 
 We recommend that for the following use cases, the `filesystem` interface is more reliable and consistent:

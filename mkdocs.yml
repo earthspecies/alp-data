@@ -11,7 +11,7 @@ repo_url: https://github.com/earthspecies/esp-data
 
 nav:
   - Getting Started: index.md
-  - io module: io.md
+  - io: io.md
   - API Reference: reference.md
 
 theme:
