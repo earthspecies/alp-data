@@ -9,24 +9,26 @@ buckets. Info [here](io.md)
 
 ## Installation
 
-`esp-data` is currently not public and therefore hosted on ESP's private Python package repository.
+`esp-data` is currently a private package, hosted on ESP's internal Python package repository. Because it isn't available on the public PyPI index, you'll need to configure your project to use ESP's private package index in order to install and update `esp-data`:
 
-Install `keyring` library system-wide (i.e. not inside a virtual environment) with the additional Google Artifact Registry backend. needed only once and is needed to to authenticate and interact with Python repositories hosted on Artifact Registry:
+### 1. Install `keyring` (One-Time Setup)
 
-```
+To authenticate and interact with Python repositories hosted on Artifact Registry, you'll need to install the `keyring` library system-wide (not inside a virtual environment), along with the Google Artifact Registry backend. This step is required only once per system, typically when setting up your VM or laptop (not needed on Slurm compute nodes):
+
+```sh
 uv tool install keyring --with keyrings.google-artifactregistry-auth
 ```
 
-This step is not needed for running code on Slurm compute nodes but you need this if you're setting up your VM or laptop.
-
 !!! info
-    You only need to do this once on your system.
+    You only need to perform this installation once on your system.
+
 
 !!! tip
-    `uv tool` allows installing Python packages that provide command-line interfaces for system-wide use. The dependencies of the package are installed in a temporary virtual environment isolated from the current project.
+    `uv tool` allows you to install Python packages that provide command-line interfaces for system-wide use. The dependencies are installed in an isolated virtual environment, separate from your current project.
 
+### 2. Configure your project to use the private index
 
-You then need to tell your project about the index by adding the following section to your `pyproject.toml`:
+Next, add the following to your `pyproject.toml` to configure your project to use the private package index:
 
 ```toml
 [[tool.uv.index]]
@@ -41,4 +43,16 @@ esp-data = { index = "esp-pypi" }
 keyring-provider = "subprocess"
 ```
 
-You can now add `esp-data` to your project by doing `uv add esp-data` or manually updating the the `dependencies` section of your `pyproject.toml` and issuing a `uv sync`.
+### 3. Add `esp-data` as a dependency
+
+You can now add `esp-data` to your project by running:
+
+```sh
+uv add esp-data
+```
+
+Alternatively, you can manually update the `dependencies` section of your `pyproject.toml` and then run:
+
+```sh
+uv sync
+```
