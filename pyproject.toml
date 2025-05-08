@@ -7,7 +7,6 @@ requires-python = ">=3.10"
 dependencies = [
     "cloudpathlib[all]>=0.20.0",
     "gcsfs>=2024.9.0.post1",
-    "google-cloud-bigquery>=3.27.0",
     "google-cloud-secret-manager>=2.23.1",
     "google-cloud-storage>=2.19.0",
     "s3fs>=2024.9.0",
@@ -96,5 +95,5 @@ url = "https://oauth2accesstoken@us-central1-python.pkg.dev/okapi-274503/esp-pyp
 publish-url = "https://oauth2accesstoken@us-central1-python.pkg.dev/okapi-274503/esp-pypi/"
 
 [tool.deptry]
-exclude = ["conftest.py", ".venv", "tests", "notebooks/hf_datasets_tutorial.ipynb"]
+exclude = ["conftest.py", ".venv", "tests"]
 ignore = ["DEP003"]
