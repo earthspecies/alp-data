@@ -207,7 +207,7 @@
   
     
   
-  io module
+  io
 
       </a>
     </li>
@@ -357,6 +357,39 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Installation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-install-keyring-one-time-setup" class="md-nav__link">
+    <span class="md-ellipsis">
+      1. Install keyring (one-time setup)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-configure-your-project-to-use-the-private-index" class="md-nav__link">
+    <span class="md-ellipsis">
+      2. Configure your project to use the private index
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-add-esp-data-as-a-dependency" class="md-nav__link">
+    <span class="md-ellipsis">
+      3. Add esp-data as a dependency
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
     </ul>
@@ -379,7 +412,7 @@
   
   
   <span class="md-ellipsis">
-    io module
+    io
     
   </span>
   
@@ -432,25 +465,25 @@
 
 <h1 id="getting-started">Getting Started</h1>
 <h2 id="what-is-esp-data">What is esp-data?</h2>
-<p><code>esp-data</code> is an EarthSpeciesProject internal package intended to help with all things data related.</p>
-<p>Release v1 (version 1.0.0) has the following features:</p>
-<p><code>esp-data.io</code>: a utility that lets you do file and bucket level operations on google cloud storage (GCS) and Cloudflare R2
-buckets. Info <a href="io/">here</a></p>
+<p><code>esp-data</code> is an internal Python package that helps with all data-related tasks at ESP. It aims to make working with datasets easier, regardless of where they are stored.</p>
+<p>In the future, it will also become the main interface for accessing and exploring datasets commonly used at ESP (this feature is on the roadmap and not yet implemented).</p>
+<p>In the first version, the only available module is <code>esp_data.io</code>, which makes working with Google Cloud Storage (GCS) and Cloudflare R2 buckets more seamless. It provides utilities for file and bucket level operations. More information is available <a href="io/">here</a>.</p>
 <h2 id="installation">Installation</h2>
-<p><code>esp-data</code> is currently not public and therefore hosted on ESP's private Python package repository.</p>
-<p>Install <code>keyring</code> library system-wide (i.e. not inside a virtual environment) with the additional Google Artifact Registry backend. needed only once and is needed to to authenticate and interact with Python repositories hosted on Artifact Registry:</p>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>uv tool install keyring --with keyrings.google-artifactregistry-auth
+<p><code>esp-data</code> is currently a private package, hosted on ESP's internal Python package repository. Because it isn't available on the public PyPI index, you'll need to configure your project to use ESP's private package index in order to install and update <code>esp-data</code>:</p>
+<h3 id="1-install-keyring-one-time-setup">1. Install <code>keyring</code> (one-time setup)</h3>
+<p>To authenticate and interact with Python repositories hosted on Artifact Registry, you'll need to install the <code>keyring</code> library system-wide (not inside a virtual environment), along with the Google Artifact Registry backend. This step is required only once per system, typically when setting up your VM or laptop (not needed on Slurm compute nodes):</p>
+<div class="language-sh highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>uv<span class="w"> </span>tool<span class="w"> </span>install<span class="w"> </span>keyring<span class="w"> </span>--with<span class="w"> </span>keyrings.google-artifactregistry-auth
 </span></code></pre></div>
-<p>This step is not needed for running code on Slurm compute nodes but you need this if you're setting up your VM or laptop.</p>
 <div class="admonition info">
 <p class="admonition-title">Info</p>
-<p>You only need to do this once on your system.</p>
+<p>You only need to perform this installation once on your system.</p>
 </div>
 <div class="admonition tip">
 <p class="admonition-title">Tip</p>
-<p><code>uv tool</code> allows installing Python packages that provide command-line interfaces for system-wide use. The dependencies of the package are installed in a temporary virtual environment isolated from the current project.</p>
+<p><code>uv tool</code> allows you to install Python packages that provide command-line interfaces for system-wide use. The dependencies are installed in an isolated virtual environment, separate from your current project.</p>
 </div>
-<p>You then need to tell your project about the index by adding the following section to your <code>pyproject.toml</code>:</p>
+<h3 id="2-configure-your-project-to-use-the-private-index">2. Configure your project to use the private index</h3>
+<p>Next, add the following to your <code>pyproject.toml</code> to configure your project to use the private package index:</p>
 <div class="language-toml highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="k">[[tool.uv.index]]</span>
 </span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;esp-pypi&quot;</span>
 </span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="n">url</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;https://oauth2accesstoken@us-central1-python.pkg.dev/okapi-274503/esp-pypi/simple/&quot;</span>
@@ -462,7 +495,13 @@ buckets. Info <a href="io/">here</a></p>
 </span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="k">[tool.uv]</span>
 </span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="n">keyring-provider</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;subprocess&quot;</span>
 </span></code></pre></div>
-<p>You can now add <code>esp-data</code> to your project by doing <code>uv add esp-data</code> or manually updating the the <code>dependencies</code> section of your <code>pyproject.toml</code> and issuing a <code>uv sync</code>.</p>
+<h3 id="3-add-esp-data-as-a-dependency">3. Add <code>esp-data</code> as a dependency</h3>
+<p>You can now add <code>esp-data</code> to your project by running:</p>
+<div class="language-sh highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>uv<span class="w"> </span>add<span class="w"> </span>esp-data
+</span></code></pre></div>
+<p>Alternatively, you can manually update the <code>dependencies</code> section of your <code>pyproject.toml</code> and then run:</p>
+<div class="language-sh highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>uv<span class="w"> </span>sync
+</span></code></pre></div>
 
 
 

@@ -24,7 +24,7 @@
     
     
       
-        <title>io module - esp-data</title>
+        <title>io - esp-data</title>
       
     
     
@@ -78,7 +78,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#the-esp_dataio-module" class="md-skip">
+        <a href="#esp_dataio-module" class="md-skip">
           Skip to content
         </a>
       
@@ -117,7 +117,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              io module
+              io
             
           </span>
         </div>
@@ -209,7 +209,7 @@
   
     
   
-  io module
+  io
 
       </a>
     </li>
@@ -330,7 +330,7 @@
   
   
   <span class="md-ellipsis">
-    io module
+    io
     
   </span>
   
@@ -343,7 +343,7 @@
   
   
   <span class="md-ellipsis">
-    io module
+    io
     
   </span>
   
@@ -364,6 +364,15 @@
       Table of contents
     </label>
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#what-does-it-do" class="md-nav__link">
+    <span class="md-ellipsis">
+      What does it do?
+    </span>
+  </a>
+  
+</li>
       
         <li class="md-nav__item">
   <a href="#why-two-interfaces" class="md-nav__link">
@@ -549,7 +558,8 @@
   
 
 
-<h1 id="the-esp_dataio-module">The <code>esp_data.io</code> module</h1>
+<h1 id="esp_dataio-module"><code>esp_data.io</code> module</h1>
+<h2 id="what-does-it-do">What does it do?</h2>
 <p>The <code>io</code> module provides a set of functions for reading and writing data to and from various file formats and storage systems. It supports local files, Google Cloud Storage (GCS), and Cloudflare R2 buckets.</p>
 <p>You can use this module to:</p>
 <ol>
@@ -566,7 +576,7 @@
 <li><code>esp_data.io.anypath</code> a <a href="#esp_dataioanypath">path-like interface</a>, if you're familiar with <code>pathlib</code> you can use this interface to read and write files.</li>
 <li><code>esp_data.io.filesystem</code> a <a href="#filesystem-approach-with-esp_dataiofilesystem">filesystem type interface</a></li>
 </ul>
-<h3 id="why-two-interfaces">Why two interfaces?</h3>
+<h2 id="why-two-interfaces">Why two interfaces?</h2>
 <p>The <code>anypath</code> interface is more user-friendly and is similar to the <code>pathlib</code> module in Python. It allows you to work with paths in a more intuitive way, especially if you're already familiar with <code>pathlib</code>. However, we've noticed some issues with the underlying <code>cloudpathlib</code> library that <code>anypath</code> uses, which can lead to unexpected behavior in certain cases.</p>
 <p>We recommend that for the following use cases, the <code>filesystem</code> interface is more reliable and consistent:</p>
 <ul>
