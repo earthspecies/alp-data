@@ -2,10 +2,11 @@
 
 ## What is esp-data?
 
-`esp-data` is an internal Python package to help with all things data related at ESP. It aims to make working with datasets easier, regardless of where they are stored. In the future, it also plans to become the main interface for accessing and exploring datasets commonly used at ESP (this feature is on the roadmap and not yet implemented).
+`esp-data` is an internal Python package that helps with all data-related tasks at ESP. It aims to make working with datasets easier, regardless of where they are stored.
 
-`esp-data.io`: a utility that lets you do file and bucket level operations on google cloud storage (GCS) and Cloudflare R2
-buckets. Info [here](io.md)
+In the future, it will also become the main interface for accessing and exploring datasets commonly used at ESP (this feature is on the roadmap and not yet implemented).
+
+In the first version, the only available module is `esp_data.io`, which makes working with Google Cloud Storage (GCS) and Cloudflare R2 buckets more seamless. It provides utilities for file and bucket level operations. More information is available [here](io.md).
 
 ## Installation
 
