@@ -1,9 +1,8 @@
 # Getting Started
 
 ## What is esp-data?
-`esp-data` is an EarthSpeciesProject internal package intended to help with all things data related.
 
-Release v1 (version 1.0.0) has the following features:
+`esp-data` is an internal Python package to help with all things data related at ESP. It aims to make working with datasets easier, regardless of where they are stored. In the future, it also plans to become the main interface for accessing and exploring datasets commonly used at ESP (this feature is on the roadmap and not yet implemented).
 
 `esp-data.io`: a utility that lets you do file and bucket level operations on google cloud storage (GCS) and Cloudflare R2
 buckets. Info [here](io.md)
