@@ -12,7 +12,7 @@ In the first version, the only available module is `esp_data.io`, which makes wo
 
 `esp-data` is currently a private package, hosted on ESP's internal Python package repository. Because it isn't available on the public PyPI index, you'll need to configure your project to use ESP's private package index in order to install and update `esp-data`:
 
-### 1. Install `keyring` (One-Time Setup)
+### 1. Install `keyring` (one-time setup)
 
 To authenticate and interact with Python repositories hosted on Artifact Registry, you'll need to install the `keyring` library system-wide (not inside a virtual environment), along with the Google Artifact Registry backend. This step is required only once per system, typically when setting up your VM or laptop (not needed on Slurm compute nodes):
 
