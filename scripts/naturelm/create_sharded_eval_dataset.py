@@ -12,7 +12,6 @@ import argparse
 import io
 import json
 import logging
-import time
 from concurrent.futures import ProcessPoolExecutor
 from functools import partial
 from typing import Any
@@ -84,7 +83,7 @@ def prepare_audio_sample_for_naturelm(
 ) -> dict[str, Any]:
     """Prepare a sample for the NatureLM dataset."""
 
-    row["output"] = "None" if (pd.isna(row["output"]) or row["output"] == "nan") else row["output"]
+    row["output"] = "None" if (pd.isna(row["text"]) or row["text"] == "nan") else row["text"]
 
     if "prompt" not in row or row["prompt"] is None or row["prompt"] == "nan" or len(row["prompt"]) < 1:
         raise ValueError("Prompt missing!")
@@ -100,6 +99,7 @@ def prepare_audio_sample_for_naturelm(
         "instruction_text": row["prompt"].replace(AUDIO_PROMPT, "").strip(),
     }
 
+    row["path"] = row["path"].replace("/home/ubuntu/foundation-model-storage/", "/mnt/")
     path = AnyPath("/home/milad_earthspecies_org/data-migration/marius-highmem") / AnyPath(row["path"]).relative_to("/")
 
     sample_data["file_name"] = path.parts[-1]
@@ -296,7 +296,7 @@ def create_sharded_dataset(
 def main():
     # Builder script for NatureLM dataset
     parser = argparse.ArgumentParser(description="Create NatureLM dataset")
-    parser.add_argument("--path_to_jsonl_files", type=str, required=True)
+    parser.add_argument("--path_to_jsonl_file", type=str, required=True)
     parser.add_argument("--output_path", type=str, required=True)
     parser.add_argument("--json_read_chunk_size", type=int, default=100_000)
     parser.add_argument("--num_samples_per_shard", type=int, default=3000)
@@ -327,102 +327,62 @@ def main():
     naturelm_cfg.write_json(output_path / "dataset_config.json")
     naturelm_cfg.generate_readme(output_path / "README.md")
 
-    processed_samples_file = AnyPath(output_path / "num_chunks_processed.txt")
-    if processed_samples_file.exists() and args.start_at_chunk is None:
-        with processed_samples_file.open("r") as f:
-            num_chunks_processed = int(f.read())
-    elif args.start_at_chunk is not None:
-        num_chunks_processed = args.start_at_chunk
-    else:
-        num_chunks_processed = 0
-
     metadata_path = output_path / "metadata.jsonl"
 
-    all_json_chunks = list(AnyPath(args.path_to_jsonl_files).rglob("*"))
-    # shuffle the chunks
-    np.random.shuffle(all_json_chunks)
-
-    shards_completed = list(output_path.rglob(args.output_shard_pattern))
-    logger.info(f"Found {len(shards_completed)} shards in {output_path}")
-    num_shards = int(np.ceil(args.json_read_chunk_size / args.num_samples_per_shard))
+    # load json file
+    data = read_jsonl(args.path_to_jsonl_file)
+    data = pd.DataFrame(data)
+    logger.info(f"Loaded {len(data)} samples from {args.path_to_jsonl_file}")
 
     processed_samples = []
-    writer = None
     schema = None
+    # shuffle
+    # data = data.sample(frac=1, random_state=0).reset_index(drop=True)
 
-    for i, json_file in enumerate(all_json_chunks):
-        chunk_start_id = i * num_shards
+    processed_samples = create_sharded_dataset(
+        data,
+        start_idx=0,
+        processed_samples=processed_samples,
+        output_path=output_path,
+        sample_prep_function=sample_prep_function,
+        num_samples_per_shard=args.num_samples_per_shard,
+        num_workers=args.num_workers,
+        shard_type=args.shard_type,
+        log_every=args.log_every,
+        error_handling=args.error_handling,
+    )
 
-        if i < num_chunks_processed:
-            logger.info(f"Skipping chunk {i} as it has already been processed")
-            continue
+    if processed_samples:
+        logger.info("Saving metadata")
+        with metadata_path.open("a") as f:
+            for sample in processed_samples:
+                f.write(json.dumps(sample) + "\n")
 
-        logger.info(f"Loading data from {json_file}")
-        data = read_jsonl(json_file)
-        data = pd.DataFrame(data)
-        # shuffle
-        data = data.sample(frac=1, random_state=0).reset_index(drop=True)
+        # Create DataFrame with shard information
+        shard_info_df = pd.DataFrame(processed_samples, columns=["id", "shard_path", "shard_id"])
 
-        logger.info(
-            f"{SHARD_COLOR}=========== Processing chunk {i} with {len(data)} samples, in {num_shards} shards ==========={SHARD_COLOR}"
-        )
-        start = time.time()
-        processed_samples: list[dict] | None = create_sharded_dataset(
-            data,
-            start_idx=chunk_start_id,
-            processed_samples=processed_samples,
-            output_path=output_path,
-            sample_prep_function=sample_prep_function,
-            num_samples_per_shard=args.num_samples_per_shard,
-            num_workers=args.num_workers,
-            shard_type=args.shard_type,
-            log_every=args.log_every,
-            error_handling=args.error_handling,
-        )
-        logger.info(f"Processed chunk {i} in {time.time() - start:.2f} seconds")
+        # concatenate with 'data'
+        data = pd.concat([data, shard_info_df], axis=1)
+        if schema is None:
+            sample = data.iloc[0].to_dict()
+            schema = infer_schema_from_sample(sample)
 
-        if processed_samples:
-            logger.info(f"Saving metadata for chunk {i}")
-            with metadata_path.open("a") as f:
-                for sample in processed_samples:
-                    f.write(json.dumps(sample) + "\n")
+        # append to a annotations.parquet file in the output path
+        annotations_path = output_path / "annotations.parquet"
 
-            # Create DataFrame with shard information
-            shard_info_df = pd.DataFrame(processed_samples, columns=["id", "shard_path", "shard_id"])
+        if annotations_path.exists():
+            file_obj = F.open_file(annotations_path, mode="ab")
+            logger.info(f"Annotations file updated at {annotations_path}")
+        else:
+            file_obj = F.open_file(annotations_path, mode="wb")
+            logger.info(f"Annotations file created at {annotations_path}")
 
-            # concatenate with 'data'
-            data = pd.concat([data, shard_info_df], axis=1)
-            if schema is None:
-                sample = data.iloc[0].to_dict()
-                schema = infer_schema_from_sample(sample)
+        # Create appropriate writer
+        writer = pq.ParquetWriter(file_obj, schema)
+        table = pa.Table.from_pandas(data, schema=schema)
+        writer.write_table(table)
 
-            # append to a annotations.parquet file in the output path
-            annotations_path = output_path / "annotations.parquet"
-
-            if annotations_path.exists():
-                file_obj = F.open_file(annotations_path, mode="ab")
-                logger.info(f"Annotations file updated at {annotations_path}")
-            else:
-                file_obj = F.open_file(annotations_path, mode="wb")
-                logger.info(f"Annotations file created at {annotations_path}")
-
-            # Create appropriate writer
-            if writer is None:
-                writer = pq.ParquetWriter(file_obj, schema)
-            table = pa.Table.from_pandas(data, schema=schema)
-            writer.write_table(table)
-
-            # save the number of chunks processed
-            with processed_samples_file.open("w") as f:
-                f.write(str(i + 1))
-
-        logger.info(f"Num chunks processed: {i}")
-
-        processed_samples = []
-
-    if writer:
         writer.close()
-        file_obj.close()
 
 
 if __name__ == "__main__":
