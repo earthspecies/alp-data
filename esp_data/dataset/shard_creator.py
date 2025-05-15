@@ -89,6 +89,7 @@ def _make_file_opener(
         # somehow Path objects need parent dirs created ?
         parent_dir = AnyPath(file_path).parent
         parent_dir.mkdir(parents=True, exist_ok=True)
+        return F.open_file(file_path, mode=mode, use_fs=True)
 
     # return lambda path: file_path.open(mode, buffering=buffering)
     return F.open_file(file_path, mode=mode, use_fs=True, block_size=block_size)
@@ -238,6 +239,8 @@ def determine_pa_field_type(
             return pa.int32()
         elif isinstance(value, bool):
             return pa.bool_()
+        elif isinstance(value, bytes):
+            return pa.binary()
         else:
             return pa.string()
 
@@ -248,6 +251,8 @@ def determine_pa_field_type(
                 if isinstance(v, str)
                 else float_type
                 if isinstance(v, float)
+                else pa.binary()
+                if isinstance(v, bytes)
                 else pa.int32()
                 if isinstance(v, int)
                 else _build_struct(v)
