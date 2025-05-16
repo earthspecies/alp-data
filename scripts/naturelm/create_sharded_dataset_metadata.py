@@ -47,6 +47,14 @@ logging.basicConfig(
 logger = logging.getLogger("naturelm")
 
 
+def encode_bytes(audio_data: np.ndarray, sample_rate: int = 16000) -> bytes:
+    buffer = io.BytesIO()
+    sf.write(buffer, audio_data, sample_rate, format="flac")
+    buffer.seek(0)
+    # Get the bytes content
+    return buffer.read()
+
+
 def read_jsonl(path: str | AnyPath) -> list[dict]:
     try:
         with F.open_file(path, "r") as f:
@@ -170,6 +178,10 @@ def prepare_audio_sample_for_naturelm(
             "metadata.json": json.dumps(sample_data),
         }
 
+    sample_data["audio"] = {
+        "bytes": encode_bytes(audio_data, sr),
+        "path": sample_data["file_name"],
+    }
     return sample_data
 
 
