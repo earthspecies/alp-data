@@ -50,7 +50,9 @@ python_files = [
 ]
 
 [tool.ruff]
-line-length = 88
+# TODO (milad) We need to make this similar to the template
+# TODO (milad) remove excludes!
+line-length = 120
 indent-width = 4
 exclude = [
   "**/*.ipynb",
