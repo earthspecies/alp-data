@@ -8,14 +8,10 @@ from typing import Any, Callable, Dict, Iterator, List, Optional
 import librosa
 import numpy as np
 import pandas as pd
-from esp_data.io import GSPath, read_audio
 
-from esp_data_temp.config import DatasetConfig
-from esp_data_temp.datasets.base import (
-    Dataset,
-    DatasetInfo,
-    register_dataset,
-)
+from esp_data.config import DatasetConfig
+from esp_data.datasets import Dataset, DatasetInfo, register_dataset
+from esp_data.io import GSPath, read_audio
 
 
 @register_dataset
@@ -52,9 +48,7 @@ class AnimalSpeak(Dataset):
         output_take_and_give: dict[str, str] = None,
         sample_rate: int = 16000,
         audio_path_col: str = "gs_path",
-        postprocessors: Optional[
-            List[Callable[[Dict[str, Any]], Dict[str, Any]]]
-        ] = None,
+        postprocessors: Optional[List[Callable[[Dict[str, Any]], Dict[str, Any]]]] = None,
     ) -> None:
         """Initialize the AnimalSpeak dataset.
 
@@ -99,10 +93,7 @@ class AnimalSpeak(Dataset):
             If the split is not valid.
         """
         if self.split not in self.info.split_paths:
-            raise ValueError(
-                f"Invalid split: {self.split}. "
-                f"Expected one of {list(self.info.split_paths.keys())}"
-            )
+            raise ValueError(f"Invalid split: {self.split}. Expected one of {list(self.info.split_paths.keys())}")
 
         location = self.info.split_paths[self.split]
         # Read CSV content
@@ -120,25 +111,18 @@ class AnimalSpeak(Dataset):
             elif isinstance(v, str):
                 return [item.strip() for item in v.split(",")]
             else:
-                raise ValueError(
-                    f"Expected a string or NaN, but got {v} of type {type(v)}"
-                )
+                raise ValueError(f"Expected a string or NaN, but got {v} of type {type(v)}")
 
         # TODO: Maybe we want to normalise the values even more? for instance apply
         # .lower()?
-        self._data.background_species_sci = self._data.background_species_sci.apply(
-            _to_list
-        )
-        self._data.background_species_common = (
-            self._data.background_species_common.apply(_to_list)
-        )
+        self._data.background_species_sci = self._data.background_species_sci.apply(_to_list)
+        self._data.background_species_common = self._data.background_species_common.apply(_to_list)
 
         # TODO (milad) what's the point of this column?
         self._data["path"] = self._data["local_path"].apply(
             # lambda x: "gs://" + x
             lambda x: (
-                "/home/milad_earthspecies_org/data-migration/marius-highmem/mnt/"
-                "foundation-model-data/audio_16k/" + x
+                "/home/milad_earthspecies_org/data-migration/marius-highmem/mnt/foundation-model-data/audio_16k/" + x
             )
         )  # AnimalSpeak missing gs path
 
@@ -165,20 +149,14 @@ class AnimalSpeak(Dataset):
 
         split = cfg.get("split", None)
         if not split or split not in cls.info.split_paths:
-            raise ValueError(
-                f"Invalid split '{split}'."
-                f"Available splits: {', '.join(cls.info.split_paths.keys())}"
-            )
+            raise ValueError(f"Invalid split '{split}'.Available splits: {', '.join(cls.info.split_paths.keys())}")
         if "audio_path_col" not in cfg:
             raise ValueError(
                 "Configuration must include 'audio_path_col' to specify the column"
                 "in the underlying dataframe containing audio file paths."
             )
         if "sample_rate" not in cfg:
-            raise ValueError(
-                "Configuration must include 'sample_rate' to "
-                "specify the target sample rate for audio."
-            )
+            raise ValueError("Configuration must include 'sample_rate' to specify the target sample rate for audio.")
 
         output_take_and_give = cfg.get("output_take_and_give", None)
         return cls(split=split, output_take_and_give=output_take_and_give)
@@ -218,9 +196,7 @@ class AnimalSpeak(Dataset):
             If the index is out of bounds.
         """
         if idx < 0 or idx >= len(self._data):
-            raise IndexError(
-                f"Index {idx} out of bounds for dataset of length {len(self._data)}."
-            )
+            raise IndexError(f"Index {idx} out of bounds for dataset of length {len(self._data)}.")
 
         row = self._data.iloc[idx].to_dict()
         path_str: str = row[self.audio_path_col]

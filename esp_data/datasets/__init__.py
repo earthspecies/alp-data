@@ -6,14 +6,16 @@ from .base import (
     dataset_from_config,
     list_registered_datasets,
     print_registered_datasets,
+    register_dataset,
 )
 
 __all__ = [
-    "list_registered_datasets",
-    "print_registered_datasets",
-    "dataset_from_config",
-    "DatasetInfo",
-    "Dataset",
     "AnimalSpeak",
     "BarkleyCanyon",
+    "dataset_from_config",
+    "Dataset",
+    "DatasetInfo",
+    "list_registered_datasets",
+    "print_registered_datasets",
+    "register_dataset",
 ]

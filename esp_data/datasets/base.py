@@ -4,14 +4,11 @@ from pathlib import Path
 from typing import Any, Dict, Iterator, Self
 
 import semver
-from esp_data.io import GSPath
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from esp_data_temp.config import DatasetConfig
-from esp_data_temp.transforms import (
-    RegisteredTransformConfigs,
-    transform_from_config,
-)
+from esp_data.config import DatasetConfig
+from esp_data.io import GSPath
+from esp_data.transforms import RegisteredTransformConfigs, transform_from_config
 
 
 class DatasetInfo(BaseModel):
@@ -93,9 +90,7 @@ class DatasetInfo(BaseModel):
         description="License for the dataset, if applicable",
     )
 
-    changelog: str = Field(
-        default_factory=lambda: "", description="Changelog from previous version"
-    )
+    changelog: str = Field(default_factory=lambda: "", description="Changelog from previous version")
 
     @field_validator("split_paths", mode="after")
     @classmethod
@@ -322,9 +317,7 @@ class Dataset(ABC):
         """
         raise NotImplementedError
 
-    def apply_transformations(
-        self, transformations: list[RegisteredTransformConfigs]
-    ) -> list[Any]:
+    def apply_transformations(self, transformations: list[RegisteredTransformConfigs]) -> list[Any]:
         """Apply the given list of transformations to the dataset.
 
         This method applies each transformation in sequence to the dataset's data.
@@ -359,10 +352,10 @@ class Dataset(ABC):
 
 
 # Global registry instance
-_dataset_registry: dict[str, Dataset] = {}
+_dataset_registry: dict[str, type[Dataset]] = {}
 
 
-def register_dataset(cls: Dataset) -> Dataset:
+def register_dataset(cls: type[Dataset]) -> type[Dataset]:
     """A decorator to register a dataset class.
 
     Parameters
