@@ -6,9 +6,26 @@ from typing import Any, Dict, Iterator
 import semver
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from esp_data.config import DatasetConfig
 from esp_data.io import GSPath
 from esp_data.transforms import RegisteredTransformConfigs, transform_from_config
+
+
+class DatasetConfig(BaseModel):
+    dataset_name: str
+    transformations: list[RegisteredTransformConfigs] | None = None
+    multi_label: bool | None = None
+    sample_rate: int | None = None
+    metrics: list[str] | None = None
+    audio_path_col: str | None = None
+    output_take_and_give: dict[str, str] | None = None
+    split: str = "train"
+
+    @field_validator("transformations", mode="before")
+    @classmethod
+    def convert_none(cls, v: Any) -> Any:  # noqa: ANN401
+        if v in ("None", "none"):
+            return None
+        return v
 
 
 class DatasetInfo(BaseModel):

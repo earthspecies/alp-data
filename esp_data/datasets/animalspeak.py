@@ -9,8 +9,7 @@ import librosa
 import numpy as np
 import pandas as pd
 
-from esp_data import Dataset, DatasetInfo, register_dataset
-from esp_data.config import DatasetConfig
+from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from esp_data.io import GSPath, read_audio
 
 

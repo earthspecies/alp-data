@@ -16,8 +16,7 @@ import numpy as np
 import pandas as pd
 import soundfile as sf
 
-from esp_data import Dataset, DatasetInfo, register_dataset
-from esp_data.config import DatasetConfig
+from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from esp_data.io import GSPath, anypath, read_audio
 
 
