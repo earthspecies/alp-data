@@ -44,9 +44,7 @@ class LabelFromFeature:
         # https://pandas.pydata.org/pandas-docs/stable/user_guide/copy_on_write.html#copy-on-write-chained-assignment
         df_clean = df.dropna(subset=[self.feature]).copy()
         if len(df_clean) != len(df):
-            logger.warning(
-                f"Dropped {len(df) - len(df_clean)} rows with {self.feature}=NaN"
-            )
+            logger.warning(f"Dropped {len(df) - len(df_clean)} rows with {self.feature}=NaN")
 
         if self.label_map is None:
             uniques = sorted(df_clean[self.feature].unique())
