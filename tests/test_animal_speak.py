@@ -2,8 +2,8 @@
 
 import pytest
 
-from esp_data.datasets import AnimalSpeak
-from esp_data import Dataset, DatasetConfig
+from esp_data_temp.config import DatasetConfig
+from esp_data_temp.datasets import AnimalSpeak, Dataset
 
 
 @pytest.fixture
@@ -15,7 +15,7 @@ def dataset() -> Dataset:
     Dataset
         An instance of the AnimalSpeak dataset.
     """
-    ds = AnimalSpeak(split="validation", data_root="gs://")
+    ds = AnimalSpeak(split="validation")
     return ds
 
 
@@ -45,7 +45,6 @@ def dataset_with_transforms() -> Dataset:
                 "values": ["xeno-canto", "iNaturalist"],
             },
         ],
-        data_root="gs://",
     )
     ds = AnimalSpeak(split="validation")
     ds.apply_transformations(dataset_config.transformations)
@@ -66,9 +65,7 @@ def dataset_with_output_mapping() -> Dataset:
         output_take_and_give={"canonical_name": "species", "country": "location"},
     )
     ds = AnimalSpeak(
-        split="validation",
-        output_take_and_give=dataset_config.output_take_and_give,
-        data_root="gs://"
+        split="validation", output_take_and_give=dataset_config.output_take_and_give
     )
     return ds
 
@@ -85,15 +82,15 @@ def test_data_property(dataset: Dataset) -> None:
     """Test if the data property returns correct dataframes."""
     # Data should be _loaded in __init__
     assert dataset._data is not None
-    assert "genus" in dataset._data
+    assert "audio_id" in dataset._data
     assert "country" in dataset._data
 
 
 def test_columns_property(dataset: Dataset) -> None:
     """Test if the columns property returns correct column names."""
     # Columns should match the dataframe columns
-    expected_columns = ["local_path", "country", "species_scientific"]
-    assert all(col in list(dataset.columns) for col in expected_columns)
+    expected_columns = ["audio_id", "country", "gs_path"]
+    assert all(col in dataset.columns for col in expected_columns)
 
 
 def test_available_splits(dataset: Dataset) -> None:
@@ -115,6 +112,7 @@ def test_getitem(dataset: Dataset) -> None:
     # Get first sample
     sample = dataset[0]
     assert isinstance(sample, dict)
+    assert "audio_id" in sample
     assert "country" in sample
     assert "audio" in sample
 
@@ -142,7 +140,7 @@ def test_load_from_config() -> None:
 
 def test_invalid_split() -> None:
     """Test if initializing with invalid split raises error."""
-    with pytest.raises(LookupError):
+    with pytest.raises(ValueError):
         AnimalSpeak(split="invalid_split")
 
 
