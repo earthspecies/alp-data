@@ -4,7 +4,7 @@ from functools import lru_cache
 from io import StringIO
 from pathlib import Path
 from types import TracebackType
-from typing import Any, Dict, Iterator, List, Optional, Self, Type
+from typing import Any, Dict, Iterator, List, Optional, Type
 
 import cloudpathlib
 import librosa
@@ -19,7 +19,7 @@ from .transforms import transform_from_config
 ANIMALSPEAK_PATH = "gs://animalspeak2/splits/v1/animalspeak_train_v1.3_cluster.csv"
 ANIMALSPEAK_PATH_EVAL = "gs://animalspeak2/splits/v1/animalspeak_eval_v1.3_cluster.csv"
 
-DATA_ROOT = "/home/milad_earthspecies_org/data-migration/marius-highmem/mnt/" "foundation-model-data/"
+DATA_ROOT = "/home/milad_earthspecies_org/data-migration/marius-highmem/mnt/foundation-model-data/"
 
 FM_DATASETS_PATH = DATA_ROOT + "audio/"
 
@@ -39,7 +39,7 @@ class GSPath(cloudpathlib.GSPath):
 
     def __init__(
         self,
-        client_path: str | Self | cloudpathlib.AnyPath,
+        client_path: str | cloudpathlib.AnyPath,
         client: Optional[cloudpathlib.GSClient] = None,
     ) -> None:
         if client is None:
@@ -79,7 +79,7 @@ class AudioDataset:
 
         self.postprocessors = postprocessors or []
 
-    def __enter__(self) -> Self:
+    def __enter__(self) -> "AudioDataset":
         return self
 
     def __exit__(
@@ -189,7 +189,7 @@ def _get_dataset_from_name(
         df["path"] = df["local_path"].apply(
             # lambda x: "gs://" + x
             lambda x: (
-                "/home/milad_earthspecies_org/data-migration/marius-highmem/mnt/" "foundation-model-data/audio_16k/" + x
+                "/home/milad_earthspecies_org/data-migration/marius-highmem/mnt/foundation-model-data/audio_16k/" + x
             )
         )  # AnimalSpeak missing gs path
 
