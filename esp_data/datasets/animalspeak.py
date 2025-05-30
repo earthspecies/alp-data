@@ -9,8 +9,8 @@ import librosa
 import numpy as np
 import pandas as pd
 
+from esp_data import Dataset, DatasetInfo, register_dataset
 from esp_data.config import DatasetConfig
-from esp_data.datasets import Dataset, DatasetInfo, register_dataset
 from esp_data.io import GSPath, read_audio
 
 
@@ -20,7 +20,7 @@ class AnimalSpeak(Dataset):
 
     Example:
     --------
-    >>> from esp_data_temp.datasets import AnimalSpeak
+    >>> from esp_data.datasets import AnimalSpeak
     >>> dataset = AnimalSpeak(
     ...     split="validation",
     ...     output_take_and_give={"species_common": "comm"}
