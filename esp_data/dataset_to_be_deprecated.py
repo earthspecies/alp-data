@@ -13,7 +13,7 @@ import pandas as pd
 import soundfile as sf
 from google.cloud.storage.client import Client
 
-from .config import DatasetConfig
+from . import DatasetConfig
 from .transforms import transform_from_config
 
 ANIMALSPEAK_PATH = "gs://animalspeak2/splits/v1/animalspeak_train_v1.3_cluster.csv"
