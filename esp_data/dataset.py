@@ -196,8 +196,9 @@ class Dataset(ABC):
 
         Parameters
         ----------
-        dataset_config : DatasetConfig
-            The configuration for the dataset.
+        output_take_and_give : dict[str, str], optional
+            A dictionary mapping output fields to their corresponding input fields.
+
         """
         self.output_take_and_give = output_take_and_give
 
@@ -258,7 +259,7 @@ class Dataset(ABC):
         Dataset
             The dataset instance.
         """
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def __len__(self) -> int:
@@ -360,12 +361,12 @@ def register_dataset(cls: type[Dataset]) -> type[Dataset]:
 
     Parameters
     ----------
-    cls : Type[RegisteredDataset]
+    cls : Type[Dataset]
         The dataset class to register
 
     Returns
     -------
-    Type[RegisteredDataset]
+    Type[Dataset]
         The registered dataset class
     """
     name = cls.info.name
@@ -397,8 +398,6 @@ def dataset_from_config(dataset_config: DatasetConfig) -> Dataset:
     ----------
     dataset_config : DatasetConfig
         The configuration for the dataset.
-    split : str
-        The split to load. Can be "train" or "validation".
 
     Returns
     -------
