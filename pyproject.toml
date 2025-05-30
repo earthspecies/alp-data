@@ -46,13 +46,12 @@ pythonpath = [
 ]
 
 [tool.ruff]
+# TODO (milad) We need to make this similar to the template
+# TODO (milad) remove excludes!
 line-length = 120
 indent-width = 4
 exclude = [
   "**/*.ipynb",
-  "esp_data/config",
-  "esp_data/dataset",
-  "esp_data/db",
   "tests",
   "scripts",
 ]
@@ -102,3 +101,6 @@ publish-url = "https://oauth2accesstoken@us-central1-python.pkg.dev/okapi-274503
 [tool.deptry]
 exclude = ["conftest.py", ".venv", "tests"]
 ignore = ["DEP003"]
+
+[tool.deptry.per_rule_ignores]
+DEP002 = ["resampy"]
