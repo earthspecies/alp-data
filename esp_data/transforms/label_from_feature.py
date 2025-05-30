@@ -18,31 +18,6 @@ class LabelFromFeatureConfig(BaseModel):
 
 
 class LabelFromFeature:
-    """Transform to create a label feature from an existing feature in a DataFrame.
-
-    This transform maps the values of a specified feature to integer labels.
-
-    Parameters
-    ----------
-    feature: str
-        The name of the feature in the DataFrame from which to create labels.
-    label_map: dict[str, int] | None
-        A mapping of feature values to integer labels. If None, the labels will be
-        created from the unique values in the feature.
-    output_feature: str
-        The name of the new feature to store the labels. Defaults to "label".
-    override: bool
-        If True, will override the output feature if it already exists in the DataFrame.
-        If False, will raise an AssertionError if the output feature already exists.
-
-    Examples
-    -------
-    >>> df = pd.DataFrame({"species": ["cat", "dog", "bird", "cat"]})
-    >>> transform = LabelFromFeature(feature="species", output_feature="label")
-    >>> transformed_df, metadata = transform(df)
-    >>> assert transformed_df["label"].tolist() == [1, 2, 0, 1]
-    """
-
     def __init__(
         self,
         *,
@@ -61,31 +36,17 @@ class LabelFromFeature:
         return cls(**cfg.model_dump(exclude=("type")))
 
     def __call__(self, df: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
-        """Apply the transformation to the DataFrame.
-
-        Parameters
-        ----------
-        df : pd.DataFrame
-            The DataFrame to transform.
-
-        Returns
-        -------
-        tuple[pd.DataFrame, dict]
-            A tuple containing the transformed DataFrame and metadata about the labels.
-
-        Raises
-        -------
-        AssertionError
-            If the output feature already exists in the DataFrame and override is False.
-        """
         if self.output_feature in df and not self.override:
-            raise AssertionError(
-                "Feature already exists in DataFrame. Set `override=True` to replace it."
-            )
+            raise AssertionError("TODO (milad)")
 
-        df_clean = df.dropna(subset=[self.feature])
+        # TODO (milad) the .copy() is probably making this slow but without it I get the
+        # warning below. Maybe find a better way?
+        # https://pandas.pydata.org/pandas-docs/stable/user_guide/copy_on_write.html#copy-on-write-chained-assignment
+        df_clean = df.dropna(subset=[self.feature]).copy()
         if len(df_clean) != len(df):
-            logger.warning(f"Dropped {len(df) - len(df_clean)} rows with {self.feature}=NaN")
+            logger.warning(
+                f"Dropped {len(df) - len(df_clean)} rows with {self.feature}=NaN"
+            )
 
         if self.label_map is None:
             uniques = sorted(df_clean[self.feature].unique())
@@ -93,7 +54,7 @@ class LabelFromFeature:
         else:
             label_map = self.label_map
 
-        df_clean.loc[:, [self.output_feature]] = df_clean[self.feature].map(label_map)
+        df_clean[self.output_feature] = df_clean[self.feature].map(label_map)
 
         metadata = {
             "label_feature": self.feature,
