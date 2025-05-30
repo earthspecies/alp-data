@@ -54,7 +54,7 @@ def register_transform(config_class: type[BaseModel], transform_class: type) -> 
 
     if "type" not in config_class.model_fields:
         raise ValueError(
-            f"Transform configuration class '{config_class.__name__}'"
+            f"Transform configuration class '{config_class.__name__}' "
             "does not have a 'type' field."
         )
 
@@ -64,7 +64,7 @@ def register_transform(config_class: type[BaseModel], transform_class: type) -> 
 
         if v in _TRANSFORM_CONFIG_REGISTRY:
             raise ValueError(
-                f"Transform type '{v}' is already registered."
+                f"Transform type '{v}' is already registered. "
                 "Please use a unique type name."
             )
 

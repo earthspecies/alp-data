@@ -54,24 +54,6 @@ class MultiLabelFromFeatures:
     __call__(df: pd.DataFrame) -> tuple[pd.DataFrame, dict]
         Applies the transform to the DataFrame, returning the modified DataFrame and
         metadata about the label mapping.
-
-    Example
-    -------
-    >>> import pandas as pd
-    >>> from esp_data.transforms import MultiLabelFromFeatures
-    >>> config = MultiLabelFromFeaturesConfig(
-    ...     type="labels_from_features",
-    ...     features=["tags", "categories"],
-    ...     label_map=None,
-    ...     output_feature="labels",
-    ...     override=False
-    ... )
-    >>> df = pd.DataFrame({
-    ...     "tags": [["cat", "dog"], ["bird"], ["cat"]],
-    ...     "categories": [["mammal"], ["avian"], []]
-    ... })
-    >>> transform = MultiLabelFromFeatures.from_config(config)
-    >>> transformed_df, metadata = transform(df)
     """
 
     def __init__(

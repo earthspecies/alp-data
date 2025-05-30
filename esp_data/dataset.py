@@ -1,462 +1,326 @@
-from abc import ABC, abstractmethod
-from collections.abc import Sequence
-from typing import Any, Dict, Iterator, Optional
+import pathlib
+from collections.abc import Callable
+from functools import lru_cache
+from io import StringIO
+from pathlib import Path
+from types import TracebackType
+from typing import Any, Dict, Iterator, List, Optional, Self, Type
 
-import semver
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+import cloudpathlib
+import librosa
+import numpy as np
+import pandas as pd
+import soundfile as sf
+from google.cloud.storage.client import Client
 
-from esp_data.io import anypath
-from esp_data.transforms import RegisteredTransformConfigs, transform_from_config
+from .config import DatasetConfig
+from .transforms import transform_from_config
+
+ANIMALSPEAK_PATH = "gs://animalspeak2/splits/v1/animalspeak_train_v1.3_cluster.csv"
+ANIMALSPEAK_PATH_EVAL = "gs://animalspeak2/splits/v1/animalspeak_eval_v1.3_cluster.csv"
+
+DATA_ROOT = (
+    "/home/milad_earthspecies_org/data-migration/marius-highmem/mnt/"
+    "foundation-model-data/"
+)
+
+FM_DATASETS_PATH = DATA_ROOT + "audio/"
+
+ESC50_PATH = "gs://esc50_dataset"
 
 
-class DatasetConfig(BaseModel):
-    """A Pydantic base model for the configuration of a dataset.
+@lru_cache(maxsize=1)
+def _get_client() -> cloudpathlib.GSClient:
+    return cloudpathlib.GSClient(storage_client=Client(), file_cache_mode="close_file")
+
+
+class GSPath(cloudpathlib.GSPath):
+    """
+    A wrapper for the cloudpathlib GSPath that provides a default client.
+    This avoids issues when the GOOGLE_APPLICATION_CREDENTIALS variable is not set.
+    """
+
+    def __init__(
+        self,
+        client_path: str | Self | cloudpathlib.AnyPath,
+        client: Optional[cloudpathlib.GSClient] = None,
+    ) -> None:
+        if client is None:
+            client = _get_client()
+        super().__init__(client_path, client=client)
+
+
+class AudioDataset:
+    """
+    Reads metadata from a CSV, loads audio, and yields a sample dict.
+
+    Expected columns in the CSV:
+    * 'filepath'  : str - path to the audio file on disk or a gs:// path.
+    * <label_col> : str - value used for the target (e.g. species name).
+    """
+
+    def __init__(
+        self,
+        df: pd.DataFrame,
+        data_config: DatasetConfig,
+        transform: Optional[Callable[[np.ndarray], np.ndarray]] = None,
+        preprocessor: Optional[Callable[[np.ndarray, int], np.ndarray]] = None,
+        metadata: dict | None = None,
+        postprocessors: Optional[
+            List[Callable[[Dict[str, Any]], Dict[str, Any]]]
+        ] = None,
+    ) -> None:
+        super().__init__()
+
+        # TODO (milad) transform arg here?
+
+        self.df = df.reset_index(drop=True)
+        self.data_config = data_config
+        self.preprocessor = preprocessor
+
+        self.audio_path_col = data_config.audio_path_col
+
+        self.metadata = metadata
+
+        self.postprocessors = postprocessors or []
+
+    def __enter__(self) -> Self:
+        return self
+
+    def __exit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
+    ) -> Optional[bool]:
+        # TODO
+        pass
+
+    def __len__(self) -> int:
+        return len(self.df)
+
+    def __iter__(self) -> Iterator:
+        # TODO (milad) do this properly
+        for i in range(len(self)):
+            yield self[i]
+
+    def __repr__(self) -> str:
+        # TODO
+        return "TODO"
+
+    def __getitem__(self, idx: int) -> dict[str, Any]:
+        row = self.df.iloc[idx]
+        path_str: str = row[self.audio_path_col]
+
+        # Use GSPath for gs:// paths if available, otherwise use the local Path.
+        if isinstance(path_str, cloudpathlib.GSPath) or isinstance(
+            path_str, pathlib.Path
+        ):
+            audio_path = path_str
+        elif str(path_str).startswith("gs://"):
+            if GSPath is None:
+                raise ImportError("cloudpathlib is required to handle gs:// paths.")
+            audio_path = GSPath(path_str)
+        else:
+            audio_path = Path(path_str)
+
+        # Open the audio file. Using the .open('rb') method works for both local and
+        # GSPath objects.
+        with audio_path.open("rb") as f:
+            audio, sr = sf.read(f)
+        if audio.ndim == 2:  # stereo → mono
+            audio = audio.mean(axis=1)
+
+        target_sr = self.data_config.sample_rate
+        if target_sr is not None and sr != target_sr:
+            audio = librosa.resample(
+                y=audio,
+                orig_sr=sr,
+                target_sr=target_sr,
+                scale=True,
+                res_type="kaiser_best",
+            )
+            sr = target_sr
+
+        item = {
+            "raw_wav": audio.astype(np.float32),
+            "text_label": row["label_feature"]
+            if "label_feature" in row
+            else row["label"],
+            "label": row.label,
+            "path": str(audio_path),
+        }
+
+        for proc in self.postprocessors:
+            item = proc(item)
+
+        return item
+
+
+def _get_dataset_from_name(
+    name: str,
+    split: str = "train",
+) -> pd.DataFrame:
+    name = name.lower().strip()
+
+    if name == "animalspeak":
+        if split == "test":
+            # TODO (milad) this is not okay. We should panic here
+            return None
+
+        anaimspeak_path = (
+            ANIMALSPEAK_PATH_EVAL if split == "valid" else ANIMALSPEAK_PATH
+        )
+
+        # TODO (milad) why wouldn't it this with gs://?
+        if ANIMALSPEAK_PATH.startswith("gs://"):
+            csv_path = GSPath(anaimspeak_path)
+        else:
+            csv_path = Path(anaimspeak_path)
+
+        csv_text = csv_path.read_text(encoding="utf-8")
+        df = pd.read_csv(StringIO(csv_text))
+
+        # AnimalSpeak has some columns that are list[str] but they're stored as
+        # comma-separated strings. We convert them to actual lists here:
+        def _to_list(v: str | float) -> list[str]:
+            if pd.isna(v):
+                return []
+            elif isinstance(v, str):
+                return [item.strip() for item in v.split(",")]
+            else:
+                raise ValueError(
+                    f"Expected a string or NaN, but got {v} of type {type(v)}"
+                )
+
+        # TODO: Maybe we want to normalise the values even more? for instance apply
+        # .lower()?
+        df.background_species_sci = df.background_species_sci.apply(_to_list)
+        df.background_species_common = df.background_species_common.apply(_to_list)
+
+        # TODO (milad) what's the point of this column?
+        df["path"] = df["local_path"].apply(
+            # lambda x: "gs://" + x
+            lambda x: (
+                "/home/milad_earthspecies_org/data-migration/marius-highmem/mnt/"
+                "foundation-model-data/audio_16k/" + x
+            )
+        )  # AnimalSpeak missing gs path
+
+        return df
+
+    elif name in ["egyptian_fruit_bats", "dogs", "humbugdb", "cbi", "watkins"]:
+        if FM_DATASETS_PATH.startswith("gs://"):
+            dataset_path = GSPath(FM_DATASETS_PATH)
+        else:
+            dataset_path = Path(FM_DATASETS_PATH)
+
+        if name == "humbugdb":
+            csv_file = (
+                dataset_path / "HumBugDB" / "data" / "metadata" / "{}.csv".format(split)
+            )
+            audio_path = dataset_path / "HumBugDB" / "data" / "audio"
+        elif name == "cbi" or name == "dogs":
+            csv_file = dataset_path / name / "annotations.{}.csv".format(split)
+            audio_path = dataset_path / name / "wav"
+        else:
+            csv_file = dataset_path / name / "annotations.{}.csv".format(split)
+            audio_path = dataset_path / name / "audio"
+
+        # Read CSV content
+        csv_text = csv_file.read_text(encoding="utf-8")
+        df = pd.read_csv(StringIO(csv_text))
+        if name == "watkins":
+            df["path"] = df["path"].apply(
+                lambda x: dataset_path / name / x.split(name)[1].lstrip("/")
+            )  # Maintain base path and append wav directory
+        else:
+            df["path"] = df["path"].apply(
+                lambda x: audio_path / x.split("/")[-1]
+            )  # Extract just the filename and append to audio_path
+        return df
+    elif name == "esc-50":
+        if ESC50_PATH.startswith("gs://"):
+            dataset_path = GSPath(ESC50_PATH)
+        else:
+            dataset_path = Path(ESC50_PATH)
+
+        df = pd.read_csv(dataset_path / "meta" / "esc50.csv")
+
+        def convert(row: pd.Series) -> pd.Series:
+            new_row = pd.Series(
+                {
+                    "path": dataset_path / row["filename"],
+                    "category": row["category"],
+                    "target": row["target"],
+                    "fold": row["fold"],
+                }
+            )
+            return new_row
+
+        df = df.apply(convert, axis=1)
+
+        # add path column
+        if split == "test":
+            df = df[df["fold"] == 5]
+        elif split == "valid":
+            df = df[df["fold"] == 4]
+        else:
+            df = df[df["fold"] <= 3]
+        return df
+    else:
+        raise NotImplementedError("Dataset not supported")
+
+
+def get_dataset_dummy(
+    data_config: DatasetConfig,
+    split: str,
+    preprocessor: Optional[Callable] = None,
+    postprocessors: Optional[List[Callable[[Dict[str, Any]], Dict[str, Any]]]] = None,
+) -> AudioDataset:
+    """
+    Dataset entry point that supports both local and GS paths, with transformations.
+
+    1. Loads datasets
+    2. Applies any filtering / subsampling specified in `data_config.transformations`.
+    3. Returns an `AudioDataset` instance.
 
     Parameters
     ----------
-    dataset_name : str
-        Name of the dataset, must match a registered dataset class
-    transformations : list[RegisteredTransformConfigs] | None
-        List of transformations to apply to the dataset.
-        If None, no transformations are applied.
-    multi_label : bool | None
-        Whether the dataset is multi-label. If None, the default is False.
-    sample_rate : int | None
-        Target sample rate for the audio data. If None, the default is 16000.
-    metrics : list[str] | None
-        List of metrics to compute for the dataset. If None, no metrics are computed.
-    output_take_and_give : dict[str, str] | None
-        A dictionary mapping output fields to their corresponding input fields.
-        If None, no output mapping is applied. For example, if the dataset has a field
-        "species_scientific" and you want to map it to "species", you can set
-        output_take_and_give={"species_scientific": "species"}.
-    split : str
-        The split of the dataset to load. Defaults to "train".
-    data_root : Optional[str]
-        The root directory for the dataset. This is optionally appended to the
-        path item of a sample in the dataset.
-        If None, the default is the parent directory of the split path.
+    data_config : DataConfig
+        Configuration for the dataset
+    preprocessor : Optional[Callable]
+        Optional preprocessor function
+    split : bool
+        Whether to split the dataset
 
-    Example
+    Returns
     -------
-    >>> dataset_config = DatasetConfig(
-    ...    dataset_name="barkley_canyon",
-    ...    transformations=[
-    ...        {
-    ...            "type": "label_from_feature",
-    ...            "feature": "species_scientific",
-    ...            "output_feature": "label",
-    ...        }
-    ...    ])
-
+    AudioDataset
+        An instance of the dataset with the specified transformations applied.
     """
 
-    dataset_name: str
-    transformations: list[RegisteredTransformConfigs] | None = None
-    multi_label: bool | None = None
-    sample_rate: int | None = None
-    output_take_and_give: dict[str, str] | None = None
-    split: str = "train"
-    data_root: Optional[str] = None
+    # Check if the dataset CSV path is a gs:// path
+    df = _get_dataset_from_name(data_config.dataset_name, split)
 
-    @field_validator("transformations", mode="before")
-    @classmethod
-    def convert_none(cls, v: Any) -> Any:  # noqa: ANN401
-        if v in ("None", "none"):
-            return None
-        return v
+    metadata = {}
 
-
-class DatasetInfo(BaseModel):
-    """A Pydantic base model for the info (cfg) of a dataset.
-
-    Arguments
-    ---------
-    name : str
-        Name of the dataset
-    owner : str | list[str]
-        ESP team owner(s) of the dataset
-    split_paths : dict[str, str]
-        Paths to the dataset splits. The keys are the split names
-        and the values are the paths to the splits. The paths can be
-    version : str
-        Version of the dataset, root dataset is 0.0
-    description : str
-        Description of the dataset, could act as a README, preferably in markdown format
-    sources : list[str] | str
-        Source(s) of the dataset e.g. 'Xeno-canto' or a url to website(s),
-        or multiple sources in a comma-separated list
-    license : Optional[str]
-        License for the dataset, if applicable
-    changelog : Optional[str]
-        Changelog from previous version
-    **kwargs : Any (optional)
-        Not validated, but can be used to pass additional information
-
-    Examples
-    --------
-    >>> info = DatasetInfo(
-    ...     name="animalspeak",
-    ...     owner="marius; masato",
-    ...     split_paths={
-    ...         "train": "gs://animalspeak2/splits/v1/animalspeak_train_v1.3.csv",
-    ...         "validation": "gs://animalspeak2/splits/v1/animalspeak_eval_v1.3.csv",
-    ...     },
-    ...     version="0.1.0",
-    ...     description="AnimalSpeak dataset",
-    ...     sources=["Xeno-canto", "iNaturalist", "Watkins"],
-    ...     license="unknown",
-    ...     changelog="Initial version",
-    ... )
-    """
-
-    model_config = ConfigDict(
-        arbitrary_types_allowed=True,
-        validate_assignment=True,
-        str_strip_whitespace=True,
-        extra="allow",
-    )
-
-    # required params
-    name: str = Field(min_length=1, description="Name of the dataset")
-
-    owner: str = Field(min_length=1, description="ESP team owner(s) of the dataset")
-
-    split_paths: dict = Field(
-        description="""Paths to the dataset splits. The keys are the split names
-        and the values are the paths to the splits""",
-    )
-
-    version: str = Field(min_length=5, description="Version of the dataset")
-
-    description: str = Field(
-        min_length=1,
-        description="""Description of the dataset, could act as a README,
-        preferably in markdown format, and include changelog to previous version""",
-    )
-
-    sources: list[str] | str = Field(
-        min_length=1,
-        description="""Source(s) of the dataset e.g. 'Xeno-canto' or a url to
-        website(s) or multiple sources in a comma-separated list""",
-    )
-
-    license: str = Field(
-        default_factory=lambda: "unknown",
-        description="License for the dataset, if applicable",
-    )
-
-    changelog: str = Field(
-        default_factory=lambda: "", description="Changelog from previous version"
-    )
-
-    @field_validator("split_paths", mode="after")
-    @classmethod
-    def validate_split_exists(cls, v: dict) -> str:
-        """Validate that the split path exists in cloud storage or locally
-
-        Arguments
-        ---------
-        v : dict[str, str]
-            The locations to validate
-
-        Returns
-        -------
-        dict[str, str]
-            The validated locations
-
-        Raises
-        ------
-        ValueError
-            If the location does not exist in cloud storage or locally
-        ValueError
-            If the location is a directory and is empty
-        """
-        if not v:
-            raise ValueError("Split paths cannot be empty.")
-        for _, value in v.items():
-            path = anypath(value)
-            if not path.exists():
-                raise ValueError(f"Local path {value} does not exist.")
-
-            # if location is directory, check that it is not empty
-            if path.is_dir() and not any(path.iterdir()):
-                raise ValueError(f"Directory {value} is empty.")
-
-        return v
-
-    @field_validator("version")
-    @classmethod
-    def validate_semver(cls, v: str) -> str:
-        """Validates that the version follows semantic versioning (MAJOR.MINOR.PATCH)
-        using the semver package.
-
-        Arguments
-        ---------
-        v : str
-            The version string to validate
-
-        Returns
-        -------
-        str
-            The validated version string
-
-        Raises
-        ------
-        ValueError
-            If the version does not follow semantic versioning
-        """
-        try:
-            semver.VersionInfo.parse(v)
-        except ValueError as e:
-            raise ValueError(f"""Version '{v}' does not follow semantic versioning
-                            (MAJOR.MINOR.PATCH).
-                    Error: {str(e)}. See https://semver.org/ for details.""") from e
-        return v
-
-
-class Dataset(ABC):
-    """Abstract base class defining the interface for ESP datasets.
-    Any new dataset should inherit from this class to be added to the registry
-    of available ESP datasets.
-
-    Attributes
-    ----------
-    info : DatasetInfo
-        Required attribute containing metadata about the dataset.
-        Must be defined by all implementing classes.
-
-    Methods
-    -------
-    _load() -> pd.DataFrame
-        Required method to load a specific split of the dataset.
-    __len__() -> int
-        Required method to return the number of samples in the dataset.
-    __iter__() -> Iterator[Dict[str, Any]]
-        Required method to iterate over the samples in the dataset.
-    __getitem__(idx: int) -> Dict[str, Any]
-        Required method to get a specific sample from the dataset.
-    """
-
-    info: DatasetInfo
-
-    def __init__(self, output_take_and_give: dict[str, str] = None) -> None:
-        """A DatasetConfig can be passed to the constructor to, for instance,
-        apply transformations to the dataset during instantiation or modify its
-        fields of output.
-
-        Arguments
-        ----------
-        output_take_and_give : dict[str, str], optional
-            A dictionary mapping output fields to their corresponding input fields.
-
-        """
-        self.output_take_and_give = output_take_and_give
-
-    @property
-    def available_splits(self) -> Sequence[str]:
-        """Get the available splits of the dataset.
-
-        Returns
-        -------
-        Sequence[str]
-            A sequence of split names available in the dataset.
-        """
-        raise NotImplementedError
-
-    @property
-    def columns(self) -> Sequence[str]:
-        """Get the columns of the dataset.
-
-        Returns
-        -------
-        Sequence[str]
-            A sequence of column names in the dataset.
-        """
-        raise NotImplementedError
-
-    @abstractmethod
-    def _load(self) -> Optional[Sequence[Any]]:
-        """Load one split of the dataset.s
-
-        Returns
-        -------
-        Sequence[Any]
-            The requested split of the dataset.
-        """
-        raise NotImplementedError
-
-    @classmethod
-    @abstractmethod
-    def from_config(
-        cls,
-        dataset_config: DatasetConfig,
-    ) -> "Dataset":
-        """Create a dataset instance from a configuration.
-
-        Arguments
-        ----------
-        dataset_config : DatasetInfo
-            The configuration for the dataset.
-
-        Returns
-        -------
-        Dataset
-            The dataset instance.
-        """
-        raise NotImplementedError
-
-    @abstractmethod
-    def __len__(self) -> int:
-        """Return the total number of samples in the dataset.
-
-        Returns
-        -------
-        int
-            Number of samples in the dataset
-        """
-        raise NotImplementedError
-
-    @abstractmethod
-    def __iter__(self) -> Iterator[Dict[str, Any]]:
-        """Get the iterator over the dataset.
-
-        Returns
-        -------
-        Iterator[Dict[str, Any]]
-            Iterator over samples in the dataset
-        """
-        raise NotImplementedError
-
-    @abstractmethod
-    def __getitem__(self, idx: int) -> Dict[str, Any]:
-        """Get a specific sample from the dataset.
-
-        Arguments
-        ----------
-        idx : int
-            Index of the sample to get
-
-        Returns
-        -------
-        Dict[str, Any]
-            Dictionary containing the sample data
-
-        Raises
-        ------
-        IndexError
-            If the index is out of bounds
-        """
-        raise NotImplementedError
-
-    @abstractmethod
-    def __str__(self) -> str:
-        """Return a string representation of the dataset.
-
-        This method should provide a human-readable description of the dataset,
-        typically including its name, version, and basic statistics.
-
-        Returns
-        -------
-        str
-            A string representation of the dataset
-        """
-        raise NotImplementedError
-
-    def apply_transformations(
-        self, transformations: list[RegisteredTransformConfigs]
-    ) -> list[Any]:
-        """Apply the given list of transformations to the dataset.
-
-        This method applies each transformation in sequence to the dataset's data.
-        The transformations are applied in-place, modifying the dataset's data.
-
-        Arguments
-        ----------
-        transformations : list[RegisteredTransformConfigs]
-            List of transformation configurations to apply to the dataset.
-
-        Returns
-        -------
-        list[Any]
-            The metadata as a list of objects.
-
-        Raises
-        -------
-        RuntimeError
-            If the dataset's data is not loaded yet.
-        """
-        if self._data is None:
-            raise RuntimeError("No data loaded. Call load() first.")
-
-        metadata_list = []
-        for cfg in transformations:
+    if data_config.transformations:
+        for cfg in data_config.transformations:
             transform = transform_from_config(cfg)
-            self._data, metadata = transform(self._data)
-            metadata_list.append(metadata)
+            df, md = transform(df)
 
-            # TODO (milad): what about metadata?
-        return metadata_list
+            # TODO (milad): hacky but let's think about it
+            # TODO (test if keys already exist and shout?)
+            if md:
+                metadata.update(md)
 
+    # TODO (milad) transform API should be AudioDataset -> AudioDataset not df->df
 
-# Global registry instance
-_dataset_registry: dict[str, type[Dataset]] = {}
-
-
-def register_dataset(cls: type[Dataset]) -> type[Dataset]:
-    """A decorator to register a dataset class.
-
-    Arguments
-    ----------
-    cls : Type[Dataset]
-        The dataset class to register
-
-    Returns
-    -------
-    Type[Dataset]
-        The registered dataset class
-    """
-    name = cls.info.name
-    _dataset_registry[name] = cls
-    return cls
-
-
-def list_registered_datasets() -> list[str]:
-    """List all registered datasets.
-
-    Returns
-    -------
-    list[str]
-        List of dataset names
-    """
-    return list(_dataset_registry.keys())
-
-
-def print_registered_datasets() -> None:
-    """Print all registered datasets."""
-    for dataset_class in _dataset_registry.values():
-        print(dataset_class.info.model_dump_json(indent=2))
-
-
-def dataset_from_config(dataset_config: DatasetConfig) -> Dataset:
-    """Load a dataset from a configuration.
-
-    Arguments
-    ----------
-    dataset_config : DatasetConfig
-        The configuration for the dataset.
-
-    Returns
-    -------
-    Dataset
-        The requested dataset instance
-
-    Raises
-    ------
-    ValueError
-        If the dataset is not registered
-    """
-    _dataset_class = _dataset_registry.get(dataset_config.dataset_name)
-    if _dataset_class is None:
-        raise ValueError(f"Dataset '{dataset_config.dataset_name}' is not registered.")
-    return _dataset_class.from_config(dataset_config)
+    return AudioDataset(
+        df=df,
+        data_config=data_config,
+        preprocessor=preprocessor,
+        metadata=metadata,
+        postprocessors=postprocessors,
+    )
