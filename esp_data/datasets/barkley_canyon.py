@@ -16,8 +16,8 @@ import numpy as np
 import pandas as pd
 import soundfile as sf
 
+from esp_data import Dataset, DatasetInfo, register_dataset
 from esp_data.config import DatasetConfig
-from esp_data.datasets import Dataset, DatasetInfo, register_dataset
 from esp_data.io import GSPath, anypath, read_audio
 
 
@@ -27,7 +27,7 @@ class BarkleyCanyon(Dataset):
 
     Example:
     --------
-    >>> from esp_data_temp.datasets import BarkleyCanyon
+    >>> from esp_data.datasets import BarkleyCanyon
     >>> dataset = BarkleyCanyon(split="train")
     >>> print(dataset.info.name)
     barkley_canyon

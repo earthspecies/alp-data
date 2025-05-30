@@ -2,8 +2,9 @@
 
 import pytest
 
-from esp_data_temp.config import DatasetConfig
-from esp_data_temp.datasets import AnimalSpeak, Dataset
+from esp_data.config import DatasetConfig
+from esp_data.datasets import AnimalSpeak
+from esp_data import Dataset
 
 
 @pytest.fixture
