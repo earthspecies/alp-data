@@ -19,10 +19,7 @@ from .transforms import transform_from_config
 ANIMALSPEAK_PATH = "gs://animalspeak2/splits/v1/animalspeak_train_v1.3_cluster.csv"
 ANIMALSPEAK_PATH_EVAL = "gs://animalspeak2/splits/v1/animalspeak_eval_v1.3_cluster.csv"
 
-DATA_ROOT = (
-    "/home/milad_earthspecies_org/data-migration/marius-highmem/mnt/"
-    "foundation-model-data/"
-)
+DATA_ROOT = "/home/milad_earthspecies_org/data-migration/marius-highmem/mnt/" "foundation-model-data/"
 
 FM_DATASETS_PATH = DATA_ROOT + "audio/"
 
@@ -66,9 +63,7 @@ class AudioDataset:
         transform: Optional[Callable[[np.ndarray], np.ndarray]] = None,
         preprocessor: Optional[Callable[[np.ndarray, int], np.ndarray]] = None,
         metadata: dict | None = None,
-        postprocessors: Optional[
-            List[Callable[[Dict[str, Any]], Dict[str, Any]]]
-        ] = None,
+        postprocessors: Optional[List[Callable[[Dict[str, Any]], Dict[str, Any]]]] = None,
     ) -> None:
         super().__init__()
 
@@ -113,9 +108,7 @@ class AudioDataset:
         path_str: str = row[self.audio_path_col]
 
         # Use GSPath for gs:// paths if available, otherwise use the local Path.
-        if isinstance(path_str, cloudpathlib.GSPath) or isinstance(
-            path_str, pathlib.Path
-        ):
+        if isinstance(path_str, cloudpathlib.GSPath) or isinstance(path_str, pathlib.Path):
             audio_path = path_str
         elif str(path_str).startswith("gs://"):
             if GSPath is None:
@@ -144,9 +137,7 @@ class AudioDataset:
 
         item = {
             "raw_wav": audio.astype(np.float32),
-            "text_label": row["label_feature"]
-            if "label_feature" in row
-            else row["label"],
+            "text_label": row["label_feature"] if "label_feature" in row else row["label"],
             "label": row.label,
             "path": str(audio_path),
         }
@@ -168,9 +159,7 @@ def _get_dataset_from_name(
             # TODO (milad) this is not okay. We should panic here
             return None
 
-        anaimspeak_path = (
-            ANIMALSPEAK_PATH_EVAL if split == "valid" else ANIMALSPEAK_PATH
-        )
+        anaimspeak_path = ANIMALSPEAK_PATH_EVAL if split == "valid" else ANIMALSPEAK_PATH
 
         # TODO (milad) why wouldn't it this with gs://?
         if ANIMALSPEAK_PATH.startswith("gs://"):
@@ -189,9 +178,7 @@ def _get_dataset_from_name(
             elif isinstance(v, str):
                 return [item.strip() for item in v.split(",")]
             else:
-                raise ValueError(
-                    f"Expected a string or NaN, but got {v} of type {type(v)}"
-                )
+                raise ValueError(f"Expected a string or NaN, but got {v} of type {type(v)}")
 
         # TODO: Maybe we want to normalise the values even more? for instance apply
         # .lower()?
@@ -202,8 +189,7 @@ def _get_dataset_from_name(
         df["path"] = df["local_path"].apply(
             # lambda x: "gs://" + x
             lambda x: (
-                "/home/milad_earthspecies_org/data-migration/marius-highmem/mnt/"
-                "foundation-model-data/audio_16k/" + x
+                "/home/milad_earthspecies_org/data-migration/marius-highmem/mnt/" "foundation-model-data/audio_16k/" + x
             )
         )  # AnimalSpeak missing gs path
 
@@ -216,9 +202,7 @@ def _get_dataset_from_name(
             dataset_path = Path(FM_DATASETS_PATH)
 
         if name == "humbugdb":
-            csv_file = (
-                dataset_path / "HumBugDB" / "data" / "metadata" / "{}.csv".format(split)
-            )
+            csv_file = dataset_path / "HumBugDB" / "data" / "metadata" / "{}.csv".format(split)
             audio_path = dataset_path / "HumBugDB" / "data" / "audio"
         elif name == "cbi" or name == "dogs":
             csv_file = dataset_path / name / "annotations.{}.csv".format(split)
