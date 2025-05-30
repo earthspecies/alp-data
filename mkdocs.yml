@@ -44,10 +44,10 @@ theme:
       accent: pink
 
 plugins:
-- mkdocstrings:
-    default_handler: python
-    handlers:
-      python:
+  - mkdocstrings:
+      default_handler: python
+      handlers:
+        python:
           options:
             docstring_style: numpy
             show_category_heading: true
