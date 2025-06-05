@@ -36,8 +36,8 @@ class Subsample:
     keep for each property value. The "other" category can be used to specify a ratio
     for all other values not explicitly listed in the ratios dictionary.
 
-    Arguments
-    ---------
+    Parameters
+    ----------
     property: str
         The name of the property (column) to subsample by.
 

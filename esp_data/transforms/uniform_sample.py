@@ -37,8 +37,8 @@ class UniformSample:
     ratio. It is SUPPOSED 🚨 to ensure that the resulting DataFrame has a
     uniform distribution of the specified property across the samples.
 
-    Arguments
-    ---------
+    Parameters
+    ----------
     property: str
         The name of the property (column) to sample by.
     ratio: float

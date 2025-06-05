@@ -22,8 +22,8 @@ class LabelFromFeature:
 
     This transform maps the values of a specified feature to integer labels.
 
-    Arguments
-    ---------
+    Parameters
+    ----------
     feature: str
         The name of the feature in the DataFrame from which to create labels.
     label_map: dict[str, int] | None

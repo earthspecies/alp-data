@@ -33,7 +33,7 @@ class MultiLabelFromFeatures:
     If element values are themselves lists, the transform will explode them first before
     constructing the mapping dictionary and converting the values.
 
-    Arguments
+    Parameters
     ----------
     features : list[str]
         The names of the columns in the DataFrame to use as sources for the labels. Each

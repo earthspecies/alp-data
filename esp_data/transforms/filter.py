@@ -23,8 +23,8 @@ class Filter:
     It can either include or exclude rows based on the specified values. The property
     is a column in the DataFrame, and the values are the values to filter by.
 
-    Arguments
-    ---------
+    Parameters
+    ----------
     property: str
         The name of the property (column) to filter by.
     values: list[str]
