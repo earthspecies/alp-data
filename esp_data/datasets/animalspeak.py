@@ -207,7 +207,7 @@ class AnimalSpeak(Dataset):
             )
 
         # AnimalSpeak likes to call this 'raw_wav'
-        row["raw_wav"] = audio
+        row["audio"] = audio
 
         if self.output_take_and_give:
             item = {}
