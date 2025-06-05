@@ -4,7 +4,8 @@ on:
   push:
     branches: ["main", "dev"]
   pull_request:
-    branches: ["main", "dev"]
+    # Uncomment next line to trigger CI on pull requests to *only* the main and dev branches.
+    # branches: ["main", "dev"]
 
 jobs:
   test:
