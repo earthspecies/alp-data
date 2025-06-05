@@ -36,7 +36,7 @@ class InsectSet459(Dataset):
     >>> from esp_data.datasets import InsectSet459
     >>> dataset = InsectSet459(
     ...     split="validation",
-    ...     output_take_and_give={"species_scientific": "species"}
+    ...     output_take_and_give={"species_scientific": "species"},
     ...     sample_rate=16000,
     ...     data_root="gs://esp-ml-datasets/insectset_459/v0.1.0/raw/"
     ... )

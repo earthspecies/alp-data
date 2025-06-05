@@ -60,6 +60,7 @@ class MultiLabelFromFeatures:
     >>> import pandas as pd
     >>> from esp_data.transforms import MultiLabelFromFeatures
     >>> config = MultiLabelFromFeaturesConfig(
+    ...     type="labels_from_features",
     ...     features=["tags", "categories"],
     ...     label_map=None,
     ...     output_feature="labels",

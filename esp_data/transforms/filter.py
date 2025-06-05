@@ -42,10 +42,7 @@ class Filter:
     >>> df = pd.DataFrame({"species": ["bee", "ant", "butterfly", "spider"],
     ...     "count": [10, 5, 8, 2]})
     >>> filtered_df, _ = filter_transform(df)
-    >>> print(filtered_df)
-       species  count
-    0      bee     10
-    2  butterfly      8
+    >>> assert filtered_df["species"].tolist() == ["bee", "butterfly"]
     """
 
     def __init__(

@@ -40,11 +40,7 @@ class LabelFromFeature:
     >>> df = pd.DataFrame({"species": ["cat", "dog", "bird", "cat"]})
     >>> transform = LabelFromFeature(feature="species", output_feature="label")
     >>> transformed_df, metadata = transform(df)
-    >>> print(transformed_df)
-        species  label
-    0      cat      0
-    1      dog      1
-    2     bird      2
+    >>> assert transformed_df["label"].tolist() == [1, 2, 0, 1]
     """
 
     def __init__(

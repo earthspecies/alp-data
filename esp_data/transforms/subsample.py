@@ -57,8 +57,7 @@ class Subsample:
     ...         "bee": 0.5,
     ...         "butterfly": 0.3,
     ...         "other": 0.1
-    ...     }
-    >>> )
+    ...     })
     >>> subsample_transform = Subsample.from_config(config)
     >>> df = pd.DataFrame({
     ...     "species": ["bee", "bee", "butterfly", "ant", "butterfly", "spider"],

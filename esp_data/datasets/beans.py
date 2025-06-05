@@ -35,7 +35,7 @@ class Beans(Dataset):
     >>> from esp_data.datasets import Beans
     >>> dataset = Beans(
     ...     split="validation",
-    ...     output_take_and_give={"species_scientific": "species"}
+    ...     output_take_and_give={"species_scientific": "species"},
     ...     sample_rate=16000,
     ...     data_root="gs://esp-ml-datasets/beans/v0.1.0/raw/"
     ... )
