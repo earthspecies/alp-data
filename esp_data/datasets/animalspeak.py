@@ -15,26 +15,20 @@ from esp_data.io import anypath, AnyPathT, read_audio, audio_stereo_to_mono
 class AnimalSpeak(Dataset):
     """AnimalSpeak dataset.
 
+    Description
+    -----------
     A part of NatureLM training and BioLingual, AnimalSpeak,
     as over a million audio-caption pairs holding information on
-    species, vocalization context, and animal behavior
-    Original publication: https://arxiv.org/pdf/2308.04978
+    species, vocalization context, and animal behavior.
 
+    References
+    ----------
     TRANSFERABLE MODELS FOR BIOACOUSTICS WITH HUMAN LANGUAGE SUPERVISION
     Robinson et al 2023
+    https://arxiv.org/pdf/2308.04978
 
-    Num samples = 2,045,492
-    Num columns = 50
-
-    info = DatasetInfo(
-        name="animalspeak",
-        owner="david; marius; masato",
-        sources=["Xeno-canto", "iNaturalist", "Watkins"],
-        license="CC BY",
-    )
-
-    Example:
-    --------
+    Example
+    -------
     >>> from esp_data.datasets import AnimalSpeak
     >>> dataset = AnimalSpeak(
     ...     split="validation",

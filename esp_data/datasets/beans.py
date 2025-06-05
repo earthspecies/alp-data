@@ -14,9 +14,8 @@ from esp_data.io import anypath, AnyPathT, read_audio, audio_stereo_to_mono
 class Beans(Dataset):
     """BEANS dataset
 
-    BEANS: The Benchmark of Animal Sounds
-    Masato Hagiwara et al 2022
-
+    Description
+    -----------
     BEANS (the BEnchmark of ANimal Sounds) is a collection of bioacoustics tasks
     and public datasets, specifically designed to measure the performance of machine
     learning algorithms in the field of bioacoustics. The benchmark proposed here
@@ -24,13 +23,15 @@ class Beans(Dataset):
     It includes 12 datasets covering various species, including birds, land and
     marine mammals, anurans, and insects.
 
-    Reference
-    ---------
+    References
+    ----------
+    BEANS: The Benchmark of Animal Sounds
+    Masato Hagiwara et al 2022
     https://arxiv.org/abs/2210.12300
     https://github.com/earthspecies/beans
 
-    Example:
-    --------
+    Example
+    -------
     >>> from esp_data.datasets import Beans
     >>> dataset = Beans(
     ...     split="validation",

@@ -14,18 +14,25 @@ from esp_data.io import anypath, AnyPathT, read_audio, audio_stereo_to_mono
 @register_dataset
 class InsectSet459(Dataset):
     """InsectSet459 dataset.
-    Faiss, Ghani, Stowell 2025.
 
+    Description
+    -----------
     Excerpt from the original publication Abstract:
-
     "...Automatic recognition of insect sound could help us understand
     changing biodiversity trends around the world—but insect sounds
     are challenging to recognize even for deep learning.
     We present a new dataset comprised of 26399 audio files,
     from 459 species of Orthoptera and Cicadidae..."
 
-    Example:
-    --------
+    References
+    ----------
+    Faiss, Ghani, Stowell 2025.
+    https://arxiv.org/abs/2503.15074
+    Dataset DOI:
+    https://zenodo.org/records/8252141
+
+    Example
+    -------
     >>> from esp_data.datasets import InsectSet459
     >>> dataset = InsectSet459(
     ...     split="validation",

@@ -17,7 +17,36 @@ class FilterConfig(BaseModel):
 
 
 class Filter:
-    """Filter data based on property values."""
+    """Filter data based on property values.
+
+    This transform filters a DataFrame based on the values of a specified property.
+    It can either include or exclude rows based on the specified values. The property
+    is a column in the DataFrame, and the values are the values to filter by.
+
+    Arguments
+    ---------
+    property: str
+        The name of the property (column) to filter by.
+    values: list[str]
+        The values to include or exclude from the DataFrame.
+    mode: Literal["include", "exclude"]
+        The mode of filtering. If "include", only rows with the specified values
+        in the property will be kept. If "exclude", rows with the specified values
+        will be removed from the DataFrame.
+
+    Example
+    -------
+    >>> from esp_data.transforms import Filter
+    >>> filter_transform = Filter(property="species", values=["bee", "butterfly"],
+    ...     mode="include")
+    >>> df = pd.DataFrame({"species": ["bee", "ant", "butterfly", "spider"],
+    ...     "count": [10, 5, 8, 2]})
+    >>> filtered_df, _ = filter_transform(df)
+    >>> print(filtered_df)
+       species  count
+    0      bee     10
+    2  butterfly      8
+    """
 
     def __init__(
         self,

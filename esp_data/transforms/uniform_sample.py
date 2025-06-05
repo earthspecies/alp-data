@@ -31,7 +31,21 @@ class UniformSampleConfig(BaseModel):
 
 
 class UniformSample:
-    """Uniformly sample data based on a property."""
+    """Uniformly sample data based on a property.
+
+    This transform uniformly samples a DataFrame based on a specified property and a
+    ratio. It is SUPPOSED 🚨 to ensure that the resulting DataFrame has a
+    uniform distribution of the specified property across the samples.
+
+    Arguments
+    ---------
+    property: str
+        The name of the property (column) to sample by.
+    ratio: float
+        The ratio of samples to keep for each unique value of the property. This should
+        be a float in the range [0, 1], where 1 means all samples are kept and 0 means
+        no samples are kept.
+    """
 
     def __init__(self, property: str, ratio: float) -> None:
         self.property = property
@@ -69,33 +83,6 @@ class UniformSample:
             groups.append(group.iloc[sampled_indices])
 
         return pd.concat(groups, ignore_index=True)
-
-    # def _uniform_sample_dict(self, data: dict[str, Any]) -> dict[str, Any]:
-    #     """
-    #     Uniformly sample a dictionary of data.
-
-    #     """
-    #     prop = self.cfg.property
-    #     ratio = self.cfg.ratio
-    #     selected: dict[str, Any] = {}
-
-    #     # Group by the property
-    #     groups: dict[str, list[str]] = {}
-    #     for k, v in data.items():
-    #         val = v[prop]
-    #         if val not in groups:
-    #             groups[val] = []
-    #         groups[val].append(k)
-
-    #     # Sample uniformly from each group
-    #     for keys in groups.values():
-    #         n_samples = max(1, int(len(keys) * ratio))
-    #         rng = np.random.default_rng(seed=42)
-    #         sampled_keys = rng.choice(keys, size=n_samples, replace=False)
-    #         for k in sampled_keys:
-    #             selected[k] = data[k]
-
-    #     return selected
 
 
 register_transform(UniformSampleConfig, UniformSample)

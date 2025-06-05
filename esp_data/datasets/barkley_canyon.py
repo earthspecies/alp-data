@@ -16,6 +16,8 @@ from esp_data.io import anypath, AnyPathT, read_audio, audio_stereo_to_mono
 class BarkleyCanyon(Dataset):
     """BarkleyCanyon dataset.
 
+    Description
+    -----------
     Excerpt from the original Abstract:
     "...This dataset, which is being made publicly available for further use,
     includes strong-label annotations of phonations from blue whales, fin whales,
@@ -33,8 +35,8 @@ class BarkleyCanyon(Dataset):
     and marine mammal research,"
     The Journal of the Acoustical Society of America, vol. 148,
 
-    Example:
-    --------
+    Example
+    -------
     >>> from esp_data.datasets import BarkleyCanyon
     >>> dataset = BarkleyCanyon(split="train")
     >>> print(dataset.info.name)
