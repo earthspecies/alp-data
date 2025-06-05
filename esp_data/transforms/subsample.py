@@ -64,7 +64,7 @@ class Subsample:
     ...     "count": [10, 5, 8, 2, 3, 1]
     ... })
     >>> subsampled_df, _ = subsample_transform(df)
-    >>> print(subsampled_df)
+    >>> assert len(subsampled_df) == 1
     """
 
     def __init__(self, property: str, ratios: dict[str, float]) -> None:
@@ -79,8 +79,8 @@ class Subsample:
         """
         Apply the subsample transformation.
 
-        Arguments
-        ---------
+        Parameters
+        ----------
             data: The data to subsample (DataFrame or dict).
 
         Returns

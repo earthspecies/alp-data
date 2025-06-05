@@ -275,7 +275,9 @@ def increment_version(version: str, mode: str = "patch") -> str:
     return f"{major}.{minor}.{patch}"
 
 
-def read_gcp_secret(secret_id: str, version_id: str = "latest", project_id: str = "okapi-274503") -> str:
+def read_gcp_secret(
+    secret_id: str, version_id: str = "latest", project_id: str = "okapi-274503"
+) -> str:
     """Read a secret's value from Google Secret Manager.
 
 
@@ -302,7 +304,8 @@ def read_gcp_secret(secret_id: str, version_id: str = "latest", project_id: str 
 
     Notes
     -----
-    Requires authentication with Google Cloud (e.g., through `gcloud auth application-default login`
+    Requires authentication with Google Cloud (e.g., through
+    `gcloud auth application-default login`
     or service account credentials) with appropriate permissions for Secret Manager.
     """
 
