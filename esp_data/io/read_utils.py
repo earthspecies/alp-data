@@ -2,6 +2,7 @@
 
 import io
 import logging
+from typing import Literal
 
 import numpy as np
 import soundfile as sf
@@ -13,7 +14,9 @@ logger = logging.getLogger("esp_data")
 _AUDIO_FORMATS = (".wav", ".flac", ".ogg", ".mp3")
 
 
-def _read_audio_from_bytes(audio_bytes: bytes, frames: int = -1, start: int = 0) -> tuple[np.ndarray, int]:
+def _read_audio_from_bytes(
+    audio_bytes: bytes, frames: int = -1, start: int = 0
+) -> tuple[np.ndarray, int]:
     """
     Reads from an audio buffer while indexing if necessary. By default,
     reads the entire buffer.
@@ -42,7 +45,9 @@ def _read_audio_from_bytes(audio_bytes: bytes, frames: int = -1, start: int = 0)
     return data, samplerate
 
 
-def read_audio(file_path: str | AnyPathT, frames: int = -1, start: int = 0) -> tuple[np.ndarray, int]:
+def read_audio(
+    file_path: str | AnyPathT, frames: int = -1, start: int = 0
+) -> tuple[np.ndarray, int]:
     """Reads audio data from a file path.
 
     Handles various path types (local, GCS, R2) via the `anypath` utility.
@@ -93,3 +98,60 @@ def read_audio(file_path: str | AnyPathT, frames: int = -1, start: int = 0) -> t
     except Exception as e:
         logger.error(f"Error reading audio file {e}")
         raise e
+
+
+def audio_stereo_to_mono(
+    audio: np.ndarray, mono_method: Literal["keep_first", "average"] = "average"
+) -> np.ndarray:
+    """Convert stereo audio to mono.
+
+    Arguments
+    ----------
+    audio : np.ndarray
+        The audio data as a NumPy array.
+        The channel dimension can be either the first or second dimension.
+
+    mono_method : Literal["keep_first", "average"]
+        Method to convert stereo to mono:
+        - "keep_first": Keep the first channel.
+        - "average": Average both channels.
+        Defaults to "average".
+
+    Returns
+    -------
+    np.ndarray
+        The converted mono audio data as a NumPy array with shape (frames,).
+
+    Raises
+    ------
+    ValueError
+        If the audio data is not stereo or if an unsupported
+        mono conversion method is provided.
+
+    Examples
+    --------
+    >>> audio, sr = read_audio("tests/samples/stereo.wav")
+    >>> mono_audio = audio_stereo_to_mono(audio, mono_method="average")
+    >>> mono_audio.shape
+    (10000,)
+    """
+    if audio.ndim == 1:
+        # Already mono, no conversion needed
+        return audio
+
+    # Throw error if more than stereo
+    if audio.ndim > 2:
+        raise ValueError("Audio must be stereo (2 channels) or mono (1 channel).")
+
+    channel_dim = np.argmin(audio.shape)
+
+    # transpose if the channel dimension is not the first one
+    if channel_dim != 0:
+        audio = audio.T
+
+    if mono_method == "keep_first":
+        return audio[0, :]
+    elif mono_method == "average":
+        return np.mean(audio, axis=0)
+    else:
+        raise ValueError(f"Unsupported mono conversion method: {mono_method}")

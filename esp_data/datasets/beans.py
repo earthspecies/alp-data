@@ -1,6 +1,5 @@
-"""AnimalSpeak dataset"""
+"""BEANS dataset"""
 
-from io import StringIO
 from typing import Any, Dict, Iterator, Optional
 
 import librosa
@@ -12,43 +11,97 @@ from esp_data.io import anypath, AnyPathT, read_audio, audio_stereo_to_mono
 
 
 @register_dataset
-class AnimalSpeak(Dataset):
-    """AnimalSpeak dataset.
+class Beans(Dataset):
+    """BEANS dataset
 
     Description
     -----------
-    A part of NatureLM training and BioLingual, AnimalSpeak,
-    as over a million audio-caption pairs holding information on
-    species, vocalization context, and animal behavior.
+    BEANS (the BEnchmark of ANimal Sounds) is a collection of bioacoustics tasks
+    and public datasets, specifically designed to measure the performance of machine
+    learning algorithms in the field of bioacoustics. The benchmark proposed here
+    consists of two common tasks in bioacoustics: classification and detection.
+    It includes 12 datasets covering various species, including birds, land and
+    marine mammals, anurans, and insects.
 
     References
     ----------
-    TRANSFERABLE MODELS FOR BIOACOUSTICS WITH HUMAN LANGUAGE SUPERVISION
-    Robinson et al 2023
-    https://arxiv.org/pdf/2308.04978
+    BEANS: The Benchmark of Animal Sounds
+    Masato Hagiwara et al 2022
+    https://arxiv.org/abs/2210.12300
+    https://github.com/earthspecies/beans
 
     Example
     -------
-    >>> from esp_data.datasets import AnimalSpeak
-    >>> dataset = AnimalSpeak(
+    >>> from esp_data.datasets import Beans
+    >>> dataset = Beans(
     ...     split="validation",
-    ...     output_take_and_give={"species_common": "comm"}
+    ...     output_take_and_give={"species_scientific": "species"},
+    ...     sample_rate=16000,
+    ...     data_root="gs://esp-ml-datasets/beans/v0.1.0/raw/"
     ... )
-    >>> print(dataset.info.name)
-    animalspeak
     """
 
     info = DatasetInfo(
-        name="animalspeak",
-        owner="david; marius; masato",
+        name="beans",
+        owner="gagan",
         split_paths={
-            "train": "gs://esp-ml-datasets/animalspeak/v0.1.0/raw/16KHz/animalspeak2_train.csv",
-            "validation": "gs://esp-ml-datasets/animalspeak/v0.1.0/raw/16KHz/animalspeak2_validation.csv",
+            "train": "gs://esp-ml-datasets/beans/v0.1.0/raw/beans_train.csv",
+            "validation": "gs://esp-ml-datasets/beans/v0.1.0/raw/beans_val.csv",
+            "test": "gs://esp-ml-datasets/beans/v0.1.0/raw/beans_test.csv",
+            "cbi_test": "gs://esp-ml-datasets/beans/v0.1.0/raw/cbi_test.jsonl",
+            "cbi_validation": "gs://esp-ml-datasets/beans/v0.1.0/raw/cbi_val.jsonl",
+            "cbi_train": "gs://esp-ml-datasets/beans/v0.1.0/raw/cbi_train.jsonl",
+            "watkins_test": "gs://esp-ml-datasets/beans/v0.1.0/raw/watkins_test.jsonl",
+            "watkins_validation": "gs://esp-ml-datasets/beans/v0.1.0/raw/watkins_val.jsonl",
+            "watkins_train": "gs://esp-ml-datasets/beans/v0.1.0/raw/watkins_train.jsonl",
+            "dogs_test": "gs://esp-ml-datasets/beans/v0.1.0/raw/dogs_test.jsonl",
+            "dogs_validation": "gs://esp-ml-datasets/beans/v0.1.0/raw/dogs_val.jsonl",
+            "dogs_train": "gs://esp-ml-datasets/beans/v0.1.0/raw/dogs_train.jsonl",
+            "egyptian_fruit_bats_test": "gs://esp-ml-datasets/beans/v0.1.0/raw/egyptian_fruit_bats_test.jsonl",
+            "egyptian_fruit_bats_validation": "gs://esp-ml-datasets/beans/v0.1.0/raw/egyptian_fruit_bats_val.jsonl",
+            "egyptian_fruit_bats_train": "gs://esp-ml-datasets/beans/v0.1.0/raw/egyptian_fruit_bats_train.jsonl",
+            "hiceas_test": "gs://esp-ml-datasets/beans/v0.1.0/raw/hiceas_test.jsonl",
+            "hiceas_validation": "gs://esp-ml-datasets/beans/v0.1.0/raw/hiceas_val.jsonl",
+            "hiceas_train": "gs://esp-ml-datasets/beans/v0.1.0/raw/hiceas_train.jsonl",
+            "dcase_test": "gs://esp-ml-datasets/beans/v0.1.0/raw/dcase_test.jsonl",
+            "dcase_validation": "gs://esp-ml-datasets/beans/v0.1.0/raw/dcase_val.jsonl",
+            "dcase_train": "gs://esp-ml-datasets/beans/v0.1.0/raw/dcase_train.jsonl",
+            "enabirds_test": "gs://esp-ml-datasets/beans/v0.1.0/raw/enabirds_test.jsonl",
+            "enabirds_validation": "gs://esp-ml-datasets/beans/v0.1.0/raw/enabirds_val.jsonl",
+            "enabirds_train": "gs://esp-ml-datasets/beans/v0.1.0/raw/enabirds_train.jsonl",
+            "esc50_test": "gs://esp-ml-datasets/beans/v0.1.0/raw/esc50_test.jsonl",
+            "esc50_validation": "gs://esp-ml-datasets/beans/v0.1.0/raw/esc50_val.jsonl",
+            "esc50_train": "gs://esp-ml-datasets/beans/v0.1.0/raw/esc50_train.jsonl",
+            "speech_commands_test": "gs://esp-ml-datasets/beans/v0.1.0/raw/speech_commands_test.jsonl",
+            "speech_commands_validation": "gs://esp-ml-datasets/beans/v0.1.0/raw/speech_commands_val.jsonl",
+            "speech_commands_train": "gs://esp-ml-datasets/beans/v0.1.0/raw/speech_commands_train.jsonl",
+            "humbugdb_test": "gs://esp-ml-datasets/beans/v0.1.0/raw/humbugdb_test.jsonl",
+            "humbugdb_validation": "gs://esp-ml-datasets/beans/v0.1.0/raw/humbugdb_val.jsonl",
+            "humbugdb_train": "gs://esp-ml-datasets/beans/v0.1.0/raw/humbugdb_train.jsonl",
+            "rfcx_test": "gs://esp-ml-datasets/beans/v0.1.0/raw/rfcx_test.jsonl",
+            "rfcx_validation": "gs://esp-ml-datasets/beans/v0.1.0/raw/rfcx_val.jsonl",
+            "rfcx_train": "gs://esp-ml-datasets/beans/v0.1.0/raw/rfcx_train.jsonl",
+            "hainan_gibbons_test": "gs://esp-ml-datasets/beans/v0.1.0/raw/hainan_gibbons_test.jsonl",
+            "hainan_gibbons_validation": "gs://esp-ml-datasets/beans/v0.1.0/raw/hainan_gibbons_val.jsonl",
+            "hainan_gibbons_train": "gs://esp-ml-datasets/beans/v0.1.0/raw/hainan_gibbons_train.jsonl",
         },
         version="0.1.0",
-        description="AnimalSpeak dataset",
-        sources=["Xeno-canto", "iNaturalist", "Watkins"],
-        license="CC BY",
+        description="BEANS benchmark dataset",
+        sources=[
+            "cbi",
+            "watkins",
+            "dogs",
+            "egyptian_fruit_bats",
+            "hiceas",
+            "dcase",
+            "enabirds",
+            "esc50",
+            "speech_commands",
+            "humbugdb",
+            "rfcx",
+            "hainan_gibbons",
+        ],
+        license="CC-BY-4.0, CC0",
     )
 
     def __init__(
@@ -58,7 +111,7 @@ class AnimalSpeak(Dataset):
         sample_rate: Optional[int] = None,
         data_root: Optional[str | AnyPathT] = None,
     ) -> None:
-        """Initialize the AnimalSpeak dataset.
+        """Initialize the BEANS dataset.
 
         Parameters
         ----------
@@ -69,8 +122,9 @@ class AnimalSpeak(Dataset):
             It acts as a filter as well.
         sample_rate : int
             The sample rate to which audio files should be resampled.
-        audio_path_col : str
-            The name of the column in the DataFrame that contains the audio file paths.
+        data_root : Optional[str | AnyPathT]
+            The root directory where the dataset is stored.
+            If None, it will use the default path from the DatasetInfo.
         """
         super().__init__(output_take_and_give)  # Initialize the parent Dataset class
         self.split = split
@@ -103,22 +157,27 @@ class AnimalSpeak(Dataset):
         if self.split not in self.info.split_paths:
             raise LookupError(
                 f"Invalid split: {self.split}."
-                "Expected one of {list(self.info.split_paths.keys())}"
+                f"Expected one of {list(self.info.split_paths.keys())}"
             )
 
         location = self.info.split_paths[self.split]
-        # Read CSV content
-        csv_text = anypath(location).read_text(encoding="utf-8")
-        self._data = pd.read_csv(StringIO(csv_text))
+        if anypath(location).suffix == ".jsonl":
+            # For JSONL files, read them directly into a DataFrame
+            self._data = pd.read_json(location, lines=True, orient="records")
+        else:
+            # Read CSV content
+            self._data = pd.read_csv(
+                location, keep_default_na=False, na_values=[""]
+            )  # This setting avoids setting 'None' to a pd.NA type
 
     @classmethod
-    def from_config(cls, dataset_config: DatasetConfig) -> "AnimalSpeak":
+    def from_config(cls, cfg: DatasetConfig) -> "Beans":
         """Create a Dataset instance from a configuration dictionary.
 
         Parameters
         ----------
-        dataset_config : DatasetConfig
-            Configuration dictionary containing dataset parameters.
+        cfg : DatasetConfig
+            Configuration dictionary containing dataset parametesf
 
         Returns
         -------
@@ -130,7 +189,7 @@ class AnimalSpeak(Dataset):
         LookupError
             If the specified split is not available in the dataset info.
         """
-        cfg = dataset_config.model_dump(exclude=("dataset_name", "transformations"))
+        cfg = cfg.model_dump(exclude=("dataset_name", "transformations"))
 
         split = cfg.get("split", None)
         if not split or split not in cls.info.split_paths:
@@ -160,7 +219,7 @@ class AnimalSpeak(Dataset):
             If no split has been loaded yet.
         """
         if self._data is None:
-            raise RuntimeError("No split has been loaded yet. Call _load() first.")
+            raise RuntimeError("No split has been loaded yet. Call load() first.")
         return len(self._data)
 
     def __getitem__(self, idx: int) -> dict[str, Any]:
@@ -173,7 +232,7 @@ class AnimalSpeak(Dataset):
         Returns
         -------
         dict[str, Any]
-            A dictionary containing the audio data, text label, label, and path.
+            A dictionary containing the data.
 
         Raises
         ------
@@ -186,15 +245,16 @@ class AnimalSpeak(Dataset):
             )
 
         row = self._data.iloc[idx].to_dict()
-
         # Ensure audio path is valid
         if self.data_root:
             audio_path = anypath(self.data_root) / row["local_path"]
         else:
             audio_path = anypath(row["local_path"])
 
+        # Read the audio clip
         audio, sr = read_audio(audio_path)
         audio = audio.astype(np.float32)
+        # Stereo to mono if necessary.
         audio = audio_stereo_to_mono(audio, mono_method="average")
 
         if self.sample_rate is not None and sr != self.sample_rate:
@@ -206,7 +266,6 @@ class AnimalSpeak(Dataset):
                 res_type="kaiser_best",
             )
 
-        # AnimalSpeak likes to call this 'raw_wav'
         row["audio"] = audio
 
         if self.output_take_and_give:

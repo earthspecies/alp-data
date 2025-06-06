@@ -1,4 +1,4 @@
-"""AnimalSpeak dataset"""
+"""InsectSet459 dataset"""
 
 from io import StringIO
 from typing import Any, Dict, Iterator, Optional
@@ -12,43 +12,47 @@ from esp_data.io import anypath, AnyPathT, read_audio, audio_stereo_to_mono
 
 
 @register_dataset
-class AnimalSpeak(Dataset):
-    """AnimalSpeak dataset.
+class InsectSet459(Dataset):
+    """InsectSet459 dataset.
 
     Description
     -----------
-    A part of NatureLM training and BioLingual, AnimalSpeak,
-    as over a million audio-caption pairs holding information on
-    species, vocalization context, and animal behavior.
+    Excerpt from the original publication Abstract:
+    "...Automatic recognition of insect sound could help us understand
+    changing biodiversity trends around the world—but insect sounds
+    are challenging to recognize even for deep learning.
+    We present a new dataset comprised of 26399 audio files,
+    from 459 species of Orthoptera and Cicadidae..."
 
     References
     ----------
-    TRANSFERABLE MODELS FOR BIOACOUSTICS WITH HUMAN LANGUAGE SUPERVISION
-    Robinson et al 2023
-    https://arxiv.org/pdf/2308.04978
+    Faiss, Ghani, Stowell 2025.
+    https://arxiv.org/abs/2503.15074
+    Dataset DOI:
+    https://zenodo.org/records/8252141
 
     Example
     -------
-    >>> from esp_data.datasets import AnimalSpeak
-    >>> dataset = AnimalSpeak(
+    >>> from esp_data.datasets import InsectSet459
+    >>> dataset = InsectSet459(
     ...     split="validation",
-    ...     output_take_and_give={"species_common": "comm"}
+    ...     output_take_and_give={"species_scientific": "species"},
+    ...     sample_rate=16000,
+    ...     data_root="gs://esp-ml-datasets/insectset_459/v0.1.0/raw/"
     ... )
-    >>> print(dataset.info.name)
-    animalspeak
     """
 
     info = DatasetInfo(
-        name="animalspeak",
-        owner="david; marius; masato",
+        name="insectset_459",
+        owner="gagan",
         split_paths={
-            "train": "gs://esp-ml-datasets/animalspeak/v0.1.0/raw/16KHz/animalspeak2_train.csv",
-            "validation": "gs://esp-ml-datasets/animalspeak/v0.1.0/raw/16KHz/animalspeak2_validation.csv",
+            "train": "gs://esp-ml-datasets/insectset_459/v0.1.0/raw/insectset459_annotations_train.csv",
+            "validation": "gs://esp-ml-datasets/insectset_459/v0.1.0/raw/insectset459_annotations_val.csv",
         },
         version="0.1.0",
-        description="AnimalSpeak dataset",
-        sources=["Xeno-canto", "iNaturalist", "Watkins"],
-        license="CC BY",
+        description="InsectSet459 dataset",
+        sources=["Xeno-canto", "iNaturalist", "Bioacoustica"],
+        license="CC-BY-4.0, CC0",
     )
 
     def __init__(
@@ -58,7 +62,7 @@ class AnimalSpeak(Dataset):
         sample_rate: Optional[int] = None,
         data_root: Optional[str | AnyPathT] = None,
     ) -> None:
-        """Initialize the AnimalSpeak dataset.
+        """Initialize the InsectSet459 dataset.
 
         Parameters
         ----------
@@ -69,8 +73,9 @@ class AnimalSpeak(Dataset):
             It acts as a filter as well.
         sample_rate : int
             The sample rate to which audio files should be resampled.
-        audio_path_col : str
-            The name of the column in the DataFrame that contains the audio file paths.
+        data_root : Optional[str | AnyPathT]
+            The root directory where the dataset is stored.
+            If None, it will use the default path from the DatasetInfo.
         """
         super().__init__(output_take_and_give)  # Initialize the parent Dataset class
         self.split = split
@@ -103,7 +108,7 @@ class AnimalSpeak(Dataset):
         if self.split not in self.info.split_paths:
             raise LookupError(
                 f"Invalid split: {self.split}."
-                "Expected one of {list(self.info.split_paths.keys())}"
+                f"Expected one of {list(self.info.split_paths.keys())}"
             )
 
         location = self.info.split_paths[self.split]
@@ -112,13 +117,13 @@ class AnimalSpeak(Dataset):
         self._data = pd.read_csv(StringIO(csv_text))
 
     @classmethod
-    def from_config(cls, dataset_config: DatasetConfig) -> "AnimalSpeak":
+    def from_config(cls, cfg: DatasetConfig) -> "InsectSet459":
         """Create a Dataset instance from a configuration dictionary.
 
         Parameters
         ----------
-        dataset_config : DatasetConfig
-            Configuration dictionary containing dataset parameters.
+        cfg : DatasetConfig
+            Configuration dictionary containing dataset parametesf
 
         Returns
         -------
@@ -130,7 +135,7 @@ class AnimalSpeak(Dataset):
         LookupError
             If the specified split is not available in the dataset info.
         """
-        cfg = dataset_config.model_dump(exclude=("dataset_name", "transformations"))
+        cfg = cfg.model_dump(exclude=("dataset_name", "transformations"))
 
         split = cfg.get("split", None)
         if not split or split not in cls.info.split_paths:
@@ -160,7 +165,7 @@ class AnimalSpeak(Dataset):
             If no split has been loaded yet.
         """
         if self._data is None:
-            raise RuntimeError("No split has been loaded yet. Call _load() first.")
+            raise RuntimeError("No split has been loaded yet. Call load() first.")
         return len(self._data)
 
     def __getitem__(self, idx: int) -> dict[str, Any]:
@@ -173,7 +178,7 @@ class AnimalSpeak(Dataset):
         Returns
         -------
         dict[str, Any]
-            A dictionary containing the audio data, text label, label, and path.
+            A dictionary containing the data.
 
         Raises
         ------
@@ -186,15 +191,16 @@ class AnimalSpeak(Dataset):
             )
 
         row = self._data.iloc[idx].to_dict()
-
         # Ensure audio path is valid
         if self.data_root:
             audio_path = anypath(self.data_root) / row["local_path"]
         else:
             audio_path = anypath(row["local_path"])
 
+        # Read the audio clip
         audio, sr = read_audio(audio_path)
         audio = audio.astype(np.float32)
+        # Stereo to mono if necessary.
         audio = audio_stereo_to_mono(audio, mono_method="average")
 
         if self.sample_rate is not None and sr != self.sample_rate:
@@ -206,7 +212,6 @@ class AnimalSpeak(Dataset):
                 res_type="kaiser_best",
             )
 
-        # AnimalSpeak likes to call this 'raw_wav'
         row["audio"] = audio
 
         if self.output_take_and_give:

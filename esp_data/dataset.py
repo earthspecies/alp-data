@@ -1,24 +1,63 @@
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
-from pathlib import Path
-from typing import Any, Dict, Iterator
+from typing import Any, Dict, Iterator, Optional
 
 import semver
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from esp_data.io import GSPath
+from esp_data.io import anypath
 from esp_data.transforms import RegisteredTransformConfigs, transform_from_config
 
 
 class DatasetConfig(BaseModel):
+    """A Pydantic base model for the configuration of a dataset.
+
+    Parameters
+    ----------
+    dataset_name : str
+        Name of the dataset, must match a registered dataset class
+    transformations : list[RegisteredTransformConfigs] | None
+        List of transformations to apply to the dataset.
+        If None, no transformations are applied.
+    multi_label : bool | None
+        Whether the dataset is multi-label. If None, the default is False.
+    sample_rate : int | None
+        Target sample rate for the audio data. If None, the default is 16000.
+    metrics : list[str] | None
+        List of metrics to compute for the dataset. If None, no metrics are computed.
+    output_take_and_give : dict[str, str] | None
+        A dictionary mapping output fields to their corresponding input fields.
+        If None, no output mapping is applied. For example, if the dataset has a field
+        "species_scientific" and you want to map it to "species", you can set
+        output_take_and_give={"species_scientific": "species"}.
+    split : str
+        The split of the dataset to load. Defaults to "train".
+    data_root : Optional[str]
+        The root directory for the dataset. This is optionally appended to the
+        path item of a sample in the dataset.
+        If None, the default is the parent directory of the split path.
+
+    Example
+    -------
+    >>> dataset_config = DatasetConfig(
+    ...    dataset_name="barkley_canyon",
+    ...    transformations=[
+    ...        {
+    ...            "type": "label_from_feature",
+    ...            "feature": "species_scientific",
+    ...            "output_feature": "label",
+    ...        }
+    ...    ])
+
+    """
+
     dataset_name: str
     transformations: list[RegisteredTransformConfigs] | None = None
     multi_label: bool | None = None
     sample_rate: int | None = None
-    metrics: list[str] | None = None
-    audio_path_col: str | None = None
     output_take_and_give: dict[str, str] | None = None
     split: str = "train"
+    data_root: Optional[str] = None
 
     @field_validator("transformations", mode="before")
     @classmethod
@@ -107,7 +146,9 @@ class DatasetInfo(BaseModel):
         description="License for the dataset, if applicable",
     )
 
-    changelog: str = Field(default_factory=lambda: "", description="Changelog from previous version")
+    changelog: str = Field(
+        default_factory=lambda: "", description="Changelog from previous version"
+    )
 
     @field_validator("split_paths", mode="after")
     @classmethod
@@ -134,16 +175,9 @@ class DatasetInfo(BaseModel):
         if not v:
             raise ValueError("Split paths cannot be empty.")
         for _, value in v.items():
-            # Check if the location is a cloud path
-            if value.startswith("gs://"):
-                path = GSPath(value)
-                if not path.exists():
-                    raise ValueError(f"Cloud path {value} does not exist.")
-            else:
-                # Check if the local path exists
-                path = Path(value)
-                if not path.exists():
-                    raise ValueError(f"Local path {value} does not exist.")
+            path = anypath(value)
+            if not path.exists():
+                raise ValueError(f"Local path {value} does not exist.")
 
             # if location is directory, check that it is not empty
             if path.is_dir() and not any(path.iterdir()):
@@ -194,7 +228,7 @@ class Dataset(ABC):
 
     Methods
     -------
-    _load(split: Literal["train", "validation"]) -> pd.DataFrame
+    _load() -> pd.DataFrame
         Required method to load a specific split of the dataset.
     __len__() -> int
         Required method to return the number of samples in the dataset.
@@ -204,14 +238,14 @@ class Dataset(ABC):
         Required method to get a specific sample from the dataset.
     """
 
-    info: DatasetInfo = None
+    info: DatasetInfo
 
     def __init__(self, output_take_and_give: dict[str, str] = None) -> None:
         """A DatasetConfig can be passed to the constructor to, for instance,
         apply transformations to the dataset during instantiation or modify its
         fields of output.
 
-        Parameters
+        Arguments
         ----------
         output_take_and_give : dict[str, str], optional
             A dictionary mapping output fields to their corresponding input fields.
@@ -242,14 +276,8 @@ class Dataset(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def _load(self, split: str) -> Sequence[Any]:
-        """Load one split of the dataset.
-        It should apply transformations if any in self.dataset_config.
-
-        Parameters
-        ----------
-        split : str
-            Which split of the dataset to load.
+    def _load(self) -> Optional[Sequence[Any]]:
+        """Load one split of the dataset.s
 
         Returns
         -------
@@ -266,7 +294,7 @@ class Dataset(ABC):
     ) -> "Dataset":
         """Create a dataset instance from a configuration.
 
-        Parameters
+        Arguments
         ----------
         dataset_config : DatasetInfo
             The configuration for the dataset.
@@ -304,7 +332,7 @@ class Dataset(ABC):
     def __getitem__(self, idx: int) -> Dict[str, Any]:
         """Get a specific sample from the dataset.
 
-        Parameters
+        Arguments
         ----------
         idx : int
             Index of the sample to get
@@ -335,13 +363,15 @@ class Dataset(ABC):
         """
         raise NotImplementedError
 
-    def apply_transformations(self, transformations: list[RegisteredTransformConfigs]) -> list[Any]:
+    def apply_transformations(
+        self, transformations: list[RegisteredTransformConfigs]
+    ) -> list[Any]:
         """Apply the given list of transformations to the dataset.
 
         This method applies each transformation in sequence to the dataset's data.
         The transformations are applied in-place, modifying the dataset's data.
 
-        Parameters
+        Arguments
         ----------
         transformations : list[RegisteredTransformConfigs]
             List of transformation configurations to apply to the dataset.
@@ -376,7 +406,7 @@ _dataset_registry: dict[str, type[Dataset]] = {}
 def register_dataset(cls: type[Dataset]) -> type[Dataset]:
     """A decorator to register a dataset class.
 
-    Parameters
+    Arguments
     ----------
     cls : Type[Dataset]
         The dataset class to register
@@ -411,7 +441,7 @@ def print_registered_datasets() -> None:
 def dataset_from_config(dataset_config: DatasetConfig) -> Dataset:
     """Load a dataset from a configuration.
 
-    Parameters
+    Arguments
     ----------
     dataset_config : DatasetConfig
         The configuration for the dataset.

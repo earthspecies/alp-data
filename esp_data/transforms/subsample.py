@@ -26,7 +26,46 @@ class SubsampleConfig(BaseModel):
 
 
 class Subsample:
-    """Subsample data based on property ratios."""
+    """Subsample data based on property ratios.
+
+    This transform subsamples a DataFrame based on the specified ratios for each value
+    of a given property. It allows for controlling the representation of different
+    categories in the dataset by specifying how much of each category to keep.
+    The property is a column in the DataFrame, and the ratios are specified as a
+    dictionary where keys are property values and values are the ratios of samples to
+    keep for each property value. The "other" category can be used to specify a ratio
+    for all other values not explicitly listed in the ratios dictionary.
+
+    Parameters
+    ----------
+    property: str
+        The name of the property (column) to subsample by.
+
+    ratios: dict[str, float]
+        A dictionary where keys are the values of the property and values are the
+        ratios of samples to keep for each value. The ratios should be in the range
+        [0, 1]. If "other" is included as a key, it will subsample all other values
+        not explicitly listed in the ratios dictionary.
+
+    Example
+    -------
+    >>> from esp_data.transforms import Subsample, SubsampleConfig
+    >>> config = SubsampleConfig(
+    ...     type="subsample",
+    ...     property="species",
+    ...     ratios={
+    ...         "bee": 0.5,
+    ...         "butterfly": 0.3,
+    ...         "other": 0.1
+    ...     })
+    >>> subsample_transform = Subsample.from_config(config)
+    >>> df = pd.DataFrame({
+    ...     "species": ["bee", "bee", "butterfly", "ant", "butterfly", "spider"],
+    ...     "count": [10, 5, 8, 2, 3, 1]
+    ... })
+    >>> subsampled_df, _ = subsample_transform(df)
+    >>> assert len(subsampled_df) == 1
+    """
 
     def __init__(self, property: str, ratios: dict[str, float]) -> None:
         self.property = property
@@ -40,15 +79,25 @@ class Subsample:
         """
         Apply the subsample transformation.
 
-        Args:
+        Parameters
+        ----------
             data: The data to subsample (DataFrame or dict).
 
-        Returns:
-            The subsampled data (same type as input).
+        Returns
+        -------
+            tuple[pd.DataFrame, dict]: A tuple containing:
+                The subsampled data (same type as input).
 
-        Raises:
+        Raises
+        ------
             TypeError: If the data type is not supported.
+            KeyError: If the specified property is not found in the DataFrame columns.
         """
+        if self.property not in data.columns:
+            raise KeyError(
+                f"Property '{self.property}' not found in the DataFrame columns."
+            )
+
         if isinstance(data, pd.DataFrame):
             return self._subsample_dataframe(data), {}
         # if isinstance(data, dict):
@@ -96,35 +145,6 @@ class Subsample:
             groups.append(df.loc[chosen_other])
 
         return pd.concat(groups, ignore_index=True)
-
-    # def _subsample_dict(self, data: dict[str, Any]) -> dict[str, Any]:
-    #     """Subsample a dictionary of data.
-
-    #     Args:
-    #         data: The dictionary to subsample.
-
-    #     Returns:
-    #         Dict[str, Any]: The subsampled dictionary.
-    #     """
-    #     prop = self.cfg.property
-    #     ratios = self.cfg.ratios
-    #     selected: dict[str, Any] = {}
-
-    #     for val, ratio in ratios.items():
-    #         if val == "other":
-    #             continue
-    #         keys = [k for k, v in data.items() if v[prop] == val]
-    #         for k in self._choose_keys(keys, ratio):
-    #             selected[k] = data[k]
-
-    #     if "other" in ratios:
-    #         other_keys = [
-    #             k for k, v in data.items() if v[prop] not in (ratios.keys() - {"other"})
-    #         ]
-    #         for k in self._choose_keys(other_keys, ratios["other"]):
-    #             selected[k] = data[k]
-
-    #     return selected
 
 
 register_transform(SubsampleConfig, Subsample)
