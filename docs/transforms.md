@@ -100,15 +100,12 @@ from esp_data.transforms import register_transform
 register_transform(MyTransformConfig, MyTransform)
 ```
 
-## Technical Details
+## Available Transforms
 
 The transforms system uses a registry pattern to manage available transforms. The registry ensures that each transform type is unique and properly configured before use.
-
-### Available Transforms
-
 The module provides several built-in transforms to handle common data transformation tasks. Here's an overview of each transform and its functionality:
 
-#### Filter Transform
+### Filter Transform
 The `Filter` transform allows you to selectively include or exclude rows from your dataset based on specific property values.
 
 ::: esp_data.transforms.Filter
@@ -117,7 +114,7 @@ The `Filter` transform allows you to selectively include or exclude rows from yo
         show_root_heading: true
         show_source: true
 
-#### LabelFromFeature Transform
+### LabelFromFeature Transform
 The `LabelFromFeature` transform converts categorical features into numerical labels. Example use case: Converting a 'species' column with values like 'dog', 'cat', 'bird' into numerical labels 0, 1, 2.
 
 ::: esp_data.transforms.LabelFromFeature
@@ -126,7 +123,7 @@ The `LabelFromFeature` transform converts categorical features into numerical la
         show_root_heading: true
         show_source: true
 
-#### MultiLabelFromFeatures Transform
+### MultiLabelFromFeatures Transform
 The `MultiLabelFromFeatures` transform extends the functionality of `LabelFromFeature` to handle multiple features simultaneously. Example use case: Creating labels from multiple categorical columns like 'species', 'breed', and 'color' in a single operation.
 
 ::: esp_data.transforms.MultiLabelFromFeatures
@@ -135,7 +132,7 @@ The `MultiLabelFromFeatures` transform extends the functionality of `LabelFromFe
         show_root_heading: true
         show_source: true
 
-#### Subsample Transform
+### Subsample Transform
 The `Subsample` transform reduces the size of your dataset by sampling a subset of the data.  Example use case: Creating a 10% random sample of a large dataset for initial testing.
 
 ::: esp_data.transforms.Subsample
@@ -144,7 +141,7 @@ The `Subsample` transform reduces the size of your dataset by sampling a subset 
         show_root_heading: true
         show_source: true
 
-#### UniformSample Transform
+### UniformSample Transform
 The `UniformSample` transform performs uniform sampling of the data, ensuring balanced representation across different categories.
 
 ::: esp_data.transforms.UniformSample
