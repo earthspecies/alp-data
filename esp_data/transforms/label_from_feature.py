@@ -35,7 +35,7 @@ class LabelFromFeature:
         If True, will override the output feature if it already exists in the DataFrame.
         If False, will raise an AssertionError if the output feature already exists.
 
-    Example
+    Examples
     -------
     >>> df = pd.DataFrame({"species": ["cat", "dog", "bird", "cat"]})
     >>> transform = LabelFromFeature(feature="species", output_feature="label")
@@ -80,15 +80,12 @@ class LabelFromFeature:
         """
         if self.output_feature in df and not self.override:
             raise AssertionError(
-                "Feature already exists in DataFrame. "
-                "Set `override=True` to replace it."
+                "Feature already exists in DataFrame. Set `override=True` to replace it."
             )
 
         df_clean = df.dropna(subset=[self.feature])
         if len(df_clean) != len(df):
-            logger.warning(
-                f"Dropped {len(df) - len(df_clean)} rows with {self.feature}=NaN"
-            )
+            logger.warning(f"Dropped {len(df) - len(df_clean)} rows with {self.feature}=NaN")
 
         if self.label_map is None:
             uniques = sorted(df_clean[self.feature].unique())
