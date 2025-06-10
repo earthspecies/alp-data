@@ -1,6 +1,6 @@
 [project]
 name = "esp-data"
-version = "0.1.0"
+version = "1.0.0"
 description = "Data tools for ESP projects"
 readme = "README.md"
 requires-python = ">=3.10"
