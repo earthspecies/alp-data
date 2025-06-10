@@ -58,8 +58,8 @@ plugins:
             modernize_annotations: true
             # filters:
             #   - "!^__.*__$"
-            # filters:
-            #   - "!^__.*__$"
+
+markdown_extensions:
   - admonition
   - pymdownx.details
   - pymdownx.highlight:
