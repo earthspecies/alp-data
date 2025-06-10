@@ -24,7 +24,7 @@ class GSPath(cloudpathlib.GSPath):
 
     For more details, see: https://github.com/drivendataorg/cloudpathlib/issues/390
 
-    Arguments
+    Parameters
     ----------
     cloud_path : str or cloudpathlib.GSPath
         The Google Cloud Storage path string (e.g., "gs://bucket/blob") or
@@ -51,7 +51,9 @@ class GSPath(cloudpathlib.GSPath):
     is_cloud: bool = True
     is_local: bool = False
 
-    def __init__(self, cloud_path: str | cloudpathlib.GSPath, client: Optional[GSClient] = None) -> None:
+    def __init__(
+        self, cloud_path: str | cloudpathlib.GSPath, client: Optional[GSClient] = None
+    ) -> None:
         """Initializes the GSPath instance."""
         if not client:
             client = GSPath.__client
@@ -66,7 +68,9 @@ class GSPath(cloudpathlib.GSPath):
         cloudpathlib.GSClient
             The default client instance.
         """
-        return cloudpathlib.GSClient(storage_client=GS_Client_Official(), file_cache_mode="close_file")
+        return cloudpathlib.GSClient(
+            storage_client=GS_Client_Official(), file_cache_mode="close_file"
+        )
 
     @property
     def no_prefix(self) -> str:
@@ -77,11 +81,12 @@ class GSPath(cloudpathlib.GSPath):
 class R2Path(cloudpathlib.S3Path):
     """A cloudpathlib.S3Path wrapper for Cloudflare R2 storage paths.
 
-    Handles paths starting with `r2://` by internally converting them to `s3://` for compatibility
-    with `cloudpathlib.S3Path`.
-    Automatically configures a default client using R2 credentials fetched from GCP Secret Manager.
+    Handles paths starting with `r2://` by internally converting them to
+    `s3://` for compatibility with `cloudpathlib.S3Path`.
+    Automatically configures a default client using R2 credentials fetched
+    from GCP Secret Manager.
 
-    Arguments
+    Parameters
     ----------
     cloud_path : str or cloudpathlib.S3Path
         The Cloudflare R2 path string (e.g., "r2://bucket/key" or "s3://...")
@@ -95,7 +100,9 @@ class R2Path(cloudpathlib.S3Path):
     is_cloud: bool = True
     is_local: bool = False
 
-    def __init__(self, cloud_path: str | cloudpathlib.S3Path, client: Optional[S3Client] = None) -> None:
+    def __init__(
+        self, cloud_path: str | cloudpathlib.S3Path, client: Optional[S3Client] = None
+    ) -> None:
         """Initializes the R2Path, converting 'r2://' prefix if needed."""
         if not client:
             client = R2Path.__client
@@ -115,8 +122,12 @@ class R2Path(cloudpathlib.S3Path):
             The default client instance for R2.
         """
         return cloudpathlib.S3Client(
-            aws_access_key_id=read_gcp_secret("cloudflare_r2_bucket_readwrite_access_key_id"),
-            aws_secret_access_key=read_gcp_secret("cloudflare_r2_bucket_readwrite_secret_access_key"),
+            aws_access_key_id=read_gcp_secret(
+                "cloudflare_r2_bucket_readwrite_access_key_id"
+            ),
+            aws_secret_access_key=read_gcp_secret(
+                "cloudflare_r2_bucket_readwrite_secret_access_key"
+            ),
             endpoint_url=read_gcp_secret("cloudflare_r2_bucket_readwrite_endpoint_url"),
         )
 
@@ -131,9 +142,15 @@ class R2Path(cloudpathlib.S3Path):
         """
         return {
             "client_kwargs": {
-                "aws_access_key_id": read_gcp_secret("cloudflare_r2_bucket_readwrite_access_key_id"),
-                "aws_secret_access_key": read_gcp_secret("cloudflare_r2_bucket_readwrite_secret_access_key"),
-                "endpoint_url": read_gcp_secret("cloudflare_r2_bucket_readwrite_endpoint_url"),
+                "aws_access_key_id": read_gcp_secret(
+                    "cloudflare_r2_bucket_readwrite_access_key_id"
+                ),
+                "aws_secret_access_key": read_gcp_secret(
+                    "cloudflare_r2_bucket_readwrite_secret_access_key"
+                ),
+                "endpoint_url": read_gcp_secret(
+                    "cloudflare_r2_bucket_readwrite_endpoint_url"
+                ),
             }
         }
 
@@ -146,7 +163,8 @@ class R2Path(cloudpathlib.S3Path):
 class Path(PosixPath):
     """TODO: write the docstring once the class is consolidated."""
 
-    # TODO: Path is a factory class and we're dropping support for WindowsPath class. Let's see if we can bring it back.
+    # TODO: Path is a factory class and we're dropping support for WindowsPath class.
+    # Let's see if we can bring it back.
 
     storage_options = None
 
@@ -157,7 +175,6 @@ class Path(PosixPath):
 # TODO (milad) Python 3.12 introduces `type`. It will probably deprecate TypeAlias at
 # some point. We should use that instead when 3.12 is not too new anymore.
 AnyPathT: TypeAlias = Path | GSPath | R2Path
-"""TODO: AnyPathT"""
 
 
 def anypath(path: str | Path | GSPath | R2Path) -> AnyPathT:
@@ -168,7 +185,7 @@ def anypath(path: str | Path | GSPath | R2Path) -> AnyPathT:
     or a local path. It then returns an instance of the corresponding path class
     (`GSPath`, `R2Path`, or `Path`).
 
-    Arguments
+    Parameters
     ----------
     path : str | Path | GSPath | R2Path
         The path string (e.g., "/local/file.txt", "gs://bucket/blob", "r2://bucket/key")

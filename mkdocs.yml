@@ -11,7 +11,9 @@ repo_url: https://github.com/earthspecies/esp-data
 
 nav:
   - Getting Started: index.md
+  - Datasets: datasets.md
   - io: io.md
+  - Transforms: transforms.md
   - API Reference: reference.md
 
 theme:
@@ -44,16 +46,18 @@ theme:
       accent: pink
 
 plugins:
-- mkdocstrings:
-    default_handler: python
-    handlers:
-      python:
+  - mkdocstrings:
+      default_handler: python
+      handlers:
+        python:
           options:
             docstring_style: numpy
-            show_category_heading: true
+            show_category_heading: false
             show_symbol_type_toc: true
             show_symbol_type_heading: true
             modernize_annotations: true
+            # filters:
+            #   - "!^__.*__$"
 
 markdown_extensions:
   - admonition

@@ -1,0 +1,313 @@
+"""BEANS dataset"""
+
+from typing import Any, Dict, Iterator, Optional
+
+import librosa
+import numpy as np
+import pandas as pd
+
+from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
+from esp_data.io import anypath, AnyPathT, read_audio, audio_stereo_to_mono
+
+
+@register_dataset
+class Beans(Dataset):
+    """BEANS dataset
+
+    Description
+    -----------
+    BEANS (the BEnchmark of ANimal Sounds) is a collection of bioacoustics tasks
+    and public datasets, specifically designed to measure the performance of machine
+    learning algorithms in the field of bioacoustics. The benchmark proposed here
+    consists of two common tasks in bioacoustics: classification and detection.
+    It includes 12 datasets covering various species, including birds, land and
+    marine mammals, anurans, and insects.
+
+    References
+    ----------
+    BEANS: The Benchmark of Animal Sounds
+    Masato Hagiwara et al 2022
+    https://arxiv.org/abs/2210.12300
+    https://github.com/earthspecies/beans
+
+    Examples
+    -------
+    >>> from esp_data.datasets import Beans
+    >>> dataset = Beans(
+    ...     split="validation",
+    ...     output_take_and_give={"species_scientific": "species"},
+    ...     sample_rate=16000,
+    ...     data_root="gs://esp-ml-datasets/beans/v0.1.0/raw/"
+    ... )
+    """
+
+    info = DatasetInfo(
+        name="beans",
+        owner="gagan",
+        split_paths={
+            "train": "gs://esp-ml-datasets/beans/v0.1.0/raw/beans_train.csv",
+            "validation": "gs://esp-ml-datasets/beans/v0.1.0/raw/beans_val.csv",
+            "test": "gs://esp-ml-datasets/beans/v0.1.0/raw/beans_test.csv",
+            "cbi_test": "gs://esp-ml-datasets/beans/v0.1.0/raw/cbi_test.jsonl",
+            "cbi_validation": "gs://esp-ml-datasets/beans/v0.1.0/raw/cbi_val.jsonl",
+            "cbi_train": "gs://esp-ml-datasets/beans/v0.1.0/raw/cbi_train.jsonl",
+            "watkins_test": "gs://esp-ml-datasets/beans/v0.1.0/raw/watkins_test.jsonl",
+            "watkins_validation": "gs://esp-ml-datasets/beans/v0.1.0/raw/watkins_val.jsonl",
+            "watkins_train": "gs://esp-ml-datasets/beans/v0.1.0/raw/watkins_train.jsonl",
+            "dogs_test": "gs://esp-ml-datasets/beans/v0.1.0/raw/dogs_test.jsonl",
+            "dogs_validation": "gs://esp-ml-datasets/beans/v0.1.0/raw/dogs_val.jsonl",
+            "dogs_train": "gs://esp-ml-datasets/beans/v0.1.0/raw/dogs_train.jsonl",
+            "egyptian_fruit_bats_test": "gs://esp-ml-datasets/beans/v0.1.0/raw/egyptian_fruit_bats_test.jsonl",
+            "egyptian_fruit_bats_validation": "gs://esp-ml-datasets/beans/v0.1.0/raw/egyptian_fruit_bats_val.jsonl",
+            "egyptian_fruit_bats_train": "gs://esp-ml-datasets/beans/v0.1.0/raw/egyptian_fruit_bats_train.jsonl",
+            "hiceas_test": "gs://esp-ml-datasets/beans/v0.1.0/raw/hiceas_test.jsonl",
+            "hiceas_validation": "gs://esp-ml-datasets/beans/v0.1.0/raw/hiceas_val.jsonl",
+            "hiceas_train": "gs://esp-ml-datasets/beans/v0.1.0/raw/hiceas_train.jsonl",
+            "dcase_test": "gs://esp-ml-datasets/beans/v0.1.0/raw/dcase_test.jsonl",
+            "dcase_validation": "gs://esp-ml-datasets/beans/v0.1.0/raw/dcase_val.jsonl",
+            "dcase_train": "gs://esp-ml-datasets/beans/v0.1.0/raw/dcase_train.jsonl",
+            "enabirds_test": "gs://esp-ml-datasets/beans/v0.1.0/raw/enabirds_test.jsonl",
+            "enabirds_validation": "gs://esp-ml-datasets/beans/v0.1.0/raw/enabirds_val.jsonl",
+            "enabirds_train": "gs://esp-ml-datasets/beans/v0.1.0/raw/enabirds_train.jsonl",
+            "esc50_test": "gs://esp-ml-datasets/beans/v0.1.0/raw/esc50_test.jsonl",
+            "esc50_validation": "gs://esp-ml-datasets/beans/v0.1.0/raw/esc50_val.jsonl",
+            "esc50_train": "gs://esp-ml-datasets/beans/v0.1.0/raw/esc50_train.jsonl",
+            "speech_commands_test": "gs://esp-ml-datasets/beans/v0.1.0/raw/speech_commands_test.jsonl",
+            "speech_commands_validation": "gs://esp-ml-datasets/beans/v0.1.0/raw/speech_commands_val.jsonl",
+            "speech_commands_train": "gs://esp-ml-datasets/beans/v0.1.0/raw/speech_commands_train.jsonl",
+            "humbugdb_test": "gs://esp-ml-datasets/beans/v0.1.0/raw/humbugdb_test.jsonl",
+            "humbugdb_validation": "gs://esp-ml-datasets/beans/v0.1.0/raw/humbugdb_val.jsonl",
+            "humbugdb_train": "gs://esp-ml-datasets/beans/v0.1.0/raw/humbugdb_train.jsonl",
+            "rfcx_test": "gs://esp-ml-datasets/beans/v0.1.0/raw/rfcx_test.jsonl",
+            "rfcx_validation": "gs://esp-ml-datasets/beans/v0.1.0/raw/rfcx_val.jsonl",
+            "rfcx_train": "gs://esp-ml-datasets/beans/v0.1.0/raw/rfcx_train.jsonl",
+            "hainan_gibbons_test": "gs://esp-ml-datasets/beans/v0.1.0/raw/hainan_gibbons_test.jsonl",
+            "hainan_gibbons_validation": "gs://esp-ml-datasets/beans/v0.1.0/raw/hainan_gibbons_val.jsonl",
+            "hainan_gibbons_train": "gs://esp-ml-datasets/beans/v0.1.0/raw/hainan_gibbons_train.jsonl",
+        },
+        version="0.1.0",
+        description="BEANS benchmark dataset",
+        sources=[
+            "cbi",
+            "watkins",
+            "dogs",
+            "egyptian_fruit_bats",
+            "hiceas",
+            "dcase",
+            "enabirds",
+            "esc50",
+            "speech_commands",
+            "humbugdb",
+            "rfcx",
+            "hainan_gibbons",
+        ],
+        license="CC-BY-4.0, CC0",
+    )
+
+    def __init__(
+        self,
+        split: str = "train",
+        output_take_and_give: dict[str, str] = None,
+        sample_rate: Optional[int] = None,
+        data_root: Optional[str | AnyPathT] = None,
+    ) -> None:
+        """Initialize the BEANS dataset.
+
+        Parameters
+        ----------
+        split : str
+            The split to load. One of info.split_paths keys.
+        output_take_and_give : dict[str, str]
+            A dictionary mapping the original column names to the new column names.
+            It acts as a filter as well.
+        sample_rate : int
+            The sample rate to which audio files should be resampled.
+        data_root : Optional[str | AnyPathT]
+            The root directory where the dataset is stored.
+            If None, it will use the default path from the DatasetInfo.
+        """
+        super().__init__(output_take_and_give)  # Initialize the parent Dataset class
+        self.split = split
+        self._data: pd.DataFrame = None
+        self._load()  # Load the dataset (fills self._data)
+        self.sample_rate = sample_rate
+        self.data_root = data_root
+        if self.data_root is None:
+            # we assume that parent dir of the split path is the data root
+            self.data_root = anypath(self.info.split_paths[self.split]).parent
+
+    @property
+    def columns(self) -> list[str]:
+        """Return the columns of the dataset."""
+        return list(self._data.columns)
+
+    @property
+    def available_splits(self) -> list[str]:
+        """Return the available splits of the dataset."""
+        return list(self.info.split_paths.keys())
+
+    def _load(self) -> None:
+        """Load the dataset.
+
+        Raises
+        ------
+        LookupError
+            If the split is not valid.
+        """
+        if self.split not in self.info.split_paths:
+            raise LookupError(
+                f"Invalid split: {self.split}.Expected one of {list(self.info.split_paths.keys())}"
+            )
+
+        location = self.info.split_paths[self.split]
+        if anypath(location).suffix == ".jsonl":
+            # For JSONL files, read them directly into a DataFrame
+            self._data = pd.read_json(location, lines=True, orient="records")
+        else:
+            # Read CSV content
+            self._data = pd.read_csv(
+                location, keep_default_na=False, na_values=[""]
+            )  # This setting avoids setting 'None' to a pd.NA type
+
+    @classmethod
+    def from_config(cls, cfg: DatasetConfig) -> "Beans":
+        """Create a Dataset instance from a configuration dictionary.
+
+        Parameters
+        ----------
+        cfg : DatasetConfig
+            Configuration dictionary containing dataset parametesf
+
+        Returns
+        -------
+        Dataset
+            An instance of the Dataset class.
+
+        Raises
+        -------
+        LookupError
+            If the specified split is not available in the dataset info.
+        """
+        cfg = cfg.model_dump(exclude=("dataset_name", "transformations"))
+
+        split = cfg.get("split", None)
+        if not split or split not in cls.info.split_paths:
+            raise LookupError(
+                f"Invalid split '{split}'."
+                f"Available splits: {', '.join(cls.info.split_paths.keys())}"
+            )
+
+        return cls(
+            split=split,
+            output_take_and_give=cfg.get("output_take_and_give", None),
+            data_root=cfg.get("data_root"),
+            sample_rate=cfg["sample_rate"],
+        )
+
+    def __len__(self) -> int:
+        """Return the number of samples in the dataset.
+
+        Returns
+        -------
+        int
+            Number of samples in the current split.
+
+        Raises
+        ------
+        RuntimeError
+            If no split has been loaded yet.
+        """
+        if self._data is None:
+            raise RuntimeError("No split has been loaded yet. Call load() first.")
+        return len(self._data)
+
+    def __getitem__(self, idx: int) -> dict[str, Any]:
+        """Get a specific sample from the dataset.
+        Parameters
+        ----------
+        idx : int
+            Index of the sample to get.
+
+        Returns
+        -------
+        dict[str, Any]
+            A dictionary containing the data.
+
+        Raises
+        ------
+        IndexError
+            If the index is out of bounds.
+        """
+        if idx < 0 or idx >= len(self._data):
+            raise IndexError(f"Index {idx} out of bounds for dataset of length {len(self._data)}.")
+
+        row = self._data.iloc[idx].to_dict()
+        # Ensure audio path is valid
+        if self.data_root:
+            audio_path = anypath(self.data_root) / row["local_path"]
+        else:
+            audio_path = anypath(row["local_path"])
+
+        # Read the audio clip
+        audio, sr = read_audio(audio_path)
+        audio = audio.astype(np.float32)
+        # Stereo to mono if necessary.
+        audio = audio_stereo_to_mono(audio, mono_method="average")
+
+        if self.sample_rate is not None and sr != self.sample_rate:
+            audio = librosa.resample(
+                y=audio,
+                orig_sr=sr,
+                target_sr=self.sample_rate,
+                scale=True,
+                res_type="kaiser_best",
+            )
+
+        row["audio"] = audio
+
+        if self.output_take_and_give:
+            item = {}
+            for key, value in self.output_take_and_give.items():
+                item[value] = row[key]
+        else:
+            item = row
+
+        return item
+
+    def __iter__(self) -> Iterator[Dict[str, Any]]:
+        """Iterate over samples in the dataset.
+
+        Yields
+        -------
+        Dict[str, Any]
+            Each sample in the dataset.
+
+        Raises
+        ------
+        RuntimeError
+            If no split has been loaded yet.
+        """
+        if self._data is None:
+            raise RuntimeError("No split has been loaded yet. Call load() first.")
+
+        for idx in range(len(self)):
+            yield self[idx]
+
+    def __str__(self) -> str:
+        """Return a string representation of the dataset.
+
+        Returns
+        -------
+        str
+            A string representation of the dataset including its name, version,
+            and basic statistics if data is loaded.
+        """
+        base_info = f"{self.info.name} (v{self.info.version})"
+
+        return (
+            f"{base_info}\n"
+            f"Description: {self.info.description}\n"
+            f"Sources: {', '.join(self.info.sources)}\n"
+            f"License: {self.info.license}\n"
+            f"Available splits: {', '.join(self.info.split_paths.keys())}"
+        )

@@ -1,4 +1,6 @@
-"""This file offers functionalities necessary to manipulate different sort of filesystems"""
+"""This file offers functionalities necessary to
+manipulate different sort of filesystems
+"""
 
 import logging
 from functools import cache
@@ -30,15 +32,15 @@ def filesystem(
     (access key ID, secret access key, endpoint URL) from GCP Secret Manager.
 
     The results are cached so subsequent calls with the same protocol and keyword
-    arguments will return the identical filesystem instance.
+    parameters will return the identical filesystem instance.
 
-    Arguments
+    Parameters
     ----------
         protocol: Literal["gcs", "gs", "r2", "local"]
             The type of filesystem to initialize. Defaults to "local".
             Supported values are "gcs", "gs", "r2", "local".
         **kwargs: dict
-            Additional keyword arguments to pass directly to the
+            Additional keyword parameters to pass directly to the
             underlying filesystem constructor (e.g., GCSFileSystem, S3FileSystem).
 
     Raises
@@ -74,17 +76,21 @@ def filesystem(
     elif protocol == "local":
         return fsspec.filesystem("local", **kwargs)
     else:
-        raise ValueError(f"Unknown backend: {protocol}. Supported backends are: gcs, r2.")
+        raise ValueError(
+            f"Unknown backend: {protocol}. Supported backends are: gcs, r2."
+        )
 
 
-def filesystem_from_path(path: str | AnyPathT) -> Union[GCSFileSystem, S3FileSystem, fsspec.filesystem]:
+def filesystem_from_path(
+    path: str | AnyPathT,
+) -> Union[GCSFileSystem, S3FileSystem, fsspec.filesystem]:
     """Determines and returns the appropriate cached filesystem based on the path.
 
     Uses the `anypath` utility to normalize the input path and identify its
     protocol (local, GCS, R2). It then calls the `filesystem` factory function
     to retrieve the corresponding cached fsspec-compatible filesystem instance.
 
-    Arguments
+    Parameters
     ----------
     path : str or AnyPathT
         The path string or path object (e.g., Path, GSPath, R2Path) whose
@@ -115,4 +121,6 @@ def filesystem_from_path(path: str | AnyPathT) -> Union[GCSFileSystem, S3FileSys
     elif isinstance(path, R2Path):
         return filesystem("r2")
     else:
-        raise ValueError(f"Unknown path type: {path}. Supported types are: local, gcs, r2.")
+        raise ValueError(
+            f"Unknown path type: {path}. Supported types are: local, gcs, r2."
+        )
