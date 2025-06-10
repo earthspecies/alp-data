@@ -27,7 +27,7 @@ class AnimalSpeak(Dataset):
     Robinson et al 2023
     https://arxiv.org/pdf/2308.04978
 
-    Example
+    Examples
     -------
     >>> from esp_data.datasets import AnimalSpeak
     >>> dataset = AnimalSpeak(
@@ -181,9 +181,7 @@ class AnimalSpeak(Dataset):
             If the index is out of bounds.
         """
         if idx < 0 or idx >= len(self._data):
-            raise IndexError(
-                f"Index {idx} out of bounds for dataset of length {len(self._data)}."
-            )
+            raise IndexError(f"Index {idx} out of bounds for dataset of length {len(self._data)}.")
 
         row = self._data.iloc[idx].to_dict()
 

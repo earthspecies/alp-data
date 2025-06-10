@@ -37,7 +37,7 @@ class DatasetConfig(BaseModel):
         path item of a sample in the dataset.
         If None, the default is the parent directory of the split path.
 
-    Example
+    Examples
     -------
     >>> dataset_config = DatasetConfig(
     ...    dataset_name="barkley_canyon",
@@ -363,9 +363,7 @@ class Dataset(ABC):
         """
         raise NotImplementedError
 
-    def apply_transformations(
-        self, transformations: list[RegisteredTransformConfigs]
-    ) -> list[Any]:
+    def apply_transformations(self, transformations: list[RegisteredTransformConfigs]) -> list[Any]:
         """Apply the given list of transformations to the dataset.
 
         This method applies each transformation in sequence to the dataset's data.
