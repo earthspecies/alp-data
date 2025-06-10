@@ -45,7 +45,7 @@ config = FilterConfig(
     mode="include"
 )
 
-# Create and apply the transform
+# Assume a dataframe called 'data' is already defined
 transform = transform_from_config(config)
 transformed_data, metadata = transform(data)
 ```

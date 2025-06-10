@@ -59,25 +59,31 @@ Datasets can be combined with [Transforms](transforms.md) to modify or enhance t
 
 Transforms can be used in a sequential way, as in first get the original dataset, then apply a transform:
 
+!!! remark
+    The order of the transforms is important. If you have multiple transforms, they will be applied in the order they are defined in the configuration. So, for e.g., if you change the name of a column with LabelFromFeatureTransform, it will effect the Filter Transform
+
 ```python
 from esp_data.datasets import AnimalSpeak
-from esp_data.transforms import Filter, LabelFromFeature
+from esp_data.transforms import Filter, LabelFromFeatureConfig
 
 # Create a dataset
 dataset = AnimalSpeak(split="validation")
 
-# Create transforms
-filter_transform = Filter(
+# Create transform configurations
+filter_config = FilterConfig(
+    type="filter",
     property="source",
     values=["xeno-canto", "iNaturalist"],
     mode="include"
 )
-label_transform = LabelFromFeature(
+
+label_from_feature_config = LabelFromFeatureConfig(
+    type="label_from_feature",
     feature="canonical_name",
     output_column="label"
 )
 
-dataset.apply_transformations([filter_transform, label_transform])
+dataset.apply_transformations([filter_config, label_from_feature_config])
 ```
 
 ### Using Transforms in Dataset Configuration
