@@ -5,11 +5,19 @@
          <lastmod>2025-06-10</lastmod>
     </url>
     <url>
+         <loc>http://go/python/docs/1.0.0/datasets/</loc>
+         <lastmod>2025-06-10</lastmod>
+    </url>
+    <url>
          <loc>http://go/python/docs/1.0.0/io/</loc>
          <lastmod>2025-06-10</lastmod>
     </url>
     <url>
          <loc>http://go/python/docs/1.0.0/reference/</loc>
+         <lastmod>2025-06-10</lastmod>
+    </url>
+    <url>
+         <loc>http://go/python/docs/1.0.0/transforms/</loc>
          <lastmod>2025-06-10</lastmod>
     </url>
 </urlset>
