@@ -10,6 +10,10 @@ on:
       - v[0-9]+.[0-9]+*
       - latest
 
+concurrency:
+  group: docs-build
+  cancel-in-progress: false
+
 jobs:
   build-docs:
     runs-on: ubuntu-latest
