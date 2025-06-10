@@ -377,8 +377,9 @@ class BarkleyCanyonDetection(Dataset):
 
         location = self.info.split_paths[self.split]
         # Read CSV content
-        csv_text = anypath(location).read_text(encoding="utf-8")
-        self._data = pd.read_csv(StringIO(csv_text))
+        self._data = pd.read_csv(
+            location, keep_default_na=False, na_values=[""]
+        )  # This setting avoids setting 'None' to a pd.NA type
 
     @classmethod
     def from_config(cls, cfg: DatasetConfig) -> "BarkleyCanyonDetection":
