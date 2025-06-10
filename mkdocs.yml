@@ -52,14 +52,14 @@ plugins:
         python:
           options:
             docstring_style: numpy
-            show_category_heading: true
+            show_category_heading: false
             show_symbol_type_toc: true
             show_symbol_type_heading: true
             modernize_annotations: true
-
-markdown_extensions:
-  - toc:
-      toc_depth: 1-2  # Only show h1 and h3
+            # filters:
+            #   - "!^__.*__$"
+            # filters:
+            #   - "!^__.*__$"
   - admonition
   - pymdownx.details
   - pymdownx.highlight:
