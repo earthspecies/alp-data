@@ -79,7 +79,7 @@ type(anypath("r2://some-bucket/some-file"))
 print(anypath("r2://some-bucket/some-file"))
 # Output: s3://some-bucket/some-file
 ```
-[Back to Top](#the-esp_dataio-module)
+[Back to Top](#esp_dataio-module)
 
 ### Useful pathlike methods
 
@@ -137,7 +137,7 @@ assert data == {"data": 1}
 anypath("random.json").unlink()
 ```
 
-[Back to Top](#the-esp_dataio-module)
+[Back to Top](#esp_dataio-module)
 
 
 #### Cloud files
@@ -175,7 +175,7 @@ folder
 ```
     R2Path('s3://esp-ci-cd-tests')
 
-[Back to Top](#the-esp_dataio-module)
+[Back to Top](#esp_dataio-module)
 
 
 ```python
@@ -210,7 +210,7 @@ anypath("tempfolder").exists()
 # Output: True
 ```
 
-[Back to Top](#the-esp_dataio-module)
+[Back to Top](#esp_dataio-module)
 
 ## Filesystem approach with `esp_data.io.filesystem`
 
@@ -288,7 +288,7 @@ fs.glob("esp-ci-cd-tests/**/*txt")
         ...
 
 
-[Back to Top](#the-esp_dataio-module)
+[Back to Top](#esp_dataio-module)
 
 
 #### Download and upload files with `filesystem`
@@ -333,7 +333,7 @@ fs.exists("esp-ci-cd-tests/foo3.txt")
 # Output: True
 ```
 
-[Back to Top](#the-esp_dataio-module)
+[Back to Top](#esp_dataio-module)
 
 ## Read audio from a remote file
 

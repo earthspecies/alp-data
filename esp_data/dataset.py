@@ -12,7 +12,7 @@ from esp_data.transforms import RegisteredTransformConfigs, transform_from_confi
 class DatasetConfig(BaseModel):
     """A Pydantic base model for the configuration of a dataset.
 
-    Parameters
+    Attributes
     ----------
     dataset_name : str
         Name of the dataset, must match a registered dataset class
