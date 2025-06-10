@@ -16,26 +16,24 @@ class BirdSet(Dataset):
 
     Description
     -----------
-    BirdSet a large-scale benchmark dataset for audio classification focusing on avian
-    bioacoustics. BirdSet surpasses AudioSet with over 6,800 recording hours from nearly
-    10,000 classes for training and more than 400 hours across eight strongly labeled
-    evaluation datasets. It serves as a versatile resource for use cases such as
-    multi-label classification, covariate shift or self-supervised learning.
+    BirdSet a large-scale benchmark dataset for audio classification focusing on avian bioacoustics. 
+    BirdSet surpasses AudioSet with over 6,800 recording hours  from nearly 10,000 classes
+    for training and more than 400 hours  across eight strongly labeled evaluation datasets. 
+    It serves as a versatile resource for use cases such as multi-label classification, covariate shift or self-supervised learning.
 
     References
     ----------
     Birdset: A multi-task benchmark for classification in avian bioacoustics
-    Rauch, Lukas, et al. "Birdset: A multi-task benchmark for classification in avian
-    bioacoustics."
+    Rauch, Lukas, et al. "Birdset: A multi-task benchmark for classification in avian bioacoustics."
     https://github.com/DBD-research-group/BirdSet
-    https://arxiv.org/abs/2403.10380
+    https://arxiv.org/abs/2403.10380 
 
     Example
     -------
     >>> from esp_data.datasets import BirdSet
     >>> dataset = BirdSet(
     ...     split="HSN-test",
-    ...     output_take_and_give={"label": "label"},
+    ...     output_take_and_give={"species_scientific": "species"},
     ...     sample_rate=16000,
     ...     data_root="gs://foundation-model-data/"
     ... )
@@ -63,7 +61,9 @@ class BirdSet(Dataset):
         },
         version="0.1.0",
         description="BirdSet dataset",
-        sources=["HSN", "NBP", "NES", "PER", "POW"],
+        sources=[
+            "HSN", "NBP", "NES", "PER", "POW"
+        ],
         license="CC-BY-4.0, CC0",
     )
 
