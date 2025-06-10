@@ -13,10 +13,10 @@
         <link rel="canonical" href="http://go/python/docs/latest/io/">
       
       
-        <link rel="prev" href="..">
+        <link rel="prev" href="../datasets/">
       
       
-        <link rel="next" href="../reference/">
+        <link rel="next" href="../transforms/">
       
       
       <link rel="icon" href="../assets/favicon.png">
@@ -199,6 +199,25 @@
   
   
   
+  
+    <li class="md-tabs__item">
+      <a href="../datasets/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Datasets
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
     
   
   
@@ -210,6 +229,25 @@
     
   
   io
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../transforms/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Transforms
 
       </a>
     </li>
@@ -300,6 +338,28 @@
   
   <span class="md-ellipsis">
     Getting Started
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../datasets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Datasets
     
   </span>
   
@@ -524,6 +584,28 @@
   
   
     <li class="md-nav__item">
+      <a href="../transforms/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Transforms
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../reference/" class="md-nav__link">
         
   
@@ -613,7 +695,7 @@
 <p><div class="language-python highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="nb">print</span><span class="p">(</span><span class="n">anypath</span><span class="p">(</span><span class="s2">&quot;r2://some-bucket/some-file&quot;</span><span class="p">))</span>
 </span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="c1"># Output: s3://some-bucket/some-file</span>
 </span></code></pre></div>
-<a href="#the-esp_dataio-module">Back to Top</a></p>
+<a href="#esp_dataio-module">Back to Top</a></p>
 <h3 id="useful-pathlike-methods">Useful pathlike methods</h3>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="n">path</span> <span class="o">=</span> <span class="n">anypath</span><span class="p">(</span><span class="s2">&quot;/some/random/file.txt&quot;</span><span class="p">)</span>
 </span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>
@@ -656,7 +738,7 @@
 <h4 id="delete-a-file-with-unlink">Delete a file with <code>.unlink()</code></h4>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="n">anypath</span><span class="p">(</span><span class="s2">&quot;random.json&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">unlink</span><span class="p">()</span>
 </span></code></pre></div>
-<p><a href="#the-esp_dataio-module">Back to Top</a></p>
+<p><a href="#esp_dataio-module">Back to Top</a></p>
 <h4 id="cloud-files">Cloud files</h4>
 <p>The above operations work identically for files in buckets.</p>
 <div class="admonition note">
@@ -680,7 +762,7 @@
 </span><span id="__span-13-2"><a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a><span class="n">folder</span>
 </span></code></pre></div>
     R2Path('s3://esp-ci-cd-tests')</p>
-<p><a href="#the-esp_dataio-module">Back to Top</a></p>
+<p><a href="#esp_dataio-module">Back to Top</a></p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="n">folder</span><span class="o">.</span><span class="n">is_dir</span><span class="p">()</span>
 </span><span id="__span-14-2"><a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a><span class="c1"># True</span>
 </span><span id="__span-14-3"><a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a><span class="n">folder</span><span class="o">.</span><span class="n">is_file</span><span class="p">()</span>
@@ -702,7 +784,7 @@
 </span><span id="__span-16-3"><a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a><span class="n">anypath</span><span class="p">(</span><span class="s2">&quot;tempfolder&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span>
 </span><span id="__span-16-4"><a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a><span class="c1"># Output: True</span>
 </span></code></pre></div>
-<p><a href="#the-esp_dataio-module">Back to Top</a></p>
+<p><a href="#esp_dataio-module">Back to Top</a></p>
 <h2 id="filesystem-approach-with-esp_dataiofilesystem">Filesystem approach with <code>esp_data.io.filesystem</code></h2>
 <p>Let's now dive into the filesystem approach</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-17-1"><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">esp_data.io</span><span class="w"> </span><span class="kn">import</span> <span class="n">filesystem</span><span class="p">,</span> <span class="n">filesystem_from_path</span>
@@ -746,7 +828,7 @@ The same API works for local filesystem as <code>filesystem("local")</code></p>
     &#39;esp-ci-cd-tests/random.txt&#39;,
     ...
 </code></pre></div>
-<p><a href="#the-esp_dataio-module">Back to Top</a></p>
+<p><a href="#esp_dataio-module">Back to Top</a></p>
 <h4 id="download-and-upload-files-with-filesystem">Download and upload files with <code>filesystem</code></h4>
 <p>Download files from a cloud location to local. 📝 <code>get</code> and <code>put</code> return <code>None</code> if the operation was successful.</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-25-1"><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a><span class="n">fs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;esp-ci-cd-tests/foo.txt&quot;</span><span class="p">,</span> <span class="s2">&quot;foofoo.txt&quot;</span><span class="p">)</span>
@@ -771,7 +853,7 @@ The same API works for local filesystem as <code>filesystem("local")</code></p>
 </span><span id="__span-28-2"><a id="__codelineno-28-2" name="__codelineno-28-2" href="#__codelineno-28-2"></a><span class="n">fs</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="s2">&quot;esp-ci-cd-tests/foo3.txt&quot;</span><span class="p">)</span>
 </span><span id="__span-28-3"><a id="__codelineno-28-3" name="__codelineno-28-3" href="#__codelineno-28-3"></a><span class="c1"># Output: True</span>
 </span></code></pre></div>
-<p><a href="#the-esp_dataio-module">Back to Top</a></p>
+<p><a href="#esp_dataio-module">Back to Top</a></p>
 <h2 id="read-audio-from-a-remote-file">Read audio from a remote file</h2>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-29-1"><a id="__codelineno-29-1" name="__codelineno-29-1" href="#__codelineno-29-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">esp_data.io</span><span class="w"> </span><span class="kn">import</span> <span class="n">read_audio</span>
 </span><span id="__span-29-2"><a id="__codelineno-29-2" name="__codelineno-29-2" href="#__codelineno-29-2"></a>
