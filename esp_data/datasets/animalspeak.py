@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
-from esp_data.io import anypath, AnyPathT, read_audio, audio_stereo_to_mono
+from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
 
 
 @register_dataset
@@ -69,8 +69,9 @@ class AnimalSpeak(Dataset):
             It acts as a filter as well.
         sample_rate : int
             The sample rate to which audio files should be resampled.
-        audio_path_col : str
-            The name of the column in the DataFrame that contains the audio file paths.
+        data_root : Optional[str | AnyPathT]
+            The root directory where the dataset is stored.
+            If None, it will use the default path from the DatasetInfo.
         """
         super().__init__(output_take_and_give)  # Initialize the parent Dataset class
         self.split = split
