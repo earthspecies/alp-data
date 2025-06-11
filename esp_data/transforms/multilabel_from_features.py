@@ -87,7 +87,7 @@ class MultiLabelFromFeatures:
         else:
             label_map = self.label_map
 
-        def _row_to_ids(row: pd.Series) -> list | None:
+        def _row_to_ids(row: pd.Series) -> list:
             row_labels = []
             for f in self.features:
                 if isinstance(row[f], list):
@@ -98,10 +98,7 @@ class MultiLabelFromFeatures:
                     v = [row[f]]
                 row_labels.extend(map(lambda x: label_map[x], v))
 
-            if row_labels:
-                return sorted(row_labels)
-            else:
-                return None
+            return sorted(row_labels)
 
         df[self.output_feature] = df[self.features].apply(_row_to_ids, axis="columns")
 
