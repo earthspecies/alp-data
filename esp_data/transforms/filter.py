@@ -34,12 +34,8 @@ class Filter:
         in the property will be kept. If "exclude", rows with the specified values
         will be removed from the DataFrame.
 
-    Returns
+    Example
     -------
-    None
-
-    Examples
-    --------
     >>> from esp_data.transforms import Filter
     >>> filter_transform = Filter(property="species", values=["bee", "butterfly"],
     ...     mode="include")
@@ -71,22 +67,14 @@ class Filter:
     def __call__(self, data: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
         """Filter the data based on property values.
 
-        Parameters
-        ----------
-        data : pd.DataFrame
-            The data dataframe to filter.
+        Args:
+            data: The data dataframe to filter
 
-        Returns
-        -------
-        tuple[pd.DataFrame, dict]
-            A tuple containing:
-            - The filtered data (same type as input)
-            - An empty dictionary for metadata
+        Returns:
+            The filtered data (same type as input).
 
-        Raises
-        ------
-        TypeError
-            If the data type is not supported.
+        Raises:
+            TypeError: If the data type is not supported.
         """
         if isinstance(data, pd.DataFrame):
             return self._filter_dataframe(data), {}
@@ -98,15 +86,11 @@ class Filter:
     def _filter_dataframe(self, df: pd.DataFrame) -> pd.DataFrame:
         """Filter a pandas DataFrame.
 
-        Parameters
-        ----------
-        df : pd.DataFrame
-            The DataFrame to filter.
+        Args:
+            df: The DataFrame to filter.
 
-        Returns
-        -------
-        pd.DataFrame
-            The filtered DataFrame.
+        Returns:
+            pd.DataFrame: The filtered DataFrame.
         """
         if self.mode == "include":
             return df[df[self.property].isin(self.values)]

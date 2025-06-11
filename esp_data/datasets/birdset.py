@@ -11,96 +11,59 @@ from esp_data.io import anypath, AnyPathT, read_audio, audio_stereo_to_mono
 
 
 @register_dataset
-class Beans(Dataset):
-    """BEANS dataset
+class BirdSet(Dataset):
+    """BirdSet dataset
 
     Description
     -----------
-    BEANS (the BEnchmark of ANimal Sounds) is a collection of bioacoustics tasks
-    and public datasets, specifically designed to measure the performance of machine
-    learning algorithms in the field of bioacoustics. The benchmark proposed here
-    consists of two common tasks in bioacoustics: classification and detection.
-    It includes 12 datasets covering various species, including birds, land and
-    marine mammals, anurans, and insects.
+    BirdSet a large-scale benchmark dataset for audio classification focusing on avian
+    bioacoustics. BirdSet surpasses AudioSet with over 6,800 recording hours from nearly
+    10,000 classes for training and more than 400 hours across eight strongly labeled
+    evaluation datasets. It serves as a versatile resource for use cases such as
+    multi-label classification, covariate shift or self-supervised learning.
 
     References
     ----------
-    BEANS: The Benchmark of Animal Sounds
-    Masato Hagiwara et al 2022
-    https://arxiv.org/abs/2210.12300
-    https://github.com/earthspecies/beans
+    Birdset: A multi-task benchmark for classification in avian bioacoustics
+    Rauch, Lukas, et al. "Birdset: A multi-task benchmark for classification in avian
+    bioacoustics."
+    https://github.com/DBD-research-group/BirdSet
+    https://arxiv.org/abs/2403.10380
 
     Example
     -------
-    >>> from esp_data.datasets import Beans
-    >>> dataset = Beans(
-    ...     split="validation",
-    ...     output_take_and_give={"species_scientific": "species"},
+    >>> from esp_data.datasets import BirdSet
+    >>> dataset = BirdSet(
+    ...     split="HSN-test",
+    ...     output_take_and_give={"label": "label"},
     ...     sample_rate=16000,
-    ...     data_root="gs://esp-ml-datasets/beans/v0.1.0/raw/"
+    ...     data_root="gs://foundation-model-data/"
     ... )
     """
 
     info = DatasetInfo(
-        name="beans",
+        name="birdset",
         owner="gagan",
         split_paths={
-            "train": "gs://esp-ml-datasets/beans/v0.1.0/raw/beans_train.csv",
-            "validation": "gs://esp-ml-datasets/beans/v0.1.0/raw/beans_val.csv",
-            "test": "gs://esp-ml-datasets/beans/v0.1.0/raw/beans_test.csv",
-            "cbi_test": "gs://esp-ml-datasets/beans/v0.1.0/raw/cbi_test.jsonl",
-            "cbi_validation": "gs://esp-ml-datasets/beans/v0.1.0/raw/cbi_val.jsonl",
-            "cbi_train": "gs://esp-ml-datasets/beans/v0.1.0/raw/cbi_train.jsonl",
-            "watkins_test": "gs://esp-ml-datasets/beans/v0.1.0/raw/watkins_test.jsonl",
-            "watkins_validation": "gs://esp-ml-datasets/beans/v0.1.0/raw/watkins_val.jsonl",
-            "watkins_train": "gs://esp-ml-datasets/beans/v0.1.0/raw/watkins_train.jsonl",
-            "dogs_test": "gs://esp-ml-datasets/beans/v0.1.0/raw/dogs_test.jsonl",
-            "dogs_validation": "gs://esp-ml-datasets/beans/v0.1.0/raw/dogs_val.jsonl",
-            "dogs_train": "gs://esp-ml-datasets/beans/v0.1.0/raw/dogs_train.jsonl",
-            "egyptian_fruit_bats_test": "gs://esp-ml-datasets/beans/v0.1.0/raw/egyptian_fruit_bats_test.jsonl",
-            "egyptian_fruit_bats_validation": "gs://esp-ml-datasets/beans/v0.1.0/raw/egyptian_fruit_bats_val.jsonl",
-            "egyptian_fruit_bats_train": "gs://esp-ml-datasets/beans/v0.1.0/raw/egyptian_fruit_bats_train.jsonl",
-            "hiceas_test": "gs://esp-ml-datasets/beans/v0.1.0/raw/hiceas_test.jsonl",
-            "hiceas_validation": "gs://esp-ml-datasets/beans/v0.1.0/raw/hiceas_val.jsonl",
-            "hiceas_train": "gs://esp-ml-datasets/beans/v0.1.0/raw/hiceas_train.jsonl",
-            "dcase_test": "gs://esp-ml-datasets/beans/v0.1.0/raw/dcase_test.jsonl",
-            "dcase_validation": "gs://esp-ml-datasets/beans/v0.1.0/raw/dcase_val.jsonl",
-            "dcase_train": "gs://esp-ml-datasets/beans/v0.1.0/raw/dcase_train.jsonl",
-            "enabirds_test": "gs://esp-ml-datasets/beans/v0.1.0/raw/enabirds_test.jsonl",
-            "enabirds_validation": "gs://esp-ml-datasets/beans/v0.1.0/raw/enabirds_val.jsonl",
-            "enabirds_train": "gs://esp-ml-datasets/beans/v0.1.0/raw/enabirds_train.jsonl",
-            "esc50_test": "gs://esp-ml-datasets/beans/v0.1.0/raw/esc50_test.jsonl",
-            "esc50_validation": "gs://esp-ml-datasets/beans/v0.1.0/raw/esc50_val.jsonl",
-            "esc50_train": "gs://esp-ml-datasets/beans/v0.1.0/raw/esc50_train.jsonl",
-            "speech_commands_test": "gs://esp-ml-datasets/beans/v0.1.0/raw/speech_commands_test.jsonl",
-            "speech_commands_validation": "gs://esp-ml-datasets/beans/v0.1.0/raw/speech_commands_val.jsonl",
-            "speech_commands_train": "gs://esp-ml-datasets/beans/v0.1.0/raw/speech_commands_train.jsonl",
-            "humbugdb_test": "gs://esp-ml-datasets/beans/v0.1.0/raw/humbugdb_test.jsonl",
-            "humbugdb_validation": "gs://esp-ml-datasets/beans/v0.1.0/raw/humbugdb_val.jsonl",
-            "humbugdb_train": "gs://esp-ml-datasets/beans/v0.1.0/raw/humbugdb_train.jsonl",
-            "rfcx_test": "gs://esp-ml-datasets/beans/v0.1.0/raw/rfcx_test.jsonl",
-            "rfcx_validation": "gs://esp-ml-datasets/beans/v0.1.0/raw/rfcx_val.jsonl",
-            "rfcx_train": "gs://esp-ml-datasets/beans/v0.1.0/raw/rfcx_train.jsonl",
-            "hainan_gibbons_test": "gs://esp-ml-datasets/beans/v0.1.0/raw/hainan_gibbons_test.jsonl",
-            "hainan_gibbons_validation": "gs://esp-ml-datasets/beans/v0.1.0/raw/hainan_gibbons_val.jsonl",
-            "hainan_gibbons_train": "gs://esp-ml-datasets/beans/v0.1.0/raw/hainan_gibbons_train.jsonl",
+            "HSN-train": "gs://foundation-model-data/data/birdset-train/HSN/HSN_taxonomic.jsonl",
+            "HSN-validation": "gs://foundation-model-data/data/birdset-train/HSN/HSN_taxonomic.jsonl",
+            "HSN-test": "gs://foundation-model-data/data/birdset-test/HSN/HSN_taxonomic.jsonl",
+            "NBP-train": "gs://foundation-model-data/data/birdset-train/NBP/NBP_taxonomic.jsonl",
+            "NBP-validation": "gs://foundation-model-data/data/birdset-train/NBP/NBP_taxonomic.jsonl",
+            "NBP-test": "gs://foundation-model-data/data/birdset-test/NBP/NBP_taxonomic.jsonl",
+            "NES-train": "gs://foundation-model-data/data/birdset-train/NES/NES_taxonomic.jsonl",
+            "NES-validation": "gs://foundation-model-data/data/birdset-train/NES/NES_taxonomic.jsonl",
+            "NES-test": "gs://foundation-model-data/data/birdset-test/NES/NES_taxonomic.jsonl",
+            "PER-train": "gs://foundation-model-data/data/birdset-train/PER/PER_taxonomic.jsonl",
+            "PER-validation": "gs://foundation-model-data/data/birdset-train/PER/PER_taxonomic.jsonl",
+            "PER-test": "gs://foundation-model-data/data/birdset-test/PER/PER_taxonomic.jsonl",
+            "POW-train": "gs://foundation-model-data/data/birdset-train/POW/POW_taxonomic.jsonl",
+            "POW-validation": "gs://foundation-model-data/data/birdset-train/POW/POW_taxonomic.jsonl",
+            "POW-test": "gs://foundation-model-data/data/birdset-test/POW/POW_taxonomic.jsonl",
         },
         version="0.1.0",
-        description="BEANS benchmark dataset",
-        sources=[
-            "cbi",
-            "watkins",
-            "dogs",
-            "egyptian_fruit_bats",
-            "hiceas",
-            "dcase",
-            "enabirds",
-            "esc50",
-            "speech_commands",
-            "humbugdb",
-            "rfcx",
-            "hainan_gibbons",
-        ],
+        description="BirdSet dataset",
+        sources=["HSN", "NBP", "NES", "PER", "POW"],
         license="CC-BY-4.0, CC0",
     )
 
@@ -111,7 +74,7 @@ class Beans(Dataset):
         sample_rate: Optional[int] = None,
         data_root: Optional[str | AnyPathT] = None,
     ) -> None:
-        """Initialize the BEANS dataset.
+        """Initialize the BirdSet dataset.
 
         Parameters
         ----------
@@ -156,8 +119,7 @@ class Beans(Dataset):
         """
         if self.split not in self.info.split_paths:
             raise LookupError(
-                f"Invalid split: {self.split}."
-                f"Expected one of {list(self.info.split_paths.keys())}"
+                f"Invalid split: {self.split}.Expected one of {list(self.info.split_paths.keys())}"
             )
 
         location = self.info.split_paths[self.split]
@@ -171,13 +133,13 @@ class Beans(Dataset):
             )  # This setting avoids setting 'None' to a pd.NA type
 
     @classmethod
-    def from_config(cls, cfg: DatasetConfig) -> "Beans":
+    def from_config(cls, cfg: DatasetConfig) -> "BirdSet":
         """Create a Dataset instance from a configuration dictionary.
 
         Parameters
         ----------
         cfg : DatasetConfig
-            Configuration dictionary containing dataset parametesf
+            Configuration dictionary containing dataset parameters
 
         Returns
         -------
@@ -240,16 +202,14 @@ class Beans(Dataset):
             If the index is out of bounds.
         """
         if idx < 0 or idx >= len(self._data):
-            raise IndexError(
-                f"Index {idx} out of bounds for dataset of length {len(self._data)}."
-            )
+            raise IndexError(f"Index {idx} out of bounds for dataset of length {len(self._data)}.")
 
         row = self._data.iloc[idx].to_dict()
         # Ensure audio path is valid
         if self.data_root:
-            audio_path = anypath(self.data_root) / row["local_path"]
+            audio_path = anypath(self.data_root) / row["path"]
         else:
-            audio_path = anypath(row["local_path"])
+            audio_path = anypath(row["path"])
 
         # Read the audio clip
         audio, sr = read_audio(audio_path)

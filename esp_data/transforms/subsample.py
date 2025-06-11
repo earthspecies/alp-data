@@ -47,8 +47,8 @@ class Subsample:
         [0, 1]. If "other" is included as a key, it will subsample all other values
         not explicitly listed in the ratios dictionary.
 
-    Examples
-    --------
+    Example
+    -------
     >>> from esp_data.transforms import Subsample, SubsampleConfig
     >>> config = SubsampleConfig(
     ...     type="subsample",
@@ -57,8 +57,7 @@ class Subsample:
     ...         "bee": 0.5,
     ...         "butterfly": 0.3,
     ...         "other": 0.1
-    ...     }
-    ... )
+    ...     })
     >>> subsample_transform = Subsample.from_config(config)
     >>> df = pd.DataFrame({
     ...     "species": ["bee", "bee", "butterfly", "ant", "butterfly", "spider"],
@@ -82,13 +81,12 @@ class Subsample:
 
         Parameters
         ----------
-        data: pd.DataFrame | dict
-            The data to subsample (DataFrame or dict).
+            data: The data to subsample (DataFrame or dict).
 
         Returns
         -------
-        tuple[pd.DataFrame, dict]: A tuple containing:
-            The subsampled data (same type as input).
+            tuple[pd.DataFrame, dict]: A tuple containing:
+                The subsampled data (same type as input).
 
         Raises
         ------
@@ -96,7 +94,9 @@ class Subsample:
             KeyError: If the specified property is not found in the DataFrame columns.
         """
         if self.property not in data.columns:
-            raise KeyError(f"Property '{self.property}' not found in the DataFrame columns.")
+            raise KeyError(
+                f"Property '{self.property}' not found in the DataFrame columns."
+            )
 
         if isinstance(data, pd.DataFrame):
             return self._subsample_dataframe(data), {}
@@ -107,17 +107,12 @@ class Subsample:
     def _choose_keys(self, keys: list[Any], ratio: float) -> list[Any]:
         """Return a subsample of *keys* of size `ceil(len(keys)*ratio)`.
 
-        Parameters
-        ----------
-        keys : list[Any]
-            List of keys to subsample from.
-        ratio : float
-            Ratio of keys to select.
+        Args:
+            keys: List of keys to subsample from.
+            ratio: Ratio of keys to select.
 
-        Returns
-        -------
-        list[Any]
-            The selected keys.
+        Returns:
+            List[Any]: The selected keys.
         """
         if ratio >= 1.0 or len(keys) == 0:
             return keys
@@ -128,15 +123,11 @@ class Subsample:
     def _subsample_dataframe(self, df: pd.DataFrame) -> pd.DataFrame:
         """Subsample a pandas DataFrame.
 
-        Parameters
-        ----------
-        df : pd.DataFrame
-            The DataFrame to subsample.
+        Args:
+            df: The DataFrame to subsample.
 
-        Returns
-        -------
-        pd.DataFrame
-            The subsampled DataFrame.
+        Returns:
+            pd.DataFrame: The subsampled DataFrame.
         """
         groups = []
 
