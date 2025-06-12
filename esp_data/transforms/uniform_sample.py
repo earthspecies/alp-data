@@ -68,8 +68,10 @@ class UniformSample:
 
         Returns:
         --------
-            pd.DataFrame: A uniformly sampled DataFrame.
-
+        tuple[pd.DataFrame, dict]:
+            A tuple containing the sampled DataFrame and an empty dictionary for
+            metadata. The dictionary can be used to store any additional information
+            about the sampling process, if needed.
         """
 
         # Group by the property and sample uniformly
@@ -82,7 +84,7 @@ class UniformSample:
             sampled_indices = rng.choice(len(group), size=n_samples, replace=False)
             groups.append(group.iloc[sampled_indices])
 
-        return pd.concat(groups, ignore_index=True)
+        return pd.concat(groups, ignore_index=True), {}
 
 
 register_transform(UniformSampleConfig, UniformSample)
