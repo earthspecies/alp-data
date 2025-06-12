@@ -19,12 +19,8 @@ class DatasetConfig(BaseModel):
     transformations : list[RegisteredTransformConfigs] | None
         List of transformations to apply to the dataset.
         If None, no transformations are applied.
-    multi_label : bool | None
-        Whether the dataset is multi-label. If None, the default is False.
     sample_rate : int | None
         Target sample rate for the audio data. If None, the default is 16000.
-    metrics : list[str] | None
-        List of metrics to compute for the dataset. If None, no metrics are computed.
     output_take_and_give : dict[str, str] | None
         A dictionary mapping output fields to their corresponding input fields.
         If None, no output mapping is applied. For example, if the dataset has a field
@@ -53,7 +49,6 @@ class DatasetConfig(BaseModel):
 
     dataset_name: str
     transformations: list[RegisteredTransformConfigs] | None = None
-    multi_label: bool | None = None
     sample_rate: int | None = None
     output_take_and_give: dict[str, str] | None = None
     split: str = "train"
