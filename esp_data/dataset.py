@@ -12,8 +12,8 @@ from esp_data.transforms import RegisteredTransformConfigs, transform_from_confi
 class DatasetConfig(BaseModel):
     """A Pydantic base model for the configuration of a dataset.
 
-    Parameters
-    ----------
+    Arguments
+    ---------
     dataset_name : str
         Name of the dataset, must match a registered dataset class
     transformations : list[RegisteredTransformConfigs] | None
@@ -291,7 +291,7 @@ class Dataset(ABC):
     def from_config(
         cls,
         dataset_config: DatasetConfig,
-    ) -> "Dataset":
+    ) -> tuple["Dataset", dict[str, Any]]:
         """Create a dataset instance from a configuration.
 
         Arguments
@@ -303,6 +303,8 @@ class Dataset(ABC):
         -------
         Dataset
             The dataset instance.
+        dict[str, Any]
+            Metadata about transformations applied, if any. Can be empty.
         """
         raise NotImplementedError
 
@@ -363,9 +365,7 @@ class Dataset(ABC):
         """
         raise NotImplementedError
 
-    def apply_transformations(
-        self, transformations: list[RegisteredTransformConfigs]
-    ) -> list[Any]:
+    def apply_transformations(self, transformations: list[RegisteredTransformConfigs]) -> list[Any]:
         """Apply the given list of transformations to the dataset.
 
         This method applies each transformation in sequence to the dataset's data.
@@ -378,8 +378,10 @@ class Dataset(ABC):
 
         Returns
         -------
-        list[Any]
-            The metadata as a list of objects.
+        dict[str, Any]
+            A dictionary containing metadata for each transformation applied.
+            The keys are the transformation types, and the values are the metadata
+            returned by each transformation.
 
         Raises
         -------
@@ -389,14 +391,14 @@ class Dataset(ABC):
         if self._data is None:
             raise RuntimeError("No data loaded. Call load() first.")
 
-        metadata_list = []
+        transform_metadata = {}
         for cfg in transformations:
             transform = transform_from_config(cfg)
             self._data, metadata = transform(self._data)
-            metadata_list.append(metadata)
+            transform_metadata[cfg.type] = metadata
 
             # TODO (milad): what about metadata?
-        return metadata_list
+        return transform_metadata
 
 
 # Global registry instance
@@ -453,10 +455,10 @@ def dataset_from_config(dataset_config: DatasetConfig) -> Dataset:
 
     Raises
     ------
-    ValueError
+    KeyError
         If the dataset is not registered
     """
-    _dataset_class = _dataset_registry.get(dataset_config.dataset_name)
+    _dataset_class = _dataset_registry.get(dataset_config.dataset_name, None)
     if _dataset_class is None:
-        raise ValueError(f"Dataset '{dataset_config.dataset_name}' is not registered.")
+        raise KeyError(f"Dataset '{dataset_config.dataset_name}' is not registered.")
     return _dataset_class.from_config(dataset_config)
