@@ -47,7 +47,7 @@ class Subsample:
         [0, 1]. If "other" is included as a key, it will subsample all other values
         not explicitly listed in the ratios dictionary.
 
-    Example
+    Examples
     -------
     >>> from esp_data.transforms import Subsample, SubsampleConfig
     >>> config = SubsampleConfig(
@@ -81,7 +81,8 @@ class Subsample:
 
         Parameters
         ----------
-            data: The data to subsample (DataFrame or dict).
+        data: pd.DataFrame | dict
+            The data to subsample (DataFrame or dict).
 
         Returns
         -------
@@ -94,9 +95,7 @@ class Subsample:
             KeyError: If the specified property is not found in the DataFrame columns.
         """
         if self.property not in data.columns:
-            raise KeyError(
-                f"Property '{self.property}' not found in the DataFrame columns."
-            )
+            raise KeyError(f"Property '{self.property}' not found in the DataFrame columns.")
 
         if isinstance(data, pd.DataFrame):
             return self._subsample_dataframe(data), {}

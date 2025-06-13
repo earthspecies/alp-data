@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
-from esp_data.io import anypath, AnyPathT, read_audio, audio_stereo_to_mono
+from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
 
 
 @register_dataset
@@ -30,7 +30,7 @@ class BirdSet(Dataset):
     https://github.com/DBD-research-group/BirdSet
     https://arxiv.org/abs/2403.10380
 
-    Example
+    Examples
     -------
     >>> from esp_data.datasets import BirdSet
     >>> dataset = BirdSet(

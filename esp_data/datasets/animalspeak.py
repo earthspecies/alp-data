@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
-from esp_data.io import anypath, AnyPathT, read_audio, audio_stereo_to_mono
+from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
 
 
 @register_dataset
@@ -27,7 +27,7 @@ class AnimalSpeak(Dataset):
     Robinson et al 2023
     https://arxiv.org/pdf/2308.04978
 
-    Example
+    Examples
     -------
     >>> from esp_data.datasets import AnimalSpeak
     >>> dataset = AnimalSpeak(
@@ -69,8 +69,10 @@ class AnimalSpeak(Dataset):
             It acts as a filter as well.
         sample_rate : int
             The sample rate to which audio files should be resampled.
-        audio_path_col : str
-            The name of the column in the DataFrame that contains the audio file paths.
+        data_root : Optional[str]
+            The root directory for the dataset. This is optionally appended to the
+            path item of a sample in the dataset.
+            If None, the default is the parent directory of the split path.
         """
         super().__init__(output_take_and_give)  # Initialize the parent Dataset class
         self.split = split
@@ -181,9 +183,7 @@ class AnimalSpeak(Dataset):
             If the index is out of bounds.
         """
         if idx < 0 or idx >= len(self._data):
-            raise IndexError(
-                f"Index {idx} out of bounds for dataset of length {len(self._data)}."
-            )
+            raise IndexError(f"Index {idx} out of bounds for dataset of length {len(self._data)}.")
 
         row = self._data.iloc[idx].to_dict()
 

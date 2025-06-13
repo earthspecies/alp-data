@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
-from esp_data.io import anypath, AnyPathT, read_audio, audio_stereo_to_mono
+from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
 
 
 @register_dataset
@@ -31,7 +31,7 @@ class InsectSet459(Dataset):
     Dataset DOI:
     https://zenodo.org/records/8252141
 
-    Example
+    Examples
     -------
     >>> from esp_data.datasets import InsectSet459
     >>> dataset = InsectSet459(
@@ -107,8 +107,7 @@ class InsectSet459(Dataset):
         """
         if self.split not in self.info.split_paths:
             raise LookupError(
-                f"Invalid split: {self.split}."
-                f"Expected one of {list(self.info.split_paths.keys())}"
+                f"Invalid split: {self.split}.Expected one of {list(self.info.split_paths.keys())}"
             )
 
         location = self.info.split_paths[self.split]
@@ -186,9 +185,7 @@ class InsectSet459(Dataset):
             If the index is out of bounds.
         """
         if idx < 0 or idx >= len(self._data):
-            raise IndexError(
-                f"Index {idx} out of bounds for dataset of length {len(self._data)}."
-            )
+            raise IndexError(f"Index {idx} out of bounds for dataset of length {len(self._data)}.")
 
         row = self._data.iloc[idx].to_dict()
         # Ensure audio path is valid

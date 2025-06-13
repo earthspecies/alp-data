@@ -9,7 +9,7 @@ import pandas as pd
 import soundfile as sf
 
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
-from esp_data.io import anypath, AnyPathT, read_audio, audio_stereo_to_mono
+from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
 
 
 @register_dataset
@@ -35,7 +35,7 @@ class BarkleyCanyon(Dataset):
     and marine mammal research,"
     The Journal of the Acoustical Society of America, vol. 148,
 
-    Example
+    Examples
     -------
     >>> from esp_data.datasets import BarkleyCanyon
     >>> dataset = BarkleyCanyon(split="train")
@@ -107,8 +107,7 @@ class BarkleyCanyon(Dataset):
         """
         if self.split not in self.info.split_paths:
             raise LookupError(
-                f"Invalid split: {self.split}."
-                f"Expected one of {list(self.info.split_paths.keys())}"
+                f"Invalid split: {self.split}.Expected one of {list(self.info.split_paths.keys())}"
             )
 
         location = self.info.split_paths[self.split]
@@ -188,9 +187,7 @@ class BarkleyCanyon(Dataset):
             If the index is out of bounds.
         """
         if idx < 0 or idx >= len(self._data):
-            raise IndexError(
-                f"Index {idx} out of bounds for dataset of length {len(self._data)}."
-            )
+            raise IndexError(f"Index {idx} out of bounds for dataset of length {len(self._data)}.")
 
         row = self._data.iloc[idx].to_dict()
         # Ensure audio path is valid
@@ -203,9 +200,7 @@ class BarkleyCanyon(Dataset):
             info = sf.info(f)
             sr = info.samplerate
             start_frame = (
-                int(row["start_times(sec)"] * sr)
-                if row["start_times(sec)"] is not None
-                else 0
+                int(row["start_times(sec)"] * sr) if row["start_times(sec)"] is not None else 0
             )
             end_frame = (
                 int(row["end_times(sec)"] * sr)
@@ -216,8 +211,7 @@ class BarkleyCanyon(Dataset):
 
             if frames_to_read <= 0:
                 raise ValueError(
-                    f"start_time ({row['start_times(sec)']}s) is"
-                    "beyond the audio duration"
+                    f"start_time ({row['start_times(sec)']}s) isbeyond the audio duration"
                 )
 
         # Read the audio clip
@@ -299,7 +293,7 @@ class BarkleyCanyonDetection(Dataset):
     https://github.com/earthspecies/foundation-model-data/blob/main/scripts/convert_barkley_canyon.py
 
 
-    Example:
+    Examples:
     --------
     >>> from esp_data.datasets import BarkleyCanyon
     >>> dataset = BarkleyCanyonDetection(split="train")
@@ -378,8 +372,7 @@ class BarkleyCanyonDetection(Dataset):
         """
         if self.split not in self.info.split_paths:
             raise LookupError(
-                f"Invalid split: {self.split}."
-                f"Expected one of {list(self.info.split_paths.keys())}"
+                f"Invalid split: {self.split}.Expected one of {list(self.info.split_paths.keys())}"
             )
 
         location = self.info.split_paths[self.split]
@@ -457,9 +450,7 @@ class BarkleyCanyonDetection(Dataset):
             If the index is out of bounds.
         """
         if idx < 0 or idx >= len(self._data):
-            raise IndexError(
-                f"Index {idx} out of bounds for dataset of length {len(self._data)}."
-            )
+            raise IndexError(f"Index {idx} out of bounds for dataset of length {len(self._data)}.")
 
         row = self._data.iloc[idx].to_dict()
         # Ensure audio path is valid
