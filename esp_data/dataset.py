@@ -12,7 +12,7 @@ from esp_data.transforms import RegisteredTransformConfigs, transform_from_confi
 class DatasetConfig(BaseModel):
     """A Pydantic base model for the configuration of a dataset.
 
-    Arguments
+    Parameters
     ---------
     dataset_name : str
         Name of the dataset, must match a registered dataset class
@@ -65,7 +65,7 @@ class DatasetConfig(BaseModel):
 class DatasetInfo(BaseModel):
     """A Pydantic base model for the info (cfg) of a dataset.
 
-    Arguments
+    Parameters
     ---------
     name : str
         Name of the dataset
@@ -150,7 +150,7 @@ class DatasetInfo(BaseModel):
     def validate_split_exists(cls, v: dict) -> str:
         """Validate that the split path exists in cloud storage or locally
 
-        Arguments
+        Parameters
         ---------
         v : dict[str, str]
             The locations to validate
@@ -186,7 +186,7 @@ class DatasetInfo(BaseModel):
         """Validates that the version follows semantic versioning (MAJOR.MINOR.PATCH)
         using the semver package.
 
-        Arguments
+        Parameters
         ---------
         v : str
             The version string to validate
@@ -240,7 +240,7 @@ class Dataset(ABC):
         apply transformations to the dataset during instantiation or modify its
         fields of output.
 
-        Arguments
+        Parameters
         ----------
         output_take_and_give : dict[str, str], optional
             A dictionary mapping output fields to their corresponding input fields.
@@ -289,7 +289,7 @@ class Dataset(ABC):
     ) -> tuple["Dataset", dict[str, Any]]:
         """Create a dataset instance from a configuration.
 
-        Arguments
+        Parameters
         ----------
         dataset_config : DatasetInfo
             The configuration for the dataset.
@@ -329,7 +329,7 @@ class Dataset(ABC):
     def __getitem__(self, idx: int) -> Dict[str, Any]:
         """Get a specific sample from the dataset.
 
-        Arguments
+        Parameters
         ----------
         idx : int
             Index of the sample to get
@@ -366,7 +366,7 @@ class Dataset(ABC):
         This method applies each transformation in sequence to the dataset's data.
         The transformations are applied in-place, modifying the dataset's data.
 
-        Arguments
+        Parameters
         ----------
         transformations : list[RegisteredTransformConfigs]
             List of transformation configurations to apply to the dataset.
@@ -403,7 +403,7 @@ _dataset_registry: dict[str, type[Dataset]] = {}
 def register_dataset(cls: type[Dataset]) -> type[Dataset]:
     """A decorator to register a dataset class.
 
-    Arguments
+    Parameters
     ----------
     cls : Type[Dataset]
         The dataset class to register
@@ -440,7 +440,7 @@ def dataset_from_config(
 ) -> tuple[Dataset, dict[str, Any]]:
     """Load a dataset from a configuration.
 
-    Arguments
+    Parameters
     ----------
     dataset_config : DatasetConfig
         The configuration for the dataset.

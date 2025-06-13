@@ -21,7 +21,7 @@ def _read_audio_from_bytes(
     Reads from an audio buffer while indexing if necessary. By default,
     reads the entire buffer.
 
-    Arguments
+    Parameters
     ----------
     audio_bytes : bytes
         The byte string containing the encoded audio data (e.g., WAV, FLAC).
@@ -54,7 +54,7 @@ def read_audio(
     Checks if the file extension is a supported audio format.
     Allows specifying a number of frames to read and a starting frame offset.
 
-    Arguments
+    Parameters
     ----------
     file_path : str or AnyPathT
         The path string or path object (e.g., Path, GSPath, R2Path) pointing
@@ -105,7 +105,7 @@ def audio_stereo_to_mono(
 ) -> np.ndarray:
     """Convert stereo audio to mono.
 
-    Arguments
+    Parameters
     ----------
     audio : np.ndarray
         The audio data as a NumPy array.
@@ -162,7 +162,7 @@ def get_audio_info(
 ) -> tuple[int, int]:
     """Gets audio file information without loading the data.
 
-    Arguments
+    Parameters
     ----------
     file_path : str or AnyPathT
         The path string or path object pointing to the audio file.
@@ -215,7 +215,7 @@ def read_audio_by_time(
 ) -> tuple[np.ndarray, int]:
     """Reads audio data from a file path using time-based parameters.
 
-    Arguments
+    Parameters
     ----------
     file_path : str or AnyPathT
         The path string or path object pointing to the audio file.
