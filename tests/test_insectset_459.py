@@ -133,7 +133,7 @@ def test_load_from_config() -> None:
         dataset_name="insectset_459",
         split="train",
     )
-    dataset = InsectSet459.from_config(dataset_config)
+    dataset, _ = InsectSet459.from_config(dataset_config)
     assert dataset.info.name == "insectset_459"
     assert dataset.info.split_paths["train"] is not None
     assert len(dataset) > 0, "Dataset should not be empty"

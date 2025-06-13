@@ -53,6 +53,41 @@ def dataset_with_transforms() -> Dataset:
 
 
 @pytest.fixture
+def dataset_with_transforms_from_config() -> tuple[Dataset, dict]:
+    """Fixture providing an AnimalSpeak dataset instance with transformations
+    applied.
+
+    Returns
+    -------
+    Dataset
+        An instance of the AnimalSpeak dataset with transformations applied.
+    dict
+        Metadata dictionary containing information about the transformations applied.
+    """
+
+    dataset_config = DatasetConfig(
+        dataset_name="animalspeak",
+        split="validation",
+        transformations=[
+            {
+                "type": "label_from_feature",
+                "feature": "canonical_name",
+                "output_feature": "label",
+            },
+            {
+                "type": "filter",
+                "mode": "include",
+                "property": "source",
+                "values": ["xeno-canto", "iNaturalist"],
+            },
+        ],
+        data_root="gs://",
+    )
+    ds, metadata = AnimalSpeak.from_config(dataset_config)
+    return ds, metadata
+
+
+@pytest.fixture
 def dataset_with_output_mapping() -> Dataset:
     """Fixture providing an AnimalSpeak dataset instance with output mapping.
 
@@ -134,7 +169,7 @@ def test_load_from_config() -> None:
         dataset_name="animalspeak",
         split="validation",
     )
-    dataset = AnimalSpeak.from_config(dataset_config)
+    dataset, _ = AnimalSpeak.from_config(dataset_config)
     assert isinstance(dataset, AnimalSpeak)
     assert dataset.info.name == "animalspeak"
     assert dataset.info.split_paths["validation"] is not None
@@ -173,6 +208,29 @@ def test_transformations(dataset_with_transforms: Dataset) -> None:
 
     # Check that no other sources are present
     assert "Watkins" not in sources
+
+
+def test_transformations_from_config(dataset_with_transforms_from_config: tuple[Dataset, dict]) -> None:
+    """Test if transformations from config are applied correctly.
+
+    This test verifies that:
+    1. The label_from_feature transformation creates a label column
+    2. The filter transformation only keeps specified sources
+    """
+    # Check that label column was created
+    ds, metadata = dataset_with_transforms_from_config
+    assert "label" in ds._data.columns
+
+    # Check that only specified sources are present
+    sources = ds._data["source"].unique()
+    assert set(sources).issubset({"xeno-canto", "iNaturalist"})
+
+    # Check that no other sources are present
+    assert "Watkins" not in sources
+
+    # check that the metadata contains a key for "label_from_feature"
+    assert "label_from_feature" in metadata
+    assert "label_map" in metadata["label_from_feature"]
 
 
 def test_output_take_and_give(dataset_with_output_mapping: Dataset) -> None:

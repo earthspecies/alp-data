@@ -13,18 +13,14 @@ class DatasetConfig(BaseModel):
     """A Pydantic base model for the configuration of a dataset.
 
     Parameters
-    ----------
+    ---------
     dataset_name : str
         Name of the dataset, must match a registered dataset class
     transformations : list[RegisteredTransformConfigs] | None
         List of transformations to apply to the dataset.
         If None, no transformations are applied.
-    multi_label : bool | None
-        Whether the dataset is multi-label. If None, the default is False.
     sample_rate : int | None
         Target sample rate for the audio data. If None, the default is 16000.
-    metrics : list[str] | None
-        List of metrics to compute for the dataset. If None, no metrics are computed.
     output_take_and_give : dict[str, str] | None
         A dictionary mapping output fields to their corresponding input fields.
         If None, no output mapping is applied. For example, if the dataset has a field
@@ -53,7 +49,6 @@ class DatasetConfig(BaseModel):
 
     dataset_name: str
     transformations: list[RegisteredTransformConfigs] | None = None
-    multi_label: bool | None = None
     sample_rate: int | None = None
     output_take_and_give: dict[str, str] | None = None
     split: str = "train"
@@ -70,7 +65,7 @@ class DatasetConfig(BaseModel):
 class DatasetInfo(BaseModel):
     """A Pydantic base model for the info (cfg) of a dataset.
 
-    Arguments
+    Parameters
     ---------
     name : str
         Name of the dataset
@@ -155,7 +150,7 @@ class DatasetInfo(BaseModel):
     def validate_split_exists(cls, v: dict) -> str:
         """Validate that the split path exists in cloud storage or locally
 
-        Arguments
+        Parameters
         ---------
         v : dict[str, str]
             The locations to validate
@@ -191,7 +186,7 @@ class DatasetInfo(BaseModel):
         """Validates that the version follows semantic versioning (MAJOR.MINOR.PATCH)
         using the semver package.
 
-        Arguments
+        Parameters
         ---------
         v : str
             The version string to validate
@@ -245,7 +240,7 @@ class Dataset(ABC):
         apply transformations to the dataset during instantiation or modify its
         fields of output.
 
-        Arguments
+        Parameters
         ----------
         output_take_and_give : dict[str, str], optional
             A dictionary mapping output fields to their corresponding input fields.
@@ -291,10 +286,10 @@ class Dataset(ABC):
     def from_config(
         cls,
         dataset_config: DatasetConfig,
-    ) -> "Dataset":
+    ) -> tuple["Dataset", dict[str, Any]]:
         """Create a dataset instance from a configuration.
 
-        Arguments
+        Parameters
         ----------
         dataset_config : DatasetInfo
             The configuration for the dataset.
@@ -303,6 +298,8 @@ class Dataset(ABC):
         -------
         Dataset
             The dataset instance.
+        dict[str, Any]
+            Metadata about transformations applied, if any. Can be empty.
         """
         raise NotImplementedError
 
@@ -332,7 +329,7 @@ class Dataset(ABC):
     def __getitem__(self, idx: int) -> Dict[str, Any]:
         """Get a specific sample from the dataset.
 
-        Arguments
+        Parameters
         ----------
         idx : int
             Index of the sample to get
@@ -363,23 +360,23 @@ class Dataset(ABC):
         """
         raise NotImplementedError
 
-    def apply_transformations(
-        self, transformations: list[RegisteredTransformConfigs]
-    ) -> list[Any]:
+    def apply_transformations(self, transformations: list[RegisteredTransformConfigs]) -> list[Any]:
         """Apply the given list of transformations to the dataset.
 
         This method applies each transformation in sequence to the dataset's data.
         The transformations are applied in-place, modifying the dataset's data.
 
-        Arguments
+        Parameters
         ----------
         transformations : list[RegisteredTransformConfigs]
             List of transformation configurations to apply to the dataset.
 
         Returns
         -------
-        list[Any]
-            The metadata as a list of objects.
+        dict[str, Any]
+            A dictionary containing metadata for each transformation applied.
+            The keys are the transformation types, and the values are the metadata
+            returned by each transformation.
 
         Raises
         -------
@@ -389,14 +386,14 @@ class Dataset(ABC):
         if self._data is None:
             raise RuntimeError("No data loaded. Call load() first.")
 
-        metadata_list = []
+        transform_metadata = {}
         for cfg in transformations:
             transform = transform_from_config(cfg)
             self._data, metadata = transform(self._data)
-            metadata_list.append(metadata)
+            transform_metadata[cfg.type] = metadata
 
             # TODO (milad): what about metadata?
-        return metadata_list
+        return transform_metadata
 
 
 # Global registry instance
@@ -406,7 +403,7 @@ _dataset_registry: dict[str, type[Dataset]] = {}
 def register_dataset(cls: type[Dataset]) -> type[Dataset]:
     """A decorator to register a dataset class.
 
-    Arguments
+    Parameters
     ----------
     cls : Type[Dataset]
         The dataset class to register
@@ -438,13 +435,17 @@ def print_registered_datasets() -> None:
         print(dataset_class.info.model_dump_json(indent=2))
 
 
-def dataset_from_config(dataset_config: DatasetConfig) -> Dataset:
+def dataset_from_config(
+    dataset_config: DatasetConfig,
+) -> tuple[Dataset, dict[str, Any]]:
     """Load a dataset from a configuration.
 
-    Arguments
+    Parameters
     ----------
     dataset_config : DatasetConfig
         The configuration for the dataset.
+    transform_metadata : dict[str, Any]
+        Metadata about transformations applied, if any. Can be empty.
 
     Returns
     -------
@@ -453,10 +454,10 @@ def dataset_from_config(dataset_config: DatasetConfig) -> Dataset:
 
     Raises
     ------
-    ValueError
+    KeyError
         If the dataset is not registered
     """
-    _dataset_class = _dataset_registry.get(dataset_config.dataset_name)
+    _dataset_class = _dataset_registry.get(dataset_config.dataset_name, None)
     if _dataset_class is None:
-        raise ValueError(f"Dataset '{dataset_config.dataset_name}' is not registered.")
+        raise KeyError(f"Dataset '{dataset_config.dataset_name}' is not registered.")
     return _dataset_class.from_config(dataset_config)

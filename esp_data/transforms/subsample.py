@@ -81,12 +81,14 @@ class Subsample:
 
         Parameters
         ----------
-            data: The data to subsample (DataFrame or dict).
+        data: pd.DataFrame
+            The data to subsample
 
         Returns
         -------
-            tuple[pd.DataFrame, dict]: A tuple containing:
-                The subsampled data (same type as input).
+        tuple[pd.DataFrame, dict]: A tuple containing:
+            The subsampled data (same type as input).
+            The metadata dictionary (empty placeholder for future use).
 
         Raises
         ------
@@ -94,9 +96,7 @@ class Subsample:
             KeyError: If the specified property is not found in the DataFrame columns.
         """
         if self.property not in data.columns:
-            raise KeyError(
-                f"Property '{self.property}' not found in the DataFrame columns."
-            )
+            raise KeyError(f"Property '{self.property}' not found in the DataFrame columns.")
 
         if isinstance(data, pd.DataFrame):
             return self._subsample_dataframe(data), {}

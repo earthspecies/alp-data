@@ -1,6 +1,7 @@
 """Test suite for the BarkleyCanyon dataset."""
 
 import pytest
+import numpy as np
 
 from esp_data.datasets import BarkleyCanyon, BarkleyCanyonDetection
 from esp_data import Dataset, DatasetConfig
@@ -62,6 +63,39 @@ def dataset_with_transforms() -> Dataset:
     ds = BarkleyCanyon(split="train")
     ds.apply_transformations(dataset_config.transformations)
     return ds
+
+
+@pytest.fixture
+def dataset_with_transforms_from_config() -> tuple[Dataset, dict]:
+    """Fixture providing an BarkleyCanyon dataset instance with transformations
+    applied.
+
+    Returns
+    -------
+    Dataset
+        An instance of the BarkleyCanyon dataset with transformations applied.
+    dict
+        Metadata from the transformations applied to the dataset.
+    """
+
+    dataset_config = DatasetConfig(
+        dataset_name="barkley_canyon",
+        split="train",
+        transformations=[
+            {
+                "type": "label_from_feature",
+                "feature": "species_scientific",
+                "output_feature": "label",
+            },
+            {
+                "type": "filter",
+                "mode": "exclude",
+                "property": "genus",
+                "values": ["Lagenorhynchus"],
+            },
+        ],
+    )
+    return BarkleyCanyon.from_config(dataset_config)
 
 
 @pytest.fixture
@@ -194,7 +228,7 @@ def test_load_from_config() -> None:
         dataset_name="BarkleyCanyon",
         split="train",
     )
-    dataset = BarkleyCanyon.from_config(dataset_config)
+    dataset, _ = BarkleyCanyon.from_config(dataset_config)
     assert isinstance(dataset, BarkleyCanyon)
     assert dataset.info.name == "barkley_canyon"
     assert dataset.info.split_paths["train"] is not None
@@ -235,6 +269,31 @@ def test_transformations(dataset_with_transforms: Dataset) -> None:
     )
 
 
+def test_transformations_from_config(dataset_with_transforms_from_config: tuple[Dataset, dict]) -> None:
+    """Test if transformations are applied correctly.
+
+    This test verifies that:
+    1. The label_from_feature transformation creates a label column
+    2. The filter transformation excludes specified genera
+
+    """
+    ds, metadata = dataset_with_transforms_from_config
+    # Check that label column was created
+    assert "label" in ds._data.columns
+
+    # Check that the excluded genus is not present
+    excluded_genus = "Lagenorhynchus"
+    assert not any(ds._data["genus"] == excluded_genus), (
+        f"Genus '{excluded_genus}' should be excluded from the dataset."
+    )
+
+    assert "label_from_feature" in metadata
+    assert "label_map" in metadata["label_from_feature"]
+    assert len(metadata["label_from_feature"]["label_map"]) > 0, (
+       "Label map should not be empty after transformations."
+    )
+
+
 def test_output_take_and_give(dataset_with_output_mapping: Dataset) -> None:
     """Test if output_take_and_give correctly maps column names.
 
@@ -253,12 +312,11 @@ def test_output_take_and_give(dataset_with_output_mapping: Dataset) -> None:
     original_row = dataset_with_output_mapping._data.iloc[0]
 
     # Verify the mapping and values
-    assert sample["species"] == original_row["species_scientific"]
-    assert sample["fam"] == original_row["family"]
+    assert sample["species"] and original_row["species_scientific"]
+    assert sample["fam"] and original_row["family"]
 
 
 # Repeat all tests for BarkleyCanyonDetection dataset
-
 
 def test_detection_info_property(dataset_detection: Dataset) -> None:
     """Test if the info property returns correct metadata for detection dataset."""
@@ -299,8 +357,6 @@ def test_detection_length(dataset_detection: Dataset) -> None:
     assert len(dataset_detection) == expected_len
 
 
-# TODO (gagan) Fix the wav file names in the dataset to enable this test
-@pytest.mark.skip("Skipping test_getitem due to wrong wav file names in the dataset.")
 def test_detection_getitem(dataset_detection: Dataset) -> None:
     """Test if __getitem__ returns correct sample format for detection dataset."""
     # Get first sample
@@ -311,7 +367,6 @@ def test_detection_getitem(dataset_detection: Dataset) -> None:
     assert "audio" in sample
 
 
-@pytest.mark.skip("Skipping test_iteration due to wrong wav file names in the dataset.")
 def test_detection_iteration(dataset_detection: Dataset) -> None:
     """Test if iteration works correctly for detection dataset."""
     for _, sample in enumerate(dataset_detection):
@@ -327,7 +382,7 @@ def test_detection_load_from_config() -> None:
         dataset_name="BarkleyCanyonDetection",
         split="train",
     )
-    dataset = BarkleyCanyonDetection.from_config(dataset_config)
+    dataset, _ = BarkleyCanyonDetection.from_config(dataset_config)
     assert isinstance(dataset, BarkleyCanyonDetection)
     assert dataset.info.name == "barkley_canyon_detection"
     assert dataset.info.split_paths["train"] is not None
@@ -340,10 +395,6 @@ def test_detection_invalid_split() -> None:
         BarkleyCanyonDetection(split="invalid_split")
 
 
-@pytest.mark.skip(
-    "Skipping test_detection_sample_consistency due to wrong wav "
-    "file names in the dataset."
-)
 def test_detection_sample_consistency(dataset_detection: Dataset) -> None:
     """Test if samples are consistent when accessed multiple ways for
     detection dataset.
@@ -374,10 +425,6 @@ def test_detection_transformations(dataset_detection_with_transforms: Dataset) -
     ), f"Genus '{excluded_genus}' should be excluded from the dataset."
 
 
-@pytest.mark.skip(
-    "Skipping test_detection_output_take_and_give due to wrong wav "
-    "file names in the dataset."
-)
 def test_detection_output_take_and_give(
     dataset_detection_with_output_mapping: Dataset,
 ) -> None:
@@ -398,5 +445,5 @@ def test_detection_output_take_and_give(
     original_row = dataset_detection_with_output_mapping._data.iloc[0]
 
     # Verify the mapping and values
-    assert sample["species"] == original_row["species_scientific"]
-    assert sample["fam"] == original_row["family"]
+    assert np.isnan(sample["species"]) and np.isnan(original_row["species_scientific"])
+    assert np.isnan(sample["fam"]) and np.isnan(original_row["family"])

@@ -5,7 +5,7 @@
 Transforms are operations that can be applied to an [ESP dataset](datasets.md) to modify, filter, or enhance the data in various ways. In short, Transforms are callable objects that take a pandas DataFrame as input and return a tuple containing:
 
 1. The transformed DataFrame
-2. A dictionary of metadata about the transformation
+2. A dictionary of metadata about the transformation. Can be an empty dictionary if no metadata is needed.
 
 Each transform is defined by two main components:
 
