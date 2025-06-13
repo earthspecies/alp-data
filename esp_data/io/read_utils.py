@@ -46,13 +46,20 @@ def _read_audio_from_bytes(
 
 
 def read_audio(
-    file_path: str | AnyPathT, frames: int = -1, start: int = 0
+    file_path: str | AnyPathT,
+    frames: Optional[int] = -1,
+    start: Optional[int] = 0,
+    start_time: Optional[float] = None,
+    end_time: Optional[float] = None,
+    input_sr: Optional[int] = None,
 ) -> tuple[np.ndarray, int]:
     """Reads audio data from a file path.
 
     Handles various path types (local, GCS, R2) via the `anypath` utility.
     Checks if the file extension is a supported audio format.
     Allows specifying a number of frames to read and a starting frame offset.
+    Allow specifying a starting time (in seconds) to read from with an ending time.
+    Frames and time slicing are not compatible.
 
     Parameters
     ----------
@@ -64,6 +71,12 @@ def read_audio(
         `start` position to the end of the file. Defaults to -1.
     start : int, optional
         The frame index to start reading from. Defaults to 0.
+    start_time : float, optional
+        Start time in seconds. Defaults to None.
+    end_time : float, optional
+        End time in seconds. If None, reads to end of file.
+    input_sr : int, optional
+        Expected sample rate. If provided, used for validation.
 
     Returns
     -------
@@ -91,6 +104,9 @@ def read_audio(
 
     if extension not in _AUDIO_FORMATS:
         raise ValueError(f"Unsupported audio format: {extension}")
+
+    if start_time is not None:
+        return read_audio_by_time(file_path, start_time, end_time, input_sr)
 
     try:
         with file_path.open("rb") as f:

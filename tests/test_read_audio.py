@@ -20,6 +20,15 @@ def test_read_from_file() -> None:
     assert sr == 16000
     assert data.shape == (524288,)
 
+def test_read_from_file_from_time() -> None:
+    path = "tests/samples/noise.wav"
+    data, sr = read_audio(path, start_time=0.0)
+    assert sr == 16000
+    assert data.shape == (524288,)
+
+    data, sr = read_audio(path, start_time=1.0)
+    assert sr == 16000
+    assert data.shape == (508288,)
 
 def test_read_no_offset() -> None:
     # Create some dummy audio data (pretend it's a short, single-channel sound)
