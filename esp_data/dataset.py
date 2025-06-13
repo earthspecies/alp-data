@@ -435,13 +435,17 @@ def print_registered_datasets() -> None:
         print(dataset_class.info.model_dump_json(indent=2))
 
 
-def dataset_from_config(dataset_config: DatasetConfig) -> Dataset:
+def dataset_from_config(
+    dataset_config: DatasetConfig,
+) -> tuple[Dataset, dict[str, Any]]:
     """Load a dataset from a configuration.
 
     Arguments
     ----------
     dataset_config : DatasetConfig
         The configuration for the dataset.
+    transform_metadata : dict[str, Any]
+        Metadata about transformations applied, if any. Can be empty.
 
     Returns
     -------
