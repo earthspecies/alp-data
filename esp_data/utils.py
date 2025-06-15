@@ -4,8 +4,8 @@ import json
 import logging
 import re
 from datetime import datetime, timedelta, timezone
-from uuid import UUID, uuid4
 from typing import Callable
+from uuid import UUID, uuid4
 
 import google_crc32c
 from google.cloud import secretmanager

@@ -8,7 +8,7 @@ import pandas as pd
 import soundfile as sf
 
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
-from esp_data.io import anypath, AnyPathT, read_audio, audio_stereo_to_mono
+from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
 
 
 @register_dataset
@@ -34,7 +34,7 @@ class BarkleyCanyon(Dataset):
     and marine mammal research,"
     The Journal of the Acoustical Society of America, vol. 148,
 
-    Example
+    Examples
     -------
     >>> from esp_data.datasets import BarkleyCanyon
     >>> dataset = BarkleyCanyon(split="train")
@@ -300,7 +300,7 @@ class BarkleyCanyonDetection(Dataset):
     https://github.com/earthspecies/foundation-model-data/blob/main/scripts/convert_barkley_canyon.py
 
 
-    Example:
+    Examples:
     --------
     >>> from esp_data.datasets import BarkleyCanyon
     >>> dataset = BarkleyCanyonDetection(split="train")

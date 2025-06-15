@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
-from esp_data.io import anypath, AnyPathT, read_audio, audio_stereo_to_mono
+from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
 
 
 @register_dataset
@@ -31,7 +31,7 @@ class InsectSet459(Dataset):
     Dataset DOI:
     https://zenodo.org/records/8252141
 
-    Example
+    Examples
     -------
     >>> from esp_data.datasets import InsectSet459
     >>> dataset = InsectSet459(

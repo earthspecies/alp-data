@@ -47,7 +47,7 @@ class Subsample:
         [0, 1]. If "other" is included as a key, it will subsample all other values
         not explicitly listed in the ratios dictionary.
 
-    Example
+    Examples
     -------
     >>> from esp_data.transforms import Subsample, SubsampleConfig
     >>> config = SubsampleConfig(

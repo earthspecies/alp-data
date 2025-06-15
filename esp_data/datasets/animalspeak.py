@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
-from esp_data.io import anypath, AnyPathT, read_audio, audio_stereo_to_mono
+from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
 
 
 @register_dataset
@@ -27,7 +27,7 @@ class AnimalSpeak(Dataset):
     Robinson et al 2023
     https://arxiv.org/pdf/2308.04978
 
-    Example
+    Examples
     -------
     >>> from esp_data.datasets import AnimalSpeak
     >>> dataset = AnimalSpeak(

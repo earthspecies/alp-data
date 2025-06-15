@@ -34,7 +34,7 @@ class Filter:
         in the property will be kept. If "exclude", rows with the specified values
         will be removed from the DataFrame.
 
-    Example
+    Examples
     -------
     >>> from esp_data.transforms import Filter
     >>> filter_transform = Filter(property="species", values=["bee", "butterfly"],

@@ -133,49 +133,39 @@ print(metadata["label_from_feature"].keys())
 
 The list of available dataset will grow over time. Please refer to the next section if you wish to use your own Dataset or add a new one to the list of officially supported ones.
 
-### AnimalSpeak Dataset
-A large-scale dataset of animal vocalizations with species information and behavioral context.
-
 ::: esp_data.datasets.AnimalSpeak
     handler: python
     options:
-        show_root_heading: true
+        filters:
+            - "!^.*$"  # Exclude everything
         show_source: true
-
-### BarkleyCanyon Dataset
-A dataset containing underwater acoustic data from Barkley Canyon.
 
 ::: esp_data.datasets.BarkleyCanyon
     handler: python
     options:
-        show_root_heading: true
+        filters:
+            - "!^.*$"  # Exclude everything
         show_source: true
-
-### BarkleyCanyonDetection Dataset
-A specialized version of BarkleyCanyon focused on detection tasks.
 
 ::: esp_data.datasets.BarkleyCanyonDetection
     handler: python
     options:
-        show_root_heading: true
+        filters:
+            - "!^.*$"  # Exclude everything
         show_source: true
-
-### InsectSet459 Dataset
-A dataset of insect sounds with 459 different species.
 
 ::: esp_data.datasets.InsectSet459
     handler: python
     options:
-        show_root_heading: true
+        filters:
+            - "!^.*$"  # Exclude everything
         show_source: true
-
-### Beans Dataset
-A dataset for bean classification and analysis.
 
 ::: esp_data.datasets.Beans
     handler: python
     options:
-        show_root_heading: true
+        filters:
+            - "!^.*$"  # Exclude everything
         show_source: true
 
 ## Using your own dataset

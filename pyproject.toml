@@ -68,7 +68,7 @@ select = [
   "F", # Flake8
 ]
 
-extend-select = ["DOC", "B9", "B", "E", "W", "ANN"]
+extend-select = ["DOC", "B9", "B", "E", "W", "ANN", "I"]
 fixable = ["ALL"]
 unfixable = []
 preview = true
@@ -87,11 +87,6 @@ max-complexity = 10
 
 [tool.codespell]
 skip = "*.csv"
-
-[tool.isort]
-profile = "black"
-line_length = 80
-filter_files = true
 
 [[tool.uv.index]]
 name = "esp-pypi"

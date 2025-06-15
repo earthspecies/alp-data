@@ -55,7 +55,7 @@ class MultiLabelFromFeatures:
         Applies the transform to the DataFrame, returning the modified DataFrame and
         metadata about the label mapping.
 
-    Example
+    Examples
     -------
     >>> import pandas as pd
     >>> from esp_data.transforms import MultiLabelFromFeatures
@@ -126,9 +126,7 @@ class MultiLabelFromFeatures:
         df_clean = df.dropna(subset=self.output_feature)
 
         if len(df_clean) != len(df):
-            logger.warning(
-                f"Dropped {len(df) - len(df_clean)} rows with {self.output_feature}=NaN"
-            )
+            logger.warning(f"Dropped {len(df) - len(df_clean)} rows with {self.output_feature}=NaN")
 
         metadata = {
             "label_feature": self.features,
