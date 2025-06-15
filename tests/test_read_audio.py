@@ -9,6 +9,8 @@ from esp_data.io.read_utils import (
     _read_audio_from_bytes,
     read_audio,
     audio_stereo_to_mono,
+    get_audio_info,
+    read_audio_by_time
 )
 
 
@@ -18,6 +20,15 @@ def test_read_from_file() -> None:
     assert sr == 16000
     assert data.shape == (524288,)
 
+def test_read_from_file_from_time() -> None:
+    path = "tests/samples/noise.wav"
+    data, sr = read_audio(path, start_time=0.0)
+    assert sr == 16000
+    assert data.shape == (524288,)
+
+    data, sr = read_audio(path, start_time=1.0)
+    assert sr == 16000
+    assert data.shape == (508288,)
 
 def test_read_no_offset() -> None:
     # Create some dummy audio data (pretend it's a short, single-channel sound)
@@ -89,3 +100,31 @@ def test_audio_stereo_to_mono() -> None:
     expected_mono2 = np.array([0.1, 0.2, 0.3], dtype=np.float32)
 
     np.testing.assert_allclose(mono_audio2.flatten(), expected_mono2, atol=1e-04)
+
+
+def test_get_audio_info() -> None:
+    """Test if get_audio_info retrieves correct sample rate and frame count."""
+    path = "tests/samples/noise.wav"
+    info = get_audio_info(path)
+
+    assert info["sr"] == 16000
+    assert info["num_frames"] == 524288
+
+    remote_path = "gs://esp-ci-cd-tests/esp-data-tests/some_subfolder/nri-battlesounds.mp3"
+    info = get_audio_info(remote_path)
+
+    assert info["sr"] == 44100
+    assert info["num_frames"] == 241727
+
+
+def test_read_audio_by_time() -> None:
+    """Test if read_audio_by_time reads correct audio segment."""
+    path = "tests/samples/noise.wav"
+    start_time = 1.0  # Start at 1 second
+    end_time = 2.0  # End at 2 seconds
+
+    audio, sr = read_audio_by_time(path, start_time=start_time, end_time=end_time)
+
+    assert sr == 16000
+    expected_length = int((end_time - start_time) * sr)
+    assert audio.shape[0] == expected_length

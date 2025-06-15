@@ -1,6 +1,5 @@
 """BarkleyCanyon dataset"""
 
-from io import StringIO
 from typing import Any, Dict, Iterator, Optional
 
 import librosa
@@ -73,9 +72,10 @@ class BarkleyCanyon(Dataset):
             It acts as a filter as well.
         sample_rate : int
             The sample rate to which audio files should be resampled.
-        data_root : Optional[str | AnyPathT]
-            The root directory where the dataset is stored.
-            If None, it will use the default path from the DatasetInfo.
+        data_root : str | AnyPathT, optional
+            The root directory for the dataset. This is optionally appended to the
+            path item of a sample in the dataset.
+            If None, the default is the parent directory of the split path.
         """
         super().__init__(output_take_and_give)  # Initialize the parent Dataset class
         self.split = split
@@ -112,29 +112,30 @@ class BarkleyCanyon(Dataset):
 
         location = self.info.split_paths[self.split]
         # Read CSV content
-        csv_text = anypath(location).read_text(encoding="utf-8")
-        self._data = pd.read_csv(StringIO(csv_text))
+        self._data = pd.read_csv(location, keep_default_na=False, na_values=[""])
 
     @classmethod
-    def from_config(cls, cfg: DatasetConfig) -> "BarkleyCanyon":
+    def from_config(cls, dataset_config: DatasetConfig) -> tuple["BarkleyCanyon", dict[str, Any]]:
         """Create a Dataset instance from a configuration dictionary.
 
         Parameters
         ----------
-        cfg : DatasetConfig
+        dataset_config : DatasetConfig
             Configuration dictionary containing dataset parametesf
 
         Returns
         -------
-        Dataset
-            An instance of the Dataset class.
+        tuple[Dataset, dict[str, Any]]
+            A tuple containing the dataset instance and metadata.
+            If the dataset_config contains transformations, they will be applied
+            and the metadata will be returned as dict, otherwise None.
 
         Raises
         -------
         LookupError
             If the specified split is not available in the dataset info.
         """
-        cfg = cfg.model_dump(exclude=("dataset_name", "transformations"))
+        cfg = dataset_config.model_dump(exclude=("dataset_name", "transformations"))
 
         split = cfg.get("split", None)
         if not split or split not in cls.info.split_paths:
@@ -143,12 +144,18 @@ class BarkleyCanyon(Dataset):
                 f"Available splits: {', '.join(cls.info.split_paths.keys())}"
             )
 
-        return cls(
+        ds = cls(
             split=split,
             output_take_and_give=cfg.get("output_take_and_give", None),
             data_root=cfg.get("data_root"),
             sample_rate=cfg["sample_rate"],
         )
+
+        if dataset_config.transformations:
+            transform_metadata = ds.apply_transformations(dataset_config.transformations)
+            return ds, transform_metadata
+
+        return ds, {}
 
     def __len__(self) -> int:
         """Return the number of samples in the dataset.
@@ -338,9 +345,10 @@ class BarkleyCanyonDetection(Dataset):
             It acts as a filter as well.
         sample_rate : int
             The sample rate to which audio files should be resampled.
-        data_root : Optional[str | AnyPathT]
-            The root directory where the dataset is stored.
-            If None, it will use the default path from the DatasetInfo.
+        data_root : str | AnyPathT, optional
+            The root directory for the dataset. This is optionally appended to the
+            path item of a sample in the dataset.
+            If None, the default is the parent directory of the split path.
         """
         super().__init__(output_take_and_give)  # Initialize the parent Dataset class
         self.split = split
@@ -377,29 +385,32 @@ class BarkleyCanyonDetection(Dataset):
 
         location = self.info.split_paths[self.split]
         # Read CSV content
-        csv_text = anypath(location).read_text(encoding="utf-8")
-        self._data = pd.read_csv(StringIO(csv_text))
+        self._data = pd.read_csv(location, keep_default_na=False, na_values=[""])
 
     @classmethod
-    def from_config(cls, cfg: DatasetConfig) -> "BarkleyCanyonDetection":
+    def from_config(
+        cls, dataset_config: DatasetConfig
+    ) -> tuple["BarkleyCanyonDetection", dict[str, Any]]:
         """Create a Dataset instance from a configuration dictionary.
 
         Parameters
         ----------
-        cfg : DatasetConfig
+        dataset_config : DatasetConfig
             Configuration dictionary containing dataset parametesf
 
         Returns
         -------
-        Dataset
-            An instance of the Dataset class.
+        tuple[Dataset, dict[str, Any]]
+            A tuple containing the dataset instance and metadata.
+            If the dataset_config contains transformations, they will be applied
+            and the metadata will be returned as dict, otherwise an empty dict.
 
         Raises
         -------
         LookupError
             If the specified split is not available in the dataset info.
         """
-        cfg = cfg.model_dump(exclude=("dataset_name", "transformations"))
+        cfg = dataset_config.model_dump(exclude=("dataset_name", "transformations"))
 
         split = cfg.get("split", None)
         if not split or split not in cls.info.split_paths:
@@ -408,12 +419,18 @@ class BarkleyCanyonDetection(Dataset):
                 f"Available splits: {', '.join(cls.info.split_paths.keys())}"
             )
 
-        return cls(
+        ds = cls(
             split=split,
             output_take_and_give=cfg.get("output_take_and_give", None),
             data_root=cfg.get("data_root"),
             sample_rate=cfg["sample_rate"],
         )
+
+        if dataset_config.transformations:
+            transform_metadata = ds.apply_transformations(dataset_config.transformations)
+            return ds, transform_metadata
+
+        return ds, {}
 
     def __len__(self) -> int:
         """Return the number of samples in the dataset.

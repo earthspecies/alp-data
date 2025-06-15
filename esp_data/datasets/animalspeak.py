@@ -69,7 +69,7 @@ class AnimalSpeak(Dataset):
             It acts as a filter as well.
         sample_rate : int
             The sample rate to which audio files should be resampled.
-        data_root : Optional[str]
+        data_root : str | AnyPathT, optional
             The root directory for the dataset. This is optionally appended to the
             path item of a sample in the dataset.
             If None, the default is the parent directory of the split path.
@@ -114,7 +114,7 @@ class AnimalSpeak(Dataset):
         self._data = pd.read_csv(StringIO(csv_text))
 
     @classmethod
-    def from_config(cls, dataset_config: DatasetConfig) -> "AnimalSpeak":
+    def from_config(cls, dataset_config: DatasetConfig) -> tuple["AnimalSpeak", dict[str, Any]]:
         """Create a Dataset instance from a configuration dictionary.
 
         Parameters
@@ -124,8 +124,10 @@ class AnimalSpeak(Dataset):
 
         Returns
         -------
-        Dataset
-            An instance of the Dataset class.
+        tuple[Dataset, dict[str, Any]]
+            A tuple containing the dataset instance and metadata.
+            If the dataset_config contains transformations, they will be applied
+            and the metadata will be returned as dict, otherwise an empty dict.
 
         Raises
         -------
@@ -141,12 +143,18 @@ class AnimalSpeak(Dataset):
                 f"Available splits: {', '.join(cls.info.split_paths.keys())}"
             )
 
-        return cls(
+        ds = cls(
             split=split,
             output_take_and_give=cfg.get("output_take_and_give", None),
             data_root=cfg.get("data_root"),
             sample_rate=cfg["sample_rate"],
         )
+
+        if dataset_config.transformations:
+            transform_metadata = ds.apply_transformations(dataset_config.transformations)
+            return ds, transform_metadata
+
+        return ds, {}
 
     def __len__(self) -> int:
         """Return the number of samples in the dataset.

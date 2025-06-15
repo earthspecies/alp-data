@@ -81,13 +81,14 @@ class Subsample:
 
         Parameters
         ----------
-        data: pd.DataFrame | dict
-            The data to subsample (DataFrame or dict).
+        data: pd.DataFrame
+            The data to subsample
 
         Returns
         -------
-            tuple[pd.DataFrame, dict]: A tuple containing:
-                The subsampled data (same type as input).
+        tuple[pd.DataFrame, dict]: A tuple containing:
+            The subsampled data (same type as input).
+            The metadata dictionary (empty placeholder for future use).
 
         Raises
         ------

@@ -127,7 +127,7 @@ def test_load_from_config() -> None:
         split="HSN-test",
         data_root="gs://foundation-model-data/"
     )
-    dataset = BirdSet.from_config(dataset_config)
+    dataset, _ = BirdSet.from_config(dataset_config)
     assert dataset.info.name == "birdset"
     assert dataset.info.split_paths["HSN-test"] is not None
     assert len(dataset) > 0, "Dataset should not be empty"

@@ -77,7 +77,7 @@ def utc_now_timestamp() -> int:
 def validate_json_str(v: str) -> str:
     """Validate if a string is valid JSON.
 
-    Arguments
+    Parameters
     ----------
     v : str
         The string to validate.
@@ -107,7 +107,7 @@ def validate_json_str(v: str) -> str:
 def validate_id(v: str) -> str:
     """Validate if a string is a valid UUID.
 
-    Arguments
+    Parameters
     ----------
     v : str
         The string to validate.
@@ -139,7 +139,7 @@ def validate_version(version: str) -> str:
 
     Checks for the basic MAJOR.MINOR.PATCH format.
 
-    Arguments
+    Parameters
     ----------
     version : str
         The version string to validate.
@@ -171,7 +171,7 @@ def validate_version(version: str) -> str:
 def validate_datetime(v: str) -> str:
     """Validate if a string is an ISO 8601 datetime with UTC timezone.
 
-    Arguments
+    Parameters
     ----------
     v : str
         The datetime string to validate.
@@ -227,7 +227,7 @@ def make_id() -> str:
 def increment_version(version: str, mode: str = "patch") -> str:
     """Increment a semantic version string by major, minor, or patch level.
 
-    Arguments
+    Parameters
     ----------
     version : str
         The semantic version string to increment (e.g., "1.2.3").
@@ -281,7 +281,7 @@ def read_gcp_secret(
     """Read a secret's value from Google Secret Manager.
 
 
-    Arguments
+    Parameters
     ----------
     secret_id : str
         The ID of the secret in Google Secret Manager.
@@ -332,7 +332,7 @@ class CachedClassProperty:
     accessed on the class. The result is stored on the class and returned
     for all subsequent accesses.
 
-    Arguments
+    Parameters
     ----------
     method : Callable
         The method to decorate. It must accept the class (`cls`) as its
@@ -367,7 +367,7 @@ class CachedClassProperty:
     def __init__(self, method: Callable) -> None:
         """Initialize the CachedClassProperty descriptor.
 
-        Arguments
+        Parameters
         ----------
         method : Callable
             The method being decorated, which computes the value to be cached.
@@ -380,7 +380,7 @@ class CachedClassProperty:
     def __get__(self, instance: object, owner: type = None) -> object:
         """Retrieve the property's value, computing and caching if needed.
 
-        Arguments
+        Parameters
         ----------
         instance : object or None
             The instance through which the property was accessed, or None if
@@ -409,7 +409,7 @@ def cached_class_property(method: Callable) -> Callable:
     accessed on the class. The result is stored on the class and returned
     for all subsequent accesses.
 
-    Arguments
+    Parameters
     ----------
     method : Callable
         The method to decorate. It must accept the class (`cls`) as its

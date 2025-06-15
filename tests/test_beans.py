@@ -131,7 +131,7 @@ def test_load_from_config() -> None:
         dataset_name="beans",
         split="test",
     )
-    dataset = Beans.from_config(dataset_config)
+    dataset, _ = Beans.from_config(dataset_config)
     assert dataset.info.name == "beans"
     assert dataset.info.split_paths["train"] is not None
     assert len(dataset) > 0, "Dataset should not be empty"
