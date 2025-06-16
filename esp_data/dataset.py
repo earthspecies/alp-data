@@ -5,7 +5,6 @@ from typing import Any, Dict, Iterator, Optional
 import semver
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from esp_data.io import anypath
 from esp_data.transforms import RegisteredTransformConfigs, transform_from_config
 
 
@@ -65,7 +64,7 @@ class DatasetConfig(BaseModel):
 class DatasetInfo(BaseModel):
     """A Pydantic base model for the info (cfg) of a dataset.
 
-    Parameters
+    Attributes
     ---------
     name : str
         Name of the dataset
@@ -144,41 +143,6 @@ class DatasetInfo(BaseModel):
     changelog: str = Field(
         default_factory=lambda: "", description="Changelog from previous version"
     )
-
-    @field_validator("split_paths", mode="after")
-    @classmethod
-    def validate_split_exists(cls, v: dict) -> str:
-        """Validate that the split path exists in cloud storage or locally
-
-        Parameters
-        ---------
-        v : dict[str, str]
-            The locations to validate
-
-        Returns
-        -------
-        dict[str, str]
-            The validated locations
-
-        Raises
-        ------
-        ValueError
-            If the location does not exist in cloud storage or locally
-        ValueError
-            If the location is a directory and is empty
-        """
-        if not v:
-            raise ValueError("Split paths cannot be empty.")
-        for _, value in v.items():
-            path = anypath(value)
-            if not path.exists():
-                raise ValueError(f"Local path {value} does not exist.")
-
-            # if location is directory, check that it is not empty
-            if path.is_dir() and not any(path.iterdir()):
-                raise ValueError(f"Directory {value} is empty.")
-
-        return v
 
     @field_validator("version")
     @classmethod
@@ -360,7 +324,9 @@ class Dataset(ABC):
         """
         raise NotImplementedError
 
-    def apply_transformations(self, transformations: list[RegisteredTransformConfigs]) -> list[Any]:
+    def apply_transformations(
+        self, transformations: list[RegisteredTransformConfigs]
+    ) -> dict[str, Any]:
         """Apply the given list of transformations to the dataset.
 
         This method applies each transformation in sequence to the dataset's data.
@@ -373,7 +339,7 @@ class Dataset(ABC):
 
         Returns
         -------
-        dict[str, Any]
+        transform_metadata: dict[str, Any]
             A dictionary containing metadata for each transformation applied.
             The keys are the transformation types, and the values are the metadata
             returned by each transformation.
@@ -392,7 +358,6 @@ class Dataset(ABC):
             self._data, metadata = transform(self._data)
             transform_metadata[cfg.type] = metadata
 
-            # TODO (milad): what about metadata?
         return transform_metadata
 
 
@@ -444,13 +409,13 @@ def dataset_from_config(
     ----------
     dataset_config : DatasetConfig
         The configuration for the dataset.
-    transform_metadata : dict[str, Any]
-        Metadata about transformations applied, if any. Can be empty.
 
     Returns
     -------
     Dataset
         The requested dataset instance
+    transform_metadata : dict[str, Any]
+        Metadata about transformations applied, if any. Can be empty.
 
     Raises
     ------
