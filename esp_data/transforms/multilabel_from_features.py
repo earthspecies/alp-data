@@ -1,5 +1,5 @@
 import logging
-from typing import Literal
+from typing import Any, Literal
 
 import pandas as pd
 from pydantic import BaseModel
@@ -12,7 +12,7 @@ logger = logging.Logger("esp_data")
 class MultiLabelFromFeaturesConfig(BaseModel):
     type: Literal["labels_from_features"]
     features: str | list[str]
-    label_map: dict[str, int] | None = None
+    label_map: dict[Any, int] | None = None
     output_feature: str = "label"
     override: bool = False
 
@@ -38,7 +38,7 @@ class MultiLabelFromFeatures:
     features : list[str]
         The names of the columns in the DataFrame to use as sources for the labels. Each
         column can contain a single value or a list of values per row.
-    label_map : dict[str, int] | None, default=None
+    label_map : dict[Any, int] | None, default=None
         A mapping of unique values to integer IDs. If not provided, the transform will
         generate a mapping based on the unique values in the specified feature columns.
     output_feature : str, default="label"
@@ -78,7 +78,7 @@ class MultiLabelFromFeatures:
         self,
         *,
         features: list[str],
-        label_map: dict[str, int] | None = None,
+        label_map: dict[Any, int] | None = None,
         output_feature: str = "label",
         override: bool = False,
     ) -> None:

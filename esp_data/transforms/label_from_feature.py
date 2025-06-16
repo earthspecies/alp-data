@@ -1,5 +1,5 @@
 import logging
-from typing import Literal
+from typing import Any, Literal
 
 import pandas as pd
 from pydantic import BaseModel
@@ -12,7 +12,7 @@ logger = logging.Logger("esp_data")
 class LabelFromFeatureConfig(BaseModel):
     type: Literal["label_from_feature"]
     feature: str
-    label_map: dict[str, int] | None = None
+    label_map: dict[Any, int] | None = None
     output_feature: str = "label"
     override: bool = False
 
@@ -26,7 +26,7 @@ class LabelFromFeature:
     ----------
     feature: str
         The name of the feature in the DataFrame from which to create labels.
-    label_map: dict[str, int] | None
+    label_map: dict[Any, int] | None
         A mapping of feature values to integer labels. If None, the labels will be
         created from the unique values in the feature.
     output_feature: str
@@ -47,7 +47,7 @@ class LabelFromFeature:
         self,
         *,
         feature: str,
-        label_map: dict[str, int] | None = None,
+        label_map: dict[Any, int] | None = None,
         output_feature: str = "label",
         override: bool = False,
     ) -> None:
