@@ -193,7 +193,7 @@ class BarkleyCanyon(Dataset):
         IndexError
             If the index is out of bounds.
         """
-        if idx < 0 or idx >= len(self._data):
+        if idx >= len(self._data):
             raise IndexError(f"Index {idx} out of bounds for dataset of length {len(self._data)}.")
 
         row = self._data.iloc[idx].to_dict()
@@ -258,15 +258,7 @@ class BarkleyCanyon(Dataset):
         -------
         Dict[str, Any]
             Each sample in the dataset.
-
-        Raises
-        ------
-        RuntimeError
-            If no split has been loaded yet.
         """
-        if self._data is None:
-            raise RuntimeError("No split has been loaded yet. Call load() first.")
-
         for idx in range(len(self)):
             yield self[idx]
 

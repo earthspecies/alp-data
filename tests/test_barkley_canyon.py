@@ -5,6 +5,7 @@ import numpy as np
 
 from esp_data.datasets import BarkleyCanyon, BarkleyCanyonDetection
 from esp_data import Dataset, DatasetConfig
+from esp_data.io import anypath
 
 
 @pytest.fixture
@@ -174,6 +175,7 @@ def test_info_property(dataset: Dataset) -> None:
     assert dataset.info.version == "0.1.0"
     assert "train" in dataset.info.split_paths
     assert "validation" not in dataset.info.split_paths
+    assert anypath(dataset.info.split_paths["train"]).exists()
 
 
 def test_data_property(dataset: Dataset) -> None:
@@ -324,6 +326,7 @@ def test_detection_info_property(dataset_detection: Dataset) -> None:
     assert dataset_detection.info.version == "0.1.0"
     assert "train" in dataset_detection.info.split_paths
     assert "validation" not in dataset_detection.info.split_paths
+    assert anypath(dataset_detection.info.split_paths["train"]).exists()
 
 
 def test_detection_data_property(dataset_detection: Dataset) -> None:
