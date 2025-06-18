@@ -3,12 +3,10 @@
 import pytest
 import numpy as np
 import pandas as pd
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 from esp_data.datasets import AudioSet
 from esp_data import Dataset, DatasetConfig
-from esp_data.io import anypath
-
 
 @pytest.fixture
 def mock_csv_data():

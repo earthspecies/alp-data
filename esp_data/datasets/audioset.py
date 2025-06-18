@@ -32,8 +32,8 @@ class AudioSet(Dataset):
     -------
     >>> from esp_data.datasets import AudioSet
     >>> dataset = AudioSet(
-    ...     split="bio",
-    ...     output_take_and_give={"species_common": "comm"}
+    ...     split="train",
+    ...     output_take_and_give={"label": "audio_label"}
     ... )
     >>> print(dataset.info.name)
     AudioSet
