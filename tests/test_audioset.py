@@ -38,7 +38,7 @@ def dataset(mock_csv_data) -> Dataset:
         mock_anypath.return_value.exists.return_value = True
         mock_anypath.return_value.read_text.return_value = mock_csv_data.to_csv(index=False)
 
-        ds = AudioSet(split="train", data_root="gs://audioset-2021/")
+        ds = AudioSet(split="train", data_root="gs://esp-ml-datasets/audioset/v0.1.0/raw/")
         return ds
 
 
@@ -72,7 +72,7 @@ def dataset_with_transforms(mock_csv_data) -> Dataset:
                 },
             ],
         )
-        ds = AudioSet(split="train", data_root="gs://audioset-2021/")
+        ds = AudioSet(split="train", data_root="gs://esp-ml-datasets/audioset/v0.1.0/raw/")
         ds.apply_transformations(dataset_config.transformations)
         return ds
 
@@ -103,7 +103,7 @@ def dataset_with_output_mapping(mock_csv_data) -> Dataset:
         ds = AudioSet(
             split="validation",
             output_take_and_give=dataset_config.output_take_and_give,
-            data_root="gs://audioset-2021/"
+            data_root="gs://esp-ml-datasets/audioset/v0.1.0/raw/"
         )
         return ds
 
@@ -127,7 +127,7 @@ def dataset_with_sample_rate(mock_csv_data) -> Dataset:
         mock_anypath.return_value.exists.return_value = True
         mock_anypath.return_value.read_text.return_value = mock_csv_data.to_csv(index=False)
 
-        ds = AudioSet(split="train-balanced", sample_rate=22050, data_root="gs://audioset-2021/")
+        ds = AudioSet(split="train-balanced", sample_rate=22050, data_root="gs://esp-ml-datasets/audioset/v0.1.0/raw/")
         return ds
 
 
@@ -233,7 +233,7 @@ def test_load_from_config(mock_csv_data) -> None:
         dataset_config = DatasetConfig(
             dataset_name="AudioSet",
             split="validation",
-            data_root="gs://audioset-2021/",
+            data_root="gs://esp-ml-datasets/audioset/v0.1.0/raw/",
             sample_rate=16000
         )
         dataset, _ = AudioSet.from_config(dataset_config)
@@ -382,7 +382,7 @@ def test_from_config_with_transformations(mock_csv_data) -> None:
         dataset_config = DatasetConfig(
             dataset_name="AudioSet",
             split="train",
-            data_root="gs://audioset-2021/",
+            data_root="gs://esp-ml-datasets/audioset/v0.1.0/raw/",
             transformations=[
                 {
                     "type": "label_from_feature",
@@ -428,7 +428,7 @@ def test_different_splits(mock_csv_data) -> None:
         splits = ["train", "train-balanced", "validation", "train-animal", "validation-animal"]
 
         for split in splits:
-            ds = AudioSet(split=split, data_root="gs://audioset-2021/")
+            ds = AudioSet(split=split, data_root="gs://esp-ml-datasets/audioset/v0.1.0/raw/")
             assert ds.split == split
             assert len(ds) > 0
             assert ds._data is not None
@@ -478,7 +478,7 @@ def test_output_take_and_give_filtering(mock_csv_data) -> None:
         ds = AudioSet(
             split="train",
             output_take_and_give=output_mapping,
-            data_root="gs://audioset-2021/"
+            data_root="gs://esp-ml-datasets/audioset/v0.1.0/raw/"
         )
 
         sample = ds[0]
