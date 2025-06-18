@@ -92,7 +92,7 @@ class MultiLabelFromFeatures:
         else:
             label_map = self.label_map
 
-        def _row_to_ids(row: pd.Series) -> list:
+        def _row_to_ids(row: pd.Series) -> list | None:
             row_labels = []
             for f in self.features:
                 if isinstance(row[f], list):
