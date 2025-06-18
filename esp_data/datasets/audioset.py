@@ -43,9 +43,13 @@ class AudioSet(Dataset):
         name="AudioSet",
         owner="david; marius; masato",
         split_paths={
-            "train": "gs://audioset-2021/csv-data/unbalanced_train_segments.csv",
-            "train-balanced": "gs://audioset-2021/csv-data/balanced_train_segments.csv",
-            "validation": "gs://audioset-2021/csv-data/eval_segments.csv",
+            "train": "gs://audioset-2021/csv-data/unbalanced_train_segments_processed.csv",
+            "train-balanced": "gs://audioset-2021/csv-data/balanced_train_segments_processed.csv",
+            "validation": "gs://audioset-2021/csv-data/eval_segments_processed.csv",
+            "train-animal": "gs://audioset-2021/csv-data/unbalanced_train_segments_processed_animal.csv",
+            "validation-animal": "gs://audioset-2021/csv-data/eval_segments_processed_animal.csv",
+            "train-noise": "gs://audioset-2021/csv-data/unbalanced_train_segments_processed_noise.csv",
+            "validation-noise": "gs://audioset-2021/csv-data/eval_segments_processed_noise.csv",
         },
         version="0.1.0",
         description="AudioSet dataset",
@@ -114,21 +118,6 @@ class AudioSet(Dataset):
         # Read CSV content
         csv_text = anypath(location).read_text(encoding="utf-8")
         self._data = pd.read_csv(StringIO(csv_text))
-
-        csv_path = anypath(location).parent
-        all_classes = pd.read_csv(csv_path / "class_labels_indices.csv")
-        noise_classes = pd.read_csv(csv_path / "noise_classes.csv")
-        animal_classes = pd.read_csv(
-            csv_path / "ontology.animal.tsv",
-            names=["mid", "display_name"],
-            skiprows=[0],
-            header=None,
-            sep="\t",
-        )
-        animal_classes.loc[len(animal_classes)] = {"mid": "/m/0jbk", "display_name": "Animal"}
-        self.all_classes = all_classes
-        self.noise_classes = noise_classes
-        self.animal_classes = animal_classes
 
     @classmethod
     def from_config(cls, dataset_config: DatasetConfig) -> tuple["AudioSet", dict[str, Any]]:
@@ -218,7 +207,7 @@ class AudioSet(Dataset):
         else:
             audio_path = anypath(row["local_path"])
 
-        audio, sr = read_audio(audio_path)
+        audio, sr = read_audio(audio_path, start_time=row["start"], end_time=row["end"])
         audio = audio.astype(np.float32)
         audio = audio_stereo_to_mono(audio, mono_method="average")
 

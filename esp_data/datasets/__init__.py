@@ -1,4 +1,5 @@
 from .animalspeak import AnimalSpeak
+from .audioset import AudioSet
 from .barkley_canyon import BarkleyCanyon, BarkleyCanyonDetection
 from .beans import Beans
 from .birdset import BirdSet
@@ -11,4 +12,5 @@ __all__ = [
     "InsectSet459",
     "Beans",
     "BirdSet",
+    "AudioSet",
 ]
