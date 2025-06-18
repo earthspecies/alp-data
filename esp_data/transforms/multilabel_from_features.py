@@ -46,6 +46,9 @@ class MultiLabelFromFeatures:
     override : bool, default=False
         If False and the output_feature already exists in the dataset, an error is
         raised. If True, the output_feature will be overwritten.
+    allow_missing_labels : bool, default=True
+        If True, rows with no labels will be included in the output. If False, rows with
+        no labels will be dropped.
 
     Methods
     -------
@@ -63,11 +66,13 @@ class MultiLabelFromFeatures:
         label_map: dict[str, int] | None = None,
         output_feature: str = "label",
         override: bool = False,
+        allow_missing_labels: bool = True,
     ) -> None:
         self.features = features
         self.label_map = label_map
         self.override = override
         self.output_feature = output_feature
+        self.allow_missing_labels = allow_missing_labels
 
     @classmethod
     def from_config(cls, cfg: MultiLabelFromFeaturesConfig) -> "MultiLabelFromFeatures":
@@ -97,7 +102,8 @@ class MultiLabelFromFeatures:
                 else:
                     v = [row[f]]
                 row_labels.extend(map(lambda x: label_map[x], v))
-
+            if not self.allow_missing_labels and len(row_labels) == 0:
+                return None
             return sorted(row_labels)
 
         df[self.output_feature] = df[self.features].apply(_row_to_ids, axis="columns")
