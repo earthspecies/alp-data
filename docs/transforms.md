@@ -146,3 +146,12 @@ The `UniformSample` transform performs uniform sampling of the data, ensuring ba
     options:
         show_root_heading: true
         show_source: true
+
+### Deduplicate Transform
+The `Deduplicate` transform removes duplicate rows from your dataset based on specified columns. Example use case: Ensuring that each entry in a dataset is unique based on a combination of 'species' and 'location'.
+
+::: esp_data.transforms.Deduplicate
+    handler: python
+    options:
+        show_root_heading: true
+        show_source: true

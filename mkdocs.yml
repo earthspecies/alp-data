@@ -14,6 +14,7 @@ nav:
   - Datasets: datasets.md
   - io: io.md
   - Transforms: transforms.md
+  - Concatenate datasets: concatenate.md
   - API Reference: reference.md
 
 theme:
