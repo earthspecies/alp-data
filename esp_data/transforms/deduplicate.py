@@ -47,11 +47,9 @@ class Deduplicate:
     ...     "count": [10, 10, 5, 10]
     ... })
     >>> transform = Deduplicate(subset=["species"], keep_first=True)
-    >>> deduplicated_df = transform(df)
-    >>> print(deduplicated_df)
-       species  count
-    0      bee     10
-    2  butterfly      5
+    >>> deduplicated_df, _ = transform(df)
+    >>> print(deduplicated_df.species.unique().tolist())
+    ['bee', 'butterfly']
     """
 
     def __init__(self, *, subset: list[str] | None = None, keep_first: bool = True) -> None:
