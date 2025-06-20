@@ -1,3 +1,5 @@
+"""Little Owl ID dataset"""
+
 from typing import Any, Dict, Iterator, Optional
 
 import librosa

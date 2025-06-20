@@ -1,4 +1,4 @@
-"""BEANS dataset"""
+"""Chiffchaff ID dataset"""
 
 from typing import Any, Dict, Iterator, Optional
 
@@ -46,14 +46,14 @@ class ChiffchaffId(Dataset):
         version="0.1.0",
         description="Individual identify of common chiffchaffs",
         sources=[
-            "stowell2021_chiffchaff",
+            "https://royalsocietypublishing.org/doi/10.1098/rsif.2018.0940",
         ],
         license="CC-BY-4.0",
     )
 
     def __init__(
         self,
-        split: str = "train",
+        split: str = "train_within_year",
         output_take_and_give: dict[str, str] = None,
         sample_rate: Optional[int] = None,
         data_root: Optional[str | AnyPathT] = None,

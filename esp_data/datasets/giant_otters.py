@@ -50,7 +50,7 @@ class GiantOtters(Dataset):
 
     def __init__(
         self,
-        split: str = "train",
+        split: str = "test",
         output_take_and_give: dict[str, str] = None,
         sample_rate: Optional[int] = None,
         data_root: Optional[str | AnyPathT] = None,
