@@ -59,9 +59,9 @@ def _merge_dataframes(
 
     elif merge_level == "overlap":
         # Find common columns across all dataframes
-        common_columns = set(dataframes[0].columns)
+        common_columns = set(list(dataframes[0].columns))
         for df in dataframes[1:]:
-            common_columns &= set(df.columns)
+            common_columns &= set(list(df.columns))
 
         # remove _source_dataset and _source_index
         # because they are not part of the original data
@@ -73,6 +73,7 @@ def _merge_dataframes(
 
         # Preserve column order from first dataframe
         ordered_common_columns = [col for col in dataframes[0].columns if col in common_columns]
+        ordered_common_columns += ["_source_dataset", "_source_index"]
         selected_dfs = [df[ordered_common_columns] for df in dataframes]
         return pd.concat(selected_dfs, ignore_index=True)
 
@@ -274,6 +275,17 @@ def concatenate_datasets(
     MergeException
         If datasets cannot be merged according to the specified merge_level,
         or if there are conflicting values for identical keys in output_take_and_give
+
+    Examples
+    --------
+    >>> from esp_data.datasets import InsectSet459, BirdSet
+    >>> from esp_data.concat import concatenate_datasets
+    >>> dataset1 = InsectSet459(split="validation")
+    >>> dataset2 = BirdSet(split="HSN-test")
+    >>> concatenated_dataset = concatenate_datasets(
+    ...    [dataset1, dataset2], merge_level="soft")
+    >>> print(concatenated_dataset.info.name)
+    insectset_459+birdset
     """
     # Validate inputs
     if not datasets:
@@ -339,6 +351,32 @@ class ConcatenatedDataset(Dataset):
 
     This dataset maintains references to the original datasets to enable
     proper audio loading and other dataset-specific functionality.
+
+    Parameters
+    ----------
+    data : pd.DataFrame
+        The concatenated data as a DataFrame.
+    dataset_info : DatasetInfo
+        Metadata about the concatenated dataset.
+    source_datasets : list[Dataset]
+        List of original datasets that were concatenated.
+    sample_rate : int, optional
+        Sample rate for audio data, if applicable.
+    output_take_and_give : dict[str, str], optional
+        Mapping of output keys to original dataset keys.
+        This allows for renaming or filtering of columns in the output.
+
+    Examples
+    --------
+    >>> from esp_data.datasets import InsectSet459, BirdSet
+    >>> from esp_data.concat import concatenate_datasets
+    >>> dataset1 = InsectSet459(split="validation")
+    >>> dataset2 = BirdSet(split="HSN-test")
+    >>> concatenated_dataset = concatenate_datasets(
+    ...    [dataset1, dataset2], merge_level="soft")
+    >>> assert len(concatenated_dataset) > 0, "Concatenated dataset should not be empty"
+    >>> assert len(concatenated_dataset) == len(dataset1) + len(dataset2), \
+        "Concatenated dataset length should match sum of source datasets lengths"
     """
 
     # No class-level info attribute to avoid overwriting issues

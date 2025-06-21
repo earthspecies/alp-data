@@ -52,9 +52,14 @@ Deeper levels of configurations can be achieved by using specific parameters whi
 Common arguments are:
 
 -   `split`: The data split to use (e.g., "train", "validation")
--   `output_take_and_give`: Column name mappings. This is used to rename a column on the fly from *take* to *give*.
+-   `output_take_and_give`: Column picker and name mappings. This is used to:
+
+    -   Pick the columns you want in the output dictionary returned when `__getitem__` is called via `x = sample[0]`.
+    -   Rename the columns in the output dictionary. For example, if you want to rename the "audio" column to "raw_wav", you can specify `{"audio": "raw_wav"}`.
+
 -   `sample_rate`: Target audio sample rate (for audio datasets, it will resample to this rate).
--   `data_root`: Custom root directory for data files. If not specified, the data_root is set as the parent directory of the path to the split.
+-   `data_root`: Custom root directory for data files. If not specified, the data_root is set as the parent directory of the path to the split. The idea here is that the data maybe copied from its original location (usually a bucket) to a local
+disk or a folder on the shared nfs.
 
 
 ## Using Transforms with Datasets
@@ -73,7 +78,10 @@ from esp_data.datasets import AnimalSpeak
 from esp_data.transforms import Filter, LabelFromFeatureConfig
 
 # Create a dataset
-dataset = AnimalSpeak(split="validation")
+aspeak_output_map = {
+    "audio": "raw_wav"  # maps  the "audio" column to "raw_wav" in output
+}
+dataset = AnimalSpeak(split="validation", output_take_and_give=aspeak_output_map)
 
 # Create transform configurations
 filter_config = FilterConfig(

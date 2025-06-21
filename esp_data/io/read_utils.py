@@ -2,7 +2,7 @@
 
 import io
 import logging
-from typing import Literal, Optional
+from typing import Any, Literal, Optional
 
 import numpy as np
 import soundfile as sf
@@ -175,7 +175,7 @@ def audio_stereo_to_mono(
 
 def get_audio_info(
     file_path: str | AnyPathT,
-) -> tuple[int, int]:
+) -> dict[str, Any]:
     """Gets audio file information without loading the data.
 
     Parameters

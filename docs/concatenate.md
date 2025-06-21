@@ -1,17 +1,26 @@
 # `esp_data.concat` Module
 
-## What is Dataset Concatenation?
+## What is Dataset concatenation?
 
 The `concat` module provides utilities for **combining multiple ESP datasets** into a single unified dataset. This is particularly useful when you want to train models on data from multiple sources or combine different splits of related datasets while maintaining proper data handling and metadata.
 
 More technically, dataset concatenation:
+
 - Combines multiple `Dataset` objects into a single `ConcatenatedDataset`
 - Preserves original dataset functionality through source dataset references
 - Handles column mismatches through configurable merge strategies
 - Maintains proper metadata and configuration merging
 - Tracks data provenance for debugging and analysis through a merged `DatasetInfo`
 
-## How to Concatenate Datasets?
+### A note on dataset merging
+
+In v1 of this approach, we have are three [merge strategies](#merge-strategies). Currently, because we use `pandas` DataFrames under the hood, the merge strategies are:
+
+1. **Soft Merge**: Keeps all columns from all datasets, filling missing values with NaN.
+2. **Overlap Merge**: Keeps only columns that exist in all datasets.
+3. **Hard Merge**: Requires all datasets to have identical columns, raising an error if they differ.
+
+## How can I concatenate datasets?
 
 Datasets can be concatenated using the `concatenate_datasets` function with different merge strategies:
 
@@ -43,13 +52,13 @@ print(f"First sample: {sample.keys()}")
 print(f"Last sample: {combined_dataset[-1].keys()}")
 ```
 
-!!! warning
+!!! remark
     The `ConcatenatedDataset` class *currently* cannot be instantiated from a `DatasetConfig`. It is designed to be created directly from existing `Dataset` objects. So trying `ConcatenatedDataset.from_config(config)` will raise an error.
 
 
 #### Apply transformations before / after concatenation
 
-You can apply transformations to the individual datasets before concatenation as shown in [transforms.md](transforms.md). This allows you to treat the data as needed, but you can also apply transformations after concatenation if you want to operate on the combined dataset as a whole. Here is an example of applying a filter transformation *after* concatenation:
+You can apply transformations to the individual datasets *before* concatenation as shown in [transforms.md](transforms.md). This allows you to treat the data as needed, but you can also apply transformations *after* concatenation if you want to operate on the combined dataset as a whole. Here is an example of applying a filter transformation *after* concatenation:
 
 ```python
 from esp_data.datasets import AnimalSpeak, BarkleyCanyon
@@ -73,6 +82,45 @@ filter_config = FilterConfig(
 # Run the transformation on the combined dataset
 transform_metadata = combined_dataset.apply_transformations([filter_config])
 ```
+!!! warning
+    If the `merge_level` was set to "soft" in `concatenate_datasets`, running a filter transformation like this
+    will end up dropping all rows from datasets that do not have the `species_common` column, since those rows will be
+    `NaN` for those datasets.
+
+
+As mentioned, ycou can also apply transforms to individual datasets before concatenation:
+
+```python
+from esp_data.datasets import AnimalSpeak, InsectSet459
+from esp_data.transforms import FilterConfig
+from esp_data.concat import concatenate_datasets
+
+# Create and transform individual datasets
+animal_dataset = AnimalSpeak(split="train")
+animal_filter = FilterConfig(
+    type="filter",
+    property="source",
+    values=["xeno-canto"],
+    mode="include"
+)
+animal_dataset.apply_transformations([animal_filter])
+
+insect_dataset = InsectSet459(split="train")
+insect_filter = FilterConfig(
+    type="filter",
+    property="family",
+    values=["Cicadidae", "Gryllidae"],
+    mode="include"
+)
+insect_dataset.apply_transformations([insect_filter])
+
+# Concatenate the transformed datasets
+combined_dataset = concatenate_datasets(
+    [animal_dataset, insect_dataset],
+    merge_level="overlap"
+)
+```
+
 
 ### Merge Strategies
 
@@ -108,41 +156,6 @@ Requires all datasets to have identical columns:
 combined_dataset = concatenate_datasets(
     [dataset1, dataset2],
     merge_level="hard"
-)
-```
-
-### Advanced Usage with Transforms
-
-You can apply transforms to individual datasets before concatenation:
-
-```python
-from esp_data.datasets import AnimalSpeak, InsectSet459
-from esp_data.transforms import FilterConfig
-from esp_data.concat import concatenate_datasets
-
-# Create and transform individual datasets
-animal_dataset = AnimalSpeak(split="train")
-animal_filter = FilterConfig(
-    type="filter",
-    property="source",
-    values=["xeno-canto"],
-    mode="include"
-)
-animal_dataset.apply_transformations([animal_filter])
-
-insect_dataset = InsectSet459(split="train")
-insect_filter = FilterConfig(
-    type="filter",
-    property="family",
-    values=["Cicadidae", "Gryllidae"],
-    mode="include"
-)
-insect_dataset.apply_transformations([insect_filter])
-
-# Concatenate the transformed datasets
-combined_dataset = concatenate_datasets(
-    [animal_dataset, insect_dataset],
-    merge_level="overlap"
 )
 ```
 
@@ -193,7 +206,7 @@ sample = combined_dataset[0]
 
 ### DatasetInfo Merging
 
-When datasets are concatenated, their metadata is intelligently merged:
+When datasets are concatenated, their metadata is merged like so:
 
 - **Names**: Combined with "+" separator (e.g., "animalspeak+barkleycanyon")
 - **Owners**: Deduplicated and joined with ";" separator
@@ -236,6 +249,9 @@ dataset2 = AnimalSpeak(
 
 # These will be merged successfully
 combined_dataset = concatenate_datasets([dataset1, dataset2])
+# Access the merged output mappings
+print(combined_dataset.output_take_and_give)
+# Output: {'canonical_name': 'species', 'local_path': 'path'}
 
 # Conflicting mappings will raise MergeException
 dataset3 = AnimalSpeak(
@@ -302,36 +318,6 @@ def check_compatibility(datasets):
     print(f"Common columns: {len(common_cols)}")
 
 check_compatibility([dataset1, dataset2])
-```
-
-### 3. Handle Large Datasets Efficiently
-
-```python
-# For very large datasets, consider processing in chunks
-def concatenate_large_datasets(dataset_list, chunk_size=1000):
-    combined = concatenate_datasets(dataset_list)
-
-    # Process in chunks to manage memory
-    for i in range(0, len(combined), chunk_size):
-        chunk = [combined[j] for j in range(i, min(i + chunk_size, len(combined)))]
-        # Process chunk
-        yield chunk
-```
-
-### 4. Preserve Data Lineage
-
-```python
-# The concatenated dataset automatically tracks source information
-# Use this for debugging or analysis
-def analyze_sources(concatenated_dataset):
-    # Access internal tracking (for analysis purposes)
-    source_counts = concatenated_dataset._data['_source_dataset'].value_counts()
-    print("Samples per source dataset:")
-    for idx, count in source_counts.items():
-        source_name = concatenated_dataset._source_datasets[idx].info.name
-        print(f"  {source_name}: {count} samples")
-
-analyze_sources(combined_dataset)
 ```
 
 ## Limitations and Considerations
