@@ -13,7 +13,7 @@ You can use this module to:
 5.  [Move files](#move-files-from-one-cloud-location-to-another-cloud-location) from one cloud location to another cloud location
 6. [Copy files](#copy-from-one-cloud-location-to-another-cloud-location) from one cloud location to another cloud location
 7. [Read audio](#read-audio-from-a-remote-file) from a remote file directly into memory as a numpy array. This is **NOT** the same as *streaming*, it loads the whole file into memory, so be careful with large files.
-8. [Get audio info]
+8. [Get audio info](#get-info-about-an-audio-file-before-reading) about an audio file before reading it, such as sample rate, duration, number of channels, etc.
 
 There are two interfaces available:
 
