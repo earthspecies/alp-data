@@ -1,0 +1,108 @@
+import os
+import time
+from urllib.parse import urlparse
+
+import numpy as np
+import pandas as pd
+import requests
+
+import esp_data.file_io.functional as F
+from esp_data.paths import AnyPath
+
+
+def download_inat_audio(urls, delay=2):
+    """
+    Download audio files from inaturalist with respectful rate limiting.
+
+    Args:
+        urls: List of xeno-canto URLs
+        delay: Average seconds to wait between downloads (minimum 2 seconds recommended)
+    """
+
+    # Create output directory
+    # Path(output_dir).mkdir(exist_ok=True)
+    output_dir = AnyPath("gs://esp-ml-datasets/inaturalist/v0.1.0/raw/audio")
+
+    # Set up session with proper headers
+    session = requests.Session()
+    session.headers.update(
+        {
+            "User-Agent": "Audio downloader from ESP (contact: gagan@earthspecies.org)",
+            "Accept": "audio/*,*/*;q=0.9",
+        }
+    )
+
+    downloaded = []
+    failed = []
+
+    print(f"Preparing to download {len(urls)} files...")
+    for i, url in enumerate(urls, 1):
+        try:
+            print(f"Downloading {i}/{len(urls)}: {url}")
+
+            # Extract filename from URL
+            parsed = urlparse(url)
+            filename = os.path.basename(parsed.path)
+            if not filename or not filename.endswith((".mp3", ".wav", ".flac", ".ogg", ".m4a")):
+                # Fallback filename if we can't parse it
+                filename = f"xc_audio_{i}.mp3"
+
+            filepath = output_dir / filename
+
+            # Skip if file already exists
+            if filepath.exists():
+                print(f"  Skipping {filename} (already exists)")
+                continue
+
+            # Make request with timeout
+            response = session.get(url, timeout=30, stream=True)
+            response.raise_for_status()
+
+            # Write file in chunks to handle large files
+            with F.open_file(filepath, "wb", use_fs=True) as f:
+                for chunk in response.iter_content(chunk_size=8192):
+                    if chunk:
+                        f.write(chunk)
+
+            downloaded.append(filepath)
+            print(f"  ✓ Saved as {filename}")
+
+            # Rate limiting - be respectful to their servers
+            if i < len(urls):  # Don't sleep after the last download
+                # Generate a random between delay - 0.5 and delay + 0.5
+                random_delay = np.random.uniform(delay - 0.5, delay + 0.5)
+                random_delay = max(random_delay, 1)  # Ensure at least 1 second delay
+                print(f"  Waiting {random_delay} seconds...")
+                time.sleep(random_delay)
+
+        except requests.exceptions.RequestException as e:
+            print(f"  ✗ Failed to download {url}: {e}")
+            failed.append(url)
+        except Exception as e:
+            print(f"  ✗ Unexpected error with {url}: {e}")
+            failed.append(url)
+
+    print("\nDownload complete!")
+    print(f"Successfully downloaded: {len(downloaded)} files")
+    print(f"Failed downloads: {len(failed)} files")
+
+    if failed:
+        print("\nFailed URLs:")
+        for url in failed:
+            print(f"  {url}")
+
+    return downloaded, failed
+
+
+# Example usage
+if __name__ == "__main__":
+    df = pd.read_json(
+        "../notebooks/dataset_prep_notebooks/inat_to_download.jsonl",
+        lines=True,
+        orient="records",
+    )
+    # Extract audio URLs from the DataFrame
+    audio_urls = df.identifier.tolist()
+
+    # Download with 3-second delay between requests
+    downloaded, failed = download_inat_audio(audio_urls, delay=1.5)
