@@ -28,7 +28,7 @@ class LittleOwlId(Dataset):
     -------
     >>> from esp_data.datasets import LittleOwlId
     >>> dataset = LittleOwlId(
-    ...     split="test_within_year",
+    ...     split="test_across_year",
     ...     sample_rate=16000,
     ...     data_root="gs://esp-ml-datasets/littleowl_id/v0.1.0/raw/"
     ... )
