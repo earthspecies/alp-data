@@ -175,6 +175,13 @@ The list of available dataset will grow over time. Please refer to the next sect
             - "!^.*$"  # Exclude everything
         show_source: true
 
+::: esp_data.datasets.BengaleseFinchCalls
+    handler: python
+    options:
+        filters:
+            - "!^.*$"  # Exclude everything
+        show_source: true
+
 ## Using your own dataset
 
 First of all, you must answer an important question: is this new dataset relatively stable and time and potentially useful to others? If yes, then you **should talk to the engineering team** to add it as an official ESP Dataset. If not, you can just follow the next steps!
