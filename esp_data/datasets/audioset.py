@@ -28,6 +28,11 @@ class AudioSet(Dataset):
     Gemmeke et al 2017
     https://static.googleusercontent.com/media/research.google.com/en//pubs/archive/45857.pdf
 
+    The train and validation splits (balanced and unbalanced)
+    correspond to the official ones in the paper (https://research.google.com/audioset/download.html).
+    The train-animal, train-noise, validation-animal, and validation-noise splits
+    are created for animal and non-animal (noise) classes in the ontology.
+
     Examples
     -------
     >>> from esp_data.datasets import AudioSet
