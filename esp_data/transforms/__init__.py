@@ -1,6 +1,7 @@
 # Has to be first because individual transform modules import register_transform
 from .registry import register_transform, transform_from_config  # isort:skip
 
+from .deduplicate import Deduplicate, DeduplicateConfig
 from .filter import Filter, FilterConfig
 from .label_from_feature import LabelFromFeature, LabelFromFeatureConfig
 from .multilabel_from_features import (
@@ -25,6 +26,8 @@ __all__ = [
     "SubsampleConfig",
     "UniformSample",
     "UniformSampleConfig",
+    "Deduplicate",
+    "DeduplicateConfig",
     "register_transform",
     "transform_from_config",
     "RegisteredTransformConfigs",
