@@ -121,7 +121,7 @@ def load_dataset(
         If no shard files are found in the specified path.
     """
     path = anypath(path)
-    shard_files = list(path.glob(file_pattern))
+    shard_files = list([str(s) for s in path.glob(file_pattern)])
 
     if not shard_files:
         raise FileNotFoundError(f"No shard files found in {path}")
