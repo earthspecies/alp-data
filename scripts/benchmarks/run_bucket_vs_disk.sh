@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+#SBATCH --nodes=1
+#SBATCH --gpus=0
+#SBATCH --cpus-per-task=1
+#SBATCH --mem=16G
+#SBATCH --output="/home/gagan_earthspecies_org/logs/%A.log"
+#SBATCH --job-name="benchmark-webds"
+export UV_PROJECT_ENVIRONMENT=/scratch/$USER/venvs/esp-data
+cd ~/esp-data
+uv sync
