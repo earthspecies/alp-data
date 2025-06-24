@@ -238,6 +238,8 @@ The `output_take_and_give` mappings are merged and validated:
 from esp_data.datasets import AnimalSpeak
 
 # Create datasets with compatible column mappings
+# i.e., either completely different mappings valid to each dataset individually,
+# or overlapping, but not conflicting mappings
 dataset1 = AnimalSpeak(
     split="validation",
     output_take_and_give={"canonical_name": "species"}
@@ -265,37 +267,6 @@ except MergeException as e:
     print(f"Mapping conflict: {e}")
 ```
 
-## Error Handling
-
-The concatenation process includes comprehensive error handling:
-
-### Common Exceptions
-
-```python
-from esp_data.concat import MergeException
-
-try:
-    # Empty dataset list
-    empty_concat = concatenate_datasets([])
-except MergeException as e:
-    print("Need at least one dataset")
-
-try:
-    # Hard merge with incompatible columns
-    strict_concat = concatenate_datasets(
-        [dataset1, dataset2],
-        merge_level="hard"
-    )
-except MergeException as e:
-    print(f"Column mismatch: {e}")
-
-try:
-    # Sample rate mismatch
-    rate_concat = concatenate_datasets([audio_16k, audio_44k])
-except MergeException as e:
-    print(f"Sample rate conflict: {e}")
-```
-
 ## Best Practices
 
 ### 1. Choose the Right Merge Strategy
@@ -305,6 +276,12 @@ except MergeException as e:
 - Use **hard merge** when datasets should have identical schemas
 
 ### 2. Validate Before Concatenation
+It might make sense to a perform a sanity check that multiple datasets *can* be
+concatenated without issues. Incompatible datasets (for e.g. merge strategy "hard"
+but different columns, or different sample rates) will raise a `MergeException`
+when you try to concatenate them.
+
+For example, this can be achieved using a `check_compatibility` function:
 
 ```python
 # Check dataset compatibility
