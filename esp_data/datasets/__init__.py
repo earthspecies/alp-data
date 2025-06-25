@@ -7,6 +7,7 @@ from .chiffchaff_id import ChiffchaffId
 from .giant_otters import GiantOtters
 from .insectset_459 import InsectSet459
 from .littleowl_id import LittleOwlId
+from .orchive import Orchive
 from .pipit_id import PipitId
 from .zebra_finch_julie_elie import ZebraFinchJulieElie
 
@@ -19,6 +20,7 @@ __all__ = [
     "Beans",
     "ZebraFinchJulieElie",
     "BirdSet",
+    "Orchive",
     "ChiffchaffId",
     "LittleOwlId",
     "PipitId",
