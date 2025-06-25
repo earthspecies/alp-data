@@ -68,7 +68,7 @@ def dataset_with_output_mapping() -> Dataset:
 
 def test_info_property(dataset: Dataset) -> None:
     """Test if the info property returns correct metadata."""
-    assert dataset.info.name == "Zebra Finch Julie Elie"
+    assert dataset.info.name == "zebra_finch_julie_elie"
     assert dataset.info.version == "0.1.0"
     assert "test" in dataset.info.split_paths
     for split in dataset.info.split_paths.values():
@@ -148,7 +148,7 @@ def test_load_from_config() -> None:
         sample_rate=16000,
     )
     dataset, _ = ZebraFinchJulieElie.from_config(dataset_config)
-    assert dataset.info.name == "Zebra Finch Julie Elie"
+    assert dataset.info.name == "zebra_finch_julie_elie"
     assert dataset.info.split_paths["test"] is not None
     assert len(dataset) > 0, "Dataset should not be empty"
     assert dataset.sample_rate == 16000
@@ -239,7 +239,7 @@ def test_data_root_parameter() -> None:
 def test_string_representation(dataset: Dataset) -> None:
     """Test the string representation of the dataset."""
     str_repr = str(dataset)
-    assert "Zebra Finch Julie Elie" in str_repr
+    assert "zebra_finch_julie_elie" in str_repr
 
 
 def test_class_registration() -> None:
