@@ -1,4 +1,4 @@
-"""BEANS dataset"""
+"""Chiffchaff ID dataset"""
 
 from typing import Any, Dict, Iterator, Optional
 
@@ -11,51 +11,61 @@ from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
 
 
 @register_dataset
-class GiantOtters(Dataset):
-    """Giant Otters dataset
+class ChiffchaffId(Dataset):
+    """Chiffchaff ID dataset
 
     Description
     -----------
-    Vocal repertoire of giant otters.
-    22 vocalization types from adults, 17 from neonates,
-    annotated based on behavioral function and sound.
+    Vocalisations released by Stowell et al. for individual Chiffchaff males
+    (Phylloscopus collybita). Provides both *within-year* and *across-year* evaluation schemes.
+    https://royalsocietypublishing.org/doi/10.1098/rsif.2018.0940
+
+    This dataset includes train and test splits within year (train_within_year, test_within_year)
+    and across year (train_across_year, test_across_year).
+    Test within year tests on recordings from the same year as the training data,
+    though different days, while test across year tests on recordings from different years,
+    giving harder test conditions,
+    with potential differences in acoustic environment or vocalisation characteristics.
 
     References
     ----------
-    The Vocal Repertoire of Adult and Neonate Giant Otters (Pteronura brasiliensis)
-    https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0112562#s5
-
+    https://royalsocietypublishing.org/doi/10.1098/rsif.2018.0940
+    Zenodo: https://zenodo.org/records/1413495
     Examples
     -------
-    >>> from esp_data.datasets import GiantOtters
-    >>> dataset = GiantOtters(
-    ...     split="test",
-    ...     output_take_and_give={"label": "label"},
+    >>> from esp_data.datasets import ChiffchaffId
+    >>> dataset = ChiffchaffId(
+    ...     split="test_within_year",
     ...     sample_rate=16000,
-    ...     data_root="gs://esp-ml-datasets/giant_otters/v0.1.0/raw/"
+    ...     data_root="gs://esp-ml-datasets/chiffchaff_id/v0.1.0/raw/"
     ... )
     """
 
     info = DatasetInfo(
-        name="Giant Otters",
+        name="chiffchaff_id",
         owner="david",
         split_paths={
-            "test": "gs://esp-ml-datasets/giant_otters/v0.1.0/raw/giant_otters_annotations_test.csv",
+            "train_within_year": "gs://esp-ml-datasets/chiffchaff_id/v0.1.0/raw/withinyear_fg_train.csv",
+            "test_within_year": "gs://esp-ml-datasets/chiffchaff_id/v0.1.0/raw/withinyear_fg_test.csv",
+            "train_across_year": "gs://esp-ml-datasets/chiffchaff_id/v0.1.0/raw/acrossyear_fg_train.csv",
+            "test_across_year": "gs://esp-ml-datasets/chiffchaff_id/v0.1.0/raw/acrossyear_fg_test.csv",
         },
         version="0.1.0",
-        description="Giant Otters vocal repertoire dataset",
-        sources=["PLOS ONE"],
-        license="CC-BY-4.0, CC0",
+        description="Individual identify of common chiffchaffs",
+        sources=[
+            "https://royalsocietypublishing.org/doi/10.1098/rsif.2018.0940",
+        ],
+        license="CC-BY-4.0",
     )
 
     def __init__(
         self,
-        split: str = "test",
+        split: str = "train_within_year",
         output_take_and_give: dict[str, str] = None,
         sample_rate: Optional[int] = None,
         data_root: Optional[str | AnyPathT] = None,
     ) -> None:
-        """Initialize the GiantOtters dataset.
+        """Initialize the ChiffchaffId dataset.
 
         Parameters
         ----------
@@ -73,14 +83,13 @@ class GiantOtters(Dataset):
         """
         super().__init__(output_take_and_give)  # Initialize the parent Dataset class
         self.split = split
+        self._data: pd.DataFrame = None
+        self._load()  # Load the dataset (fills self._data)
         self.sample_rate = sample_rate
         self.data_root = data_root
         if self.data_root is None:
             # we assume that parent dir of the split path is the data root
             self.data_root = anypath(self.info.split_paths[self.split]).parent
-
-        self._data: pd.DataFrame = None
-        self._load()  # Load the dataset (fills self._data)
 
     @property
     def columns(self) -> list[str]:
@@ -110,26 +119,26 @@ class GiantOtters(Dataset):
             # For JSONL files, read them directly into a DataFrame
             self._data = pd.read_json(location, lines=True, orient="records")
         else:
-            from io import StringIO
-
-            csv_text = anypath(location).read_text(encoding="utf-8")
-            self._data = pd.read_csv(StringIO(csv_text))
+            # Read CSV content
+            self._data = pd.read_csv(
+                location, keep_default_na=False, na_values=[""]
+            )  # This setting avoids setting 'None' to a pd.NA type
 
     @classmethod
-    def from_config(cls, dataset_config: DatasetConfig) -> tuple["GiantOtters", dict[str, Any]]:
+    def from_config(cls, dataset_config: DatasetConfig) -> tuple["ChiffchaffId", dict[str, Any]]:
         """Create a Dataset instance from a configuration dictionary.
 
         Parameters
         ----------
         dataset_config : DatasetConfig
-            Configuration dictionary containing dataset parameters
+            Configuration dictionary containing dataset parametesf
 
         Returns
         -------
         tuple[Dataset, dict[str, Any]]
             A tuple containing the dataset instance and metadata.
             If the dataset_config contains transformations, they will be applied
-            and the metadata will be returned as dict, otherwise empty dict.
+            and the metadata will be returned as dict, otherwise an empty dict.
 
         Raises
         -------
@@ -198,9 +207,9 @@ class GiantOtters(Dataset):
         row = self._data.iloc[idx].to_dict()
         # Ensure audio path is valid
         if self.data_root:
-            audio_path = anypath(self.data_root) / row["path"]
+            audio_path = anypath(self.data_root) / row["local_path"]
         else:
-            audio_path = anypath(row["path"])
+            audio_path = anypath(row["local_path"])
 
         # Read the audio clip
         audio, sr = read_audio(audio_path)
