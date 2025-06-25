@@ -49,8 +49,9 @@ def convert_macaques(data_dir: str, out_path: str, num_workers: int = 1) -> None
     # construct local_path by contactenating 'audio' and filename field
     df["local_path"] = df["filename"].apply(lambda x: anypath(out_path) / "audio" / x)
     # create a stratified validation set of multiple labels: id and sex
-    df_train, df_val = train_test_split(df, test_size=0.2, stratify=df[["id", "sex"]])
-    df_test = df.drop(df_train.index).drop(df_val.index)
+    df_train = df[df.split == "train"]
+    df_train, df_val = train_test_split(df_train, test_size=0.2, stratify=df_train[["id", "sex"]])
+    df_test = df[df.split == "test"]
     # save train and test to csv
     df_train.to_csv(anypath(out_path) / "train.csv", index=False)
     df_val.to_csv(anypath(out_path) / "validation.csv", index=False)
