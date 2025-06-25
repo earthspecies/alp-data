@@ -37,7 +37,7 @@ class ZebraFinchJulieElie(Dataset):
     """
 
     info = DatasetInfo(
-        name="Zebra Finch Julie Elie",
+        name="zebra_finch_julie_elie",
         owner="marius",
         split_paths={
             "test": "gs://esp-ml-datasets/zebra_finch_julie_elie/v0.1.0/raw/csv_data/test.csv",
