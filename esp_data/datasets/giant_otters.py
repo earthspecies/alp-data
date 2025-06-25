@@ -1,4 +1,4 @@
-"""BEANS dataset"""
+"""Giant Otters dataset"""
 
 from typing import Any, Dict, Iterator, Optional
 

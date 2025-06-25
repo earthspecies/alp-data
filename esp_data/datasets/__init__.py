@@ -5,6 +5,7 @@ from .beans import Beans
 from .birdset import BirdSet
 from .giant_otters import GiantOtters
 from .insectset_459 import InsectSet459
+from .macaques_coo_calls import MacaquesCooCalls
 from .zebra_finch_julie_elie import ZebraFinchJulieElie
 
 __all__ = [
@@ -17,4 +18,5 @@ __all__ = [
     "ZebraFinchJulieElie",
     "BirdSet",
     "AudioSet",
+    "MacaquesCooCalls",
 ]
