@@ -41,11 +41,11 @@ class AudioSet(Dataset):
     ...     output_take_and_give={"label": "audio_label"}
     ... )
     >>> print(dataset.info.name)
-    AudioSet
+    audioset
     """
 
     info = DatasetInfo(
-        name="AudioSet",
+        name="audioset",
         owner="david; marius; masato",
         split_paths={
             "train": "gs://esp-ml-datasets/audioset/v0.1.0/raw/csv-data/unbalanced_train_segments_processed.csv",
