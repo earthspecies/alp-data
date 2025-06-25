@@ -83,7 +83,7 @@ class MacaquesCooCalls(Dataset):
             # The split path is: .../raw/csv_data/test.csv
             # We want the data root to be: .../raw/
             split_path = anypath(self.info.split_paths[self.split])
-            self.data_root = split_path.parent.parent
+            self.data_root = split_path.parent
 
         self._data: pd.DataFrame = None
         self._load()  # Load the dataset (fills self._data)
@@ -200,20 +200,9 @@ class MacaquesCooCalls(Dataset):
         # Ensure audio path is valid
         if self.data_root:
             # If data_root is provided, we need to construct the path properly
-            # The local_path in CSV might be absolute, so we extract just the filename
-            # and construct the path relative to data_root
-            local_path = anypath(row["local_path"])
-            filename = local_path.name
-
-            # Check if the file exists in the train/valid subdirectories
-            # Try train first, then valid
-            if self.split == "train":
-                audio_path = anypath(self.data_root) / "audio" / "train" / filename
-            else:
-                audio_path = anypath(self.data_root) / "audio" / "valid" / filename
+            audio_path = anypath(self.data_root) / anypath(row["local_path"])
         else:
             audio_path = anypath(row["local_path"])
-
         # Read the audio clip
         audio, sr = read_audio(audio_path)
         audio = audio.astype(np.float32)
