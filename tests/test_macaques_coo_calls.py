@@ -222,7 +222,7 @@ def test_data_root_parameter() -> None:
     """Test if data_root parameter works correctly."""
     # Test default data_root (should be parent of csv_data directory)
     dataset_default = MacaquesCooCalls(split="train")
-    expected_default = anypath(dataset_default.info.split_paths["train"]).parent.parent
+    expected_default = anypath(dataset_default.info.split_paths["train"]).parent
     assert dataset_default.data_root == expected_default
 
     # Test with custom data_root
