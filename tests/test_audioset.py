@@ -134,7 +134,7 @@ def dataset_with_sample_rate(mock_csv_data) -> Dataset:
 def test_info_property() -> None:
     """Test if the info property returns correct metadata."""
     # Test without creating dataset instance to avoid file loading
-    assert AudioSet.info.name == "AudioSet"
+    assert AudioSet.info.name == "audioset"
     assert AudioSet.info.version == "0.1.0"
     assert "train" in AudioSet.info.split_paths
     assert "validation" in AudioSet.info.split_paths
@@ -231,13 +231,13 @@ def test_load_from_config(mock_csv_data) -> None:
         mock_anypath.return_value.read_text.return_value = mock_csv_data.to_csv(index=False)
 
         dataset_config = DatasetConfig(
-            dataset_name="AudioSet",
+            dataset_name="audioset",
             split="validation",
             data_root="gs://esp-ml-datasets/audioset/v0.1.0/raw/",
             sample_rate=16000
         )
         dataset, _ = AudioSet.from_config(dataset_config)
-        assert dataset.info.name == "AudioSet"
+        assert dataset.info.name == "audioset"
         assert dataset.info.split_paths["validation"] is not None
         assert len(dataset) > 0, "Dataset should not be empty"
         assert dataset.sample_rate == 16000

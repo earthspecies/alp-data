@@ -17,19 +17,22 @@ class PipitId(Dataset):
     Description
     -----------
     Vocalisations released by Stowell et al. for individual Tree Pipits males
-    (Anthus trivialis). Provides both *within-year* and *across-year* evaluation schemes.
-    https://royalsocietypublishing.org/doi/10.1098/rsif.2018.0940
+    (Anthus trivialis). Provides both *within-year* and *across-year*
+    evaluation schemes.
 
-    This dataset includes train and test splits within year (train_within_year, test_within_year)
-    and across year (train_across_year, test_across_year). Test within year tests on recordings
-    from the same year as the training data, though different days,
-    while test across year tests on recordings from different years, giving harder test conditions,
-    with potential differences in acoustic environment or vocalisation characteristics.
+    This dataset includes train and test splits within year
+    (train_within_year, test_within_year)
+    and across year (train_across_year, test_across_year). Test within year tests
+    on recordings from the same year as the training data, though different days,
+    while test across year tests on recordings from different years, giving harder
+    test conditions, with potential differences in acoustic environment or
+    vocalisation characteristics.
 
     References
     ----------
     https://royalsocietypublishing.org/doi/10.1098/rsif.2018.0940
     Zenodo: https://zenodo.org/records/1413495
+
     Examples
     -------
     >>> from esp_data.datasets import PipitId
