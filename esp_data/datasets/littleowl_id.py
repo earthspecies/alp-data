@@ -20,6 +20,11 @@ class LittleOwlId(Dataset):
     (Athene noctua). Provides both *within-year* and *across-year* evaluation schemes.
     https://royalsocietypublishing.org/doi/10.1098/rsif.2018.0940
 
+    For this dataset, the train and test splits (train_across_year, test_across_year)
+    are drawn from different years, giving harder test conditions,
+    with potential differences in acoustic environment
+    or vocalisation characteristics.
+
     References
     ----------
     https://royalsocietypublishing.org/doi/10.1098/rsif.2018.0940

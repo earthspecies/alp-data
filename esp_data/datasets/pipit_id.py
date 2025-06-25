@@ -20,6 +20,12 @@ class PipitId(Dataset):
     (Anthus trivialis). Provides both *within-year* and *across-year* evaluation schemes.
     https://royalsocietypublishing.org/doi/10.1098/rsif.2018.0940
 
+    This dataset includes train and test splits within year (train_within_year, test_within_year)
+    and across year (train_across_year, test_across_year). Test within year tests on recordings
+    from the same year as the training data, though different days,
+    while test across year tests on recordings from different years, giving harder test conditions,
+    with potential differences in acoustic environment or vocalisation characteristics.
+
     References
     ----------
     https://royalsocietypublishing.org/doi/10.1098/rsif.2018.0940
@@ -32,11 +38,6 @@ class PipitId(Dataset):
     ...     sample_rate=16000,
     ...     data_root="gs://esp-ml-datasets/pipit_id/v0.1.0/raw/"
     ... )
-    This dataset includes train and test splits within year (train_within_year, test_within_year)
-    and across year (train_across_year, test_across_year).
-    Test within year tests on recordings from the same year as the training data,
-    while test across year tests on recordings from different years, giving harder test conditions,
-    with potential differences in acoustic environment or vocalisation characteristics.
     """
 
     info = DatasetInfo(
