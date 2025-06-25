@@ -1,4 +1,4 @@
-"""BEANS dataset"""
+"""BirdSet dataset"""
 
 from typing import Any, Dict, Iterator, Optional
 
@@ -69,7 +69,7 @@ class BirdSet(Dataset):
 
     def __init__(
         self,
-        split: str = "train",
+        split: str = "HSN-train",
         output_take_and_give: dict[str, str] = None,
         sample_rate: Optional[int] = None,
         data_root: Optional[str | AnyPathT] = None,

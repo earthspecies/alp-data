@@ -1,5 +1,6 @@
-"""BEANS dataset"""
+"""AudioSet dataset"""
 
+from io import StringIO
 from typing import Any, Dict, Iterator, Optional
 
 import librosa
@@ -11,51 +12,64 @@ from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
 
 
 @register_dataset
-class GiantOtters(Dataset):
-    """Giant Otters dataset
+class AudioSet(Dataset):
+    """AudioSet dataset.
 
     Description
     -----------
-    Vocal repertoire of giant otters.
-    22 vocalization types from adults, 17 from neonates,
-    annotated based on behavioral function and sound.
+    AudioSet is largescale dataset of manually-annotated audio events that endeavors
+    to bridge the gap in data availability between image and audio research.
+    Using a carefully structured hierarchical ontology of 632 audio classes
+    in 10 second segments of YouTube videos.
 
     References
     ----------
-    The Vocal Repertoire of Adult and Neonate Giant Otters (Pteronura brasiliensis)
-    https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0112562#s5
+    AUDIO SET: AN ONTOLOGY AND HUMAN-LABELED DATASET FOR AUDIO EVENTS
+    Gemmeke et al 2017
+    https://static.googleusercontent.com/media/research.google.com/en//pubs/archive/45857.pdf
+
+    The train and validation splits (balanced and unbalanced)
+    correspond to the official ones in the paper (https://research.google.com/audioset/download.html).
+    The train-animal, train-noise, validation-animal, and validation-noise splits
+    are created for animal and non-animal (noise) classes in the ontology.
 
     Examples
     -------
-    >>> from esp_data.datasets import GiantOtters
-    >>> dataset = GiantOtters(
-    ...     split="test",
-    ...     output_take_and_give={"label": "label"},
-    ...     sample_rate=16000,
-    ...     data_root="gs://esp-ml-datasets/giant_otters/v0.1.0/raw/"
+    >>> from esp_data.datasets import AudioSet
+    >>> dataset = AudioSet(
+    ...     split="train",
+    ...     output_take_and_give={"label": "audio_label"}
     ... )
+    >>> print(dataset.info.name)
+    AudioSet
     """
 
     info = DatasetInfo(
-        name="Giant Otters",
-        owner="david",
+        name="AudioSet",
+        owner="david; marius; masato",
         split_paths={
-            "test": "gs://esp-ml-datasets/giant_otters/v0.1.0/raw/giant_otters_annotations_test.csv",
+            "train": "gs://esp-ml-datasets/audioset/v0.1.0/raw/csv-data/unbalanced_train_segments_processed.csv",
+            "train-balanced": "gs://esp-ml-datasets/audioset/v0.1.0/raw/csv-data/balanced_train_segments_processed.csv",
+            "validation": "gs://esp-ml-datasets/audioset/v0.1.0/raw/csv-data/eval_segments_processed.csv",
+            "train-animal": "gs://esp-ml-datasets/audioset/v0.1.0/raw/csv-data/unbalanced_train_segments_processed_animal.csv",
+            "validation-animal": "gs://esp-ml-datasets/audioset/v0.1.0/raw/csv-data/eval_segments_processed_animal.csv",
+            "train-noise": "gs://esp-ml-datasets/audioset/v0.1.0/raw/csv-data/unbalanced_train_segments_processed_noise.csv",
+            "validation-noise": "gs://esp-ml-datasets/audioset/v0.1.0/raw/csv-data/eval_segments_processed_noise.csv",
         },
         version="0.1.0",
-        description="Giant Otters vocal repertoire dataset",
-        sources=["PLOS ONE"],
-        license="CC-BY-4.0, CC0",
+        description="AudioSet dataset",
+        sources=["YouTube"],
+        license="Mixed",
     )
 
     def __init__(
         self,
-        split: str = "test",
+        split: str = "train",
         output_take_and_give: dict[str, str] = None,
         sample_rate: Optional[int] = None,
         data_root: Optional[str | AnyPathT] = None,
     ) -> None:
-        """Initialize the GiantOtters dataset.
+        """Initialize the AudioSet dataset.
 
         Parameters
         ----------
@@ -73,14 +87,13 @@ class GiantOtters(Dataset):
         """
         super().__init__(output_take_and_give)  # Initialize the parent Dataset class
         self.split = split
+        self._data: pd.DataFrame = None
+        self._load()  # Load the dataset (fills self._data)
         self.sample_rate = sample_rate
         self.data_root = data_root
         if self.data_root is None:
             # we assume that parent dir of the split path is the data root
             self.data_root = anypath(self.info.split_paths[self.split]).parent
-
-        self._data: pd.DataFrame = None
-        self._load()  # Load the dataset (fills self._data)
 
     @property
     def columns(self) -> list[str]:
@@ -102,34 +115,30 @@ class GiantOtters(Dataset):
         """
         if self.split not in self.info.split_paths:
             raise LookupError(
-                f"Invalid split: {self.split}.Expected one of {list(self.info.split_paths.keys())}"
+                f"Invalid split: {self.split}."
+                "Expected one of {list(self.info.split_paths.keys())}"
             )
 
         location = self.info.split_paths[self.split]
-        if anypath(location).suffix == ".jsonl":
-            # For JSONL files, read them directly into a DataFrame
-            self._data = pd.read_json(location, lines=True, orient="records")
-        else:
-            from io import StringIO
-
-            csv_text = anypath(location).read_text(encoding="utf-8")
-            self._data = pd.read_csv(StringIO(csv_text))
+        # Read CSV content
+        csv_text = anypath(location).read_text(encoding="utf-8")
+        self._data = pd.read_csv(StringIO(csv_text))
 
     @classmethod
-    def from_config(cls, dataset_config: DatasetConfig) -> tuple["GiantOtters", dict[str, Any]]:
+    def from_config(cls, dataset_config: DatasetConfig) -> tuple["AudioSet", dict[str, Any]]:
         """Create a Dataset instance from a configuration dictionary.
 
         Parameters
         ----------
         dataset_config : DatasetConfig
-            Configuration dictionary containing dataset parameters
+            Configuration dictionary containing dataset parameters.
 
         Returns
         -------
         tuple[Dataset, dict[str, Any]]
             A tuple containing the dataset instance and metadata.
             If the dataset_config contains transformations, they will be applied
-            and the metadata will be returned as dict, otherwise empty dict.
+            and the metadata will be returned as dict, otherwise an empty dict.
 
         Raises
         -------
@@ -172,7 +181,7 @@ class GiantOtters(Dataset):
             If no split has been loaded yet.
         """
         if self._data is None:
-            raise RuntimeError("No split has been loaded yet. Call load() first.")
+            raise RuntimeError("No split has been loaded yet. Call _load() first.")
         return len(self._data)
 
     def __getitem__(self, idx: int) -> dict[str, Any]:
@@ -185,7 +194,7 @@ class GiantOtters(Dataset):
         Returns
         -------
         dict[str, Any]
-            A dictionary containing the data.
+            A dictionary containing the audio data, text label, label, and path.
 
         Raises
         ------
@@ -196,16 +205,15 @@ class GiantOtters(Dataset):
             raise IndexError(f"Index {idx} out of bounds for dataset of length {len(self._data)}.")
 
         row = self._data.iloc[idx].to_dict()
+
         # Ensure audio path is valid
         if self.data_root:
-            audio_path = anypath(self.data_root) / row["path"]
+            audio_path = anypath(self.data_root) / row["local_path"]
         else:
-            audio_path = anypath(row["path"])
+            audio_path = anypath(row["local_path"])
 
-        # Read the audio clip
-        audio, sr = read_audio(audio_path)
+        audio, sr = read_audio(audio_path, start_time=row["start"], end_time=row["end"])
         audio = audio.astype(np.float32)
-        # Stereo to mono if necessary.
         audio = audio_stereo_to_mono(audio, mono_method="average")
 
         if self.sample_rate is not None and sr != self.sample_rate:
@@ -217,6 +225,7 @@ class GiantOtters(Dataset):
                 res_type="kaiser_best",
             )
 
+        # AudioSet likes to call this 'raw_wav'
         row["audio"] = audio
 
         if self.output_take_and_give:

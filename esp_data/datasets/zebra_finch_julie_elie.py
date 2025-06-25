@@ -11,51 +11,57 @@ from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
 
 
 @register_dataset
-class GiantOtters(Dataset):
-    """Giant Otters dataset
+class ZebraFinchJulieElie(Dataset):
+    """Zebra Finch Julie Elie dataset
 
     Description
     -----------
-    Vocal repertoire of giant otters.
-    22 vocalization types from adults, 17 from neonates,
-    annotated based on behavioral function and sound.
+    Vocal repertoires from adult and chick, male and female zebra finches (Taeniopygia guttata)
+    including bird id, call type, age.
 
     References
     ----------
-    The Vocal Repertoire of Adult and Neonate Giant Otters (Pteronura brasiliensis)
-    https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0112562#s5
+
+    https://figshare.com/articles/dataset/Vocal_repertoires_from_adult_and_chick_male_and_female_zebra_finches_Taeniopygia_guttata_/11905533/1
+
 
     Examples
     -------
-    >>> from esp_data.datasets import GiantOtters
-    >>> dataset = GiantOtters(
+    >>> from esp_data.datasets import ZebraFinchJulieElie
+    >>> dataset = ZebraFinchJulieElie(
     ...     split="test",
     ...     output_take_and_give={"label": "label"},
     ...     sample_rate=16000,
-    ...     data_root="gs://esp-ml-datasets/giant_otters/v0.1.0/raw/"
+    ...     data_root="gs://esp-ml-datasets/zebra_finch_julie_elie/v0.1.0/raw/"
     ... )
     """
 
     info = DatasetInfo(
-        name="Giant Otters",
-        owner="david",
+        name="zebra_finch_julie_elie",
+        owner="marius",
         split_paths={
-            "test": "gs://esp-ml-datasets/giant_otters/v0.1.0/raw/giant_otters_annotations_test.csv",
+            "test": "gs://esp-ml-datasets/zebra_finch_julie_elie/v0.1.0/raw/csv_data/test.csv",
+            "train": "gs://esp-ml-datasets/zebra_finch_julie_elie/v0.1.0/raw/csv_data/train.csv",
+            "val": "gs://esp-ml-datasets/zebra_finch_julie_elie/v0.1.0/raw/csv_data/val.csv",
+            "full_dataset": "gs://esp-ml-datasets/zebra_finch_julie_elie/v0.1.0/raw/csv_data/full_dataset.csv",
         },
         version="0.1.0",
-        description="Giant Otters vocal repertoire dataset",
-        sources=["PLOS ONE"],
+        description=(
+            "Vocal repertoires from adult and chick, male and female zebra finches "
+            "(Taeniopygia guttata)"
+        ),
+        sources=["Julie Elie"],
         license="CC-BY-4.0, CC0",
     )
 
     def __init__(
         self,
-        split: str = "test",
+        split: str = "train",
         output_take_and_give: dict[str, str] = None,
         sample_rate: Optional[int] = None,
         data_root: Optional[str | AnyPathT] = None,
     ) -> None:
-        """Initialize the GiantOtters dataset.
+        """Initialize the Zebra Finch Julie Elie dataset.
 
         Parameters
         ----------
@@ -76,8 +82,11 @@ class GiantOtters(Dataset):
         self.sample_rate = sample_rate
         self.data_root = data_root
         if self.data_root is None:
-            # we assume that parent dir of the split path is the data root
-            self.data_root = anypath(self.info.split_paths[self.split]).parent
+            # we assume that parent dir of the csv_data directory is the data root
+            # The split path is: .../raw/csv_data/test.csv
+            # We want the data root to be: .../raw/
+            split_path = anypath(self.info.split_paths[self.split])
+            self.data_root = split_path.parent.parent
 
         self._data: pd.DataFrame = None
         self._load()  # Load the dataset (fills self._data)
@@ -106,17 +115,12 @@ class GiantOtters(Dataset):
             )
 
         location = self.info.split_paths[self.split]
-        if anypath(location).suffix == ".jsonl":
-            # For JSONL files, read them directly into a DataFrame
-            self._data = pd.read_json(location, lines=True, orient="records")
-        else:
-            from io import StringIO
-
-            csv_text = anypath(location).read_text(encoding="utf-8")
-            self._data = pd.read_csv(StringIO(csv_text))
+        self._data = pd.read_csv(location)
 
     @classmethod
-    def from_config(cls, dataset_config: DatasetConfig) -> tuple["GiantOtters", dict[str, Any]]:
+    def from_config(
+        cls, dataset_config: DatasetConfig
+    ) -> tuple["ZebraFinchJulieElie", dict[str, Any]]:
         """Create a Dataset instance from a configuration dictionary.
 
         Parameters
@@ -198,9 +202,9 @@ class GiantOtters(Dataset):
         row = self._data.iloc[idx].to_dict()
         # Ensure audio path is valid
         if self.data_root:
-            audio_path = anypath(self.data_root) / row["path"]
+            audio_path = anypath(self.data_root) / row["local_path"]
         else:
-            audio_path = anypath(row["path"])
+            audio_path = anypath(row["local_path"])
 
         # Read the audio clip
         audio, sr = read_audio(audio_path)

@@ -8,11 +8,12 @@ You can use this module to:
 
 1.  Conduct file operations like [ "exists", "unlink" (delete), "open" (read/write), and "glob" (list files)](#useful-pathlike-methods)
 2.  [Download and upload files (and folders)](#copy-from-and-to-a-cloud-location) to and from cloud storage locations
-3.  [List the contents](#folder-operations) of buckets
+3.  [List the contents](#filesystem-folder-operations) of buckets
 4.  [Delete files](#delete-a-file-with-unlink)
 5.  [Move files](#move-files-from-one-cloud-location-to-another-cloud-location) from one cloud location to another cloud location
 6. [Copy files](#copy-from-one-cloud-location-to-another-cloud-location) from one cloud location to another cloud location
 7. [Read audio](#read-audio-from-a-remote-file) from a remote file directly into memory as a numpy array. This is **NOT** the same as *streaming*, it loads the whole file into memory, so be careful with large files.
+8. [Get audio info](#get-info-about-an-audio-file-before-reading) about an audio file before reading it, such as sample rate, duration, number of channels, etc.
 
 There are two interfaces available:
 
@@ -185,21 +186,6 @@ folder.is_file()
 # False
 ```
 
-Recursively list all files with the pattern "*txt" in the name
-
-
-```python
-list(folder.rglob("*txt"))
-```
-
-        S3Path('s3://esp-ci-cd-tests/esp-data-tests/find_files_tests/file_find_cloud.txt'),
-        S3Path('s3://esp-ci-cd-tests/esp-data-tests/temprandomfolder/file1.txt'),
-        S3Path('s3://esp-ci-cd-tests/esp-data-tests/temprandomfolder/file2.txt'),
-        S3Path('s3://esp-ci-cd-tests/esp-data-tests/temprandomfolder/random.txt'),
-        ...
-
-
-
 Download all the contents from the cloud "folder" to a local folder called "tempfolder"
 ⚠️ This will create the folder if it does not exist. If it exists, it will overwrite the contents of the folder.
 
@@ -343,4 +329,14 @@ from esp_data.io import read_audio
 audio, sample_rate = read_audio("gs://esp-ci-cd-tests/esp-data-tests/some_subfolder/nri-battlesounds.mp3")
 print(audio.shape, sample_rate)
 # (235008,) 44100
+```
+
+## Get info about an audio file before reading
+
+```python
+from esp_data.io import get_audio_info
+
+info = get_audio_info("gs://esp-ci-cd-tests/esp-data-tests/some_subfolder/nri-battlesounds.mp3")
+print(info.keys())
+# dict_keys(['sr', 'duration', 'num_frames', 'num_channels', 'format', 'subtype'])
 ```
