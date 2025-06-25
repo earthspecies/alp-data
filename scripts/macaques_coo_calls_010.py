@@ -42,16 +42,16 @@ def convert_macaques(data_dir: str, out_path: str, num_workers: int = 1) -> None
     shutil.copy(csv_path, anypath(out_path) / "annotations.csv")
     df = pd.read_csv(csv_path)
     # add sex and weight to df
-    df["sex"] = df["class"].map(macaques)
-    df["weight_kg"] = df["class"].map(macaques)
+    df["sex"] = df["class"].map(lambda x: macaques[x]["sex"])
+    df["weight_kg"] = df["class"].map(lambda x: macaques[x]["weight_kg"])
     # rename class as id
     df["id"] = df["class"]
-    # construct local_path by contactenating 'audio' and filename field
-    df["local_path"] = df["filename"].apply(lambda x: anypath(out_path) / "audio" / x)
+    # construct local_path by concatenating 'audio', split, and filename field
+    df["local_path"] = df.apply(lambda row: f"audio/{row['split']}/{row['filename']}", axis=1)
     # create a stratified validation set of multiple labels: id and sex
     df_train = df[df.split == "train"]
     df_train, df_val = train_test_split(df_train, test_size=0.2, stratify=df_train[["id", "sex"]])
-    df_test = df[df.split == "test"]
+    df_test = df[df.split == "valid"]
     # save train and test to csv
     df_train.to_csv(anypath(out_path) / "train.csv", index=False)
     df_val.to_csv(anypath(out_path) / "validation.csv", index=False)
