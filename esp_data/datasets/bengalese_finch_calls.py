@@ -3,7 +3,8 @@
 This dataset contains individual calls from Bengalese finches. Each row in the
 metadata CSV corresponds to a *single call* extracted as an audio snippet.
 The dataset is organized by individual birds, with each bird having its own
-split containing its vocal repertoire.
+split containing its vocal repertoire. Note that the repertoires
+are per-bird, so labels should not be compared across splits.
 
 The data is hosted in the `esp-ml-datasets` GCS bucket in folder bengalese_finch with:
 - Individual CSV files per bird (Bird0.csv, Bird1.csv, etc.)
@@ -20,7 +21,7 @@ Examples
 >>> ds = BengaleseFinchCalls(split="Bird0", sample_rate=16000)
 >>> first = ds[0]
 >>> first.keys()
- dict_keys(['local_path', 'call_type', 'individual_id', 'audio'])
+dict_keys(['local_path', 'call_type', 'individual_id', 'audio'])
 """
 
 from typing import Any, Dict, Iterator, Optional
