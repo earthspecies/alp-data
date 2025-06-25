@@ -134,7 +134,7 @@ def dataset_with_sample_rate(mock_csv_data) -> Dataset:
 def test_info_property() -> None:
     """Test if the info property returns correct metadata."""
     # Test without creating dataset instance to avoid file loading
-    assert AudioSet.info.name == "AudioSet"
+    assert AudioSet.info.name == "audioset"
     assert AudioSet.info.version == "0.1.0"
     assert "train" in AudioSet.info.split_paths
     assert "validation" in AudioSet.info.split_paths
