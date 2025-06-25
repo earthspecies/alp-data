@@ -41,7 +41,7 @@ class AudioSet(Dataset):
     ...     output_take_and_give={"label": "audio_label"}
     ... )
     >>> print(dataset.info.name)
-    AudioSet
+    audioset
     """
 
     info = DatasetInfo(
