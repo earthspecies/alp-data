@@ -1,5 +1,6 @@
-"""Chiffchaff ID dataset"""
+"""AudioSet dataset"""
 
+from io import StringIO
 from typing import Any, Dict, Iterator, Optional
 
 import librosa
@@ -11,60 +12,64 @@ from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
 
 
 @register_dataset
-class ChiffchaffId(Dataset):
-    """Chiffchaff ID dataset
+class AudioSet(Dataset):
+    """AudioSet dataset.
 
     Description
     -----------
-    Vocalisations released by Stowell et al. for individual Chiffchaff males
-    (Phylloscopus collybita). Provides both *within-year* and *across-year* evaluation schemes.
-    https://royalsocietypublishing.org/doi/10.1098/rsif.2018.0940
+    AudioSet is largescale dataset of manually-annotated audio events that endeavors
+    to bridge the gap in data availability between image and audio research.
+    Using a carefully structured hierarchical ontology of 632 audio classes
+    in 10 second segments of YouTube videos.
 
     References
     ----------
-    https://royalsocietypublishing.org/doi/10.1098/rsif.2018.0940
-    Zenodo: https://zenodo.org/records/1413495
+    AUDIO SET: AN ONTOLOGY AND HUMAN-LABELED DATASET FOR AUDIO EVENTS
+    Gemmeke et al 2017
+    https://static.googleusercontent.com/media/research.google.com/en//pubs/archive/45857.pdf
+
+    The train and validation splits (balanced and unbalanced)
+    correspond to the official ones in the paper (https://research.google.com/audioset/download.html).
+    The train-animal, train-noise, validation-animal, and validation-noise splits
+    are created for animal and non-animal (noise) classes in the ontology.
+
     Examples
     -------
-    >>> from esp_data.datasets import ChiffchaffId
-    >>> dataset = ChiffchaffId(
-    ...     split="test_within_year",
-    ...     sample_rate=16000,
-    ...     data_root="gs://esp-ml-datasets/chiffchaff_id/v0.1.0/raw/"
+    >>> from esp_data.datasets import AudioSet
+    >>> dataset = AudioSet(
+    ...     split="train",
+    ...     output_take_and_give={"label": "audio_label"}
     ... )
-    This dataset includes train and test splits within year (train_within_year, test_within_year)
-    and across year (train_across_year, test_across_year).
-    Test within year tests on recordings from the same year as the training data,
-    though different days, while test across year tests on recordings from different years,
-    giving harder test conditions,
-    with potential differences in acoustic environment or vocalisation characteristics.
+    >>> print(dataset.info.name)
+    AudioSet
     """
 
     info = DatasetInfo(
-        name="chiffchaff_id",
-        owner="david",
+        name="AudioSet",
+        owner="david; marius; masato",
         split_paths={
-            "train_within_year": "gs://esp-ml-datasets/chiffchaff_id/v0.1.0/raw/withinyear_fg_train.csv",
-            "test_within_year": "gs://esp-ml-datasets/chiffchaff_id/v0.1.0/raw/withinyear_fg_test.csv",
-            "train_across_year": "gs://esp-ml-datasets/chiffchaff_id/v0.1.0/raw/acrossyear_fg_train.csv",
-            "test_across_year": "gs://esp-ml-datasets/chiffchaff_id/v0.1.0/raw/acrossyear_fg_test.csv",
+            "train": "gs://esp-ml-datasets/audioset/v0.1.0/raw/csv-data/unbalanced_train_segments_processed.csv",
+            "train-balanced": "gs://esp-ml-datasets/audioset/v0.1.0/raw/csv-data/balanced_train_segments_processed.csv",
+            "validation": "gs://esp-ml-datasets/audioset/v0.1.0/raw/csv-data/eval_segments_processed.csv",
+            "train-animal": "gs://esp-ml-datasets/audioset/v0.1.0/raw/csv-data/unbalanced_train_segments_processed_animal.csv",
+            "validation-animal": "gs://esp-ml-datasets/audioset/v0.1.0/raw/csv-data/eval_segments_processed_animal.csv",
+            "train-noise": "gs://esp-ml-datasets/audioset/v0.1.0/raw/csv-data/unbalanced_train_segments_processed_noise.csv",
+            "validation-noise": "gs://esp-ml-datasets/audioset/v0.1.0/raw/csv-data/eval_segments_processed_noise.csv",
         },
         version="0.1.0",
-        description="Individual identify of common chiffchaffs",
-        sources=[
-            "https://royalsocietypublishing.org/doi/10.1098/rsif.2018.0940",
-        ],
-        license="CC-BY-4.0",
+        description="AudioSet dataset",
+        sources=["YouTube"],
+        license="Mixed",
     )
 
     def __init__(
         self,
-        split: str = "train_within_year",
+        split: str = "train",
         output_take_and_give: dict[str, str] = None,
         sample_rate: Optional[int] = None,
         data_root: Optional[str | AnyPathT] = None,
     ) -> None:
-        """Initialize the ChiffchaffId dataset.
+        """Initialize the AudioSet dataset.
 
         Parameters
         ----------
@@ -110,27 +115,23 @@ class ChiffchaffId(Dataset):
         """
         if self.split not in self.info.split_paths:
             raise LookupError(
-                f"Invalid split: {self.split}.Expected one of {list(self.info.split_paths.keys())}"
+                f"Invalid split: {self.split}."
+                "Expected one of {list(self.info.split_paths.keys())}"
             )
 
         location = self.info.split_paths[self.split]
-        if anypath(location).suffix == ".jsonl":
-            # For JSONL files, read them directly into a DataFrame
-            self._data = pd.read_json(location, lines=True, orient="records")
-        else:
-            # Read CSV content
-            self._data = pd.read_csv(
-                location, keep_default_na=False, na_values=[""]
-            )  # This setting avoids setting 'None' to a pd.NA type
+        # Read CSV content
+        csv_text = anypath(location).read_text(encoding="utf-8")
+        self._data = pd.read_csv(StringIO(csv_text))
 
     @classmethod
-    def from_config(cls, dataset_config: DatasetConfig) -> tuple["ChiffchaffId", dict[str, Any]]:
+    def from_config(cls, dataset_config: DatasetConfig) -> tuple["AudioSet", dict[str, Any]]:
         """Create a Dataset instance from a configuration dictionary.
 
         Parameters
         ----------
         dataset_config : DatasetConfig
-            Configuration dictionary containing dataset parametesf
+            Configuration dictionary containing dataset parameters.
 
         Returns
         -------
@@ -180,7 +181,7 @@ class ChiffchaffId(Dataset):
             If no split has been loaded yet.
         """
         if self._data is None:
-            raise RuntimeError("No split has been loaded yet. Call load() first.")
+            raise RuntimeError("No split has been loaded yet. Call _load() first.")
         return len(self._data)
 
     def __getitem__(self, idx: int) -> dict[str, Any]:
@@ -193,7 +194,7 @@ class ChiffchaffId(Dataset):
         Returns
         -------
         dict[str, Any]
-            A dictionary containing the data.
+            A dictionary containing the audio data, text label, label, and path.
 
         Raises
         ------
@@ -204,16 +205,15 @@ class ChiffchaffId(Dataset):
             raise IndexError(f"Index {idx} out of bounds for dataset of length {len(self._data)}.")
 
         row = self._data.iloc[idx].to_dict()
+
         # Ensure audio path is valid
         if self.data_root:
             audio_path = anypath(self.data_root) / row["local_path"]
         else:
             audio_path = anypath(row["local_path"])
 
-        # Read the audio clip
-        audio, sr = read_audio(audio_path)
+        audio, sr = read_audio(audio_path, start_time=row["start"], end_time=row["end"])
         audio = audio.astype(np.float32)
-        # Stereo to mono if necessary.
         audio = audio_stereo_to_mono(audio, mono_method="average")
 
         if self.sample_rate is not None and sr != self.sample_rate:
@@ -225,6 +225,7 @@ class ChiffchaffId(Dataset):
                 res_type="kaiser_best",
             )
 
+        # AudioSet likes to call this 'raw_wav'
         row["audio"] = audio
 
         if self.output_take_and_give:

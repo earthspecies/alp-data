@@ -1,3 +1,4 @@
+from .concat import concatenate_datasets
 from .dataset import (
     Dataset,
     DatasetConfig,
@@ -16,4 +17,5 @@ __all__ = [
     "list_registered_datasets",
     "print_registered_datasets",
     "register_dataset",
+    "concatenate_datasets",
 ]

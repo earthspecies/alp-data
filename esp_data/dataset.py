@@ -46,6 +46,13 @@ class DatasetConfig(BaseModel):
 
     """
 
+    model_config = ConfigDict(
+        arbitrary_types_allowed=True,
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        extra="allow",
+    )
+
     dataset_name: str
     transformations: list[RegisteredTransformConfigs] | None = None
     sample_rate: int | None = None
