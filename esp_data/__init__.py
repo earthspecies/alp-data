@@ -8,6 +8,20 @@ from .dataset import (
     print_registered_datasets,
     register_dataset,
 )
+from .datasets import (
+    AnimalSpeak,
+    AudioSet,
+    BarkleyCanyon,
+    BarkleyCanyonDetection,
+    Beans,
+    BirdSet,
+    ChiffchaffId,
+    GiantOtters,
+    InsectSet459,
+    LittleOwlId,
+    PipitId,
+    ZebraFinchJulieElie,
+)
 
 __all__ = [
     "dataset_from_config",
@@ -18,4 +32,16 @@ __all__ = [
     "print_registered_datasets",
     "register_dataset",
     "concatenate_datasets",
+    "AnimalSpeak",
+    "AudioSet",
+    "BarkleyCanyon",
+    "BarkleyCanyonDetection",
+    "Beans",
+    "BirdSet",
+    "ChiffchaffId",
+    "GiantOtters",
+    "InsectSet459",
+    "LittleOwlId",
+    "PipitId",
+    "ZebraFinchJulieElie",
 ]
