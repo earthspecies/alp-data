@@ -3,6 +3,16 @@
 #   "webdataset>=0.2.111",
 # ]
 # ///
+"""
+Usage:
+uv run --with torch --with torchaudio --with tqdm \
+ --with webdataset python scripts/benchmarks/webds_test.py \
+  --use_beans \
+  --num_workers 8 \
+  --batch_size 256 \
+  --max_iters 100
+"""
+
 import argparse
 import io
 import json
@@ -129,15 +139,16 @@ def load_dataset(
     # Log what we found for debugging
     print(f"Found {len(shard_files)} shard files in {path}")
 
-    webds = wds.WebDataset(
-        shard_files,
-        shardshuffle=shard_shuffle_size if shard_shuffle else False,
-        seed=seed,
-        workersplitter=split_by_worker,
-    )
+    webds_kwargs = {"shardshuffle": shard_shuffle_size if shard_shuffle else False}
+    if shard_shuffle and seed is not None:
+        webds_kwargs["seed"] = seed
+    if split_by_worker:
+        webds_kwargs["workersplitter"] = wds.split_by_worker
+
+    webds = wds.WebDataset(shard_files, **webds_kwargs)
 
     if shuffle_size:
-        webds = webds.shuffle(shuffle_size)
+        webds = webds.shuffle(shuffle_size, seed=seed if seed is not None else 42)
     if data_processor:
         webds = webds.map(data_processor)
     if batch_size is not None:
@@ -244,7 +255,8 @@ def main() -> None:
         data_processor=torch_mel_spec_webds,
         shuffle_size=None,
         shard_shuffle=False,
-        split_by_worker=True,
+        batch_collate_fn=torch.stack,
+        batch_size=1,
     )
 
     torch.manual_seed(42)
@@ -252,7 +264,7 @@ def main() -> None:
         webds1,
         batch_size=args.batch_size,
         num_workers=args.num_workers,
-        collate_fn=torch.stack,
+        collate_fn=torch.cat,
     )
 
     # Run dataloader
