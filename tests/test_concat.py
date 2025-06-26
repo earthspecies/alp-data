@@ -429,32 +429,36 @@ class TestIntegrationRealDatasets:
         """Test concatenating same dataset with different output_take_and_give mappings."""
         from esp_data.datasets.animalspeak import AnimalSpeak
 
-        try:
-            # Create two AnimalSpeak datasets with compatible output mappings
-            otag1 = {"species_common": "species", "captions": "text"}
-            otag2 = {"species_common": "species", "local_path": "path"}  # Different but compatible
+        # Create two AnimalSpeak datasets with compatible output mappings
+        otag1 = {"species_common": "species", "caption": "text"}
+        otag2 = {"species_common": "species", "local_path": "path"}  # Different but compatible
 
-            animalspeak1 = AnimalSpeak(split="validation", sample_rate=16000,
-                                      output_take_and_give=otag1)
-            animalspeak2 = AnimalSpeak(split="validation", sample_rate=16000,
-                                      output_take_and_give=otag2)
+        animalspeak1 = AnimalSpeak(split="validation", sample_rate=16000,
+                                    output_take_and_give=otag1, data_root="gs://")
+        animalspeak2 = AnimalSpeak(split="validation", sample_rate=16000,
+                                    output_take_and_give=otag2, data_root="gs://")
 
-            result = concatenate_datasets([animalspeak1, animalspeak2])
+        result = concatenate_datasets([animalspeak1, animalspeak2])
 
-            # Should merge the mappings
-            expected_otag = {"species_common": "species", "captions": "text", "local_path": "path"}
-            assert result.output_take_and_give == expected_otag
+        # Should merge the mappings
+        expected_otag = {"species_common": "species", "caption": "text", "local_path": "path"}
+        assert result.output_take_and_give == expected_otag
 
-            # Test with conflicting mappings
-            otag3 = {"species_common": "different_species"}  # Conflicts with otag1
-            animalspeak3 = AnimalSpeak(split="validation", sample_rate=16000,
-                                      output_take_and_give=otag3)
+        # get first and last items as check
+        first_item = result[0]
+        last_item = result[-1]
+        assert 'species' in first_item
+        assert 'text' in first_item
+        assert 'path' in last_item
+        assert 'species' in last_item
 
-            with pytest.raises(MergeException, match="Conflicting values"):
-                concatenate_datasets([animalspeak1, animalspeak3])
+        # Test with conflicting mappings
+        otag3 = {"species_common": "different_species"}  # Conflicts with otag1
+        animalspeak3 = AnimalSpeak(split="validation", sample_rate=16000,
+                                    output_take_and_give=otag3)
 
-        except Exception as e:
-            pytest.skip(f"Skipping integration test due to data access issues: {e}")
+        with pytest.raises(MergeException, match="Conflicting values"):
+            concatenate_datasets([animalspeak1, animalspeak3])
 
     def test_overlap_merge_real_datasets(self):
         """Test overlap merge with real datasets that have some common columns."""
