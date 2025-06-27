@@ -45,7 +45,7 @@ class ParquetDataset(torch.utils.data.IterableDataset):
         self._ds = _make_parquet_dataset(path)
 
     def __iter__(self) -> pa.RecordBatch:
-        for batch in self._ds.scanner().to_batches(batch_size=1):
+        for batch in self._ds.scanner(batch_size=1).to_batches():
             yield batch
 
 
