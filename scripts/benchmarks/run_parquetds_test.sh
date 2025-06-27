@@ -21,7 +21,7 @@ uv sync
 echo "Starting benchmark at: $(date '+%Y-%m-%d %H:%M:%S.%3N')"
 
 srun uv run --with torch --with torchaudio --with tqdm \
- --with pyarrow python scripts/benchmarks/parquetds_test.py \
+ --with pyarrow python scripts/benchmarks/parquetds_test_v2.py \
   --use_beans \
   --num_workers 8 \
   --batch_size 256 \
