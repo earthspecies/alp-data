@@ -1,13 +1,15 @@
 import os
 import time
+from pathlib import Path
 from urllib.parse import urlparse
 
 import numpy as np
 import pandas as pd
 import requests
+from cloudpathlib import GSPath
+from gcsfs import GCSFileSystem
 
-import esp_data.file_io.functional as F
-from esp_data.paths import AnyPath
+fs = GCSFileSystem()
 
 
 def download_inat_audio(urls, delay=2):
@@ -21,7 +23,7 @@ def download_inat_audio(urls, delay=2):
 
     # Create output directory
     # Path(output_dir).mkdir(exist_ok=True)
-    output_dir = AnyPath("gs://esp-ml-datasets/inaturalist/v0.1.0/raw/audio")
+    output_dir = GSPath("gs://esp-ml-datasets/inaturalist/v0.1.0/raw/audio")
 
     # Set up session with proper headers
     session = requests.Session()
@@ -43,9 +45,12 @@ def download_inat_audio(urls, delay=2):
             # Extract filename from URL
             parsed = urlparse(url)
             filename = os.path.basename(parsed.path)
-            if not filename or not filename.endswith((".mp3", ".wav", ".flac", ".ogg", ".m4a")):
+
+            if not filename or not filename.endswith(
+                (".mp3", ".wav", ".flac", ".ogg", ".m4a", ".mpga", ".aac", ".opus")
+            ):
                 # Fallback filename if we can't parse it
-                filename = f"xc_audio_{i}.mp3"
+                filename = f"{filename}.mp3"
 
             filepath = output_dir / filename
 
@@ -59,7 +64,7 @@ def download_inat_audio(urls, delay=2):
             response.raise_for_status()
 
             # Write file in chunks to handle large files
-            with F.open_file(filepath, "wb", use_fs=True) as f:
+            with fs.open(filepath, "wb") as f:
                 for chunk in response.iter_content(chunk_size=8192):
                     if chunk:
                         f.write(chunk)
@@ -97,12 +102,22 @@ def download_inat_audio(urls, delay=2):
 # Example usage
 if __name__ == "__main__":
     df = pd.read_json(
-        "../notebooks/dataset_prep_notebooks/inat_to_download.jsonl",
+        "inat_to_download.jsonl",
         lines=True,
         orient="records",
     )
     # Extract audio URLs from the DataFrame
     audio_urls = df.identifier.tolist()
 
+    # Run a gsutil command to list existing files
+    # This assumes you have gsutil installed and configured
+    os.system("gsutil ls gs://esp-ml-datasets/inaturalist/v0.1.0/raw/audio > inat_files_downloaded.txt")
+    with open("inat_files_downloaded.txt", "r") as f:
+        existing_files = f.read().splitlines()
+        existing_files = set([Path(url).name for url in existing_files])
+
+    # Filter out already downloaded files
+    audio_urls = [url for url in audio_urls if os.path.basename(urlparse(url).path) not in existing_files]
+
     # Download with 3-second delay between requests
-    downloaded, failed = download_inat_audio(audio_urls, delay=1.5)
+    downloaded, failed = download_inat_audio(audio_urls, delay=1.8)
