@@ -1,11 +1,12 @@
-# /// script
-# dependencies = [
-#   "webdataset>=0.2.111",
-# ]
-# ///
 """
-Usage:
+Benchmark for Parquet dataset loading performance using PyArrow and PyTorch.
 
+Usage:
+>>> uv run --with torch --with torchaudio --with tqdm \
+ --with pyarrow python scripts/benchmarks/parquetds_test_v3.py \
+  --num_workers 10 \
+  --batch_size 256 \
+  --max_iters 500 --shard_strategy "distributed"
 """
 
 import argparse
@@ -64,62 +65,6 @@ def _make_parquet_dataset_from_files(shard_files: list[str]) -> ds.Dataset:
     return dataset
 
 
-class ShardedParquetDataset(torch.utils.data.IterableDataset):
-    def __init__(self, path: str, worker_id: int = 0, num_workers: int = 1) -> None:
-        self.path = path
-        self.worker_id = worker_id
-        self.num_workers = num_workers
-        self._ds = None
-        self._worker_shard_files = None
-
-    def _get_worker_shards(self) -> list[str]:
-        """Get shard files assigned to this worker.
-
-        Returns
-        -------
-        list[str]
-            List of shard file paths assigned to this worker based on worker ID.
-        """
-        if self._worker_shard_files is None:
-            all_shard_files = _get_shard_files(self.path)
-            print(f"Total shard files found: {len(all_shard_files)}")
-
-            # Distribute shards among workers
-            worker_shards = []
-            for i, shard_file in enumerate(all_shard_files):
-                if i % self.num_workers == self.worker_id:
-                    worker_shards.append(shard_file)
-
-            self._worker_shard_files = worker_shards
-            print(f"Worker {self.worker_id} assigned {len(worker_shards)} shards")
-
-        return self._worker_shard_files
-
-    def _get_dataset(self) -> ds.Dataset | None:
-        """Lazy initialization of dataset with worker-specific shards.
-
-        Returns
-        -------
-        ds.Dataset or None
-            PyArrow dataset created from the worker's assigned shard files,
-            or None if no shards are assigned.
-        """
-        if self._ds is None:
-            worker_shards = self._get_worker_shards()
-            if worker_shards:
-                self._ds = _make_parquet_dataset_from_files(worker_shards)
-            else:
-                # Return empty dataset if no shards assigned
-                self._ds = None
-        return self._ds
-
-    def __iter__(self) -> pa.RecordBatch:
-        dataset = self._get_dataset()
-        if dataset is not None:
-            for batch in dataset.scanner(batch_size=1).to_batches():
-                yield batch
-
-
 class WorkerAwareParquetDataset(torch.utils.data.IterableDataset):
     """Dataset that automatically detects worker info and distributes shards."""
 
@@ -152,7 +97,6 @@ class WorkerAwareParquetDataset(torch.utils.data.IterableDataset):
         """
         worker_info = torch.utils.data.get_worker_info()
         if worker_info is None:
-            # Single-threaded
             return 0, 1
         else:
             return worker_info.id, worker_info.num_workers
@@ -162,27 +106,25 @@ class WorkerAwareParquetDataset(torch.utils.data.IterableDataset):
 
         Returns
         -------
-        ds.Dataset or None
-            PyArrow dataset created from the worker's assigned shard files,
+        ds.Dataset | None
+            PyArrow dataset for the current worker, or None if no shards are found.
         """
         if self._ds is None:
             worker_id, num_workers = self._get_worker_info()
             all_shards = self._get_all_shard_files()
 
             if self.distribute_shards:
-                # Distribute shards to this worker
                 worker_shards = [
                     shard for i, shard in enumerate(all_shards) if i % num_workers == worker_id
                 ]
                 print(
-                    f"Worker {worker_id}/{num_workers} processing"
+                    f"Worker {worker_id}/{num_workers} processing "
                     f"{len(worker_shards)} shards (distributed)"
                 )
             else:
-                # All workers process all shards
                 worker_shards = all_shards
                 print(
-                    f"Worker {worker_id}/{num_workers} processing"
+                    f"Worker {worker_id}/{num_workers} processing "
                     f"{len(worker_shards)} shards (shared)"
                 )
 
@@ -193,18 +135,35 @@ class WorkerAwareParquetDataset(torch.utils.data.IterableDataset):
 
         return self._ds
 
-    def __iter__(self) -> pa.RecordBatch:
+    def __iter__(self) -> dict:
+        """Iterate over individual samples, not batches.
+
+        This method yields individual rows from the dataset, allowing
+        for more granular processing and flexibility in handling samples.
+
+        Yields
+        -------
+        dict[str, Any]
+            Individual sample as a dictionary with column names as keys.
+        """
         dataset = self._get_dataset()
         if dataset is not None:
-            for batch in dataset.scanner(batch_size=1).to_batches():
-                yield batch
+            # Use larger batch sizes for efficiency, then yield individual rows
+            for batch in dataset.scanner(batch_size=10).to_batches():
+                # Iterate through each row in the batch
+                for i in range(len(batch)):
+                    # Extract individual sample as a dictionary
+                    sample = {}
+                    for col_name in batch.column_names:
+                        sample[col_name] = batch[col_name][i].as_py()
+                    yield sample
 
 
 def worker_init_fn(worker_id: int) -> None:
     print(f"Initializing worker {worker_id}")
 
 
-def torch_mel_spec_webds(batch: list) -> torch.Tensor:
+def torch_mel_spec_webds(batch: list[dict | pa.RecordBatch]) -> torch.Tensor:
     """Create mel spectrograms on the fly
 
     Parameters
@@ -234,6 +193,7 @@ def torch_mel_spec_webds(batch: list) -> torch.Tensor:
                 audio = torch.from_numpy(audio).to(torch.float32)
             else:
                 audio = torch.from_numpy(item["audio"]).to(torch.float32)
+
             md = json.loads(item["metadata"])
 
         sr = md.get("sample_rate", 16000)
@@ -297,6 +257,18 @@ def main() -> None:
         help="Use the Beans dataset for benchmarking. If False, uses NatureLM dataset.",
     )
     parser.add_argument(
+        "--path_to_beans",
+        type=str,
+        default="gs://esp-ml-datasets/beans0/processed/v0.1.0/parquet/",
+        help="Path to the Beans dataset directory.",
+    )
+    parser.add_argument(
+        "--path_to_natlm",
+        type=str,
+        default="gs://esp-ml-datasets/naturelm/processed/v0.1.1/parquet/train/",
+        help="Path to the NatureLM dataset directory.",
+    )
+    parser.add_argument(
         "--num_workers",
         type=int,
         default=6,
@@ -323,14 +295,10 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    # Dataset paths
-    PATH_TO_BEANS_DATASET = "gs://esp-ml-datasets/beans0/processed/v0.1.0/parquet/"
-    PATH_TO_NATLM_DATASET = "gs://esp-ml-datasets/naturelm/processed/v0.1.1/parquet/train/"
-
     if args.use_beans:
-        PATH_TO_DATASET = PATH_TO_BEANS_DATASET
+        PATH_TO_DATASET = args.path_to_beans
     else:
-        PATH_TO_DATASET = PATH_TO_NATLM_DATASET
+        PATH_TO_DATASET = args.path_to_natlm
 
     # Choose dataset class based on strategy
     if args.shard_strategy == "distributed":

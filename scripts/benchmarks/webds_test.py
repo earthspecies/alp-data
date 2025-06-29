@@ -220,6 +220,18 @@ def main() -> None:
         help="Use the Beans dataset for benchmarking. If False, uses NatureLM dataset.",
     )
     parser.add_argument(
+        "--path_to_beans",
+        type=str,
+        default="gs://esp-ml-datasets/beans0/processed/v0.1.0/tar/",
+        help="Path to the Beans dataset tar files.",
+    )
+    parser.add_argument(
+        "--path_to_naturelm",
+        type=str,
+        default="gs://esp-ml-datasets/naturelm/processed/v0.1.0/tar/train/",
+        help="Path to the NatureLM dataset tar files.",
+    )
+    parser.add_argument(
         "--num_workers",
         type=int,
         default=6,
@@ -239,14 +251,10 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    # EXAMPLE USAGE
-    PATH_TO_BEANS_DATASET = "gs://esp-ml-datasets/beans0/processed/v0.1.0/tar/"
-    PATH_TO_NATLM_DATASET = "gs://esp-ml-datasets/naturelm/processed/v0.1.0/tar/train/"
-
     if args.use_beans:
-        PATH_TO_DATASET = PATH_TO_BEANS_DATASET
+        PATH_TO_DATASET = args.path_to_beans
     else:
-        PATH_TO_DATASET = PATH_TO_NATLM_DATASET
+        PATH_TO_DATASET = args.path_to_naturelm
 
     # this will shuffle across shards
     # and within shards in a buffer of 1000 samples
