@@ -93,7 +93,13 @@ class LabelFromFeature:
         else:
             label_map = self.label_map
 
-        df_clean.loc[:, [self.output_feature]] = df_clean[self.feature].map(label_map)
+        if self.output_feature in df_clean:
+            # This will overwrite the existing feature if it exists
+            df_clean.loc[:, self.output_feature] = df_clean[self.feature].map(label_map)
+        else:
+            # Doing this avoids the SettingWithCopyWarning, i.e.
+            # "A value is trying to be set on a copy of a slice from a DataFrame."
+            df_clean.loc[:, [self.output_feature]] = df_clean[self.feature].map(label_map)
 
         metadata = {
             "label_feature": self.feature,

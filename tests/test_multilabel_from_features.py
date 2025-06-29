@@ -159,3 +159,16 @@ def test_multilabel_from_features_allow_missing_labels() -> None:
     # The resulting DataFrame should only contain the rows with labels ("banana" and "orange")
     assert df_drop["label"].tolist() == [[0], [1]]
     assert len(df_drop) == 2
+
+
+def test_multilabel_from_features_outputfeature_already_present() -> None:
+    """Ensure that an AssertionError is raised if the output feature already exists and override is False."""
+    df = pd.DataFrame({"col1": ["banana", "apple", "banana", "orange"],
+                       "label": ["dog", "cat", "dog", "mouse"]})
+    t = MultiLabelFromFeatures(features=["label"], output_feature="label", override=False)
+    with pytest.raises(AssertionError, match="Feature already exists in DataFrame"):
+        t(df)
+
+    t = MultiLabelFromFeatures(features=["label"], output_feature="label", override=True)
+    df_out, meta = t(df)
+    assert df_out["label"].tolist() == [[1], [0], [1], [2]]

@@ -30,7 +30,7 @@ def test_label_from_feature(
     expected_map: dict[str, int],
 ) -> None:
     t = LabelFromFeature(feature=feature)
-    df_out, meta = t(df.copy())
+    df_out, meta = t(df)
     assert df_out["label"].tolist() == expected_labels
     assert meta["label_map"] == expected_map
     assert meta["num_classes"] == len(expected_map)
@@ -40,7 +40,7 @@ def test_label_from_feature_with_label_map() -> None:
     df = pd.DataFrame({"col1": ["banana", "apple", "banana", "orange"]})
     label_map = {"apple": 0, "banana": 1, "orange": 2, "grape": 3}
     t = LabelFromFeature(feature="col1", label_map=label_map)
-    df_out, meta = t(df.copy())
+    df_out, meta = t(df)
     assert df_out["label"].tolist() == [1, 0, 1, 2]
     assert meta["label_map"] == label_map
     assert meta["num_classes"] == len(label_map)
@@ -50,7 +50,7 @@ def test_label_from_feature_with_noncontiguous_indices() -> None:
     df = pd.DataFrame({"col1": ["banana", "apple", "banana", "orange"]})
     label_map = {"apple": 100, "banana": 101, "orange": 102}
     t = LabelFromFeature(feature="col1", label_map=label_map)
-    df_out, meta = t(df.copy())
+    df_out, meta = t(df)
     assert df_out["label"].tolist() == [101, 100, 101, 102]
     assert meta["label_map"] == label_map
     assert meta["num_classes"] == len(label_map)
@@ -60,8 +60,34 @@ def test_label_from_feature_label_map_remains_none() -> None:
     df = pd.DataFrame({"col1": ["banana", "apple", "banana", "orange"]})
     t = LabelFromFeature(feature="col1")
     assert t.label_map is None
-    df_out, meta = t(df.copy())
+    df_out, meta = t(df)
     assert t.label_map is None
     assert sorted(meta["label_map"].keys()) == ["apple", "banana", "orange"]
     assert meta["num_classes"] == 3
     assert df_out["label"].tolist() == [1, 0, 1, 2]
+
+
+def test_label_from_feature_with_label_map_two_cols() -> None:
+    df = pd.DataFrame({
+        "col1": ["banana", "apple", "banana", "orange"],
+        "col2": ["dog", "cat", "dog", "mouse"]
+    })
+    label_map = {"apple": 0, "banana": 1, "orange": 2, "dog": 3, "cat": 4, "mouse": 5}
+    t = LabelFromFeature(feature="col1", label_map=label_map)
+    df_out, meta = t(df)
+    assert df_out["label"].tolist() == [1, 0, 1, 2]
+    assert meta["label_map"] == label_map
+    assert meta["num_classes"] == len(label_map)
+
+
+def test_label_from_feature_with_label_map_two_cols_identicalnames() -> None:
+    df = pd.DataFrame({
+        "label": ["banana", "apple", "banana", "orange"],
+        "col2": ["dog", "cat", "dog", "mouse"]
+    })
+    label_map = {"apple": 0, "banana": 1, "orange": 2, "dog": 3, "cat": 4, "mouse": 5}
+    t = LabelFromFeature(feature="label", label_map=label_map, output_feature="label", override=True)
+    df_out, meta = t(df)
+    assert df_out["label"].tolist() == [1, 0, 1, 2]
+    assert meta["label_map"] == label_map
+    assert meta["num_classes"] == len(label_map)
