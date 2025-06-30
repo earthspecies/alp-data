@@ -249,6 +249,28 @@ def main() -> None:
         default=100,
         help="Maximum number of iterations to run for the benchmark.",
     )
+    parser.add_argument(
+        "--shard_shuffle",
+        action="store_true",
+        help="Shuffle the shards of the dataset.",
+    )
+    parser.add_argument(
+        "--shard_shuffle_size",
+        type=int,
+        default=100,
+        help="Size of the shuffle buffer for the shards. Defaults to 1000.",
+    )
+    parser.add_argument(
+        "--shuffle_size",
+        type=int,
+        default=None,
+        help="Size of the shuffle buffer for the dataset. If None, no shuffling is applied.",
+    )
+    parser.add_argument(
+        "--shuffle_dataloader",
+        action="store_true",
+        help="Shuffle the DataLoader.",
+    )
     args = parser.parse_args()
 
     if args.use_beans:
@@ -261,8 +283,9 @@ def main() -> None:
     webds1 = load_dataset(
         path=PATH_TO_DATASET,
         data_processor=torch_mel_spec_webds,
-        shuffle_size=None,
-        shard_shuffle=False,
+        shuffle_size=args.shuffle_size,
+        shard_shuffle=args.shard_shuffle,
+        shard_shuffle_size=args.shard_shuffle_size,
         batch_collate_fn=torch.stack,
         batch_size=1,
     )
@@ -273,6 +296,7 @@ def main() -> None:
         batch_size=args.batch_size,
         num_workers=args.num_workers,
         collate_fn=torch.cat,
+        shuffle=args.shuffle_dataloader,
     )
 
     # Run dataloader
