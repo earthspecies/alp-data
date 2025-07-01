@@ -37,7 +37,7 @@ class GiantOtters(Dataset):
     """
 
     info = DatasetInfo(
-        name="Giant Otters",
+        name="giant_otters",
         owner="david",
         split_paths={
             "test": "gs://esp-ml-datasets/giant_otters/v0.1.0/raw/giant_otters_annotations_test.csv",

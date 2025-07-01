@@ -446,6 +446,11 @@ class ConcatenatedDataset(Dataset):
                 f"from source dataset {source_dataset_idx}: {e}"
             ) from e
 
+        # merge the source_item and row dicts, giving precedence
+        # to 'row' if clash. This ensures that transforms applied
+        # at the level of the concatenated dataset take precedence
+        source_item.update(row)
+
         # Apply the concatenated dataset's output_take_and_give mapping
         if self.output_take_and_give:
             item = {}

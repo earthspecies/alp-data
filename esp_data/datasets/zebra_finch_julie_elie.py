@@ -1,4 +1,4 @@
-"""Zebra Finch Julie Elie dataset"""
+"""Julie Elie Zebra Finch dataset."""
 
 from typing import Any, Dict, Iterator, Optional
 
@@ -16,14 +16,18 @@ class ZebraFinchJulieElie(Dataset):
 
     Description
     -----------
-    Vocal repertoires from adult and chick, male and female zebra finches (Taeniopygia guttata)
-    including bird id, call type, age.
+    Vocal repertoires from adult and chick, male and female zebra finches
+    (Taeniopygia guttata) including bird id, call type, age.
 
     References
     ----------
+    Elie JE and Theunissen FE. The vocal repertoire of the domesticated zebra finch:
+    a data driven approach to decipher the information-bearing acoustic features of
+    communication signals. Animal Cognition. 2016. 19(2) 285-315
+
+    DOI 10.1007/s10071-015-0933-6
 
     https://figshare.com/articles/dataset/Vocal_repertoires_from_adult_and_chick_male_and_female_zebra_finches_Taeniopygia_guttata_/11905533/1
-
 
     Examples
     -------
