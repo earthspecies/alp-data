@@ -194,8 +194,10 @@ def torch_mel_spec_webds(batch: list[dict | pa.RecordBatch]) -> torch.Tensor:
             if isinstance(aud, dict):
                 audio, sr = sf.read(io.BytesIO(aud["bytes"]))
                 audio = torch.from_numpy(audio).to(torch.float32)
+            elif isinstance(aud, list):
+                audio = torch.from_numpy(np.array(aud)).to(torch.float32)
             else:
-                audio = torch.from_numpy(item["audio"]).to(torch.float32)
+                audio = torch.from_numpy(aud).to(torch.float32)
 
             md = json.loads(item["metadata"])
 
