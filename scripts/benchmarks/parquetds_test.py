@@ -60,9 +60,12 @@ def _make_parquet_dataset_from_files(shard_files: list[str]) -> ds.Dataset:
     ds.Dataset
         PyArrow dataset created from the specified shard files.
     """
-    fs = filesystem_from_path("gs://")
-    dataset = ds.dataset(shard_files, format="parquet", filesystem=fs)
-    return dataset
+    if shard_files[0].startswith("gs://"):
+        fs = filesystem_from_path("gs://")
+        return ds.dataset(shard_files, format="parquet", filesystem=fs)
+    else:
+        # For local or other filesystems, use the default filesystem
+        return ds.dataset(shard_files, format="parquet")
 
 
 class WorkerAwareParquetDataset(torch.utils.data.IterableDataset):
