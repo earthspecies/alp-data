@@ -68,7 +68,7 @@ def dataset_with_output_mapping() -> Dataset:
 
 def test_info_property(dataset: Dataset) -> None:
     """Test if the info property returns correct metadata."""
-    assert dataset.info.name == "Giant Otters"
+    assert dataset.info.name == "giant_otters"
     assert dataset.info.version == "0.1.0"
     assert "test" in dataset.info.split_paths
     for split in dataset.info.split_paths.values():
@@ -140,7 +140,7 @@ def test_load_from_config() -> None:
         sample_rate=16000,
     )
     dataset, _ = GiantOtters.from_config(dataset_config)
-    assert dataset.info.name == "Giant Otters"
+    assert dataset.info.name == "giant_otters"
     assert dataset.info.split_paths["test"] is not None
     assert len(dataset) > 0, "Dataset should not be empty"
     assert dataset.sample_rate == 16000

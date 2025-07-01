@@ -43,7 +43,7 @@ class BirdSet(Dataset):
 
     info = DatasetInfo(
         name="birdset",
-        owner="gagan",
+        owner="marius; gagan",
         split_paths={
             "HSN-train": "gs://foundation-model-data/data/birdset-train/HSN/HSN_taxonomic.jsonl",
             "HSN-validation": "gs://foundation-model-data/data/birdset-train/HSN/HSN_taxonomic.jsonl",
