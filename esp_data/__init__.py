@@ -21,6 +21,7 @@ from .datasets import (
     LittleOwlId,
     PipitId,
     ZebraFinchJulieElie,
+    MacaquesCooCalls
 )
 
 __all__ = [
@@ -44,4 +45,5 @@ __all__ = [
     "LittleOwlId",
     "PipitId",
     "ZebraFinchJulieElie",
+    "MacaquesCooCalls"
 ]
