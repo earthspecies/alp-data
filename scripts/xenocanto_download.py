@@ -42,7 +42,8 @@ def download_xeno_canto_audio(urls, output_dir="audio_downloads", delay=2):
             filename = os.path.basename(parsed.path)
             if not filename or not filename.endswith((".mp3", ".wav", ".flac", ".ogg", ".m4a")):
                 # Fallback filename if we can't parse it
-                filename = f"xc_audio_{i}.mp3"
+                filename = Path(filename).stem
+                filename = f"{filename}.mp3"
 
             filepath = os.path.join(output_dir, filename)
 
@@ -93,5 +94,10 @@ if __name__ == "__main__":
     df = pd.read_csv("../notebooks/dataset_prep_notebooks/xc_to_download.csv")
     audio_urls = df.identifier.tolist()
 
+    # Check file names already downloaded
+    existing_files = set(os.listdir("xeno_canto_audio"))
+
+    audio_urls = [url for url in audio_urls if Path(url).name not in existing_files]
+
     # Download with 3-second delay between requests
-    downloaded, failed = download_xeno_canto_audio(audio_urls, output_dir="xeno_canto_audio", delay=2.5)
+    downloaded, failed = download_xeno_canto_audio(audio_urls, output_dir="xeno_canto_audio", delay=1.8)

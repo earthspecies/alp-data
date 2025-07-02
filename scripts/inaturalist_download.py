@@ -6,7 +6,6 @@ from urllib.parse import urlparse
 import numpy as np
 import pandas as pd
 import requests
-from cloudpathlib import GSPath
 from gcsfs import GCSFileSystem
 
 fs = GCSFileSystem()
@@ -23,7 +22,9 @@ def download_inat_audio(urls, delay=2):
 
     # Create output directory
     # Path(output_dir).mkdir(exist_ok=True)
-    output_dir = GSPath("gs://esp-ml-datasets/inaturalist/v0.1.0/raw/audio")
+    Path("inat_audio_downloads").mkdir(exist_ok=True)
+    output_dir = Path("inat_audio_downloads")
+    # output_dir = GSPath("gs://esp-ml-datasets/inaturalist/v0.1.0/raw/audio")
 
     # Set up session with proper headers
     session = requests.Session()
@@ -64,7 +65,7 @@ def download_inat_audio(urls, delay=2):
             response.raise_for_status()
 
             # Write file in chunks to handle large files
-            with fs.open(filepath, "wb") as f:
+            with open(filepath, "wb") as f:
                 for chunk in response.iter_content(chunk_size=8192):
                     if chunk:
                         f.write(chunk)
@@ -75,7 +76,7 @@ def download_inat_audio(urls, delay=2):
             # Rate limiting - be respectful to their servers
             if i < len(urls):  # Don't sleep after the last download
                 # Generate a random between delay - 0.5 and delay + 0.5
-                random_delay = np.random.uniform(delay - 0.5, delay + 0.5)
+                random_delay = np.random.uniform(delay - 0.3, delay + 0.3)
                 random_delay = max(random_delay, 1)  # Ensure at least 1 second delay
                 print(f"  Waiting {random_delay} seconds...")
                 time.sleep(random_delay)
@@ -111,13 +112,21 @@ if __name__ == "__main__":
 
     # Run a gsutil command to list existing files
     # This assumes you have gsutil installed and configured
-    os.system("gsutil ls gs://esp-ml-datasets/inaturalist/v0.1.0/raw/audio > inat_files_downloaded.txt")
+    # os.system(
+    #     "gsutil ls gs://esp-ml-datasets/inaturalist/v0.1.0/raw/audio > inat_files_downloaded.txt"
+    # )
     with open("inat_files_downloaded.txt", "r") as f:
         existing_files = f.read().splitlines()
         existing_files = set([Path(url).name for url in existing_files])
+
+    # check files downloaded to inat_audio_downloads
+    existing_files_local = set(os.listdir("inat_audio_downloads"))
+
+    # Combine existing files from both sources
+    existing_files = existing_files.union(existing_files_local)
 
     # Filter out already downloaded files
     audio_urls = [url for url in audio_urls if os.path.basename(urlparse(url).path) not in existing_files]
 
     # Download with 3-second delay between requests
-    downloaded, failed = download_inat_audio(audio_urls, delay=1.8)
+    downloaded, failed = download_inat_audio(audio_urls, delay=1.5)
