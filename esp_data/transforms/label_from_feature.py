@@ -93,6 +93,10 @@ class LabelFromFeature:
         else:
             label_map = self.label_map
 
+        # We use assign here because it allows us to create the
+        # self.output_feature column if it doesn't exist, or overwrite
+        # it if it does, without needing to use .copy() or
+        # .loc with different syntax's depending on overwrite or not.
         df_clean = df_clean.assign(**{self.output_feature: df_clean[self.feature].map(label_map)})
 
         metadata = {
