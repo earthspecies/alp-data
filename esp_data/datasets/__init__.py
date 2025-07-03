@@ -8,6 +8,7 @@ from .chiffchaff_id import ChiffchaffId
 from .giant_otters import GiantOtters
 from .insectset_459 import InsectSet459
 from .littleowl_id import LittleOwlId
+from .macaques_coo_calls import MacaquesCooCalls
 from .pipit_id import PipitId
 from .zebra_finch_julie_elie import ZebraFinchJulieElie
 
@@ -25,4 +26,5 @@ __all__ = [
     "LittleOwlId",
     "PipitId",
     "AudioSet",
+    "MacaquesCooCalls",
 ]

@@ -20,6 +20,7 @@ from .datasets import (
     GiantOtters,
     InsectSet459,
     LittleOwlId,
+    MacaquesCooCalls,
     PipitId,
     ZebraFinchJulieElie,
 )
@@ -46,4 +47,5 @@ __all__ = [
     "PipitId",
     "ZebraFinchJulieElie",
     "BengaleseFinchCalls",
+    "MacaquesCooCalls",
 ]
