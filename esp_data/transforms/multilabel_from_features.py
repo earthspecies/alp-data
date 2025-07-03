@@ -98,7 +98,9 @@ class MultiLabelFromFeatures:
 
     def __call__(self, df: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
         if self.output_feature in df and not self.override:
-            raise AssertionError("TODO (milad)")
+            raise AssertionError(
+                "Feature already exists in DataFrame. Set `override=True` to replace it."
+            )
 
         if self.label_map is None:
             uniques = set()
