@@ -14,6 +14,7 @@ from .datasets import (
     BarkleyCanyon,
     BarkleyCanyonDetection,
     Beans,
+    BengaleseFinchCalls,
     BirdSet,
     ChiffchaffId,
     GiantOtters,
@@ -45,5 +46,5 @@ __all__ = [
     "LittleOwlId",
     "PipitId",
     "ZebraFinchJulieElie",
-    "MacaquesCooCalls"
+    "BengaleseFinchCalls",
 ]

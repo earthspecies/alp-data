@@ -2,6 +2,7 @@ from .animalspeak import AnimalSpeak
 from .audioset import AudioSet
 from .barkley_canyon import BarkleyCanyon, BarkleyCanyonDetection
 from .beans import Beans
+from .bengalese_finch_calls import BengaleseFinchCalls
 from .birdset import BirdSet
 from .chiffchaff_id import ChiffchaffId
 from .giant_otters import GiantOtters
@@ -20,6 +21,7 @@ __all__ = [
     "Beans",
     "ZebraFinchJulieElie",
     "BirdSet",
+    "BengaleseFinchCalls",
     "ChiffchaffId",
     "LittleOwlId",
     "PipitId",
