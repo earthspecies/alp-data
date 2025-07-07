@@ -1,5 +1,6 @@
 """AudioSet dataset"""
 
+import json
 from io import StringIO
 from typing import Any, Dict, Iterator, Optional
 
@@ -32,6 +33,12 @@ class AudioSet(Dataset):
     correspond to the official ones in the paper (https://research.google.com/audioset/download.html).
     The train-animal, train-noise, validation-animal, and validation-noise splits
     are created for animal and non-animal (noise) classes in the ontology.
+
+    The "caption" column contains the caption from AudioSetCaps when available.
+    AudioSetCaps Paper: https://arxiv.org/abs/2411.18953
+    AudioSetCaps Dataset: https://huggingface.co/datasets/baijs/AudioSetCaps
+    Note these are empty with the exception of the unbalanced_train split.
+
 
     Examples
     -------
@@ -122,7 +129,14 @@ class AudioSet(Dataset):
         location = self.info.split_paths[self.split]
         # Read CSV content
         csv_text = anypath(location).read_text(encoding="utf-8")
-        self._data = pd.read_csv(StringIO(csv_text))
+
+        # Converter to parse JSON-encoded labels into Python lists
+        def parse_label(value: str) -> list:
+            if pd.isna(value) or value == "":
+                return []
+            return json.loads(value)
+
+        self._data = pd.read_csv(StringIO(csv_text), converters={"labels": parse_label})
 
     @classmethod
     def from_config(cls, dataset_config: DatasetConfig) -> tuple["AudioSet", dict[str, Any]]:
