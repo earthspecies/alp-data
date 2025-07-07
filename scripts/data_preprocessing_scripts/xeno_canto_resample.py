@@ -6,7 +6,7 @@ import librosa
 import pandas as pd
 import soundfile as sf
 
-from esp_data.io import anypath, read_audio
+from esp_data.io import anypath, audio_stereo_to_mono, read_audio
 
 
 def main() -> None:
@@ -48,6 +48,8 @@ def main() -> None:
 
         # Read the audio file
         data, sr = read_audio(file_path)
+
+        data = audio_stereo_to_mono(data, mono_method="average").squeeze()
 
         # Resample if necessary
         if sr != args.target_sr:
