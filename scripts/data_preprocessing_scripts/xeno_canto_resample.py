@@ -39,9 +39,11 @@ def main() -> None:
 
     # Read the CSV file containing file paths to copy
     df = pd.read_csv(args.filepaths_to_copy)
-    df = df.dropna(subset=["files"]).tolist()
+    df = df.dropna(subset=["files"])
 
-    for i, file_path in enumerate(df):
+    print(f"Found {len(df)} files to process.")
+    for i, row in df.iterrows():
+        file_path = row["files"]
         print(f"Processing file number {i}/{len(df)}: {file_path}")
 
         # Read the audio file
