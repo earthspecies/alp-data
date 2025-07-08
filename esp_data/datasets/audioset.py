@@ -226,7 +226,7 @@ class AudioSet(Dataset):
         else:
             audio_path = anypath(row["local_path"])
 
-        audio, sr = read_audio(audio_path, start_time=row["start"], end_time=row["end"])
+        audio, sr = read_audio(audio_path)
         audio = audio.astype(np.float32)
         audio = audio_stereo_to_mono(audio, mono_method="average")
 
