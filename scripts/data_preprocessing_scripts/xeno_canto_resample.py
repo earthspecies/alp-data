@@ -44,24 +44,30 @@ def main() -> None:
 
     print(f"Found {len(df)} files to process.")
     for i, row in df.iterrows():
-        file_path = row["files"]
+        file_path = anypath(row["files"])
 
         # Define the target path
-        target_path = target_dir / (anypath(file_path).stem + ".flac")
+        target_path = target_dir / (file_path.stem + ".flac")
 
         if target_path.exists():
-            print(f"Skipping {file_path}, already exists at {target_path}")
+            print(f"Skipping {file_path.name}, already exists at {target_path}")
             continue
 
-        print(f"Processing file number {i}/{len(df)}: {file_path}")
+        print(f"Processing file number {i}/{len(df)}: {file_path.name}")
 
         # Read the audio file
         try:
             data, sr = read_audio(file_path)
+
+        # if fail, try again with librosa
         except Exception as e:
-            print(f"Error reading {file_path}: {e}")
-            errors.append((file_path, str(e)))
-            continue
+            print(f"Error reading {file_path.name} with soundfile: {e}, trying librosa...")
+            try:
+                data, sr = librosa.load(file_path, sr=None, mono=False)
+            except Exception as e:
+                print(f"Error reading {file_path.name} with librosa: {e}")
+                errors.append((file_path, str(e)))
+                continue
 
         data = audio_stereo_to_mono(data, mono_method="average").squeeze()
 
