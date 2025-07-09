@@ -15,9 +15,119 @@ from esp_data.io import (
     AnyPathT,
     anypath,
     audio_stereo_to_mono,
-    get_audio_info,
     read_audio,
 )
+
+LABEL_SETS = {
+    "Anuraset_train": [
+        "SPHSUR_M",
+        "PHYALB_L",
+        "Unknown",
+        "LEPPOD_L",
+        "DENMIN_M",
+        "BOABIS_M",
+        "BOABIS_L",
+        "PITAZU_L",
+        "LEPLAT_L",
+        "BOAALB_L",
+        "DENMIN_L",
+    ],
+    "Anuraset_val": [
+        "SPHSUR_M",
+        "PHYALB_L",
+        "Unknown",
+        "LEPPOD_L",
+        "DENMIN_M",
+        "BOABIS_M",
+        "BOABIS_L",
+        "PITAZU_L",
+        "LEPLAT_L",
+        "BOAALB_L",
+        "DENMIN_L",
+    ],
+    "Anuraset_test": [
+        "SPHSUR_M",
+        "PHYALB_L",
+        "Unknown",
+        "LEPPOD_L",
+        "DENMIN_M",
+        "BOABIS_M",
+        "BOABIS_L",
+        "PITAZU_L",
+        "LEPLAT_L",
+        "BOAALB_L",
+        "DENMIN_L",
+    ],
+    "BV_train": ["voc", "Unknown"],
+    "BV_val": ["voc", "Unknown"],
+    "BV_test": ["voc", "Unknown"],
+    "MT_train": ["voc", "Unknown"],
+    "MT_val": ["voc", "Unknown"],
+    "MT_test": ["voc", "Unknown"],
+    "OZF_train": ["voc", "Unknown"],
+    "OZF_val": ["voc", "Unknown"],
+    "OZF_test": ["voc", "Unknown"],
+    "hawaii_train": [
+        "ercfra",
+        "reblei",
+        "Unknown",
+        "warwhe1",
+        "skylar",
+        "hawama",
+        "houfin",
+        "apapan",
+        "omao",
+        "iiwi",
+    ],
+    "hawaii_val": [
+        "ercfra",
+        "reblei",
+        "Unknown",
+        "warwhe1",
+        "skylar",
+        "hawama",
+        "houfin",
+        "apapan",
+        "omao",
+        "iiwi",
+    ],
+    "hawaii_test": [
+        "ercfra",
+        "reblei",
+        "Unknown",
+        "warwhe1",
+        "hawama",
+        "skylar",
+        "houfin",
+        "apapan",
+        "omao",
+        "iiwi",
+    ],
+    "humpback_train": ["Mn", "Unknown"],
+    "humpback_val": ["Mn", "Unknown"],
+    "humpback_test": ["Mn", "Unknown"],
+    "katydids_train": ["Unknown", "katydid"],
+    "katydids_val": ["Unknown", "katydid"],
+    "katydids_test": ["Unknown", "katydid"],
+    "powdermill_train": ["Unknown", "NOCA", "BCCH", "EATO", "BTNW", "REVI", "TUTI"],
+    "powdermill_val": ["Unknown", "NOCA", "BCCH", "EATO", "BTNW", "REVI", "TUTI"],
+    "powdermill_test": ["Unknown", "NOCA", "BCCH", "EATO", "BTNW", "REVI", "TUTI"],
+    "OZF_synthetic_overlap_0_train": ["Unknown", "POS"],
+    "OZF_synthetic_overlap_0_val": ["Unknown", "POS"],
+    "OZF_synthetic_overlap_0_test": ["Unknown", "POS"],
+    "OZF_synthetic_overlap_0.2_train": ["Unknown", "POS"],
+    "OZF_synthetic_overlap_0.2_val": ["Unknown", "POS"],
+    "OZF_synthetic_overlap_0.2_test": ["Unknown", "POS"],
+    "OZF_synthetic_overlap_0.4_train": ["Unknown", "POS"],
+    "OZF_synthetic_overlap_0.4_val": ["Unknown", "POS"],
+    "OZF_synthetic_overlap_0.4_test": ["Unknown", "POS"],
+    "OZF_synthetic_overlap_0.6_train": ["Unknown", "POS"],
+    "OZF_synthetic_overlap_0.6_val": ["Unknown", "POS"],
+    "OZF_synthetic_overlap_0.6_test": ["Unknown", "POS"],
+    "OZF_synthetic_overlap_1_train": ["Unknown", "POS"],
+    "OZF_synthetic_overlap_1_val": ["Unknown", "POS"],
+    "OZF_synthetic_overlap_1_test": ["Unknown", "POS"],
+}
 
 
 @register_dataset
@@ -93,9 +203,9 @@ class Voxaboxen(Dataset):
             "OZF_synthetic_overlap_0.6_train": "gs://esp-ml-datasets/voxaboxen/files/OZF_synthetic/overlap_0.6/train_info.csv",
             "OZF_synthetic_overlap_0.6_val": "gs://esp-ml-datasets/voxaboxen/files/OZF_synthetic/overlap_0.6/val_info.csv",
             "OZF_synthetic_overlap_0.6_test": "gs://esp-ml-datasets/voxaboxen/files/OZF_synthetic/overlap_0.6/test_info.csv",
-            "OZF_synethetic_overlap_1_train": "gs://esp-ml-datasets/voxaboxen/files/OZF_synthetic/overlap_1/train_info.csv",
-            "OZF_synethetic_overlap_1_val": "gs://esp-ml-datasets/voxaboxen/files/OZF_synthetic/overlap_1/val_info.csv",
-            "OZF_synethetic_overlap_1_test": "gs://esp-ml-datasets/voxaboxen/files/OZF_synthetic/overlap_1/test_info.csv",
+            "OZF_synthetic_overlap_1_train": "gs://esp-ml-datasets/voxaboxen/files/OZF_synthetic/overlap_1/train_info.csv",
+            "OZF_synthetic_overlap_1_val": "gs://esp-ml-datasets/voxaboxen/files/OZF_synthetic/overlap_1/val_info.csv",
+            "OZF_synthetic_overlap_1_test": "gs://esp-ml-datasets/voxaboxen/files/OZF_synthetic/overlap_1/test_info.csv",
         },
         version="0.1.0",
         description="Voxaboxen dataset for acoustic sound event detection",
@@ -283,15 +393,7 @@ class Voxaboxen(Dataset):
         row["audio"] = audio
 
         # read selection table
-        if self.data_root:
-            selection_table_path = anypath(self.data_root) / row["selection_table_fp"]
-        else:
-            selection_table_path = anypath(row["selection_table_fp"])
-
-        with selection_table_path.open("r", encoding="utf-8") as f:
-            selection_table = pd.read_csv(StringIO(f.read()), sep="\t")
-
-        row["selection_table"] = selection_table
+        row["selection_table"] = pd.read_csv(StringIO(row["selection_table_str"]), sep="\t")
 
         if self.output_take_and_give:
             item = {}
@@ -400,9 +502,9 @@ class VoxaboxenEvents(Dataset):
             "OZF_synthetic_overlap_0.6_train": "gs://esp-ml-datasets/voxaboxen/files/OZF_synthetic/overlap_0.6/train_info.csv",
             "OZF_synthetic_overlap_0.6_val": "gs://esp-ml-datasets/voxaboxen/files/OZF_synthetic/overlap_0.6/val_info.csv",
             "OZF_synthetic_overlap_0.6_test": "gs://esp-ml-datasets/voxaboxen/files/OZF_synthetic/overlap_0.6/test_info.csv",
-            "OZF_synethetic_overlap_1_train": "gs://esp-ml-datasets/voxaboxen/files/OZF_synthetic/overlap_1/train_info.csv",
-            "OZF_synethetic_overlap_1_val": "gs://esp-ml-datasets/voxaboxen/files/OZF_synthetic/overlap_1/val_info.csv",
-            "OZF_synethetic_overlap_1_test": "gs://esp-ml-datasets/voxaboxen/files/OZF_synthetic/overlap_1/test_info.csv",
+            "OZF_synthetic_overlap_1_train": "gs://esp-ml-datasets/voxaboxen/files/OZF_synthetic/overlap_1/train_info.csv",
+            "OZF_synthetic_overlap_1_val": "gs://esp-ml-datasets/voxaboxen/files/OZF_synthetic/overlap_1/val_info.csv",
+            "OZF_synthetic_overlap_1_test": "gs://esp-ml-datasets/voxaboxen/files/OZF_synthetic/overlap_1/test_info.csv",
         },
         version="0.1.0",
         description="Voxaboxen events dataset for acoustic sound event detection",
@@ -423,7 +525,7 @@ class VoxaboxenEvents(Dataset):
         self,
         split: str = "train",
         output_take_and_give: dict[str, str] = None,
-        sample_rate: Optional[int] = None,
+        sample_rate: int = 16000,
         data_root: Optional[str | AnyPathT] = None,
         stereo_or_mono: str = "stereo",
         mono_method: str = "average",
@@ -433,6 +535,7 @@ class VoxaboxenEvents(Dataset):
         omit_empty_clip_prob: float = 0.0,
         scale_factor: int = 1,
         segmentation_based: bool = True,
+        unknown_label: str = "Unknown",
     ) -> None:
         """Initialize the VoxaboxenEvents dataset.
 
@@ -470,6 +573,8 @@ class VoxaboxenEvents(Dataset):
             If True, the dataset is segmented based on the selection table.
             If False, the entire audio file is treated as a single segment.
             Defaults to True.
+        unknown_label : str, optional
+            The label used for unknown annotations. Defaults to "unknown".
         """
         super().__init__(output_take_and_give)  # Initialize the parent Dataset class
         self.split = split
@@ -484,6 +589,7 @@ class VoxaboxenEvents(Dataset):
         self.clip_start_offset = clip_start_offset
         self.scale_factor = scale_factor
         self.segmentation_based = segmentation_based
+        self.unknown_label = unknown_label
 
         self.omit_empty_clip_prob = omit_empty_clip_prob
         self.rng = default_rng()
@@ -491,8 +597,16 @@ class VoxaboxenEvents(Dataset):
             # we assume that parent dir of the split path is the data root
             self.data_root = anypath(self.info.split_paths[self.split]).parent
 
-        self._make_metadata()
+        self.label_mapping: dict = None
+        if split in LABEL_SETS:
+            self.label_set: list = LABEL_SETS[split]
+        else:
+            self.label_set = []
+
+        self.n_classes = 0
         self._create_label_map()
+
+        self._make_metadata()
 
     @property
     def columns(self) -> list[str]:
@@ -557,11 +671,15 @@ class VoxaboxenEvents(Dataset):
             split=split,
             output_take_and_give=cfg.get("output_take_and_give", None),
             data_root=cfg.get("data_root"),
-            sample_rate=cfg["sample_rate"],
+            sample_rate=cfg.get("sample_rate", 16000),
             mono_method=cfg.get("mono_method", "average"),
             clip_duration=cfg.get("clip_duration", 10.0),
             clip_hop=cfg.get("clip_hop", 5.0),
             clip_start_offset=cfg.get("clip_start_offset", 0.0),
+            omit_empty_clip_prob=cfg.get("omit_empty_clip_prob", 0.0),
+            scale_factor=cfg.get("scale_factor", 1),
+            segmentation_based=cfg.get("segmentation_based", True),
+            unknown_label=cfg.get("unknown_label", "Unknown"),
         )
 
         if dataset_config.transformations:
@@ -588,32 +706,42 @@ class VoxaboxenEvents(Dataset):
         ValueError
             If no labels are found in the dataset.
         """
-        self.label_set = sorted(set(self._data["Annotation"].dropna().unique().tolist()))
+        # load all selection tables and create a label set
+        if not self.label_set:
+            self.label_set = set()
+            for row in self._data.itertuples():
+                selection_table = pd.read_csv(StringIO(row.selection_table_str), sep="\t")
+
+                labels = selection_table["Annotation"].unique().tolist()
+                if not hasattr(self, "label_set"):
+                    self.label_set = set(labels)
+                else:
+                    self.label_set.update(labels)
+
+            self.label_set.add(self.unknown_label)
+            self.label_set = list(self.label_set)
+
         if not self.label_set:
             raise ValueError("No labels found in the dataset.")
 
-        self.label_mapping = {label: idx for idx, label in enumerate(self.label_set)}
+        self.label_mapping = {label: label for label in self.label_set}
         self.n_classes = len(self.label_set)
-        self.unknown_label = "unknown"
-        self.label_set.append(self.unknown_label)
-        self.label_mapping[self.unknown_label] = -1
 
-    def _process_selection_table(self, selection_table_fp: str) -> IntervalTree:
+    def _process_selection_table(self, selection_table_str: str) -> IntervalTree:
         """
         Process annotation file into interval tree format.
 
         Parameters
         ----------
-        selection_table_fp : str
-            Path to annotation file (tab-separated)
+        selection_table_str : str
+            String representation of the selection table in TSV format.
 
         Returns
         -------
         IntervalTree
             Tree containing labeled time intervals
         """
-        selection_table_fp = anypath(self.data_root) / selection_table_fp
-        selection_table = pd.read_csv(selection_table_fp, sep="\t")
+        selection_table = pd.read_csv(StringIO(selection_table_str), sep="\t")
         tree = IntervalTree()
 
         for _, row in selection_table.iterrows():
@@ -647,12 +775,11 @@ class VoxaboxenEvents(Dataset):
             fn = row["fn"]
             audio_fp = anypath(self.data_root) / row["audio_fp"]
 
-            duration = get_audio_info(audio_fp)["duration"]
-            selection_table_fp = row["selection_table_fp"]
-
-            selection_table = self._process_selection_table(selection_table_fp)
+            selection_table = self._process_selection_table(row["selection_table_str"])
             selection_table_dict[fn] = selection_table
 
+            # Determine number of clips based on audio duration
+            duration = row["audio_duration"]
             num_clips = max(
                 0,
                 int(
@@ -885,7 +1012,7 @@ class VoxaboxenEvents(Dataset):
             rev_anchor_anno,
             rev_regression_anno,
             rev_class_anno,
-        ) = self.get_annotation(pos_intervals, audio)
+        ) = self._get_annotation(pos_intervals, audio)
 
         row = {
             "audio": audio,

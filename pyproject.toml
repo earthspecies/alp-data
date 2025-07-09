@@ -9,6 +9,7 @@ dependencies = [
     "gcsfs>=2024.9.0.post1",
     "google-cloud-secret-manager>=2.23.1",
     "google-cloud-storage>=2.19.0",
+    "interval>=1.0.0",
     "librosa>=0.11.0",
     "pandas",
     "pydantic>=2",
@@ -16,6 +17,7 @@ dependencies = [
     "s3fs>=2024.9.0",
     "semver",
     "soundfile>=0.13.1",
+    "tree>=0.2.4",
 ]
 
 [dependency-groups]

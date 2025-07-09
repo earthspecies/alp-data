@@ -7,8 +7,7 @@ from pydantic import BaseModel
 from typing import Literal
 
 from esp_data.io import anypath
-from esp_data.transforms import register_transform
-from esp_data import Dataset, DatasetConfig, Voxaboxen, VoxaboxenEvents
+from esp_data.transforms import register_transform, transform_from_config
 
 
 class RenameConfig(BaseModel):
@@ -26,7 +25,7 @@ class RenameTransform:
             # Create a map from input features to output features
             self.input_features = input_features
             self.output_features = output_features
-            if len(self.input_features) != len(self.output_feature):
+            if len(self.input_features) != len(self.output_features):
                 raise ValueError("input_features and output_feature must have the same length")
 
             self.feature_map = dict(zip(self.input_features, self.output_features))
@@ -45,6 +44,9 @@ class RenameTransform:
 
 
 register_transform(RenameConfig, RenameTransform)
+
+
+from esp_data import Dataset, DatasetConfig, Voxaboxen, VoxaboxenEvents
 
 
 @pytest.fixture
@@ -69,7 +71,7 @@ def voxaboxen_events_dataset() -> VoxaboxenEvents:
     VoxaboxenEvents
         An instance of the VoxaboxenEvents dataset.
     """
-    ds = VoxaboxenEvents(split="hawaii_val", sample_rate=None)
+    ds = VoxaboxenEvents(split="hawaii_val", sample_rate=16000)
     return ds
 
 
@@ -83,19 +85,15 @@ def voxaboxen_with_transforms() -> Voxaboxen:
     Voxaboxen
         An instance of the AnimalSpeak dataset with transformations applied.
     """
-
-    dataset_config = DatasetConfig(
-        dataset_name="voxaboxen",
-        transformations=[
-            {
-                "type": "rename_transform",
-                "input_features": ["fn"],
-                "output_features": ["file_name"],
-            },
-        ],
+    transform_config = RenameConfig(
+        type="rename_transform",
+        input_features=["fn"],
+        output_features=["file_name"],
     )
+    transform = RenameTransform.from_config(transform_config)
+
     ds = Voxaboxen(split="hawaii_val")
-    ds.apply_transformations(dataset_config.transformations)
+    ds._data, _ = transform(ds._data)
     return ds
 
 
@@ -148,7 +146,7 @@ def test_data_property(voxaboxen_dataset: Dataset) -> None:
 def test_available_splits(voxaboxen_dataset: Dataset) -> None:
     """Test if available_splits returns correct split names."""
     # Available splits should contain these
-    expected_splits = ["Anuraset_train", "humpback_val", "test", "cbi_test", "esc50_validation"]
+    expected_splits = ["Anuraset_train", "humpback_val", "hawaii_test", "katydids_train", "OZF_synthetic_overlap_1_train"]
     assert all(split in voxaboxen_dataset.available_splits for split in expected_splits)
 
 
@@ -176,6 +174,7 @@ def test_iteration(voxaboxen_dataset: Dataset) -> None:
         assert isinstance(sample, dict)
         # Ensure we can access a known key
         assert "audio" in sample
+        assert sample["audio"].shape[0] > 0, "Audio data should not be empty"
         break
 
 
@@ -225,14 +224,14 @@ def test_voxaboxen_events_data_property(voxaboxen_events_dataset: Dataset) -> No
     """Test if the data property returns correct dataframes for detection dataset."""
     # Data should be _loaded in __init__
     assert voxaboxen_events_dataset._data is not None
-    assert "local_path" in voxaboxen_events_dataset._data
-    assert "gbifID" in voxaboxen_events_dataset._data
+    assert "audio_duration" in voxaboxen_events_dataset._data
+    assert "audio_fp" in voxaboxen_events_dataset._data
     assert voxaboxen_events_dataset._metadata is not None
     assert isinstance(voxaboxen_events_dataset._selection_table_dict, dict)
     assert len(voxaboxen_events_dataset._selection_table_dict) > 0, "Selection table should not be empty"
 
 
-def test_getitem(voxaboxen_events_dataset: Dataset) -> None:
+def test_voxaboxen_events_getitem(voxaboxen_events_dataset: Dataset) -> None:
     """Test if __getitem__ returns correct sample format."""
     # Get first sample
     sample = voxaboxen_events_dataset[0]
