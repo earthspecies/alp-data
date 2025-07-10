@@ -82,8 +82,20 @@ def main() -> None:
             )
 
         # Write the resampled audio as flac file
-        with target_path.open("wb") as f:
-            sf.write(f, data, args.target_sr, format="FLAC")
+        try:
+            with target_path.open("wb") as f:
+                sf.write(f, data, args.target_sr, format="FLAC")
+        except OSError:
+            # shorten the name and try again
+            new_target_path = target_dir / (file_path.stem[:50] + ".flac")
+            try:
+                with new_target_path.open("wb") as f:
+                    sf.write(f, data, args.target_sr, format="FLAC")
+
+            except Exception as err:
+                print(f"Error writing {target_path.name}: {err}")
+                errors.append((file_path, str(err)))
+                continue
 
         print(f"Copied and resampled {file_path} to {target_path}")
 
