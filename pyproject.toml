@@ -86,7 +86,7 @@ docstring-code-line-length = "dynamic"
 max-complexity = 10
 
 [tool.codespell]
-skip = "*.csv"
+skip = "*.csv, *.ipynb"
 
 [[tool.uv.index]]
 name = "esp-pypi"
