@@ -47,11 +47,11 @@ def _read_audio_from_bytes(
 
 def read_audio(
     file_path: str | AnyPathT,
-    frames: Optional[int] = -1,
-    start: Optional[int] = 0,
-    start_time: Optional[float] = None,
-    end_time: Optional[float] = None,
-    input_sr: Optional[int] = None,
+    frames: int = -1,
+    start: int = 0,
+    start_time: float | None = None,
+    end_time: float | None = None,
+    input_sr: int | None = None,
 ) -> tuple[np.ndarray, int]:
     """Reads audio data from a file path.
 
