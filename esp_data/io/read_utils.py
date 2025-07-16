@@ -47,11 +47,11 @@ def _read_audio_from_bytes(
 
 def read_audio(
     file_path: str | AnyPathT,
-    frames: Optional[int] = -1,
-    start: Optional[int] = 0,
-    start_time: Optional[float] = None,
-    end_time: Optional[float] = None,
-    input_sr: Optional[int] = None,
+    frames: int = -1,
+    start: int = 0,
+    start_time: float | None = None,
+    end_time: float | None = None,
+    input_sr: int | None = None,
 ) -> tuple[np.ndarray, int]:
     """Reads audio data from a file path.
 
@@ -71,11 +71,11 @@ def read_audio(
         `start` position to the end of the file. Defaults to -1.
     start : int, optional
         The frame index to start reading from. Defaults to 0.
-    start_time : float, optional
+    start_time : float | None, optional
         Start time in seconds. Defaults to None.
-    end_time : float, optional
+    end_time : float | None, optional
         End time in seconds. If None, reads to end of file.
-    input_sr : int, optional
+    input_sr : int | None, optional
         Expected sample rate. If provided, used for validation.
 
     Returns
