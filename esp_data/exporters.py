@@ -154,7 +154,7 @@ def _write_webdataset_shard(
     Example
     -------
         >>> items = [{"id": "1", "text": "hello"}, {"id": "2", "text": "world"}]
-        >>> results = write_webdataset_shard(items, 0, "/tmp/webds_output")
+        >>> results = _write_webdataset_shard(items, "/tmp/webds_output", 0)
         # writing /tmp/webds_output/shard_000000.tar 0 0.0 GB 0
         >>> print(len(results["processed_ids"]))
         2
