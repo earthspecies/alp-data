@@ -172,9 +172,6 @@ def load_webdataset(
     if not shard_files:
         raise FileNotFoundError(f"No shard files found in {path}")
 
-    # Log what we found for debugging
-    print(f"Found {len(shard_files)} shard files in {path}")
-
     webds_kwargs = {"shardshuffle": shard_shuffle_size if shard_shuffle else False}
     if shard_shuffle and seed is not None:
         webds_kwargs["seed"] = seed

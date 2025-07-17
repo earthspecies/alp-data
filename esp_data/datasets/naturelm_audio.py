@@ -1,5 +1,6 @@
 """NatureLM-audio v1 training data"""
 
+from functools import partial
 from typing import Any, Callable, Iterator
 
 import librosa
@@ -121,7 +122,7 @@ class NatureLMAudio(Dataset):
 
         self._data = load_webdataset(
             self.data_root,
-            data_processor=audio_decoder,
+            data_processor=partial(audio_decoder, format="WAV"),
             shuffle_size=within_shard_shuffle_size if within_shard_shuffle else None,
             shard_shuffle=across_shard_shuffle,
             shard_shuffle_size=across_shard_shuffle_size,
@@ -131,12 +132,16 @@ class NatureLMAudio(Dataset):
             seed=seed,
         )
 
+    def _load(self) -> None:
+        pass
+
     @property
     def columns(self) -> list[str]:
         """Return the columns of the dataset."""
         # iter once over the webdataset to get the columns
         if not self._columns:
-            self._columns = list(self.webdataset[0].keys())
+            self._columns = list(next(iter(self._data)).keys())
+        return self._columns
 
     @property
     def available_splits(self) -> list[str]:
