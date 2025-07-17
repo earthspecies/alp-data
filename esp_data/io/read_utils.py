@@ -7,6 +7,7 @@ from typing import Any, Literal, Optional
 import numpy as np
 import soundfile as sf
 
+from . import filesystem_from_path
 from .paths import AnyPathT, anypath
 
 logger = logging.getLogger("esp_data")
@@ -109,7 +110,8 @@ def read_audio(
         return read_audio_by_time(file_path, start_time, end_time, input_sr)
 
     try:
-        with file_path.open("rb") as f:
+        fs = filesystem_from_path(file_path)
+        with fs.open(file_path, "rb") as f:
             return _read_audio_from_bytes(f.read(), frames, start)
     except Exception as e:
         logger.error(f"Error reading audio file {e}")
@@ -269,7 +271,8 @@ def read_audio_by_time(
         raise ValueError(f"Unsupported audio format: {extension}")
 
     try:
-        with file_path.open("rb") as f:
+        fs = filesystem_from_path(file_path)
+        with fs.open(file_path, "rb") as f:
             file_bytes = f.read()
 
         # Get file info without loading audio data
