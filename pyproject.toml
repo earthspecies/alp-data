@@ -17,6 +17,7 @@ dependencies = [
     "s3fs>=2024.9.0",
     "semver",
     "soundfile>=0.13.1",
+    "tqdm>=4.67.1",
     "webdataset>=1.0.2",
 ]
 
@@ -30,7 +31,6 @@ dev = [
     "pytest>=7.1.2",
     "ruff>=0.8.1",
     "deptry>=0.23.0",
-    "tqdm>=4.67.1",
 ]
 
 [build-system]

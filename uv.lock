@@ -614,6 +614,7 @@ dependencies = [
     { name = "s3fs" },
     { name = "semver" },
     { name = "soundfile" },
+    { name = "tqdm" },
     { name = "webdataset" },
 ]
 
@@ -627,7 +628,6 @@ dev = [
     { name = "pre-commit" },
     { name = "pytest" },
     { name = "ruff" },
-    { name = "tqdm" },
 ]
 
 [package.metadata]
@@ -644,6 +644,7 @@ requires-dist = [
     { name = "s3fs", specifier = ">=2024.9.0" },
     { name = "semver" },
     { name = "soundfile", specifier = ">=0.13.1" },
+    { name = "tqdm", specifier = ">=4.67.1" },
     { name = "webdataset", specifier = ">=1.0.2" },
 ]
 
@@ -657,7 +658,6 @@ dev = [
     { name = "pre-commit", specifier = ">=4.0.1" },
     { name = "pytest", specifier = ">=7.1.2" },
     { name = "ruff", specifier = ">=0.8.1" },
-    { name = "tqdm", specifier = ">=4.67.1" },
 ]
 
 [[package]]
