@@ -6,8 +6,8 @@ from typing import Any, Callable, Iterator
 import librosa
 
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
-from esp_data.dataset_utils import audio_decoder, load_webdataset
 from esp_data.io import AnyPathT
+from esp_data.webdataset_utils import audio_decoder, load_webdataset
 
 
 @register_dataset
@@ -65,6 +65,7 @@ class NatureLMAudio(Dataset):
         output_take_and_give: dict[str, str] = None,
         sample_rate: int | None = None,
         data_root: str | AnyPathT = None,
+        shard_pattern: str = "shard*tar",
         within_shard_shuffle: bool = False,
         within_shard_shuffle_size: int = 1000,
         across_shard_shuffle: bool = False,
@@ -122,6 +123,7 @@ class NatureLMAudio(Dataset):
 
         self._data = load_webdataset(
             self.data_root,
+            shard_pattern=shard_pattern,
             data_processor=partial(audio_decoder, format="WAV"),
             shuffle_size=within_shard_shuffle_size if within_shard_shuffle else None,
             shard_shuffle=across_shard_shuffle,
@@ -183,6 +185,7 @@ class NatureLMAudio(Dataset):
             output_take_and_give=cfg.get("output_take_and_give", None),
             data_root=cfg.get("data_root"),
             sample_rate=cfg.get("sample_rate", None),
+            shard_pattern=cfg.get("shard_pattern", "shard*tar"),
             within_shard_shuffle=cfg.get("within_shard_shuffle", False),
             within_shard_shuffle_size=cfg.get("within_shard_shuffle_size", 1000),
             across_shard_shuffle=cfg.get("across_shard_shuffle", False),
@@ -202,7 +205,7 @@ class NatureLMAudio(Dataset):
     def __len__(self) -> int:
         """Return the number of samples in the dataset."""
         raise NotImplementedError(
-            "Length is not defined for NatureLMAudio tar dataset. because it is an iterable dataset"
+            "Length is not defined for NatureLMAudio tar dataset because it is an iterable dataset"
         )
 
     def __getitem__(self, idx: int) -> dict[str, Any]:
