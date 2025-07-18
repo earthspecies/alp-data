@@ -9,8 +9,8 @@ from pathlib import Path
 from typing import Any
 
 from esp_data.io import anypath
-from esp_data.exporters import _error_handler, _make_file_opener, _write_webdataset_shard, export_as_tar
-from esp_data.dataset_utils import audio_decoder, json_encoder, audio_encoder, load_webdataset
+from esp_data.exporters import _error_handler, _make_file_opener_for_wds, _write_webdataset_shard, export_as_tar
+from esp_data.webdataset_utils import audio_decoder, json_encoder, audio_encoder, load_webdataset
 
 
 @pytest.fixture
@@ -108,7 +108,7 @@ def test_error_handler() -> None:
 def test_make_file_opener_local(tmp_path) -> None:
     "Test the file opener function."
     test_file = tmp_path / "test_file.txt"
-    with _make_file_opener(test_file) as fp:
+    with _make_file_opener_for_wds(test_file) as fp:
         fp.write(b"Hello, World!")
 
     # Check if the file was created and contains the expected content
@@ -125,7 +125,7 @@ def test_make_file_opener_local(tmp_path) -> None:
 )
 def test_make_file_opener_cloud(cloud_path) -> None:
     """Test the file opener function for cloud paths."""
-    with _make_file_opener(cloud_path) as fp:
+    with _make_file_opener_for_wds(cloud_path) as fp:
         fp.write(b"Hello, Cloud!")
 
     # Check if the file was created and contains the expected content

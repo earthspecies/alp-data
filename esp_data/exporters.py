@@ -1,6 +1,4 @@
-"""Module for exporting datasets in various packaged formats
-like tar, parquet, arrow, etc.
-"""
+"""Module for exporting datasets multiple formats"""
 
 import concurrent.futures
 import gc
@@ -12,30 +10,16 @@ from functools import partial
 from pathlib import Path
 from typing import Any, Callable, Iterable, Literal
 
-import colorama
 import pandas as pd
 import webdataset as wds
-from colorama import Fore, Style
 from tqdm import tqdm
 
 from esp_data import Dataset
 from esp_data.io import AnyPathT, anypath, filesystem_from_path
 
-from .dataset_utils import audio_encoder
+from .webdataset_utils import audio_encoder
 
-# Configure logging
 logger = logging.getLogger("esp_data")
-
-# Initialize colorama for cross-platform colored terminal output
-colorama.init()
-
-# Define color schemes for different progress levels
-BATCH_COLOR = Fore.BLUE
-SHARD_COLOR = Fore.GREEN
-SAMPLE_COLOR = Fore.CYAN
-SUCCESS_COLOR = Fore.GREEN
-ERROR_COLOR = Fore.RED
-RESET_COLOR = Style.RESET_ALL
 
 
 def _make_id() -> str:
@@ -76,7 +60,7 @@ def _error_handler(
         raise e
 
 
-def _make_file_opener(
+def _make_file_opener_for_wds(
     file_path: str | AnyPathT,
     mode: str = "wb",
     block_size: int = 1024 * 1024 * 100,
@@ -105,7 +89,7 @@ def _make_file_opener(
         parent_dir.mkdir(parents=True, exist_ok=True)
         return open(file_path, mode=mode)
 
-    fs = filesystem_from_path(file_path)
+    fs = filesystem_from_path(str(file_path))
     return fs.open(str(file_path), mode=mode, block_size=block_size)
 
 
@@ -181,7 +165,7 @@ def _write_webdataset_shard(
         shard_path,
         maxcount=100_000_000_000,  # Set very high to ensure all samples go in one shard
         maxsize=100_000_000_000,
-        opener=partial(_make_file_opener),
+        opener=partial(_make_file_opener_for_wds),
         compress=compression,
     )
 
@@ -343,7 +327,8 @@ def export_as_tar(
     sample_prep_kwargs: dict | None = None,
 ) -> dict[str, Any]:
     """
-    Export a dataset as WebDataset tar files with parallel processing.
+    Export a dataset as WebDataset tar files with parallel processing
+    and checkpointing support.
 
     Parameters
     ----------
@@ -459,8 +444,7 @@ def export_as_tar(
         # Process completed tasks
         with tqdm(
             total=total_shards,
-            desc=f"{SHARD_COLOR}Processing shards{RESET_COLOR}",
-            bar_format="{l_bar}%s{bar}%s{r_bar}" % (SHARD_COLOR, RESET_COLOR),
+            desc="Processing shards",
             ncols=100,
         ) as pbar:
             for future in concurrent.futures.as_completed(future_to_shard):

@@ -119,17 +119,42 @@ def json_encoder(
     return {"sample.json": json_data}
 
 
+def json_decoder(
+    data: dict[str, Any],
+) -> dict[str, Any]:
+    """Decode a sample from JSON format.
+
+    Parameters
+    ----------
+    data: dict[str, Any]
+        The sample containing JSON data
+
+    Returns
+    -------
+        dict: Dictionary containing the decoded sample.
+
+    Raises
+    ------
+        ValueError: If the sample does not contain a "sample.json" key.
+    """
+    if "sample.json" not in data:
+        raise ValueError("Sample must contain 'sample.json' key with JSON data")
+
+    json_data = json.loads(data["sample.json"].decode("utf-8"))
+    return json_data
+
+
 def load_webdataset(
     path: str | AnyPathT,
     file_pattern: str = "shard*tar",
-    data_processor: Callable = None,
+    data_processor: Callable | None = None,
     shuffle_size: int | None = None,
     batch_size: int | None = None,
     shard_shuffle: bool = False,
     shard_shuffle_size: int = 1000,
     split_by_worker: bool = False,
-    batch_collate_fn: Callable = None,
-    seed: int | bool | None = 42,
+    batch_collate_fn: Callable | None = None,
+    seed: int | None = 42,
 ) -> wds.WebDataset:
     """Create a pipeline for loading the dataset
 
@@ -154,7 +179,7 @@ def load_webdataset(
         Whether to split the dataset by worker.
     batch_collate_fn: Callable, optional
         Function to collate the batch.
-    seed Union[int, bool, None]:
+    seed : int | None, optional
         Seed for shuffling. Defaults to True, random seed. If None, means no shuffling!
 
     Returns
