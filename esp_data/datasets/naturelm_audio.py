@@ -123,7 +123,7 @@ class NatureLMAudio(Dataset):
 
         self._data = load_webdataset(
             self.data_root,
-            shard_pattern=shard_pattern,
+            file_pattern=shard_pattern,
             data_processor=partial(audio_decoder, format="WAV"),
             shuffle_size=within_shard_shuffle_size if within_shard_shuffle else None,
             shard_shuffle=across_shard_shuffle,
