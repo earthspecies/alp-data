@@ -24,6 +24,13 @@ def test_columns_property(dataset: Dataset) -> None:
     assert all(col in cols for col in expected_columns)
 
 
+def test_length_property_missing(dataset: Dataset) -> None:
+    """Test if the length property returns correct length."""
+    with pytest.raises(TypeError):
+        # Length property should raise TypeError if not implemented
+        _ = len(dataset)
+
+
 def test_available_splits(dataset: Dataset) -> None:
     """Test if available_splits returns correct split names."""
     # Available splits should contain these
@@ -38,6 +45,5 @@ def test_iteration_over_one_sample(dataset) -> None:
     sample_info = {k: v for k, v in sample.items() if k != "audio"}
     sample_info["audio_shape"] = sample["audio"].shape
     sample_info["audio_dtype"] = sample["audio"].dtype
-    print(sample_info)
 
     print(f"Time taken to iterate over one sample: {time() - t0:.4f} seconds")

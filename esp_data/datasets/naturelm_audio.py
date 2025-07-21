@@ -121,6 +121,9 @@ class NatureLMAudio(Dataset):
 
         self._columns = None
 
+        # TODO find a better flag that can be used to check if the dataset is iterable
+        self.streaming = True
+
         self._data = load_webdataset(
             self.data_root,
             file_pattern=shard_pattern,
@@ -203,14 +206,33 @@ class NatureLMAudio(Dataset):
         return ds, {}
 
     def __len__(self) -> int:
-        """Return the number of samples in the dataset."""
-        raise NotImplementedError(
+        """Return the number of samples in the dataset.
+
+        Raises
+        -------
+        TypeError
+            Always raises TypeError because this dataset is iterable and does not support
+            length calculation.
+        """
+        raise TypeError(
             "Length is not defined for NatureLMAudio tar dataset because it is an iterable dataset"
         )
 
     def __getitem__(self, idx: int) -> dict[str, Any]:
-        """Get a sample from the dataset by index."""
-        raise NotImplementedError(
+        """Get a sample from the dataset by index.
+
+        Parameters
+        ----------
+        idx : int
+            The index of the sample to retrieve.
+
+        Raises
+        -------
+        TypeError
+            Always raises TypeError because this dataset is iterable and does not support
+            indexing.
+        """
+        raise TypeError(
             "Indexing is not supported for NatureLMAudio tar dataset. "
             "because it is an iterable dataset"
         )
