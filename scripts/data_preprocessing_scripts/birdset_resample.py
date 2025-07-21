@@ -174,7 +174,7 @@ def process_split(
     print(f"Processing split: {split_name}")
     
     # Create target directory for this split
-    target_dir = target_base_dir / split_name
+    target_dir = target_base_dir  # Do not append split_name
     target_dir.mkdir(parents=True, exist_ok=True)
     
     # Initialize BirdSet dataset with resampling enabled
