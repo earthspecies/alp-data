@@ -51,6 +51,10 @@ warnings.filterwarnings("ignore", category=FutureWarning, module="librosa")
 warnings.filterwarnings("ignore", category=UserWarning, module="librosa")
 
 
+def should_skip_resample(target_path: Path) -> bool:
+    """Check if the target file already exists and should be skipped."""
+    return target_path.exists()
+
 class BirdSetRewriteDataset(Dataset):
     """Dataset wrapper for resampling BirdSet files"""
     
@@ -102,8 +106,8 @@ class BirdSetRewriteDataset(Dataset):
             # Create parent directories if they don't exist
             target_path.parent.mkdir(parents=True, exist_ok=True)
             
-            # Check if file already exists
-            if target_path.exists():
+            # Use the new function to check if file should be skipped
+            if should_skip_resample(target_path):
                 return {
                     "original_path": str(source_path),
                     "target_path": str(target_path),
