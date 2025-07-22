@@ -61,7 +61,7 @@ class Wabad(Dataset):
     >>> print(dataset.info.name)
     wabad
     >>> print(f"Number of events: {len(dataset)}")
-    Number of events: 73441
+    Number of events: 72410
     >>>
     >>> # Use validation split for evaluation
     >>> val_dataset = Wabad(
@@ -70,14 +70,15 @@ class Wabad(Dataset):
     ...     sample_rate=16000,
     ...     seed=42
     ... )
-    >>> sample = val_dataset[0]
-    >>> print(f"Target species: {sample['target_species']}")
-    >>> print(f"Audio shape: {sample['audio'].shape}")
-    >>> print(f"Sample rate: 16000 Hz")
+    >>> print(f"Validation dataset length: {len(val_dataset)}")
+    Validation dataset length: 19391
+    >>> print(f"Using 16kHz sample rate: {val_dataset.sample_rate}")
+    Using 16kHz sample rate: 16000
     >>>
     >>> # Use site-based splits for geographic generalization
     >>> site_val = Wabad(split="validation_sites", seed=42)
     >>> print(f"Site-based validation events: {len(site_val)}")
+    Site-based validation events: 20131
     """
 
     info = DatasetInfo(
