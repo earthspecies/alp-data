@@ -194,3 +194,52 @@ def test_output_take_and_give(dataset_with_output_mapping: Dataset) -> None:
     # Verify the mapping and values
     assert sample["dataset_name"] == original_row["source_dataset"]
     assert sample["answer"] == original_row["label"]
+
+
+def test_max_duration_parameter() -> None:
+    """Test if max_duration parameter works correctly."""
+    # Test with custom max_duration
+    dataset = Beans(split="validation", max_duration=5.0)
+    assert dataset.max_duration == 5.0
+
+    # Test default max_duration
+    dataset_default = Beans(split="validation")
+    assert dataset_default.max_duration == 10.0
+
+
+def test_max_duration_audio_limiting() -> None:
+    """Test if audio is actually limited by max_duration."""
+    # Use a short max_duration to test limiting
+    max_duration = 2.0
+    dataset = Beans(split="validation", max_duration=max_duration, sample_rate=16000)
+
+    # Get a sample and check audio duration
+    sample = dataset[0]
+    audio = sample["audio"]
+
+    # Calculate actual duration (assuming 16kHz sample rate)
+    actual_duration = len(audio) / 16000
+
+    # Audio should not exceed max_duration (with small tolerance for rounding)
+    assert actual_duration <= max_duration + 0.1, (
+        f"Audio duration {actual_duration:.3f}s exceeds max_duration {max_duration}s"
+    )
+
+
+def test_max_duration_from_config() -> None:
+    """Test if max_duration works correctly when loaded from config."""
+    dataset_config = DatasetConfig(
+        dataset_name="beans",
+        split="validation",
+        max_duration=3.0,
+        sample_rate=16000,
+    )
+
+    dataset, _ = Beans.from_config(dataset_config)
+    assert dataset.max_duration == 3.0
+
+    # Test that audio respects the duration limit
+    sample = dataset[0]
+    audio = sample["audio"]
+    actual_duration = len(audio) / 16000
+    assert actual_duration <= 3.1  # Small tolerance for rounding

@@ -33,8 +33,10 @@ class Beans(Dataset):
     Examples
     -------
     >>> from esp_data.datasets import Beans
+    >>> # Efficient loading with time limiting
     >>> dataset = Beans(
     ...     split="validation",
+    ...     max_duration=8.0,
     ...     output_take_and_give={"species_scientific": "species"},
     ...     sample_rate=16000,
     ...     data_root="gs://esp-ml-datasets/beans/v0.1.0/raw/"
@@ -110,6 +112,7 @@ class Beans(Dataset):
         output_take_and_give: dict[str, str] = None,
         sample_rate: Optional[int] = None,
         data_root: Optional[str | AnyPathT] = None,
+        max_duration: float = 10.0,
     ) -> None:
         """Initialize the BEANS dataset.
 
@@ -126,6 +129,9 @@ class Beans(Dataset):
             The root directory for the dataset. This is optionally appended to the
             path item of a sample in the dataset.
             If None, the default is the parent directory of the split path.
+        max_duration : float, optional
+            Maximum duration in seconds to load from each audio file.
+            Always loads from the start of the file. Defaults to 10.0 seconds.
         """
         super().__init__(output_take_and_give)  # Initialize the parent Dataset class
         self.split = split
@@ -133,6 +139,7 @@ class Beans(Dataset):
         self._load()  # Load the dataset (fills self._data)
         self.sample_rate = sample_rate
         self.data_root = data_root
+        self.max_duration = max_duration
         if self.data_root is None:
             # we assume that parent dir of the split path is the data root
             self.data_root = anypath(self.info.split_paths[self.split]).parent
@@ -205,6 +212,7 @@ class Beans(Dataset):
             output_take_and_give=cfg.get("output_take_and_give", None),
             data_root=cfg.get("data_root"),
             sample_rate=cfg["sample_rate"],
+            max_duration=cfg.get("max_duration", 10.0),
         )
 
         if dataset_config.transformations:
@@ -257,8 +265,7 @@ class Beans(Dataset):
         else:
             audio_path = anypath(row["local_path"])
 
-        # Read the audio clip
-        audio, sr = read_audio(audio_path)
+        audio, sr = read_audio(audio_path, start_time=0.0, end_time=self.max_duration)
         audio = audio.astype(np.float32)
         # Stereo to mono if necessary.
         audio = audio_stereo_to_mono(audio, mono_method="average")

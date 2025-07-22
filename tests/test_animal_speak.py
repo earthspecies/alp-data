@@ -257,3 +257,128 @@ def test_output_take_and_give(dataset_with_output_mapping: Dataset) -> None:
     # Verify the mapping and values
     assert sample["species"] == original_row["canonical_name"]
     assert sample["location"] == original_row["country"]
+
+
+def test_max_duration_parameter() -> None:
+    """Test if max_duration parameter works correctly."""
+    # Test with custom max_duration
+    dataset = AnimalSpeak(split="validation", max_duration=5.0, data_root="gs://")
+    assert dataset.max_duration == 5.0
+
+    # Test default max_duration
+    dataset_default = AnimalSpeak(split="validation", data_root="gs://")
+    assert dataset_default.max_duration == 10.0
+
+
+def test_random_window_parameter() -> None:
+    """Test if random_window parameter works correctly."""
+    # Test with random_window=True (default)
+    dataset_random = AnimalSpeak(split="validation", random_window=True, data_root="gs://")
+    assert dataset_random.random_window is True
+    assert dataset_random._rng is not None  # Should have RNG when random_window=True
+
+    # Test with random_window=False
+    dataset_fixed = AnimalSpeak(split="validation", random_window=False, data_root="gs://")
+    assert dataset_fixed.random_window is False
+    assert dataset_fixed._rng is None  # Should not have RNG when random_window=False
+
+
+def test_seed_parameter() -> None:
+    """Test if seed parameter works correctly for reproducibility."""
+    # Test with specific seed
+    dataset1 = AnimalSpeak(split="validation", seed=42, data_root="gs://")
+    dataset2 = AnimalSpeak(split="validation", seed=42, data_root="gs://")
+
+    assert dataset1.seed == 42
+    assert dataset2.seed == 42
+
+    # Both should have RNG with same state initially
+    assert dataset1._rng is not None
+    assert dataset2._rng is not None
+
+
+def test_max_duration_audio_limiting() -> None:
+    """Test if audio is actually limited by max_duration."""
+    # Use a short max_duration to test limiting
+    max_duration = 2.0
+    dataset = AnimalSpeak(
+        split="validation",
+        max_duration=max_duration,
+        sample_rate=16000,
+        random_window=False,  # Use fixed window for consistent testing
+        data_root="gs://"
+    )
+
+    # Get a sample and check audio duration
+    sample = dataset[0]
+    audio = sample["audio"]
+
+    # Calculate actual duration (assuming 16kHz sample rate)
+    actual_duration = len(audio) / 16000
+
+    # Audio should not exceed max_duration (with small tolerance for rounding)
+    assert actual_duration <= max_duration + 0.1, (
+        f"Audio duration {actual_duration:.3f}s exceeds max_duration {max_duration}s"
+    )
+
+
+def test_random_window_reproducibility() -> None:
+    """Test if random windows are reproducible with same seed."""
+    max_duration = 3.0
+    seed = 123
+
+    # Create two datasets with same seed
+    dataset1 = AnimalSpeak(
+        split="validation",
+        max_duration=max_duration,
+        random_window=True,
+        seed=seed,
+        sample_rate=16000,
+        data_root="gs://"
+    )
+
+    dataset2 = AnimalSpeak(
+        split="validation",
+        max_duration=max_duration,
+        random_window=True,
+        seed=seed,
+        sample_rate=16000,
+        data_root="gs://"
+    )
+
+    # Get same sample from both datasets
+    sample1 = dataset1[0]
+    sample2 = dataset2[0]
+
+    # Audio should be identical (same random window selected)
+    import numpy as np
+    assert np.array_equal(sample1["audio"], sample2["audio"]), (
+        "Audio samples should be identical with same seed"
+    )
+
+
+def test_from_config_with_new_parameters() -> None:
+    """Test if new parameters work correctly when loaded from config."""
+    dataset_config = DatasetConfig(
+        dataset_name="animalspeak",
+        split="validation",
+        max_duration=4.0,
+        random_window=False,
+        seed=999,
+        sample_rate=16000,
+        data_root="gs://",
+    )
+
+    dataset, _ = AnimalSpeak.from_config(dataset_config)
+
+    # Check all parameters are set correctly
+    assert dataset.max_duration == 4.0
+    assert dataset.random_window is False
+    assert dataset.seed == 999
+    assert dataset._rng is None  # Should be None when random_window=False
+
+    # Test that audio respects the duration limit
+    sample = dataset[0]
+    audio = sample["audio"]
+    actual_duration = len(audio) / 16000
+    assert actual_duration <= 4.1  # Small tolerance for rounding

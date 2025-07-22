@@ -6,9 +6,10 @@ from typing import Any, Dict, Iterator, Optional
 import librosa
 import numpy as np
 import pandas as pd
+from numpy.random import default_rng
 
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
-from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
+from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, get_audio_info, read_audio
 
 
 @register_dataset
@@ -30,12 +31,22 @@ class AnimalSpeak(Dataset):
     Examples
     -------
     >>> from esp_data.datasets import AnimalSpeak
+    >>> # Random window with efficient loading
     >>> dataset = AnimalSpeak(
     ...     split="validation",
+    ...     max_duration=5.0,
+    ...     random_window=True,
+    ...     seed=42,
     ...     output_take_and_give={"species_common": "comm"}
     ... )
     >>> print(dataset.info.name)
     animalspeak
+    >>> # Fixed window from start
+    >>> dataset_fixed = AnimalSpeak(
+    ...     split="train",
+    ...     max_duration=10.0,
+    ...     random_window=False
+    ... )
     """
 
     info = DatasetInfo(
@@ -57,6 +68,9 @@ class AnimalSpeak(Dataset):
         output_take_and_give: dict[str, str] = None,
         sample_rate: Optional[int] = None,
         data_root: Optional[str | AnyPathT] = None,
+        max_duration: float = 10.0,
+        random_window: bool = True,
+        seed: Optional[int] = None,
     ) -> None:
         """Initialize the AnimalSpeak dataset.
 
@@ -73,6 +87,15 @@ class AnimalSpeak(Dataset):
             The root directory for the dataset. This is optionally appended to the
             path item of a sample in the dataset.
             If None, the default is the parent directory of the split path.
+        max_duration : float, optional
+            Maximum duration in seconds to load from each audio file.
+            Defaults to 10.0 seconds.
+        random_window : bool, optional
+            If True, randomly select start time within the audio file.
+            If False, always load from the beginning. Defaults to True.
+        seed : int, optional
+            Random seed for reproducible random window selection.
+            Only used when random_window=True. Defaults to None.
         """
         super().__init__(output_take_and_give)  # Initialize the parent Dataset class
         self.split = split
@@ -80,6 +103,10 @@ class AnimalSpeak(Dataset):
         self._load()  # Load the dataset (fills self._data)
         self.sample_rate = sample_rate
         self.data_root = data_root
+        self.max_duration = max_duration
+        self.random_window = random_window
+        self.seed = seed
+        self._rng = default_rng(seed) if random_window else None
         if self.data_root is None:
             # we assume that parent dir of the split path is the data root
             self.data_root = anypath(self.info.split_paths[self.split]).parent
@@ -148,6 +175,9 @@ class AnimalSpeak(Dataset):
             output_take_and_give=cfg.get("output_take_and_give", None),
             data_root=cfg.get("data_root"),
             sample_rate=cfg["sample_rate"],
+            max_duration=cfg.get("max_duration", 10.0),
+            random_window=cfg.get("random_window", True),
+            seed=cfg.get("seed", None),
         )
 
         if dataset_config.transformations:
@@ -201,7 +231,26 @@ class AnimalSpeak(Dataset):
         else:
             audio_path = anypath(row["local_path"])
 
-        audio, sr = read_audio(audio_path)
+        # Read audio with time limiting for efficiency
+        if self.random_window:
+            # Get audio info to determine available duration
+            audio_info = get_audio_info(audio_path)
+            total_duration = audio_info["duration"]
+
+            # Calculate random start time if file is longer than max_duration
+            if total_duration > self.max_duration:
+                max_start_time = total_duration - self.max_duration
+                start_time = self._rng.uniform(0, max_start_time)
+            else:
+                start_time = 0.0
+
+            end_time = min(start_time + self.max_duration, total_duration)
+        else:
+            # Always load from beginning
+            start_time = 0.0
+            end_time = self.max_duration
+
+        audio, sr = read_audio(audio_path, start_time=start_time, end_time=end_time)
         audio = audio.astype(np.float32)
         audio = audio_stereo_to_mono(audio, mono_method="average")
 
