@@ -3,7 +3,7 @@ split: train
 output_take_and_give:
   bad_text: pure_text
   label: label
-data_root: gs://esp-ml-datasets/insectset_459/v0.1.0/raw/
+data_root: null
 transformations:
   - type: deduplicate
     subset: null
@@ -11,7 +11,6 @@ transformations:
   - type: rename_transform
     feature_map:
       text: bad_text
-      label: label
 
   - type: label_from_feature
     feature: label

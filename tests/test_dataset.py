@@ -175,31 +175,16 @@ class MyCustomDataset(Dataset):
 
 class RenameConfig(BaseModel):
     type: Literal["rename_transform"]
-    input_features: list[str]
-    output_features: list[str]
     feature_map: dict[str, str] | None = None
 
 
 class RenameTransform:
     def __init__(
         self,
-        input_features: list[str],
-        output_features: list[str],
         feature_map: dict[str, str] | None = None,
     ) -> None:
         """Initialize the RenameTransform."""
-
-        if feature_map is None:
-            # Create a map from input features to output features
-            self.input_features = input_features
-            self.output_features = output_features
-            if len(self.input_features) != len(self.output_features):
-                raise ValueError("input_features and output_feature must have the same length")
-
-            self.feature_map = dict(zip(self.input_features, self.output_features))
-        else:
-            # Use the provided feature map
-            self.feature_map = feature_map
+        self.feature_map = feature_map
 
     @classmethod
     def from_config(cls, cfg: RenameConfig) -> "RenameTransform":
