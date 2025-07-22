@@ -7,6 +7,7 @@ import librosa
 
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from esp_data.io import AnyPathT
+from esp_data.transforms import RegisteredTransformConfigs
 from esp_data.webdataset_utils import audio_decoder, load_webdataset
 
 
@@ -266,6 +267,25 @@ class NatureLMAudio(Dataset):
                 item = row
 
             yield item
+
+    def apply_transformations(self, transformations: list[RegisteredTransformConfigs]) -> None:
+        """Apply transformations to the dataset.
+
+        Parameters
+        ----------
+        transformations : list[RegisteredTransformConfigs]
+            A list of transformation configs to apply to each sample.
+            This method is not implemented for NatureLMAudio dataset.
+
+        Raises
+        -------
+        TypeError
+            Always raises TypeError because transformations are not supported
+            for NatureLMAudio (tar) dataset.
+        """
+        raise NotImplementedError(
+            "Transformations are not supported for NatureLMAudio (tar) dataset."
+        )
 
     def __str__(self) -> str:
         """Return a string representation of the dataset.
