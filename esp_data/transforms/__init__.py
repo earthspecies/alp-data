@@ -11,10 +11,6 @@ from .multilabel_from_features import (
 from .subsample import Subsample, SubsampleConfig
 from .uniform_sample import UniformSample, UniformSampleConfig
 
-# It's important to export RegisteredTransformConfigs last because it's a dynamic type
-# that's updated as we import transforms.
-from .registry import RegisteredTransformConfigs  # isort:skip
-
 __all__ = [
     "Filter",
     "FilterConfig",
@@ -30,5 +26,4 @@ __all__ = [
     "DeduplicateConfig",
     "register_transform",
     "transform_from_config",
-    "RegisteredTransformConfigs",
 ]
