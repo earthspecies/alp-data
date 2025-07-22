@@ -232,11 +232,11 @@ class AnimalSpeak(Dataset):
             audio_path = anypath(row["local_path"])
 
         # Read audio with time limiting for efficiency
-        if self.random_window:
-            # Get audio info to determine available duration
-            audio_info = get_audio_info(audio_path)
-            total_duration = audio_info["duration"]
+        # Get audio info to determine available duration for both cases
+        audio_info = get_audio_info(audio_path)
+        total_duration = audio_info["duration"]
 
+        if self.random_window:
             # Calculate random start time if file is longer than max_duration
             if total_duration > self.max_duration:
                 max_start_time = total_duration - self.max_duration
@@ -246,9 +246,9 @@ class AnimalSpeak(Dataset):
 
             end_time = min(start_time + self.max_duration, total_duration)
         else:
-            # Always load from beginning
+            # Always load from beginning, respecting file bounds
             start_time = 0.0
-            end_time = self.max_duration
+            end_time = min(self.max_duration, total_duration)
 
         audio, sr = read_audio(audio_path, start_time=start_time, end_time=end_time)
         audio = audio.astype(np.float32)

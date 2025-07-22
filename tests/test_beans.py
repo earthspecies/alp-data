@@ -2,8 +2,8 @@
 
 import pytest
 
-from esp_data.datasets import Beans
 from esp_data import Dataset, DatasetConfig
+from esp_data.datasets import Beans
 from esp_data.io import anypath
 
 
@@ -243,3 +243,37 @@ def test_max_duration_from_config() -> None:
     audio = sample["audio"]
     actual_duration = len(audio) / 16000
     assert actual_duration <= 3.1  # Small tolerance for rounding
+
+
+def test_short_audio_file_handling() -> None:
+    """Test handling of audio files shorter than max_duration."""
+    # Use a large max_duration to test short file handling
+    large_max_duration = 300.0  # 5 minutes - should be longer than most files
+
+    dataset = Beans(
+        split="validation",
+        max_duration=large_max_duration,
+        sample_rate=16000,
+    )
+
+    # Get a sample - should not crash even with large max_duration
+    sample = dataset[0]
+    audio = sample["audio"]
+    actual_duration = len(audio) / 16000
+
+    # Audio should be the full file duration, not the max_duration
+    # (since file is likely shorter than 300 seconds)
+    assert actual_duration < large_max_duration, (
+        f"Audio duration {actual_duration:.3f}s should be less than "
+        f"max_duration {large_max_duration}s"
+    )
+
+    # Test that we can successfully load multiple samples without issues
+    sample2 = dataset[1]
+    audio2 = sample2["audio"]
+    actual_duration2 = len(audio2) / 16000
+
+    assert actual_duration2 < large_max_duration, (
+        f"Second audio duration {actual_duration2:.3f}s should be less than "
+        f"max_duration {large_max_duration}s"
+    )

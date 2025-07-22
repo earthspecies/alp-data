@@ -2,8 +2,8 @@
 
 import pytest
 
-from esp_data.datasets import AnimalSpeak
 from esp_data import Dataset, DatasetConfig
+from esp_data.datasets import AnimalSpeak
 from esp_data.io import anypath
 
 
@@ -214,7 +214,9 @@ def test_transformations(dataset_with_transforms: Dataset) -> None:
     assert "Watkins" not in sources
 
 
-def test_transformations_from_config(dataset_with_transforms_from_config: tuple[Dataset, dict]) -> None:
+def test_transformations_from_config(
+    dataset_with_transforms_from_config: tuple[Dataset, dict]
+) -> None:
     """Test if transformations from config are applied correctly.
 
     This test verifies that:
@@ -382,3 +384,50 @@ def test_from_config_with_new_parameters() -> None:
     audio = sample["audio"]
     actual_duration = len(audio) / 16000
     assert actual_duration <= 4.1  # Small tolerance for rounding
+
+
+def test_short_audio_file_handling() -> None:
+    """Test handling of audio files shorter than max_duration."""
+    # Use a large max_duration to test short file handling
+    large_max_duration = 300.0  # 5 minutes - should be longer than most files
+
+    # Test with fixed window (the problematic case)
+    dataset_fixed = AnimalSpeak(
+        split="validation",
+        max_duration=large_max_duration,
+        random_window=False,
+        sample_rate=16000,
+        data_root="gs://"
+    )
+
+    # Get a sample - should not crash even with large max_duration
+    sample = dataset_fixed[0]
+    audio = sample["audio"]
+    actual_duration = len(audio) / 16000
+
+    # Audio should be the full file duration, not the max_duration
+    # (since file is likely shorter than 300 seconds)
+    assert actual_duration < large_max_duration, (
+        f"Audio duration {actual_duration:.3f}s should be less than "
+        f"max_duration {large_max_duration}s"
+    )
+
+    # Test with random window too
+    dataset_random = AnimalSpeak(
+        split="validation",
+        max_duration=large_max_duration,
+        random_window=True,
+        seed=42,
+        sample_rate=16000,
+        data_root="gs://"
+    )
+
+    sample_random = dataset_random[0]
+    audio_random = sample_random["audio"]
+    actual_duration_random = len(audio_random) / 16000
+
+    # Should also handle short files correctly
+    assert actual_duration_random < large_max_duration, (
+        f"Random window audio duration {actual_duration_random:.3f}s should be less than "
+        f"max_duration {large_max_duration}s"
+    )

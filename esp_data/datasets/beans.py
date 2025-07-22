@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
-from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
+from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, get_audio_info, read_audio
 
 
 @register_dataset
@@ -265,7 +265,12 @@ class Beans(Dataset):
         else:
             audio_path = anypath(row["local_path"])
 
-        audio, sr = read_audio(audio_path, start_time=0.0, end_time=self.max_duration)
+        # Get audio info to respect file bounds
+        audio_info = get_audio_info(audio_path)
+        total_duration = audio_info["duration"]
+        end_time = min(self.max_duration, total_duration)
+
+        audio, sr = read_audio(audio_path, start_time=0.0, end_time=end_time)
         audio = audio.astype(np.float32)
         # Stereo to mono if necessary.
         audio = audio_stereo_to_mono(audio, mono_method="average")
