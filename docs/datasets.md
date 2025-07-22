@@ -232,6 +232,13 @@ The list of available dataset will grow over time. Please refer to the next sect
             - "!^.*$"  # Exclude everything
         show_source: true
 
+::: esp_data.datasets.Wabad
+    handler: python
+    options:
+        filters:
+            - "!^.*$"  # Exclude everything
+        show_source: true
+
 
 ## Using your own dataset
 

@@ -24,6 +24,7 @@ from .datasets import (
     PipitId,
     Voxaboxen,
     VoxaboxenEvents,
+    Wabad,
     ZebraFinchJulieElie,
 )
 
@@ -52,4 +53,5 @@ __all__ = [
     "MacaquesCooCalls",
     "Voxaboxen",
     "VoxaboxenEvents",
+    "Wabad",
 ]
