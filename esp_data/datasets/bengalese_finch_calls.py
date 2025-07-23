@@ -6,6 +6,11 @@ The dataset is organized by individual birds, with each bird having its own
 split containing its vocal repertoire. Note that the repertoires
 are per-bird, so labels should not be compared across splits.
 
+The CSVs have the following columns:
+* ``local_path``     – relative path to the extracted call audio snippet
+* ``call_type``      – call-type ID (string)
+* ``individual_id``  – identifier of the individual bird
+
 **Available Split Types:**
 - ``{BirdX}_train``: Full training set (~70% of data)
 - ``{BirdX}_train_small``: Limited training set (max 80 samples per call type)
@@ -15,13 +20,13 @@ are per-bird, so labels should not be compared across splits.
 Examples
 --------
 >>> from esp_data.datasets import BengaleseFinchCalls
->>> # Individual bird (legacy usage)
+>>> # Individual bird
 >>> ds = BengaleseFinchCalls(split="Bird0", sample_rate=16000)
 >>> first = ds[0]
 >>> first.keys()
 dict_keys(['local_path', 'call_type', 'individual_id', 'audio'])
 
->>> # Default: Bird2 training split (highest diversity - recommended)
+>>> # Bird2 training split
 >>> train_ds = BengaleseFinchCalls(split="Bird2_train", sample_rate=16000)
 >>> print(f"Training samples: {len(train_ds)}")
 Training samples: 18303
