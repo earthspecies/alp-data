@@ -1,51 +1,9 @@
 """Voxaboxen dataset tests."""
 
 import pytest
-import pandas as pd
 import numpy as np
-from pydantic import BaseModel
-from typing import Literal
 
 from esp_data.io import anypath
-from esp_data.transforms import register_transform, transform_from_config
-
-
-class RenameConfig(BaseModel):
-    type: Literal["rename_transform"]
-    input_features: list[str]
-    output_features: list[str]
-    feature_map: dict[str, str] | None = None
-
-
-class RenameTransform:
-    def __init__(self, input_features: list[str], output_features: list[str], feature_map: dict[str, str] | None = None) -> None:
-        """Initialize the RenameTransform."""
-
-        if feature_map is None:
-            # Create a map from input features to output features
-            self.input_features = input_features
-            self.output_features = output_features
-            if len(self.input_features) != len(self.output_features):
-                raise ValueError("input_features and output_feature must have the same length")
-
-            self.feature_map = dict(zip(self.input_features, self.output_features))
-        else:
-            # Use the provided feature map
-            self.feature_map = feature_map
-
-    @classmethod
-    def from_config(cls, cfg: RenameConfig) -> "RenameTransform":
-        return cls(**cfg.model_dump(exclude=("type",)))
-
-    def __call__(self, data: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
-        # Rename
-        transformed_data = data.rename(columns=self.feature_map)
-        return transformed_data, self.feature_map
-
-
-register_transform(RenameConfig, RenameTransform)
-
-
 from esp_data import Dataset, DatasetConfig, Voxaboxen, VoxaboxenEvents
 
 
@@ -72,28 +30,6 @@ def voxaboxen_events_dataset() -> VoxaboxenEvents:
         An instance of the VoxaboxenEvents dataset.
     """
     ds = VoxaboxenEvents(split="hawaii_val", sample_rate=16000)
-    return ds
-
-
-@pytest.fixture
-def voxaboxen_with_transforms() -> Voxaboxen:
-    """Fixture providing an AnimalSpeak dataset instance with transformations
-    applied.
-
-    Returns
-    -------
-    Voxaboxen
-        An instance of the AnimalSpeak dataset with transformations applied.
-    """
-    transform_config = RenameConfig(
-        type="rename_transform",
-        input_features=["fn"],
-        output_features=["file_name"],
-    )
-    transform = RenameTransform.from_config(transform_config)
-
-    ds = Voxaboxen(split="hawaii_val")
-    ds._data, _ = transform(ds._data)
     return ds
 
 
@@ -194,19 +130,6 @@ def test_invalid_split() -> None:
     """Test if _loading invalid split raises error."""
     with pytest.raises(LookupError):
         Voxaboxen(split="invalid_split")
-
-
-def test_dataset_with_transforms(voxaboxen_with_transforms: Dataset) -> None:
-    """Test if dataset with transformations works correctly."""
-    # Ensure the transformation was applied
-    assert "file_name" in voxaboxen_with_transforms._data.columns
-    assert "fn" not in voxaboxen_with_transforms._data.columns
-
-    # Check if the transformation works
-    sample = voxaboxen_with_transforms[0]
-    assert isinstance(sample, dict)
-    assert "file_name" in sample
-    assert "audio" in sample
 
 
 ## VoxaboxenEvents Tests
