@@ -10,6 +10,7 @@ from functools import partial
 from pathlib import Path
 from typing import Any, Callable, Iterable, Literal
 
+import numpy as np
 import pandas as pd
 import webdataset as wds
 from tqdm import tqdm
@@ -250,8 +251,8 @@ def _chunk_dataset_indices(
     if shuffle:
         # Generate shuffled indices
         indices = list(range(dataset_len))
-        rng = mp.Random(seed)
-        rng.shuffle(indices)
+        np.random.seed(seed)
+        np.random.shuffle(indices)
     else:
         # Use sequential indices
         indices = list(range(dataset_len))
