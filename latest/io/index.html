@@ -260,6 +260,25 @@
   
   
     <li class="md-tabs__item">
+      <a href="../concatenate/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Concatenate datasets
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
       <a href="../reference/" class="md-tabs__link">
         
   
@@ -569,6 +588,15 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#get-info-about-an-audio-file-before-reading" class="md-nav__link">
+    <span class="md-ellipsis">
+      Get info about an audio file before reading
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -590,6 +618,28 @@
   
   <span class="md-ellipsis">
     Transforms
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concatenate/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Concatenate datasets
     
   </span>
   
@@ -647,11 +697,12 @@
 <ol>
 <li>Conduct file operations like <a href="#useful-pathlike-methods"> "exists", "unlink" (delete), "open" (read/write), and "glob" (list files)</a></li>
 <li><a href="#copy-from-and-to-a-cloud-location">Download and upload files (and folders)</a> to and from cloud storage locations</li>
-<li><a href="#folder-operations">List the contents</a> of buckets</li>
+<li><a href="#filesystem-folder-operations">List the contents</a> of buckets</li>
 <li><a href="#delete-a-file-with-unlink">Delete files</a></li>
 <li><a href="#move-files-from-one-cloud-location-to-another-cloud-location">Move files</a> from one cloud location to another cloud location</li>
 <li><a href="#copy-from-one-cloud-location-to-another-cloud-location">Copy files</a> from one cloud location to another cloud location</li>
 <li><a href="#read-audio-from-a-remote-file">Read audio</a> from a remote file directly into memory as a numpy array. This is <strong>NOT</strong> the same as <em>streaming</em>, it loads the whole file into memory, so be careful with large files.</li>
+<li><a href="#get-info-about-an-audio-file-before-reading">Get audio info</a> about an audio file before reading it, such as sample rate, duration, number of channels, etc.</li>
 </ol>
 <p>There are two interfaces available:</p>
 <ul>
@@ -768,59 +819,50 @@
 </span><span id="__span-14-3"><a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a><span class="n">folder</span><span class="o">.</span><span class="n">is_file</span><span class="p">()</span>
 </span><span id="__span-14-4"><a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a><span class="c1"># False</span>
 </span></code></pre></div>
-<p>Recursively list all files with the pattern "*txt" in the name</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="nb">list</span><span class="p">(</span><span class="n">folder</span><span class="o">.</span><span class="n">rglob</span><span class="p">(</span><span class="s2">&quot;*txt&quot;</span><span class="p">))</span>
-</span></code></pre></div>
-<div class="language-text highlight"><pre><span></span><code>    S3Path(&#39;s3://esp-ci-cd-tests/esp-data-tests/find_files_tests/file_find_cloud.txt&#39;),
-    S3Path(&#39;s3://esp-ci-cd-tests/esp-data-tests/temprandomfolder/file1.txt&#39;),
-    S3Path(&#39;s3://esp-ci-cd-tests/esp-data-tests/temprandomfolder/file2.txt&#39;),
-    S3Path(&#39;s3://esp-ci-cd-tests/esp-data-tests/temprandomfolder/random.txt&#39;),
-    ...
-</code></pre></div>
 <p>Download all the contents from the cloud "folder" to a local folder called "tempfolder"
 ⚠️ This will create the folder if it does not exist. If it exists, it will overwrite the contents of the folder.</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-16-1"><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="n">folder</span><span class="o">.</span><span class="n">download_to</span><span class="p">(</span><span class="s2">&quot;tempfolder&quot;</span><span class="p">)</span>
-</span><span id="__span-16-2"><a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a><span class="c1"># Output: PosixPath(&#39;tempfolder&#39;)</span>
-</span><span id="__span-16-3"><a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a><span class="n">anypath</span><span class="p">(</span><span class="s2">&quot;tempfolder&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span>
-</span><span id="__span-16-4"><a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a><span class="c1"># Output: True</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="n">folder</span><span class="o">.</span><span class="n">download_to</span><span class="p">(</span><span class="s2">&quot;tempfolder&quot;</span><span class="p">)</span>
+</span><span id="__span-15-2"><a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a><span class="c1"># Output: PosixPath(&#39;tempfolder&#39;)</span>
+</span><span id="__span-15-3"><a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a><span class="n">anypath</span><span class="p">(</span><span class="s2">&quot;tempfolder&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span>
+</span><span id="__span-15-4"><a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a><span class="c1"># Output: True</span>
 </span></code></pre></div>
 <p><a href="#esp_dataio-module">Back to Top</a></p>
 <h2 id="filesystem-approach-with-esp_dataiofilesystem">Filesystem approach with <code>esp_data.io.filesystem</code></h2>
 <p>Let's now dive into the filesystem approach</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-17-1"><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">esp_data.io</span><span class="w"> </span><span class="kn">import</span> <span class="n">filesystem</span><span class="p">,</span> <span class="n">filesystem_from_path</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-16-1"><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">esp_data.io</span><span class="w"> </span><span class="kn">import</span> <span class="n">filesystem</span><span class="p">,</span> <span class="n">filesystem_from_path</span>
 </span></code></pre></div>
 <p>You can instantiate a filesystem for a local, google cloud or r2 bucket with <code>filesystem</code></p>
 <p>Lets start with a GCS filesystem by passing in "gcs" (or "gs") to <code>filesystem()</code>.
 The same API works for local filesystem as <code>filesystem("local")</code></p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-18-1"><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="n">fs</span> <span class="o">=</span> <span class="n">filesystem</span><span class="p">(</span><span class="s2">&quot;gcs&quot;</span><span class="p">)</span> <span class="c1"># &quot;gs&quot; also works as an alias</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-17-1"><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="n">fs</span> <span class="o">=</span> <span class="n">filesystem</span><span class="p">(</span><span class="s2">&quot;gcs&quot;</span><span class="p">)</span> <span class="c1"># &quot;gs&quot; also works as an alias</span>
 </span></code></pre></div>
 <div class="admonition tip">
 <p class="admonition-title">Tip</p>
 <p>Once a filesystem object has been created, you dont need to type the "gs://" prefix.</p>
 </div>
 <p>You can also create the appropriate filesystem object from a path using <code>filesystem_from_path</code>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-19-1"><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="n">fs</span> <span class="o">=</span> <span class="n">filesystem_from_path</span><span class="p">(</span><span class="s2">&quot;gs://esp-ci-cd-tests&quot;</span><span class="p">)</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-18-1"><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="n">fs</span> <span class="o">=</span> <span class="n">filesystem_from_path</span><span class="p">(</span><span class="s2">&quot;gs://esp-ci-cd-tests&quot;</span><span class="p">)</span>
 </span></code></pre></div></p>
 <p>File operations work like so:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-20-1"><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="c1"># check for existence</span>
-</span><span id="__span-20-2"><a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a><span class="n">fs</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="s2">&quot;esp-ci-cd-tests/delme1&quot;</span><span class="p">)</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-19-1"><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="c1"># check for existence</span>
+</span><span id="__span-19-2"><a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a><span class="n">fs</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="s2">&quot;esp-ci-cd-tests/delme1&quot;</span><span class="p">)</span>
 </span></code></pre></div>
 <p>Read and write to files</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-21-1"><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="k">with</span> <span class="n">fs</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="s2">&quot;esp-ci-cd-tests/delme1&quot;</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
-</span><span id="__span-21-2"><a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a>    <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-20-1"><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="k">with</span> <span class="n">fs</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="s2">&quot;esp-ci-cd-tests/delme1&quot;</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+</span><span id="__span-20-2"><a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a>    <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
 </span></code></pre></div>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-22-1"><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a><span class="k">with</span> <span class="n">fs</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="s2">&quot;esp-ci-cd-tests/docstest&quot;</span><span class="p">,</span><span class="s2">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
-</span><span id="__span-22-2"><a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a>    <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;hello&quot;</span><span class="p">)</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-21-1"><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="k">with</span> <span class="n">fs</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="s2">&quot;esp-ci-cd-tests/docstest&quot;</span><span class="p">,</span><span class="s2">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+</span><span id="__span-21-2"><a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a>    <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;hello&quot;</span><span class="p">)</span>
 </span></code></pre></div>
 <p>Delete files</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-23-1"><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a><span class="n">fs</span><span class="o">.</span><span class="n">rm</span><span class="p">(</span><span class="s2">&quot;esp-ci-cd-tests/docstest&quot;</span><span class="p">)</span>
-</span><span id="__span-23-2"><a id="__codelineno-23-2" name="__codelineno-23-2" href="#__codelineno-23-2"></a><span class="c1"># Check if it was deleted</span>
-</span><span id="__span-23-3"><a id="__codelineno-23-3" name="__codelineno-23-3" href="#__codelineno-23-3"></a><span class="n">fs</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="s2">&quot;esp-ci-cd-tests/docstest&quot;</span><span class="p">)</span>
-</span><span id="__span-23-4"><a id="__codelineno-23-4" name="__codelineno-23-4" href="#__codelineno-23-4"></a><span class="c1"># Output: False</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-22-1"><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a><span class="n">fs</span><span class="o">.</span><span class="n">rm</span><span class="p">(</span><span class="s2">&quot;esp-ci-cd-tests/docstest&quot;</span><span class="p">)</span>
+</span><span id="__span-22-2"><a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a><span class="c1"># Check if it was deleted</span>
+</span><span id="__span-22-3"><a id="__codelineno-22-3" name="__codelineno-22-3" href="#__codelineno-22-3"></a><span class="n">fs</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="s2">&quot;esp-ci-cd-tests/docstest&quot;</span><span class="p">)</span>
+</span><span id="__span-22-4"><a id="__codelineno-22-4" name="__codelineno-22-4" href="#__codelineno-22-4"></a><span class="c1"># Output: False</span>
 </span></code></pre></div>
 <h4 id="filesystem-folder-operations">Filesystem folder operations</h4>
 <p>List contents that match a pattern like '*txt' under a path</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-24-1"><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a><span class="n">fs</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="s2">&quot;esp-ci-cd-tests/**/*txt&quot;</span><span class="p">)</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-23-1"><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a><span class="n">fs</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="s2">&quot;esp-ci-cd-tests/**/*txt&quot;</span><span class="p">)</span>
 </span></code></pre></div>
 <div class="language-text highlight"><pre><span></span><code>    &#39;esp-ci-cd-tests/esp-data-tests/find_files_tests/file_find_cloud.txt&#39;,
     &#39;esp-ci-cd-tests/esp-data-tests/non_empty/temp_file.txt&#39;,
@@ -831,35 +873,42 @@ The same API works for local filesystem as <code>filesystem("local")</code></p>
 <p><a href="#esp_dataio-module">Back to Top</a></p>
 <h4 id="download-and-upload-files-with-filesystem">Download and upload files with <code>filesystem</code></h4>
 <p>Download files from a cloud location to local. 📝 <code>get</code> and <code>put</code> return <code>None</code> if the operation was successful.</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-25-1"><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a><span class="n">fs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;esp-ci-cd-tests/foo.txt&quot;</span><span class="p">,</span> <span class="s2">&quot;foofoo.txt&quot;</span><span class="p">)</span>
-</span><span id="__span-25-2"><a id="__codelineno-25-2" name="__codelineno-25-2" href="#__codelineno-25-2"></a><span class="c1"># Output: [None]</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-24-1"><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a><span class="n">fs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;esp-ci-cd-tests/foo.txt&quot;</span><span class="p">,</span> <span class="s2">&quot;foofoo.txt&quot;</span><span class="p">)</span>
+</span><span id="__span-24-2"><a id="__codelineno-24-2" name="__codelineno-24-2" href="#__codelineno-24-2"></a><span class="c1"># Output: [None]</span>
 </span></code></pre></div>
 <p>Upload files from local to a cloud location.</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-26-1"><a id="__codelineno-26-1" name="__codelineno-26-1" href="#__codelineno-26-1"></a><span class="n">fs</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="s2">&quot;foofoo.txt&quot;</span><span class="p">,</span> <span class="s2">&quot;esp-ci-cd-tests/foo.txt&quot;</span><span class="p">)</span>
-</span><span id="__span-26-2"><a id="__codelineno-26-2" name="__codelineno-26-2" href="#__codelineno-26-2"></a><span class="c1"># Output: [None]</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-25-1"><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a><span class="n">fs</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="s2">&quot;foofoo.txt&quot;</span><span class="p">,</span> <span class="s2">&quot;esp-ci-cd-tests/foo.txt&quot;</span><span class="p">)</span>
+</span><span id="__span-25-2"><a id="__codelineno-25-2" name="__codelineno-25-2" href="#__codelineno-25-2"></a><span class="c1"># Output: [None]</span>
 </span></code></pre></div>
 <h4 id="move-files-from-one-cloud-location-to-another-cloud-location">Move files from one cloud location to another cloud location.</h4>
 <p>📝 In reality this just renames the file in the bucket.</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-27-1"><a id="__codelineno-27-1" name="__codelineno-27-1" href="#__codelineno-27-1"></a><span class="n">fs</span><span class="o">.</span><span class="n">mv</span><span class="p">(</span><span class="s2">&quot;esp-ci-cd-tests/foo.txt&quot;</span><span class="p">,</span> <span class="s2">&quot;esp-ci-cd-tests/foo2.txt&quot;</span><span class="p">)</span>
-</span><span id="__span-27-2"><a id="__codelineno-27-2" name="__codelineno-27-2" href="#__codelineno-27-2"></a><span class="n">fs</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="s2">&quot;esp-ci-cd-tests/foo.txt&quot;</span><span class="p">)</span>
-</span><span id="__span-27-3"><a id="__codelineno-27-3" name="__codelineno-27-3" href="#__codelineno-27-3"></a><span class="c1"># Output: False</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-26-1"><a id="__codelineno-26-1" name="__codelineno-26-1" href="#__codelineno-26-1"></a><span class="n">fs</span><span class="o">.</span><span class="n">mv</span><span class="p">(</span><span class="s2">&quot;esp-ci-cd-tests/foo.txt&quot;</span><span class="p">,</span> <span class="s2">&quot;esp-ci-cd-tests/foo2.txt&quot;</span><span class="p">)</span>
+</span><span id="__span-26-2"><a id="__codelineno-26-2" name="__codelineno-26-2" href="#__codelineno-26-2"></a><span class="n">fs</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="s2">&quot;esp-ci-cd-tests/foo.txt&quot;</span><span class="p">)</span>
+</span><span id="__span-26-3"><a id="__codelineno-26-3" name="__codelineno-26-3" href="#__codelineno-26-3"></a><span class="c1"># Output: False</span>
 </span></code></pre></div>
 <h4 id="copy-from-one-cloud-location-to-another-cloud-location">Copy from one cloud location to another cloud location</h4>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
 <p>Copy is only supported when the source and destination cloud location are on the same cloud provider. For example, you cannot copy from a GCS bucket to an R2 bucket.</p>
 </div>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-28-1"><a id="__codelineno-28-1" name="__codelineno-28-1" href="#__codelineno-28-1"></a><span class="n">fs</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="s2">&quot;esp-ci-cd-tests/foo2.txt&quot;</span><span class="p">,</span> <span class="s2">&quot;esp-ci-cd-tests/foo3.txt&quot;</span><span class="p">)</span>
-</span><span id="__span-28-2"><a id="__codelineno-28-2" name="__codelineno-28-2" href="#__codelineno-28-2"></a><span class="n">fs</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="s2">&quot;esp-ci-cd-tests/foo3.txt&quot;</span><span class="p">)</span>
-</span><span id="__span-28-3"><a id="__codelineno-28-3" name="__codelineno-28-3" href="#__codelineno-28-3"></a><span class="c1"># Output: True</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-27-1"><a id="__codelineno-27-1" name="__codelineno-27-1" href="#__codelineno-27-1"></a><span class="n">fs</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="s2">&quot;esp-ci-cd-tests/foo2.txt&quot;</span><span class="p">,</span> <span class="s2">&quot;esp-ci-cd-tests/foo3.txt&quot;</span><span class="p">)</span>
+</span><span id="__span-27-2"><a id="__codelineno-27-2" name="__codelineno-27-2" href="#__codelineno-27-2"></a><span class="n">fs</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="s2">&quot;esp-ci-cd-tests/foo3.txt&quot;</span><span class="p">)</span>
+</span><span id="__span-27-3"><a id="__codelineno-27-3" name="__codelineno-27-3" href="#__codelineno-27-3"></a><span class="c1"># Output: True</span>
 </span></code></pre></div>
 <p><a href="#esp_dataio-module">Back to Top</a></p>
 <h2 id="read-audio-from-a-remote-file">Read audio from a remote file</h2>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-29-1"><a id="__codelineno-29-1" name="__codelineno-29-1" href="#__codelineno-29-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">esp_data.io</span><span class="w"> </span><span class="kn">import</span> <span class="n">read_audio</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-28-1"><a id="__codelineno-28-1" name="__codelineno-28-1" href="#__codelineno-28-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">esp_data.io</span><span class="w"> </span><span class="kn">import</span> <span class="n">read_audio</span>
+</span><span id="__span-28-2"><a id="__codelineno-28-2" name="__codelineno-28-2" href="#__codelineno-28-2"></a>
+</span><span id="__span-28-3"><a id="__codelineno-28-3" name="__codelineno-28-3" href="#__codelineno-28-3"></a><span class="n">audio</span><span class="p">,</span> <span class="n">sample_rate</span> <span class="o">=</span> <span class="n">read_audio</span><span class="p">(</span><span class="s2">&quot;gs://esp-ci-cd-tests/esp-data-tests/some_subfolder/nri-battlesounds.mp3&quot;</span><span class="p">)</span>
+</span><span id="__span-28-4"><a id="__codelineno-28-4" name="__codelineno-28-4" href="#__codelineno-28-4"></a><span class="nb">print</span><span class="p">(</span><span class="n">audio</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">sample_rate</span><span class="p">)</span>
+</span><span id="__span-28-5"><a id="__codelineno-28-5" name="__codelineno-28-5" href="#__codelineno-28-5"></a><span class="c1"># (235008,) 44100</span>
+</span></code></pre></div>
+<h2 id="get-info-about-an-audio-file-before-reading">Get info about an audio file before reading</h2>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-29-1"><a id="__codelineno-29-1" name="__codelineno-29-1" href="#__codelineno-29-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">esp_data.io</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_audio_info</span>
 </span><span id="__span-29-2"><a id="__codelineno-29-2" name="__codelineno-29-2" href="#__codelineno-29-2"></a>
-</span><span id="__span-29-3"><a id="__codelineno-29-3" name="__codelineno-29-3" href="#__codelineno-29-3"></a><span class="n">audio</span><span class="p">,</span> <span class="n">sample_rate</span> <span class="o">=</span> <span class="n">read_audio</span><span class="p">(</span><span class="s2">&quot;gs://esp-ci-cd-tests/esp-data-tests/some_subfolder/nri-battlesounds.mp3&quot;</span><span class="p">)</span>
-</span><span id="__span-29-4"><a id="__codelineno-29-4" name="__codelineno-29-4" href="#__codelineno-29-4"></a><span class="nb">print</span><span class="p">(</span><span class="n">audio</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">sample_rate</span><span class="p">)</span>
-</span><span id="__span-29-5"><a id="__codelineno-29-5" name="__codelineno-29-5" href="#__codelineno-29-5"></a><span class="c1"># (235008,) 44100</span>
+</span><span id="__span-29-3"><a id="__codelineno-29-3" name="__codelineno-29-3" href="#__codelineno-29-3"></a><span class="n">info</span> <span class="o">=</span> <span class="n">get_audio_info</span><span class="p">(</span><span class="s2">&quot;gs://esp-ci-cd-tests/esp-data-tests/some_subfolder/nri-battlesounds.mp3&quot;</span><span class="p">)</span>
+</span><span id="__span-29-4"><a id="__codelineno-29-4" name="__codelineno-29-4" href="#__codelineno-29-4"></a><span class="nb">print</span><span class="p">(</span><span class="n">info</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+</span><span id="__span-29-5"><a id="__codelineno-29-5" name="__codelineno-29-5" href="#__codelineno-29-5"></a><span class="c1"># dict_keys([&#39;sr&#39;, &#39;duration&#39;, &#39;num_frames&#39;, &#39;num_channels&#39;, &#39;format&#39;, &#39;subtype&#39;])</span>
 </span></code></pre></div>
 
 
