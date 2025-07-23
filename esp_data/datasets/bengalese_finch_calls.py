@@ -6,6 +6,10 @@ The dataset is organized by individual birds, with each bird having its own
 split containing its vocal repertoire. Note that the repertoires
 are per-bird, so labels should not be compared across splits.
 
+The data is hosted in the `esp-ml-datasets` GCS bucket in folder bengalese_finch with:
+- Individual CSV files per bird, plus bird-level splits (Bird0.csv, Bird1.csv, etc.)
+- Extracted call audio snippets in `wav/BirdX/` subdirectories
+
 The CSVs have the following columns:
 * ``local_path``     – relative path to the extracted call audio snippet
 * ``call_type``      – call-type ID (string)
@@ -134,10 +138,7 @@ class BengaleseFinchCalls(Dataset):
         version="0.1.0",
         description=(
             "Bengalese Finch calls annotated with call-type and individual IDs, "
-            "organized by individual birds. Includes comprehensive train/valid/test/"
-            "train_small splits for all 11 birds (Bird0-Bird10), enabling systematic "
-            "ML research across varying call type diversities (4-17 types per bird). "
-            "Train_small splits limit samples to max 80 per call type for few-shot learning."
+            "organized by individual birds."
         ),
         sources=["BanglaJp_whistle"],
         license="CC-BY-4.0, CC0",
@@ -162,7 +163,6 @@ class BengaleseFinchCalls(Dataset):
             Which bird/split to load. Options include:
             - Individual birds: "Bird0", "Bird1", ..., "Bird10" (complete repertoires)
             - ML splits: "{BirdX}_train", "{BirdX}_train_small", "{BirdX}_valid", "{BirdX}_test"
-            where BirdX can be any of Bird0-Bird10. Defaults to "Bird2_train" (highest diversity).
         output_take_and_give
             Mapping from original column names to desired output names.  When
             provided, the dataset __getitem__ will return only the mapped
