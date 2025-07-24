@@ -83,15 +83,18 @@ def _make_file_opener_for_wds(
         Callable: A function that opens the file in the specified mode
         or a file object if the path is local.
     """
-    file_path = anypath(file_path)
 
-    if isinstance(file_path, Path):
-        parent_dir = file_path.parent
+    path_obj = anypath(file_path)
+
+    if path_obj.is_local:
+        # Local filesystem - create parent dirs if needed
+        parent_dir = path_obj.parent
         parent_dir.mkdir(parents=True, exist_ok=True)
-        return open(file_path, mode=mode)
-
-    fs = filesystem_from_path(str(file_path))
-    return fs.open(str(file_path), mode=mode, block_size=block_size)
+        return open(str(path_obj), mode=mode)
+    else:
+        # Remote filesystem (GCS, R2, etc.)
+        fs = filesystem_from_path(str(path_obj))
+        return fs.open(str(path_obj.no_prefix), mode=mode, block_size=block_size)
 
 
 def _write_webdataset_shard(
@@ -150,6 +153,7 @@ def _write_webdataset_shard(
 
     # Create shard path
     output_path = anypath(output_path)
+    # Extra 0 added to shard name by webdataset lib
     shard_path = str(output_path / f"{shard_name}_%s{shard_id:05d}.tar")
 
     if compression:
@@ -178,7 +182,7 @@ def _write_webdataset_shard(
 
         if (j + 1) % log_every == 0:
             logger.info(
-                f"Shard {shard_id:05d} - Processing sample {j}/{total_samples} (id: {sample_id})"
+                f"Shard {shard_id:06d} - Processing sample {j}/{total_samples} (id: {sample_id})"
             )
 
         try:
@@ -396,97 +400,135 @@ def export_as_tar(
     if sample_prep_function is not None and sample_prep_kwargs is not None:
         sample_prep_function = partial(sample_prep_function, **sample_prep_kwargs)
 
-    # Prepare arguments for parallel processing
-    shard_args = []
-    for i, (start_idx, end_idx) in enumerate(chunks):
-        shard_id = shard_start_id + i
-        if not checkpoint_df.empty:
-            # Check if this shard has already been processed
-            if shard_id in checkpoint_df["shard_id"].values:
-                logger.info(f"Skipping already processed shard {shard_id:05d}")
-                continue
+    if max_workers > 1:
+        # Prepare arguments for parallel processing
+        shard_args = []
+        for i, (start_idx, end_idx) in enumerate(chunks):
+            shard_id = shard_start_id + i
+            if not checkpoint_df.empty:
+                # Check if this shard has already been processed
+                if shard_id in checkpoint_df["shard_id"].values:
+                    logger.info(f"Skipping already processed shard {shard_id:06d}")
+                    continue
 
-        args = (
-            ds,
-            start_idx,
-            end_idx,
-            shard_id,
-            output_path,
-            sample_prep_function,
-            log_every,
-            error_handling,
-            shard_name,
-            compression,
+            args = (
+                ds,
+                start_idx,
+                end_idx,
+                shard_id,
+                output_path,
+                sample_prep_function,
+                log_every,
+                error_handling,
+                shard_name,
+                compression,
+            )
+            shard_args.append(args)
+
+        # Determine number of workers
+        if max_workers is None:
+            max_workers = min(mp.cpu_count(), total_shards)
+
+        logger.info(f"Using {max_workers} workers for parallel processing")
+
+        # Process shards in parallel
+        executor_class = (
+            concurrent.futures.ThreadPoolExecutor
+            if use_threading
+            else concurrent.futures.ProcessPoolExecutor
         )
-        shard_args.append(args)
 
-    # Determine number of workers
-    if max_workers is None:
-        max_workers = min(mp.cpu_count(), total_shards)
+        total_processed = 0
+        total_failed = 0
+        with executor_class(max_workers=max_workers) as executor:
+            # Submit all tasks
+            future_to_shard = {
+                executor.submit(_write_shard_wrapper, args): i for i, args in enumerate(shard_args)
+            }
 
-    logger.info(f"Using {max_workers} workers for parallel processing")
+            # Process completed tasks
+            with tqdm(
+                total=total_shards,
+                desc="Processing shards",
+                ncols=100,
+            ) as pbar:
+                for future in concurrent.futures.as_completed(future_to_shard):
+                    shard_index = future_to_shard[future]
+                    try:
+                        result = future.result()
+                        total_processed += len(result["processed_ids"])
+                        total_failed += len(result["failed_ids"])
 
-    # Process shards in parallel
-    executor_class = (
-        concurrent.futures.ThreadPoolExecutor
-        if use_threading
-        else concurrent.futures.ProcessPoolExecutor
-    )
+                        logger.info(
+                            f"Completed shard {result['shard_id']:06d} "
+                            f"({shard_index + 1}/{total_shards}): "
+                            f"processed={len(result['processed_ids'])}, "
+                            f"failed={len(result['failed_ids'])}"
+                        )
 
-    total_processed = 0
-    total_failed = 0
+                        # Update checkpoint
+                        checkpoint_entry = {
+                            "shard_id": result["shard_id"],
+                            "processed_ids": result["processed_ids"],
+                            "failed_ids": result["failed_ids"],
+                        }
+                        checkpoint_df = pd.concat(
+                            [checkpoint_df, pd.DataFrame([checkpoint_entry])],
+                            ignore_index=True,
+                        )
+                        # Update checkpoint file
+                        checkpoint_df.to_json(str(checkpoint_path), orient="records", lines=True)
 
-    with executor_class(max_workers=max_workers) as executor:
-        # Submit all tasks
-        future_to_shard = {
-            executor.submit(_write_shard_wrapper, args): i for i, args in enumerate(shard_args)
-        }
+                        # Update progress bar with shard info
+                        pbar.set_postfix(
+                            shard=f"{shard_index:06d}",
+                            success=len(result["processed_ids"]),
+                            failed=len(result["failed_ids"]),
+                        )
+                        pbar.update(1)
 
-        # Process completed tasks
-        with tqdm(
-            total=total_shards,
-            desc="Processing shards",
-            ncols=100,
-        ) as pbar:
-            for future in concurrent.futures.as_completed(future_to_shard):
-                shard_index = future_to_shard[future]
-                try:
-                    result = future.result()
-                    total_processed += len(result["processed_ids"])
-                    total_failed += len(result["failed_ids"])
+                    except Exception as e:
+                        logger.error(f"Shard {shard_index} failed with error: {e}")
+                        if error_handling == "raise":
+                            raise e
+    else:
+        # If max_workers is 1, process shards sequentially
+        total_processed = 0
+        total_failed = 0
+        for i, (start_idx, end_idx) in enumerate(chunks):
+            shard_id = shard_start_id + i
+            if not checkpoint_df.empty:
+                # Check if this shard has already been processed
+                if shard_id in checkpoint_df["shard_id"].values:
+                    logger.info(f"Skipping already processed shard {shard_id:06d}")
+                    continue
 
-                    logger.info(
-                        f"Completed shard {result['shard_id']:05d} "
-                        f"({shard_index + 1}/{total_shards}): "
-                        f"processed={len(result['processed_ids'])}, "
-                        f"failed={len(result['failed_ids'])}"
-                    )
+            logger.info(f"Processing shard {shard_id:06d} ({i + 1}/{total_shards})")
+            result = _write_webdataset_shard(
+                batch=[ds[j] for j in range(start_idx, end_idx)],
+                shard_id=shard_id,
+                output_path=output_path,
+                sample_prep_function=sample_prep_function,
+                log_every=log_every,
+                error_handling=error_handling,
+                shard_name=shard_name,
+                compression=compression,
+            )
+            total_processed += len(result["processed_ids"])
+            total_failed += len(result["failed_ids"])
 
-                    # Update checkpoint
-                    checkpoint_entry = {
-                        "shard_id": result["shard_id"],
-                        "processed_ids": result["processed_ids"],
-                        "failed_ids": result["failed_ids"],
-                    }
-                    checkpoint_df = pd.concat(
-                        [checkpoint_df, pd.DataFrame([checkpoint_entry])],
-                        ignore_index=True,
-                    )
-                    # Update checkpoint file
-                    checkpoint_df.to_json(checkpoint_path, orient="records", lines=True)
-
-                    # Update progress bar with shard info
-                    pbar.set_postfix(
-                        shard=f"{shard_index:06d}",
-                        success=len(result["processed_ids"]),
-                        failed=len(result["failed_ids"]),
-                    )
-                    pbar.update(1)
-
-                except Exception as e:
-                    logger.error(f"Shard {shard_index} failed with error: {e}")
-                    if error_handling == "raise":
-                        raise e
+            # Update checkpoint
+            checkpoint_entry = {
+                "shard_id": result["shard_id"],
+                "processed_ids": result["processed_ids"],
+                "failed_ids": result["failed_ids"],
+            }
+            checkpoint_df = pd.concat(
+                [checkpoint_df, pd.DataFrame([checkpoint_entry])],
+                ignore_index=True,
+            )
+            # Update checkpoint file
+            checkpoint_df.to_json(str(checkpoint_path), orient="records", lines=True)
 
     # Create summary
     summary = {
