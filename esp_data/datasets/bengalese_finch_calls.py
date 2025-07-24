@@ -80,60 +80,60 @@ class BengaleseFinchCalls(Dataset):
             "Bird9": "gs://esp-ml-datasets/bengalese_finch/v0.1.0/raw/Bird9.csv",
             "Bird10": "gs://esp-ml-datasets/bengalese_finch/v0.1.0/raw/Bird10.csv",
             # Bird0 splits (9 call types, 7,652 samples)
-            "Bird0_train": "gs://esp-ml-datasets/bengalese_finch/v0.1.0/splits/Bird0_train.csv",
-            "Bird0_train_small": "gs://esp-ml-datasets/bengalese_finch/v0.1.0/splits/Bird0_train_small.csv",
-            "Bird0_valid": "gs://esp-ml-datasets/bengalese_finch/v0.1.0/splits/Bird0_valid.csv",
-            "Bird0_test": "gs://esp-ml-datasets/bengalese_finch/v0.1.0/splits/Bird0_test.csv",
+            "Bird0_train": "gs://esp-ml-datasets/bengalese_finch/v0.1.0/raw/Bird0_train.csv",
+            "Bird0_train_small": "gs://esp-ml-datasets/bengalese_finch/v0.1.0/raw/Bird0_train_small.csv",
+            "Bird0_valid": "gs://esp-ml-datasets/bengalese_finch/v0.1.0/raw/Bird0_valid.csv",
+            "Bird0_test": "gs://esp-ml-datasets/bengalese_finch/v0.1.0/raw/Bird0_test.csv",
             # Bird1 splits (12 call types, 35,728 samples)
-            "Bird1_train": "gs://esp-ml-datasets/bengalese_finch/v0.1.0/splits/Bird1_train.csv",
-            "Bird1_train_small": "gs://esp-ml-datasets/bengalese_finch/v0.1.0/splits/Bird1_train_small.csv",
-            "Bird1_valid": "gs://esp-ml-datasets/bengalese_finch/v0.1.0/splits/Bird1_valid.csv",
-            "Bird1_test": "gs://esp-ml-datasets/bengalese_finch/v0.1.0/splits/Bird1_test.csv",
+            "Bird1_train": "gs://esp-ml-datasets/bengalese_finch/v0.1.0/raw/Bird1_train.csv",
+            "Bird1_train_small": "gs://esp-ml-datasets/bengalese_finch/v0.1.0/raw/Bird1_train_small.csv",
+            "Bird1_valid": "gs://esp-ml-datasets/bengalese_finch/v0.1.0/raw/Bird1_valid.csv",
+            "Bird1_test": "gs://esp-ml-datasets/bengalese_finch/v0.1.0/raw/Bird1_test.csv",
             # Bird2 splits (17 call types, 26,127 samples) - highest diversity
-            "Bird2_train": "gs://esp-ml-datasets/bengalese_finch/v0.1.0/splits/Bird2_train.csv",
-            "Bird2_train_small": "gs://esp-ml-datasets/bengalese_finch/v0.1.0/splits/Bird2_train_small.csv",
-            "Bird2_valid": "gs://esp-ml-datasets/bengalese_finch/v0.1.0/splits/Bird2_valid.csv",
-            "Bird2_test": "gs://esp-ml-datasets/bengalese_finch/v0.1.0/splits/Bird2_test.csv",
+            "Bird2_train": "gs://esp-ml-datasets/bengalese_finch/v0.1.0/raw/Bird2_train.csv",
+            "Bird2_train_small": "gs://esp-ml-datasets/bengalese_finch/v0.1.0/raw/Bird2_train_small.csv",
+            "Bird2_valid": "gs://esp-ml-datasets/bengalese_finch/v0.1.0/raw/Bird2_valid.csv",
+            "Bird2_test": "gs://esp-ml-datasets/bengalese_finch/v0.1.0/raw/Bird2_test.csv",
             # Bird3 splits (9 call types, 29,470 samples)
-            "Bird3_train": "gs://esp-ml-datasets/bengalese_finch/v0.1.0/splits/Bird3_train.csv",
-            "Bird3_train_small": "gs://esp-ml-datasets/bengalese_finch/v0.1.0/splits/Bird3_train_small.csv",
-            "Bird3_valid": "gs://esp-ml-datasets/bengalese_finch/v0.1.0/splits/Bird3_valid.csv",
-            "Bird3_test": "gs://esp-ml-datasets/bengalese_finch/v0.1.0/splits/Bird3_test.csv",
+            "Bird3_train": "gs://esp-ml-datasets/bengalese_finch/v0.1.0/raw/Bird3_train.csv",
+            "Bird3_train_small": "gs://esp-ml-datasets/bengalese_finch/v0.1.0/raw/Bird3_train_small.csv",
+            "Bird3_valid": "gs://esp-ml-datasets/bengalese_finch/v0.1.0/raw/Bird3_valid.csv",
+            "Bird3_test": "gs://esp-ml-datasets/bengalese_finch/v0.1.0/raw/Bird3_test.csv",
             # Bird4 splits (5 call types, 26,891 samples)
-            "Bird4_train": "gs://esp-ml-datasets/bengalese_finch/v0.1.0/splits/Bird4_train.csv",
-            "Bird4_train_small": "gs://esp-ml-datasets/bengalese_finch/v0.1.0/splits/Bird4_train_small.csv",
-            "Bird4_valid": "gs://esp-ml-datasets/bengalese_finch/v0.1.0/splits/Bird4_valid.csv",
-            "Bird4_test": "gs://esp-ml-datasets/bengalese_finch/v0.1.0/splits/Bird4_test.csv",
+            "Bird4_train": "gs://esp-ml-datasets/bengalese_finch/v0.1.0/raw/Bird4_train.csv",
+            "Bird4_train_small": "gs://esp-ml-datasets/bengalese_finch/v0.1.0/raw/Bird4_train_small.csv",
+            "Bird4_valid": "gs://esp-ml-datasets/bengalese_finch/v0.1.0/raw/Bird4_valid.csv",
+            "Bird4_test": "gs://esp-ml-datasets/bengalese_finch/v0.1.0/raw/Bird4_test.csv",
             # Bird5 splits (7 call types, 20,525 samples)
-            "Bird5_train": "gs://esp-ml-datasets/bengalese_finch/v0.1.0/splits/Bird5_train.csv",
-            "Bird5_train_small": "gs://esp-ml-datasets/bengalese_finch/v0.1.0/splits/Bird5_train_small.csv",
-            "Bird5_valid": "gs://esp-ml-datasets/bengalese_finch/v0.1.0/splits/Bird5_valid.csv",
-            "Bird5_test": "gs://esp-ml-datasets/bengalese_finch/v0.1.0/splits/Bird5_test.csv",
+            "Bird5_train": "gs://esp-ml-datasets/bengalese_finch/v0.1.0/raw/Bird5_train.csv",
+            "Bird5_train_small": "gs://esp-ml-datasets/bengalese_finch/v0.1.0/raw/Bird5_train_small.csv",
+            "Bird5_valid": "gs://esp-ml-datasets/bengalese_finch/v0.1.0/raw/Bird5_valid.csv",
+            "Bird5_test": "gs://esp-ml-datasets/bengalese_finch/v0.1.0/raw/Bird5_test.csv",
             # Bird6 splits (5 call types, 17,653 samples)
-            "Bird6_train": "gs://esp-ml-datasets/bengalese_finch/v0.1.0/splits/Bird6_train.csv",
-            "Bird6_train_small": "gs://esp-ml-datasets/bengalese_finch/v0.1.0/splits/Bird6_train_small.csv",
-            "Bird6_valid": "gs://esp-ml-datasets/bengalese_finch/v0.1.0/splits/Bird6_valid.csv",
-            "Bird6_test": "gs://esp-ml-datasets/bengalese_finch/v0.1.0/splits/Bird6_test.csv",
+            "Bird6_train": "gs://esp-ml-datasets/bengalese_finch/v0.1.0/raw/Bird6_train.csv",
+            "Bird6_train_small": "gs://esp-ml-datasets/bengalese_finch/v0.1.0/raw/Bird6_train_small.csv",
+            "Bird6_valid": "gs://esp-ml-datasets/bengalese_finch/v0.1.0/raw/Bird6_valid.csv",
+            "Bird6_test": "gs://esp-ml-datasets/bengalese_finch/v0.1.0/raw/Bird6_test.csv",
             # Bird7 splits (7 call types, 20,722 samples)
-            "Bird7_train": "gs://esp-ml-datasets/bengalese_finch/v0.1.0/splits/Bird7_train.csv",
-            "Bird7_train_small": "gs://esp-ml-datasets/bengalese_finch/v0.1.0/splits/Bird7_train_small.csv",
-            "Bird7_valid": "gs://esp-ml-datasets/bengalese_finch/v0.1.0/splits/Bird7_valid.csv",
-            "Bird7_test": "gs://esp-ml-datasets/bengalese_finch/v0.1.0/splits/Bird7_test.csv",
+            "Bird7_train": "gs://esp-ml-datasets/bengalese_finch/v0.1.0/raw/Bird7_train.csv",
+            "Bird7_train_small": "gs://esp-ml-datasets/bengalese_finch/v0.1.0/raw/Bird7_train_small.csv",
+            "Bird7_valid": "gs://esp-ml-datasets/bengalese_finch/v0.1.0/raw/Bird7_valid.csv",
+            "Bird7_test": "gs://esp-ml-datasets/bengalese_finch/v0.1.0/raw/Bird7_test.csv",
             # Bird8 splits (4 call types, 4,985 samples)
-            "Bird8_train": "gs://esp-ml-datasets/bengalese_finch/v0.1.0/splits/Bird8_train.csv",
-            "Bird8_train_small": "gs://esp-ml-datasets/bengalese_finch/v0.1.0/splits/Bird8_train_small.csv",
-            "Bird8_valid": "gs://esp-ml-datasets/bengalese_finch/v0.1.0/splits/Bird8_valid.csv",
-            "Bird8_test": "gs://esp-ml-datasets/bengalese_finch/v0.1.0/splits/Bird8_test.csv",
+            "Bird8_train": "gs://esp-ml-datasets/bengalese_finch/v0.1.0/raw/Bird8_train.csv",
+            "Bird8_train_small": "gs://esp-ml-datasets/bengalese_finch/v0.1.0/raw/Bird8_train_small.csv",
+            "Bird8_valid": "gs://esp-ml-datasets/bengalese_finch/v0.1.0/raw/Bird8_valid.csv",
+            "Bird8_test": "gs://esp-ml-datasets/bengalese_finch/v0.1.0/raw/Bird8_test.csv",
             # Bird9 splits (6 call types, 19,541 samples)
-            "Bird9_train": "gs://esp-ml-datasets/bengalese_finch/v0.1.0/splits/Bird9_train.csv",
-            "Bird9_train_small": "gs://esp-ml-datasets/bengalese_finch/v0.1.0/splits/Bird9_train_small.csv",
-            "Bird9_valid": "gs://esp-ml-datasets/bengalese_finch/v0.1.0/splits/Bird9_valid.csv",
-            "Bird9_test": "gs://esp-ml-datasets/bengalese_finch/v0.1.0/splits/Bird9_test.csv",
+            "Bird9_train": "gs://esp-ml-datasets/bengalese_finch/v0.1.0/raw/Bird9_train.csv",
+            "Bird9_train_small": "gs://esp-ml-datasets/bengalese_finch/v0.1.0/raw/Bird9_train_small.csv",
+            "Bird9_valid": "gs://esp-ml-datasets/bengalese_finch/v0.1.0/raw/Bird9_valid.csv",
+            "Bird9_test": "gs://esp-ml-datasets/bengalese_finch/v0.1.0/raw/Bird9_test.csv",
             # Bird10 splits (12 call types, 5,743 samples)
-            "Bird10_train": "gs://esp-ml-datasets/bengalese_finch/v0.1.0/splits/Bird10_train.csv",
-            "Bird10_train_small": "gs://esp-ml-datasets/bengalese_finch/v0.1.0/splits/Bird10_train_small.csv",
-            "Bird10_valid": "gs://esp-ml-datasets/bengalese_finch/v0.1.0/splits/Bird10_valid.csv",
-            "Bird10_test": "gs://esp-ml-datasets/bengalese_finch/v0.1.0/splits/Bird10_test.csv",
+            "Bird10_train": "gs://esp-ml-datasets/bengalese_finch/v0.1.0/raw/Bird10_train.csv",
+            "Bird10_train_small": "gs://esp-ml-datasets/bengalese_finch/v0.1.0/raw/Bird10_train_small.csv",
+            "Bird10_valid": "gs://esp-ml-datasets/bengalese_finch/v0.1.0/raw/Bird10_valid.csv",
+            "Bird10_test": "gs://esp-ml-datasets/bengalese_finch/v0.1.0/raw/Bird10_test.csv",
         },
         version="0.1.0",
         description=(
@@ -189,8 +189,8 @@ class BengaleseFinchCalls(Dataset):
                 f"Invalid split '{self.split}'. Available: {list(self.info.split_paths)}"
             )
 
-        # Default data root – parent directory of the split CSV.
         if self.data_root is None:
+            # All CSVs are now in /raw/ with the audio files
             self.data_root = anypath(self.info.split_paths[self.split]).parent
 
         self._data: pd.DataFrame | None = None
