@@ -44,9 +44,9 @@ Small training samples: 1360
 >>> bird1_train = BengaleseFinchCalls(split="Bird1_train", sample_rate=16000)
 >>> bird8_valid = BengaleseFinchCalls(split="Bird8_valid", sample_rate=16000)
 >>> print(f"Bird1 training: {len(bird1_train)} samples")
-Bird1 training: 25024
+Bird1 training: 25024 samples
 >>> print(f"Bird8 validation: {len(bird8_valid)} samples")
-Bird8 validation: 746
+Bird8 validation: 746 samples
 """
 
 from typing import Any, Dict, Iterator, Optional
