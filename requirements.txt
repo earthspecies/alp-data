@@ -39,6 +39,7 @@ grpc-google-iam-v1==0.14.2
 grpcio==1.71.0
 grpcio-status==1.71.0
 idna==3.10
+intervaltree==3.1.0
 isodate==0.7.2
 jmespath==1.0.1
 joblib==1.5.1
@@ -74,6 +75,7 @@ scikit-learn==1.6.1
 scipy==1.15.3
 semver==3.0.4
 six==1.17.0
+sortedcontainers==2.4.0
 soundfile==0.13.1
 soxr==0.5.0.post1
 standard-aifc==3.13.0 ; python_full_version >= '3.13'

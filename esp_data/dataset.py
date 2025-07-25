@@ -3,9 +3,10 @@ from collections.abc import Sequence
 from typing import Any, Dict, Iterator, Optional
 
 import semver
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, field_validator
 
-from esp_data.transforms import RegisteredTransformConfigs, transform_from_config
+from esp_data.transforms import transform_from_config
+from esp_data.transforms.registry import RegisteredTransformConfigs
 
 
 class DatasetConfig(BaseModel):
@@ -54,7 +55,14 @@ class DatasetConfig(BaseModel):
     )
 
     dataset_name: str
-    transformations: list[RegisteredTransformConfigs] | None = None
+
+    # The logical type of RegisteredTransformConfigs is list[RegisteredTransformConfigs]
+    # but we don't want to use RegisteredTransformConfigs directly here as its value
+    # will be bound at definition time. Instead we rely on a field validator for late
+    # evaluation of RegisteredTransformConfigs at instantiation time. This is useful for
+    # user-registered transformations that can happen at any time.
+    transformations: list | None = None
+
     sample_rate: int | None = None
     output_take_and_give: dict[str, str] | None = None
     split: str = "train"
@@ -66,6 +74,26 @@ class DatasetConfig(BaseModel):
         if v in ("None", "none"):
             return None
         return v
+
+    @field_validator("transformations", mode="after")
+    @classmethod
+    def delay_importing_reg(cls, v: Any) -> Any:  # noqa: ANN401
+        if v:
+            # Import the registry here, i.e. as late as possible to make sure it
+            # includes all the user-registered transforms as well.
+            from esp_data.transforms.registry import RegisteredTransformConfigs
+
+            # RegisteredTransformConfigs is of type Annotated[...] and we can't use it
+            # as a Pydantic type/model directly. We first have to adapt it for a
+            # Pydantic:
+            adapter = TypeAdapter(RegisteredTransformConfigs)
+
+            validated = []
+            for t in v:
+                validated.append(adapter.validate_python(t))
+            return validated
+        else:
+            return None
 
 
 class DatasetInfo(BaseModel):
