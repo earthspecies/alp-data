@@ -3,6 +3,7 @@ manipulate different sort of filesystems
 """
 
 import logging
+from functools import cache
 from typing import Literal, Union
 
 import fsspec
@@ -16,7 +17,7 @@ from .paths import AnyPathT, GSPath, R2Path, anypath
 logger = logging.getLogger("esp_data")
 
 
-# @cache
+@cache
 def filesystem(
     protocol: Literal["gcs", "gs", "r2", "local"] = "local",
     **kwargs: dict,

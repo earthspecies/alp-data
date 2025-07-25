@@ -6,7 +6,7 @@ import numpy as np
 import soundfile as sf
 import webdataset as wds
 
-from esp_data.io import AnyPathT, anypath
+from esp_data.io import AnyPathT, anypath, filesystem_from_path
 
 
 def audio_decoder(data: dict, dtype: str = "float32", format: str = "FLAC") -> dict[str, Any]:
@@ -142,6 +142,42 @@ def json_decoder(
 
     json_data = json.loads(data["sample.json"].decode("utf-8"))
     return json_data
+
+
+def make_file_opener_for_wds(
+    file_path: str | AnyPathT,
+    mode: str = "wb",
+    block_size: int = 1024 * 1024 * 100,
+) -> Callable:
+    """Make a file opener function for WebDataset.
+    If local path, create parent dirs if needed.
+
+    Arguments
+    ---------
+    file_path: str | AnyPathT
+        The file path to open
+    mode: str
+        The mode in which to open the file (default: "wb")
+    block_size: int
+        Block size for WebDataset (default: 100 MB)
+
+    Returns
+    -------
+        Callable: A function that opens the file in the specified mode
+        or a file object if the path is local.
+    """
+
+    path_obj = anypath(file_path)
+
+    if path_obj.is_local:
+        # Local filesystem - create parent dirs if needed
+        parent_dir = path_obj.parent
+        parent_dir.mkdir(parents=True, exist_ok=True)
+        return open(str(path_obj), mode=mode)
+    else:
+        # Remote filesystem (GCS, R2, etc.)
+        fs = filesystem_from_path(str(path_obj))
+        return fs.open(str(path_obj.no_prefix), mode=mode, block_size=block_size)
 
 
 def load_webdataset(

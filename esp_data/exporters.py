@@ -16,9 +16,9 @@ import webdataset as wds
 from tqdm import tqdm
 
 from esp_data import Dataset
-from esp_data.io import AnyPathT, anypath, filesystem_from_path
+from esp_data.io import AnyPathT, anypath
 
-from .webdataset_utils import audio_encoder
+from .webdataset_utils import audio_encoder, make_file_opener_for_wds
 
 logger = logging.getLogger("esp_data")
 
@@ -61,44 +61,9 @@ def _error_handler(
         raise e
 
 
-def _make_file_opener_for_wds(
-    file_path: str | AnyPathT,
-    mode: str = "wb",
-    block_size: int = 1024 * 1024 * 100,
-) -> Callable:
-    """Make a file opener function for WebDataset.
-    If local path, create parent dirs if needed.
-
-    Arguments
-    ---------
-    file_path: str | AnyPathT
-        The file path to open
-    mode: str
-        The mode in which to open the file (default: "wb")
-    block_size: int
-        Block size for WebDataset (default: 100 MB)
-
-    Returns
-    -------
-        Callable: A function that opens the file in the specified mode
-        or a file object if the path is local.
-    """
-
-    path_obj = anypath(file_path)
-
-    if path_obj.is_local:
-        # Local filesystem - create parent dirs if needed
-        parent_dir = path_obj.parent
-        parent_dir.mkdir(parents=True, exist_ok=True)
-        return open(str(path_obj), mode=mode)
-    else:
-        # Remote filesystem (GCS, R2, etc.)
-        fs = filesystem_from_path(str(path_obj))
-        return fs.open(str(path_obj.no_prefix), mode=mode, block_size=block_size)
-
-
 def _write_webdataset_shard(
-    batch: Iterable[dict],
+    dataset: Iterable[dict] | Dataset,
+    indices: list[int],
     output_path: str | AnyPathT,
     shard_id: int,
     sample_prep_function: Callable | None = None,
@@ -112,8 +77,10 @@ def _write_webdataset_shard(
 
     Arguments
     ---------
-    batch: Union[Iterable[dict], pd.DataFrame, pd.Series]
-        Iterable of dictionaries or dataframe or series containing sample data
+    dataset: Union[Iterable[dict], esp_data.Dataset]
+        Iterable of dictionaries or an esp_data.Dataset, used to get samples
+    indices: list[int]
+        List of indices to process from the dataset
     output_path: Union[str, AnyPathT],
         Path to the directory or bucket 'folder' to save the shard
     shard_id: int
@@ -166,52 +133,54 @@ def _write_webdataset_shard(
         shard_path = f"{str(shard_path)}.{compression}"
 
     # Initialize shard writer
-    sink = wds.ShardWriter(
+    with wds.ShardWriter(
         shard_path,
         maxcount=100_000_000_000,  # Set very high to ensure all samples go in one shard
         maxsize=100_000_000_000,
-        opener=partial(_make_file_opener_for_wds),
+        opener=partial(make_file_opener_for_wds),
         compress=compression,
-    )
+    ) as sink:
+        # Process each sample
+        total_samples = len(indices)
+        for j, idx in enumerate(indices):
+            item = dataset[idx]
+            sample_id = str(item.get("id", _make_id()))
+            item["id"] = sample_id
 
-    # Process each sample
-    total_samples = len(batch)
-    for j, item in enumerate(batch):
-        sample_id = str(item.get("id", _make_id()))
-        item["id"] = sample_id
+            if (j + 1) % log_every == 0:
+                logger.info(
+                    f"Shard {shard_id:06d} - Processing sample {j}/{total_samples}(id: {sample_id})"
+                )
 
-        if (j + 1) % log_every == 0:
-            logger.info(
-                f"Shard {shard_id:06d} - Processing sample {j}/{total_samples} (id: {sample_id})"
-            )
+            try:
+                shard_data = sample_prep_function(item) if sample_prep_function else item
 
-        try:
-            shard_data = sample_prep_function(item) if sample_prep_function else item
-
-            # Write to shard
-            # __key__ was just taken from the examples in the webdataset docs
-            sample = {
-                "__key__": sample_id,
-                **shard_data,
-            }
-            sink.write(sample)
-
-            # Track successful sample
-            results["processed_ids"].append(
-                {
-                    "id": sample_id,
-                    "shard_id": shard_id,
-                    "shard_path": str(output_path / f"{shard_name}_{shard_id:06d}.tar"),
+                # Write to shard
+                # __key__ was just taken from the examples in the webdataset docs
+                sample = {
+                    "__key__": sample_id,
+                    **shard_data,
                 }
-            )
+                sink.write(sample)
 
-        except Exception as e:
-            results["failed_ids"].append(sample_id)
-            _error_handler(e, sample_id, error_handling)
-        finally:
-            gc.collect()
+                # Track successful sample
+                results["processed_ids"].append(
+                    {
+                        "id": sample_id,
+                        "shard_id": shard_id,
+                        "shard_path": str(output_path / f"{shard_name}_{shard_id:06d}.tar"),
+                    }
+                )
 
-    sink.close()
+            except Exception as e:
+                results["failed_ids"].append(sample_id)
+                _error_handler(e, sample_id, error_handling)
+
+            finally:
+                # Ensure we always clean up the sample
+                del item
+                gc.collect()
+
     logger.info(
         f"Finished shard {shard_id:06d} - Processed: {len(results['processed_ids'])}, "
         f"Failed: {len(results['failed_ids'])}"
@@ -296,22 +265,30 @@ def _write_shard_wrapper(args: tuple) -> dict:
         compression,
     ) = args
 
-    # Create batch by reading the specific slice of the dataset
-    batch = []
-    for i in range(start_idx, end_idx):
-        batch.append(ds[i])
+    indices = list(range(start_idx, end_idx))
 
-    # TODO: extend this function to be a factory for different formats
-    return _write_webdataset_shard(
-        batch=batch,
-        shard_id=shard_id,
-        output_path=output_path,
-        sample_prep_function=sample_prep_function,
-        log_every=log_every,
-        error_handling=error_handling,
-        shard_name=shard_name,
-        compression=compression,
-    )
+    try:
+        # TODO: extend this function to be a factory for different formats
+        result = _write_webdataset_shard(
+            dataset=ds,
+            indices=indices,
+            shard_id=shard_id,
+            output_path=output_path,
+            sample_prep_function=sample_prep_function,
+            log_every=log_every,
+            error_handling=error_handling,
+            shard_name=shard_name,
+            compression=compression,
+        )
+
+        return result
+    except Exception as e:
+        _error_handler(e, f"shard_{shard_id}", error_handling)
+        return {
+            "shard_id": shard_id,
+            "processed_ids": [],
+            "failed_ids": [f"shard_{shard_id}"],
+        }
 
 
 def export_as_tar(
@@ -505,7 +482,8 @@ def export_as_tar(
 
             logger.info(f"Processing shard {shard_id:06d} ({i + 1}/{total_shards})")
             result = _write_webdataset_shard(
-                batch=[ds[j] for j in range(start_idx, end_idx)],
+                dataset=ds,
+                indices=list(range(start_idx, end_idx)),
                 shard_id=shard_id,
                 output_path=output_path,
                 sample_prep_function=sample_prep_function,
