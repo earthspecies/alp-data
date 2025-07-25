@@ -63,9 +63,9 @@ def _error_handler(
 
 def _write_webdataset_shard(
     dataset: Iterable[dict] | Dataset,
-    indices: list[int],
     output_path: str | AnyPathT,
     shard_id: int,
+    indices: list[int] | None = None,
     sample_prep_function: Callable | None = None,
     log_every: int = 100,
     error_handling: str = "warn",
@@ -78,13 +78,13 @@ def _write_webdataset_shard(
     Arguments
     ---------
     dataset: Union[Iterable[dict], esp_data.Dataset]
-        Iterable of dictionaries or an esp_data.Dataset, used to get samples
-    indices: list[int]
-        List of indices to process from the dataset
+        Iterable of dictionaries or an esp_data.Dataset, used to get samples.
     output_path: Union[str, AnyPathT],
         Path to the directory or bucket 'folder' to save the shard
     shard_id: int
         ID for this shard
+    indices: list[int] | None
+        List of indices to process from the dataset. If None, processes all samples.
     sample_prep_function: Optional[Callable]
         Function to prepare a sample for the WebDataset format
     log_every: int
@@ -132,6 +132,12 @@ def _write_webdataset_shard(
         # append compression extension if specified
         shard_path = f"{str(shard_path)}.{compression}"
 
+    if indices is None:
+        try:
+            indices = list(range(len(dataset)))
+        except Exception:
+            logger.warning("Dataset length unknown, processing all samples available!")
+
     # Initialize shard writer
     with wds.ShardWriter(
         shard_path,
@@ -141,9 +147,18 @@ def _write_webdataset_shard(
         compress=compression,
     ) as sink:
         # Process each sample
-        total_samples = len(indices)
-        for j, idx in enumerate(indices):
-            item = dataset[idx]
+        if indices:
+            total_samples = len(indices)
+        else:
+            total_samples = -1
+
+        iterator_obj = dataset if not indices else indices
+        for j, obj in enumerate(iterator_obj):
+            if isinstance(obj, int):
+                item = dataset[obj]
+            elif isinstance(obj, dict):
+                item = obj
+
             sample_id = str(item.get("id", _make_id()))
             item["id"] = sample_id
 
@@ -271,9 +286,9 @@ def _write_shard_wrapper(args: tuple) -> dict:
         # TODO: extend this function to be a factory for different formats
         result = _write_webdataset_shard(
             dataset=ds,
-            indices=indices,
             shard_id=shard_id,
             output_path=output_path,
+            indices=indices,
             sample_prep_function=sample_prep_function,
             log_every=log_every,
             error_handling=error_handling,
@@ -304,7 +319,7 @@ def export_as_tar(
     shuffle: bool = False,
     seed: int = 42,
     compression: Literal["gz", "bz2", "xz"] | None = None,
-    max_workers: int | None = None,
+    max_workers: int = 1,
     use_threading: bool = False,
     sample_prep_kwargs: dict | None = None,
 ) -> dict[str, Any]:
@@ -483,8 +498,8 @@ def export_as_tar(
             logger.info(f"Processing shard {shard_id:06d} ({i + 1}/{total_shards})")
             result = _write_webdataset_shard(
                 dataset=ds,
-                indices=list(range(start_idx, end_idx)),
                 shard_id=shard_id,
+                indices=list(range(start_idx, end_idx)),
                 output_path=output_path,
                 sample_prep_function=sample_prep_function,
                 log_every=log_every,

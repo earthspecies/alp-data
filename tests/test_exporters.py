@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from esp_data.io import anypath
-from esp_data.exporters import _error_handler, _make_file_opener_for_wds, _write_webdataset_shard, export_as_tar
+from esp_data.exporters import _error_handler, make_file_opener_for_wds, _write_webdataset_shard, export_as_tar
 from esp_data.webdataset_utils import audio_decoder, json_encoder, audio_encoder, load_webdataset
 
 
@@ -46,6 +46,7 @@ def webdataset_sharding_results(tmp_path: str) -> list[dict[str, Any]]:
         {"audio": np.random.rand(16000).astype(np.float32), "text": "Sample text 3", "label": 2},
     ]
     results = _write_webdataset_shard(data,
+                                      indices=list(range(len(data))),
                                       shard_id=0,
                                       output_path=shard_path,
                                       sample_prep_function=audio_encoder,
@@ -108,7 +109,7 @@ def test_error_handler() -> None:
 def test_make_file_opener_local(tmp_path) -> None:
     "Test the file opener function."
     test_file = tmp_path / "test_file.txt"
-    with _make_file_opener_for_wds(test_file) as fp:
+    with make_file_opener_for_wds(test_file) as fp:
         fp.write(b"Hello, World!")
 
     # Check if the file was created and contains the expected content
@@ -125,7 +126,7 @@ def test_make_file_opener_local(tmp_path) -> None:
 )
 def test_make_file_opener_cloud(cloud_path) -> None:
     """Test the file opener function for cloud paths."""
-    with _make_file_opener_for_wds(cloud_path) as fp:
+    with make_file_opener_for_wds(cloud_path) as fp:
         fp.write(b"Hello, Cloud!")
 
     # Check if the file was created and contains the expected content
@@ -185,3 +186,28 @@ def test_export_as_tar(audio_dataset_records, tmp_path) -> None:
     with tarfile.open(created_shard_path, "r") as tar:
         members = tar.getmembers()
         assert len(members) == len(audio_dataset_records) * 2  # audio and metadata for each record
+
+
+def test_export_as_tar_to_cloud(audio_dataset_records) -> None:
+    """Test exporting a dataset as a tar file."""
+    output_path = "gs://esp-ci-cd-tests/esp-data-tests/exporters/" # Cloud path for testing
+    export_as_tar(audio_dataset_records, output_path, sample_prep_function=audio_encoder)
+
+    # Check if the tar file was created
+    created_shard_path = anypath(output_path) / "shard_000000.tar"
+    assert created_shard_path.exists()
+
+    # Read the tar file to verify its content
+    with created_shard_path.open("rb") as f:
+        content = f.read()
+
+    assert len(content) > 0  # Ensure that the file is not empty
+
+    # load with load_webdataset
+    ds = load_webdataset(output_path, data_processor=audio_decoder)
+    for _, sample in enumerate(ds):
+        assert "audio" in sample
+        assert isinstance(sample["audio"], np.ndarray)
+        assert sample["audio"].dtype == np.float32
+        assert len(sample["audio"]) == 16000
+        assert "text" in sample
