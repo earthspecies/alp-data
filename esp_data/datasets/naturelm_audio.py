@@ -7,7 +7,6 @@ import librosa
 
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from esp_data.io import AnyPathT
-from esp_data.transforms import RegisteredTransformConfigs
 from esp_data.webdataset_utils import audio_decoder, load_webdataset
 
 
@@ -268,7 +267,7 @@ class NatureLMAudio(Dataset):
 
             yield item
 
-    def apply_transformations(self, transformations: list[RegisteredTransformConfigs]) -> None:
+    def apply_transformations(self, transformations: list[Any]) -> None:
         """Apply transformations to the dataset.
 
         Parameters
