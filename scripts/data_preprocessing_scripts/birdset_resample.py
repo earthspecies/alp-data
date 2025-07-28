@@ -297,7 +297,9 @@ class BirdSetResampleDataset(Dataset):
         target_dir: Path,
         target_sr: int = 16000,
         save_files: bool = True,
-        skip_existing: bool = True
+        skip_existing: bool = True,
+        test_mode: bool = False,
+        test_samples: int = 10
     ):
         """Initialize the dataset.
         
@@ -313,6 +315,10 @@ class BirdSetResampleDataset(Dataset):
             Whether to save files to disk (default: True)
         skip_existing : bool
             Whether to skip existing files (default: True)
+        test_mode : bool
+            Whether to run in test mode with limited samples (default: False)
+        test_samples : int
+            Number of samples to process in test mode (default: 10)
         """
         setup_start = time.time()
         
@@ -321,6 +327,8 @@ class BirdSetResampleDataset(Dataset):
         self.target_sr = target_sr
         self.save_files = save_files
         self.skip_existing = skip_existing
+        self.test_mode = test_mode
+        self.test_samples = test_samples
         
         # Initialize BirdSet dataset
         self.birdset = BirdSet(
@@ -333,23 +341,54 @@ class BirdSetResampleDataset(Dataset):
         self.target_dir.mkdir(parents=True, exist_ok=True)
         
         total_files = len(self.birdset)
-        print(f"Processing {total_files} files in {split_name}...")
         
-        # Debug: print available keys for the first sample
+        if self.test_mode:
+            self.actual_length = min(self.test_samples, total_files)
+            print(f"🧪 TEST MODE: Processing {self.actual_length} files out of {total_files} in {split_name}...")
+        else:
+            self.actual_length = total_files
+            print(f"Processing {total_files} files in {split_name}...")
+        
+        # Debug: print available keys for the first few samples to catch None issues
         if total_files > 0:
-            sample = self.birdset[0]
-            print(f"Available keys in sample: {list(sample.keys())}")
-            # Only print a subset of the sample to avoid too much output
-            sample_subset = {k: v for k, v in sample.items() if k != "audio"}
-            sample_subset["audio"] = f"<array shape={sample['audio'].shape}>"
-            print(f"Sample: {sample_subset}")
+            print(f"Checking first few samples for debugging...")
+            for i in range(min(3, total_files)):
+                try:
+                    sample = self.birdset[i]
+                    if sample is None:
+                        print(f"⚠️  Sample {i} is None!")
+                        continue
+                    
+                    print(f"Sample {i} - Available keys: {list(sample.keys())}")
+                    
+                    # Check for None values in critical keys
+                    critical_keys = ["audio", "path", "local_path"]
+                    for key in critical_keys:
+                        if key in sample:
+                            if sample[key] is None:
+                                print(f"⚠️  Sample {i} has None value for key '{key}'")
+                            else:
+                                if key == "audio":
+                                    print(f"  {key}: <array shape={getattr(sample[key], 'shape', 'unknown')}> dtype={getattr(sample[key], 'dtype', 'unknown')}")
+                                else:
+                                    print(f"  {key}: {sample[key]}")
+                    
+                    # Only print a subset of the sample to avoid too much output
+                    sample_subset = {k: v for k, v in sample.items() if k != "audio"}
+                    if "audio" in sample:
+                        sample_subset["audio"] = f"<array shape={getattr(sample['audio'], 'shape', 'unknown')}>"
+                    print(f"  Full sample (subset): {sample_subset}")
+                    
+                except Exception as e:
+                    print(f"⚠️  Error accessing sample {i}: {e}")
+                    continue
         
         self.setup_time = time.time() - setup_start
         print(f"Dataset setup completed in {self.setup_time:.2f}s")
             
     def __len__(self) -> int:
         """Return the length of the dataset."""
-        return len(self.birdset)
+        return self.actual_length
     
     def __getitem__(self, idx: int) -> Dict[str, Any]:
         """Get and process a single item from the dataset.
@@ -372,11 +411,22 @@ class BirdSetResampleDataset(Dataset):
         """
         start_time = time.time()
         
+        # Validate index is within our actual length (important for test mode)
+        if idx >= self.actual_length:
+            raise IndexError(f"Index {idx} is out of range for dataset length {self.actual_length}")
+        
         try:
             # Get sample first to avoid multiple dataset accesses
             load_start = time.time()
             sample = self.birdset[idx]
             load_time = time.time() - load_start
+            
+            # Check if sample is None or empty
+            if sample is None:
+                raise ValueError(f"BirdSet returned None for index {idx}")
+            
+            if not isinstance(sample, dict):
+                raise ValueError(f"BirdSet returned non-dict sample for index {idx}: {type(sample)}")
             
             # Try to get the path - check both possible key names
             if "local_path" in sample:
@@ -385,6 +435,10 @@ class BirdSetResampleDataset(Dataset):
                 file_path = sample["path"]
             else:
                 raise KeyError(f"Neither 'path' nor 'local_path' found in sample keys: {list(sample.keys())}")
+            
+            # Validate path is not None
+            if file_path is None:
+                raise ValueError(f"File path is None for index {idx}")
             
             # Create target file path - preserve the original directory structure
             relative_path = Path(file_path)
@@ -410,7 +464,9 @@ class BirdSetResampleDataset(Dataset):
             target_path.parent.mkdir(parents=True, exist_ok=True)
             
             # Extract audio data from the already-fetched sample
-            audio_data = sample["audio"]
+            audio_data = sample.get("audio")
+            if audio_data is None:
+                raise ValueError(f"Audio data is None for index {idx}")
 
             # Initialize result dictionary
             result = {
@@ -449,25 +505,54 @@ class BirdSetResampleDataset(Dataset):
                         result["error"] = f"Save error: {save_error}"
             
             result["processing_time"] = time.time() - start_time
+            
+            # Final safety check - ensure we never return None or invalid data
+            if result is None:
+                print(f"Warning: Result is None for idx {idx}, creating fallback")
+                result = self._create_fallback_result(idx, "Result was None")
+            
+            # Ensure all required keys exist
+            required_keys = ["idx", "status", "error", "original_path", "target_path", "sample_rate"]
+            for req_key in required_keys:
+                if req_key not in result:
+                    if req_key == "idx":
+                        result[req_key] = idx
+                    elif req_key == "status":
+                        result[req_key] = "error"
+                    elif req_key == "error":
+                        result[req_key] = f"Missing key: {req_key}"
+                    elif req_key in ["original_path", "target_path"]:
+                        result[req_key] = "unknown"
+                    elif req_key == "sample_rate":
+                        result[req_key] = self.target_sr
+            
             return result
             
         except Exception as load_error:
-            return {
-                "idx": idx,
-                "original_path": "unknown",
-                "target_path": "unknown",
-                "sample_rate": self.target_sr,
-                "status": "error",
-                "error": f"Load error: {load_error}",
-                "metadata": {},
-                "processing_time": time.time() - start_time,
-                "load_time": 0.0,
-                "save_time": 0.0
-            }
+            print(f"Exception in __getitem__ for idx {idx}: {load_error}")
+            return self._create_fallback_result(idx, f"Load error: {load_error}")
+    
+    def _create_fallback_result(self, idx: int, error_msg: str) -> Dict[str, Any]:
+        """Create a fallback result when everything else fails."""
+        return {
+            "idx": idx,
+            "original_path": "unknown",
+            "target_path": "unknown",
+            "sample_rate": self.target_sr,
+            "status": "error",
+            "error": error_msg,
+            "metadata": {},
+            "processing_time": 0.0,
+            "load_time": 0.0,
+            "save_time": 0.0
+        }
 
 
 def custom_collate_fn(batch):
     """Custom collate function for batching dataset results.
+    
+    This function is designed to handle any None values or malformed data
+    that might come from the dataset, ensuring the DataLoader never fails.
     
     Parameters
     ----------
@@ -479,18 +564,99 @@ def custom_collate_fn(batch):
     Dict[str, Any]
         Batched data
     """
+    # Light debug output - only show critical issues
+    none_count = sum(1 for item in batch if item is None)
+    if none_count > 0:
+        print(f"Warning: Found {none_count} None items in batch of {len(batch)}")
+    
+    non_dict_count = sum(1 for item in batch if item is not None and not isinstance(item, dict))
+    if non_dict_count > 0:
+        print(f"Warning: Found {non_dict_count} non-dict items in batch")
+    
+    # Filter out None values and non-dict items from batch
+    filtered_batch = []
+    for i, item in enumerate(batch):
+        if item is None:
+            continue
+        if not isinstance(item, dict):
+            continue
+        filtered_batch.append(item)
+    
+    if not filtered_batch:
+        print("Error: All items in batch are None or invalid - creating fallback batch")
+        # Return a valid but empty-like result to prevent crashes
+        return {
+            "idx": torch.tensor([-1]),
+            "status": ["error"],
+            "error": ["All batch items were None or invalid"],
+            "original_path": ["unknown"],
+            "target_path": ["unknown"],
+            "sample_rate": torch.tensor([16000])
+        }
+    
     # Initialize the result dictionary
     batched = {}
     
-    # Get all keys from the first sample
-    if batch:
-        for key in batch[0].keys():
+    # Get all keys from the first valid sample
+    if not filtered_batch[0]:
+        print("Error: First filtered item is empty - creating fallback batch")
+        return {
+            "idx": torch.tensor([-1]),
+            "status": ["error"],
+            "error": ["First item is empty"],
+            "original_path": ["unknown"],
+            "target_path": ["unknown"],
+            "sample_rate": torch.tensor([16000])
+        }
+    
+    first_sample_keys = list(filtered_batch[0].keys())
+    
+    for key in first_sample_keys:
+        try:
             if key in ["idx", "sample_rate"]:
-                # Convert to tensor for numeric fields
-                batched[key] = torch.tensor([sample[key] for sample in batch])
+                # Convert to tensor for numeric fields, handling None values
+                values = []
+                for sample in filtered_batch:
+                    if sample is not None and key in sample and sample[key] is not None:
+                        # Ensure the value is numeric
+                        try:
+                            val = int(sample[key]) if key == "idx" else float(sample[key])
+                            values.append(val)
+                        except (ValueError, TypeError):
+                            print(f"Warning: Non-numeric value for {key}: {sample[key]}")
+                            values.append(-1 if key == "idx" else 16000)
+                    else:
+                        # Use a default value for missing/None entries
+                        values.append(-1 if key == "idx" else 16000)
+                
+                batched[key] = torch.tensor(values)
             else:
-                # Keep as lists for string/mixed types
-                batched[key] = [sample[key] for sample in batch]
+                # Keep as lists for string/mixed types, handling None values
+                values = []
+                for sample in filtered_batch:
+                    if sample is not None and key in sample:
+                        values.append(sample[key])
+                    else:
+                        # Use appropriate default for missing entries
+                        if key == "status":
+                            values.append("error")
+                        elif key == "error":
+                            values.append("Missing sample data")
+                        elif key in ["original_path", "target_path"]:
+                            values.append("unknown")
+                        else:
+                            values.append(None)
+                
+                batched[key] = values
+                
+        except Exception as e:
+            # If there's an error with a specific key, create a safe default
+            print(f"Error processing key '{key}' in batch: {e}")
+            if key in ["idx", "sample_rate"]:
+                batched[key] = torch.tensor([-1 if key == "idx" else 16000] * len(filtered_batch))
+            else:
+                default_val = "error" if key == "status" else f"Error processing {key}"
+                batched[key] = [default_val] * len(filtered_batch)
     
     return batched
 
@@ -502,7 +668,9 @@ def create_dataloader(
     batch_size: int = 1,
     num_workers: int = 4,
     save_files: bool = True,
-    skip_existing: bool = True
+    skip_existing: bool = True,
+    test_mode: bool = False,
+    test_samples: int = 10
 ) -> DataLoader:
     """Create a PyTorch DataLoader for BirdSet resampling.
     
@@ -522,6 +690,10 @@ def create_dataloader(
         Whether to save files to disk
     skip_existing : bool
         Whether to skip existing files
+    test_mode : bool
+        Whether to run in test mode with limited samples
+    test_samples : int
+        Number of samples to process in test mode
         
     Returns
     -------
@@ -533,7 +705,9 @@ def create_dataloader(
         target_dir=target_dir,
         target_sr=target_sr,
         save_files=save_files,
-        skip_existing=skip_existing
+        skip_existing=skip_existing,
+        test_mode=test_mode,
+        test_samples=test_samples
     )
     
     return DataLoader(
@@ -541,7 +715,7 @@ def create_dataloader(
         batch_size=batch_size,
         shuffle=False,  # Keep original order for resampling
         num_workers=num_workers,
-        collate_fn=custom_collate_fn if batch_size > 1 else None
+        collate_fn=custom_collate_fn  # Always use custom collate function
     )
 
 
@@ -551,7 +725,9 @@ def process_split_with_dataloader(
     target_sr: int = 16000,
     batch_size: int = 1,
     num_workers: int = 4,
-    save_files: bool = True
+    save_files: bool = True,
+    test_mode: bool = False,
+    test_samples: int = 10
 ) -> Dict[str, Any]:
     """Process a single BirdSet split using PyTorch DataLoader.
     
@@ -569,6 +745,10 @@ def process_split_with_dataloader(
         Number of worker processes (will be set to 0 for GCS compatibility)
     save_files : bool
         Whether to save files to disk
+    test_mode : bool
+        Whether to run in test mode with limited samples
+    test_samples : int
+        Number of samples to process in test mode
         
     Returns
     -------
@@ -599,7 +779,9 @@ def process_split_with_dataloader(
         batch_size=batch_size,
         num_workers=num_workers,
         save_files=save_files,
-        skip_existing=True
+        skip_existing=True,
+        test_mode=test_mode,
+        test_samples=test_samples
     )
     
     setup_time = time.time() - setup_start_time
@@ -611,51 +793,280 @@ def process_split_with_dataloader(
     # Process batches
     processing_start_time = time.time()
     results = []
-    status_counters = {"success": 0, "saved": 0, "skipped": 0, "error": 0, "save_error": 0}
+    # Initialize status_counters with all possible status values
+    status_counters = {
+        "success": 0, 
+        "saved": 0, 
+        "skipped": 0, 
+        "error": 0, 
+        "save_error": 0,
+        "load_error": 0,  # Additional status that might occur
+        "unknown": 0      # Fallback for unexpected statuses
+    }
     
     for batch_idx, batch in enumerate(dataloader):
-        # Handle both single items and batches
-        if batch_size == 1:
-            # Single item - convert to list for uniform processing
-            batch_results = [batch]
-        else:
-            # Multiple items in batch - extract individual items
+        try:
+            # Validate batch is not None
+            if batch is None:
+                print(f"Warning: Batch {batch_idx} is None, skipping...")
+                continue
+            
+            # Debug: Print batch structure for first few batches
+            if batch_idx < 3:
+                print(f"Debug: Batch {batch_idx} structure:")
+                for key, value in batch.items():
+                    print(f"  {key}: type={type(value)}, len={len(value) if hasattr(value, '__len__') else 'N/A'}")
+                    if isinstance(value, (list, torch.Tensor)) and len(value) > 0:
+                        first_elem = value[0]
+                        # More detailed type info
+                        if isinstance(first_elem, torch.Tensor):
+                            elem_info = f"{first_elem} (tensor, shape={first_elem.shape}, dtype={first_elem.dtype})"
+                        else:
+                            elem_info = f"{first_elem} (type: {type(first_elem)})"
+                        print(f"    First element: {elem_info}")
+            
+            # Handle both single items and batches - always extract individual items
             batch_results = []
-            batch_size_actual = len(batch["idx"])
+            if "idx" not in batch:
+                print(f"Warning: Batch {batch_idx} missing 'idx' key, skipping...")
+                continue
+            
+            # Determine actual batch size from the idx tensor/list
+            if isinstance(batch["idx"], torch.Tensor):
+                batch_size_actual = len(batch["idx"])
+            elif isinstance(batch["idx"], list):
+                batch_size_actual = len(batch["idx"])
+            else:
+                print(f"Warning: Unexpected type for idx: {type(batch['idx'])}")
+                batch_size_actual = 1
+            
+            # Extract individual items from the batch
             for i in range(batch_size_actual):
                 item = {}
                 for key, value in batch.items():
-                    if isinstance(value, torch.Tensor):
-                        item[key] = value[i].item()
-                    elif isinstance(value, list):
-                        item[key] = value[i]
-                    else:
-                        item[key] = value
+                    try:
+                        if isinstance(value, torch.Tensor):
+                            # Extract the i-th element from tensor
+                            if len(value) == 1 and batch_size_actual == 1:
+                                # Single element tensor for single item batch
+                                extracted = value.item()
+                                if batch_idx < 3:  # Debug for first few batches
+                                    print(f"    Extracted {key} (single): {extracted} (type: {type(extracted)})")
+                            else:
+                                # Multi-element tensor or multi-item batch
+                                extracted = value[i]
+                                if batch_idx < 3:  # Debug for first few batches
+                                    print(f"    Pre-conversion {key}[{i}]: {extracted} (type: {type(extracted)})")
+                                # If the extracted value is still a tensor, convert to scalar
+                                if isinstance(extracted, torch.Tensor):
+                                    extracted = extracted.item()
+                                    if batch_idx < 3:  # Debug for first few batches
+                                        print(f"    Post-conversion {key}: {extracted} (type: {type(extracted)})")
+                            item[key] = extracted
+                        elif isinstance(value, list):
+                            # Extract the i-th element from list
+                            if len(value) == 1 and batch_size_actual == 1:
+                                # Single element list for single item batch
+                                item[key] = value[0]
+                            else:
+                                # Multi-element list or multi-item batch
+                                item[key] = value[i]
+                        else:
+                            # Scalar value - same for all items in batch
+                            item[key] = value
+                    except (IndexError, AttributeError) as e:
+                        print(f"Warning: Error extracting key '{key}' from batch item {i}: {e}")
+                        print(f"  Value type: {type(value)}, Value: {value}")
+                        # Set appropriate default based on key type
+                        if key == "idx":
+                            item[key] = -1
+                        elif key == "status":
+                            item[key] = "error"
+                        elif key == "error":
+                            item[key] = f"Batch extraction error: {e}"
+                        elif key in ["original_path", "target_path"]:
+                            item[key] = "unknown"
+                        elif key == "sample_rate":
+                            item[key] = 16000
+                        else:
+                            item[key] = None
+                
+                # Validate extracted item has correct types
+                if batch_idx < 3:  # Debug for first few batches
+                    print(f"    Final item {i}: {item}")
+                
+                # Ensure critical fields are correct types
+                if "status" in item and isinstance(item["status"], (list, torch.Tensor)):
+                    print(f"Warning: Status is still {type(item['status'])}: {item['status']}")
+                    if isinstance(item["status"], list):
+                        item["status"] = item["status"][0] if item["status"] else "error"
+                    elif isinstance(item["status"], torch.Tensor):
+                        item["status"] = item["status"].item() if item["status"].numel() == 1 else str(item["status"])
+                
+                if "idx" in item and isinstance(item["idx"], (list, torch.Tensor)):
+                    print(f"Warning: idx is still {type(item['idx'])}: {item['idx']}")
+                    if isinstance(item["idx"], list):
+                        item["idx"] = item["idx"][0] if item["idx"] else -1
+                    elif isinstance(item["idx"], torch.Tensor):
+                        item["idx"] = item["idx"].item() if item["idx"].numel() == 1 else -1
+                
                 batch_results.append(item)
         
-        # Process each item in the batch
-        for item in batch_results:
-            # Convert any remaining tensor values back to python types
-            result = {}
-            for key, value in item.items():
-                if isinstance(value, torch.Tensor):
-                    if value.numel() == 1:
-                        result[key] = value.item()
-                    else:
-                        result[key] = value.numpy()
-                else:
-                    result[key] = value
+            # Process each item in the batch
+            for item in batch_results:
+                try:
+                    # Convert any remaining tensor values back to python types
+                    result = {}
+                    
+                    if not isinstance(item, dict):
+                        print(f"Warning: Item is not a dict: {type(item)}")
+                        # Create error result for non-dict item
+                        error_result = {
+                            "idx": -1,
+                            "status": "error",
+                            "error": f"Item is not a dict: {type(item)}",
+                            "original_path": "unknown",
+                            "target_path": "unknown",
+                            "sample_rate": 16000
+                        }
+                        results.append(error_result)
+                        status_counters["error"] += 1
+                        continue
+                    
+                    for key, value in item.items():
+                        try:
+                            if isinstance(value, torch.Tensor):
+                                try:
+                                    if value.numel() == 1:
+                                        # Convert single-element tensor to scalar
+                                        result[key] = value.item()
+                                    else:
+                                        # Convert multi-element tensor to list (more compatible than numpy array)
+                                        result[key] = value.tolist()
+                                except Exception as tensor_error:
+                                    print(f"Warning: Error converting tensor for key '{key}': {tensor_error}")
+                                    # Fallback: try to convert to string
+                                    result[key] = str(value)
+                            elif isinstance(value, list):
+                                # Handle lists directly - don't try to make them hashable
+                                result[key] = value
+                            elif hasattr(value, 'item'):
+                                # Handle numpy scalars and similar
+                                try:
+                                    result[key] = value.item()
+                                except:
+                                    result[key] = str(value)
+                            else:
+                                # Handle regular python types
+                                result[key] = value
+                                
+                        except Exception as key_error:
+                            print(f"Warning: Error processing key '{key}' with value type {type(value)}: {key_error}")
+                            # Set a safe default based on key name
+                            if key == "idx":
+                                result[key] = -1
+                            elif key == "status":
+                                result[key] = "error"
+                            elif key == "error":
+                                result[key] = f"Key processing error: {key_error}"
+                            elif key in ["original_path", "target_path"]:
+                                result[key] = "unknown"
+                            elif key == "sample_rate":
+                                result[key] = 16000
+                            else:
+                                result[key] = None
+                    
+                    # Ensure result has required keys and correct types
+                    required_keys = ["idx", "status", "error", "original_path", "target_path", "sample_rate"]
+                    for req_key in required_keys:
+                        if req_key not in result:
+                            if req_key == "idx":
+                                result[req_key] = -1
+                            elif req_key == "status":
+                                result[req_key] = "error"
+                            elif req_key == "error":
+                                result[req_key] = "Missing required key"
+                            elif req_key in ["original_path", "target_path"]:
+                                result[req_key] = "unknown"
+                            elif req_key == "sample_rate":
+                                result[req_key] = 16000
+                    
+                    # Validate critical types to avoid unhashable errors
+                    if not isinstance(result["status"], str):
+                        print(f"Warning: Status is not a string: {type(result['status'])}, value: {result['status']}")
+                        if isinstance(result["status"], list):
+                            result["status"] = result["status"][0] if result["status"] else "error"
+                        else:
+                            result["status"] = str(result["status"]) if result["status"] is not None else "error"
+                    
+                    if not isinstance(result["idx"], (int, float)):
+                        print(f"Warning: idx is not numeric: {type(result['idx'])}, value: {result['idx']}")
+                        try:
+                            if isinstance(result["idx"], list):
+                                result["idx"] = result["idx"][0] if result["idx"] else -1
+                            else:
+                                result["idx"] = int(result["idx"]) if result["idx"] is not None else -1
+                        except (ValueError, TypeError):
+                            result["idx"] = -1
+                    
+                    results.append(result)
+                    
+                    # Safely use status as dictionary key
+                    safe_status = result["status"]
+                    if safe_status not in status_counters:
+                        print(f"Warning: Unknown status '{safe_status}', treating as 'unknown'")
+                        safe_status = "unknown"
+                    
+                    try:
+                        status_counters[safe_status] += 1
+                    except Exception as counter_error:
+                        print(f"Error incrementing counter for status '{safe_status}': {counter_error}")
+                        print(f"Status type: {type(safe_status)}, Counter keys: {list(status_counters.keys())}")
+                        # Fallback to unknown
+                        status_counters["unknown"] += 1
+                    
+                except Exception as item_error:
+                    print(f"Warning: Error processing item in batch {batch_idx}: {item_error}")
+                    import traceback
+                    print(f"Traceback: {traceback.format_exc()}")
+                    
+                    # Try to extract idx if possible
+                    try:
+                        idx = item.get("idx", -1) if isinstance(item, dict) else -1
+                    except:
+                        idx = -1
+                    
+                    error_result = {
+                        "idx": idx,
+                        "status": "error",
+                        "error": f"Item processing error: {item_error}",
+                        "original_path": "unknown",
+                        "target_path": "unknown",
+                        "sample_rate": 16000
+                    }
+                    results.append(error_result)
+                    status_counters["error"] += 1
             
-            results.append(result)
-            status_counters[result["status"]] += 1
-        
-        # Print progress every 100 files
-        if (batch_idx + 1) * batch_size % 100 == 0:
-            total_processed = len(results)
-            print(f"  Progress {total_processed}/{total_files}: "
-                  f"✅ {status_counters['saved']} saved, "
-                  f"⏭️  {status_counters['skipped']} skipped, "
-                  f"❌ {status_counters['error'] + status_counters['save_error']} errors")
+            # Print progress every 100 files
+            if (batch_idx + 1) * batch_size % 100 == 0:
+                total_processed = len(results)
+                print(f"  Progress {total_processed}/{total_files}: "
+                      f"✅ {status_counters['saved']} saved, "
+                      f"⏭️  {status_counters['skipped']} skipped, "
+                      f"❌ {status_counters['error'] + status_counters['save_error']} errors")
+                      
+        except Exception as batch_error:
+            print(f"Error processing batch {batch_idx}: {batch_error}")
+            # Create error results for this batch
+            error_result = {
+                "idx": batch_idx,
+                "status": "error", 
+                "error": f"Batch processing error: {batch_error}",
+                "original_path": "unknown",
+                "target_path": "unknown"
+            }
+            results.append(error_result)
+            status_counters["error"] += 1
     
     # Calculate final statistics
     processing_time = time.time() - processing_start_time
@@ -1145,8 +1556,39 @@ def main() -> None:
         default=["val"],
         help="Splits to use for benchmarking (default: val). Use smaller splits for faster benchmarking.",
     )
+    parser.add_argument(
+        "--test-mode",
+        action="store_true",
+        help="Run in test mode with only a few samples for debugging. Processes only first 10 files.",
+    )
+    parser.add_argument(
+        "--test-samples",
+        type=int,
+        default=10,
+        help="Number of samples to process in test mode (default: 10).",
+    )
+    parser.add_argument(
+        "--test-dataloader",
+        action="store_true",
+        help="Run DataLoader functionality test and exit. Useful for debugging DataLoader issues.",
+    )
     
     args = parser.parse_args()
+    
+    # Handle test-dataloader mode
+    if args.test_dataloader:
+        print("🧪 Running DataLoader functionality test...")
+        test_splits = args.benchmark_splits if hasattr(args, 'benchmark_splits') else ["val"]
+        for split in test_splits:
+            print(f"\nTesting split: {split}")
+            success = test_dataloader_functionality(split, args.test_samples)
+            if not success:
+                print(f"❌ Test failed for split {split}")
+                return
+            print(f"✅ Test passed for split {split}")
+        print("\n🎉 All DataLoader tests passed!")
+        return
+    
     target_dir = anypath(args.target_dir)
     
     # Validate number of workers
@@ -1199,6 +1641,9 @@ def main() -> None:
     print(f"Processing {len(splits_to_process)} splits: {splits_to_process}")
     print(f"Processing method: {processing_method}")
     
+    if args.test_mode:
+        print(f"🧪 TEST MODE ENABLED: Processing only {args.test_samples} samples per split")
+    
     if args.use_dataloader:
         print("ℹ️  Note: DataLoader mode uses single-process execution due to GCS fork-safety limitations.")
         print("   For faster parallel processing, use ThreadPoolExecutor mode (default).")
@@ -1231,7 +1676,9 @@ def main() -> None:
                     target_sr=args.target_sr,
                     batch_size=args.batch_size,
                     num_workers=args.workers,
-                    save_files=True
+                    save_files=True,
+                    test_mode=args.test_mode,
+                    test_samples=args.test_samples
                 )
             else:
                 result = process_split(
@@ -1353,24 +1800,102 @@ def main() -> None:
         print(f"  Errors: {error_file}")
 
 
+def test_dataloader_functionality(split_name: str = "val", num_samples: int = 5):
+    """Test that the DataLoader works correctly with a small number of samples."""
+    print("=" * 60)
+    print("TESTING DATALOADER FUNCTIONALITY")
+    print("=" * 60)
+    
+    try:
+        # Test dataset creation
+        print(f"1. Creating dataset for split '{split_name}' with {num_samples} samples...")
+        dataset = BirdSetResampleDataset(
+            split_name=split_name,
+            target_dir=Path("./test_dataloader"),
+            target_sr=16000,
+            save_files=False,  # Don't save files during testing
+            skip_existing=True,
+            test_mode=True,
+            test_samples=num_samples
+        )
+        print(f"   ✅ Dataset created successfully with {len(dataset)} samples")
+        
+        # Test individual dataset access
+        print(f"\n2. Testing individual dataset access...")
+        for i in range(min(3, len(dataset))):
+            try:
+                sample = dataset[i]
+                print(f"   Sample {i}: status={sample['status']}, keys={list(sample.keys())}")
+                if sample is None:
+                    print(f"   ⚠️  Sample {i} is None!")
+                elif not isinstance(sample, dict):
+                    print(f"   ⚠️  Sample {i} is not a dict: {type(sample)}")
+            except Exception as e:
+                print(f"   ❌ Error accessing sample {i}: {e}")
+        
+        # Test DataLoader creation
+        print(f"\n3. Creating DataLoader...")
+        dataloader = create_dataloader(
+            split_name=split_name,
+            target_dir=Path("./test_dataloader"),
+            target_sr=16000,
+            batch_size=2,
+            num_workers=0,  # Use 0 for testing
+            save_files=False,
+            skip_existing=True,
+            test_mode=True,
+            test_samples=num_samples
+        )
+        print(f"   ✅ DataLoader created successfully")
+        
+        # Test DataLoader iteration
+        print(f"\n4. Testing DataLoader iteration...")
+        for batch_idx, batch in enumerate(dataloader):
+            print(f"   Batch {batch_idx}:")
+            if batch is None:
+                print(f"     ❌ Batch is None!")
+            else:
+                print(f"     Keys: {list(batch.keys())}")
+                print(f"     Batch size: {len(batch.get('idx', []))}")
+                print(f"     Status values: {batch.get('status', [])}")
+            
+            if batch_idx >= 2:  # Only test first few batches
+                break
+        
+        print(f"\n✅ DataLoader test completed successfully!")
+        return True
+        
+    except Exception as e:
+        print(f"\n❌ DataLoader test failed: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+
+
 def example_usage_pytorch_components():
     """Example of how to use the PyTorch dataset and dataloader components independently."""
     
+    # First run the test
+    if not test_dataloader_functionality():
+        print("DataLoader test failed, skipping examples")
+        return
+    
     # Example 1: Using the dataset directly
-    print("=== Example 1: Using BirdSetResampleDataset directly ===")
+    print("\n=== Example 1: Using BirdSetResampleDataset directly ===")
     
     dataset = BirdSetResampleDataset(
-        split_name="train", 
+        split_name="val", 
         target_dir=Path("./resampled_data"),
         target_sr=16000,
         save_files=False,  # Don't save files, just get audio data
-        skip_existing=True
+        skip_existing=True,
+        test_mode=True,
+        test_samples=5
     )
     
     # Get a single sample
     sample = dataset[0]
     print(f"Sample keys: {list(sample.keys())}")
-    print(f"Audio shape: {sample['audio'].shape}")
     print(f"Sample rate: {sample['sample_rate']}")
     print(f"Status: {sample['status']}")
     
@@ -1378,22 +1903,24 @@ def example_usage_pytorch_components():
     print("\n=== Example 2: Using DataLoader ===")
     
     dataloader = create_dataloader(
-        split_name="train",
+        split_name="val",
         target_dir=Path("./resampled_data"),
         target_sr=16000,
-        batch_size=4,
-        num_workers=2,
+        batch_size=2,
+        num_workers=0,
         save_files=False,  # Don't save files in this example
-        skip_existing=True
+        skip_existing=True,
+        test_mode=True,
+        test_samples=5
     )
     
     # Process a few batches
     for batch_idx, batch in enumerate(dataloader):
         print(f"Batch {batch_idx}:")
         print(f"  Batch size: {len(batch['idx'])}")
-        print(f"  Audio shapes: {[audio.shape for audio in batch['audio']]}")
+        print(f"  Status values: {batch['status']}")
         
-        if batch_idx >= 2:  # Just show first 3 batches
+        if batch_idx >= 1:  # Just show first 2 batches
             break
     
     print("\n=== Integration Tips ===")
@@ -1402,6 +1929,7 @@ def example_usage_pytorch_components():
     print("3. Adjust num_workers based on your system's capabilities")
     print("4. The dataset preserves all metadata from the original BirdSet")
     print("5. Audio data is already resampled to target_sr")
+    print("6. Use test_mode=True for debugging with small samples")
 
 
 if __name__ == "__main__":
