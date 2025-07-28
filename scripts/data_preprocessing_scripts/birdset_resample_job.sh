@@ -12,6 +12,7 @@ export CLOUDPATHLIB_FORCE_OVERWRITE_FROM_CLOUD=1
 # Change to esp-data directory and sync dependencies
 cd ~/code/esp-data
 uv sync
+uv pip install torch numpy
 
 # Set default parameters (can be overridden via environment variables)
 TARGET_DIR=${TARGET_DIR:-"/home/marius_miron_earthspecies_org/data/16000"}
