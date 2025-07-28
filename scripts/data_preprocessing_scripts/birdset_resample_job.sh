@@ -11,6 +11,7 @@ export CLOUDPATHLIB_FORCE_OVERWRITE_FROM_CLOUD=1
 
 # Change to esp-data directory and sync dependencies
 cd ~/code/esp-data
+uv venv --python 3.12
 uv sync
 uv pip install torch numpy
 
