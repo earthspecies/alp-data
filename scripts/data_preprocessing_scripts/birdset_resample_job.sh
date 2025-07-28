@@ -1,12 +1,8 @@
 #!/usr/bin/env bash
 
-#SBATCH --partition=a100-40
-#SBATCH --gpus=1
+#SBATCH --partition=cpu
 #SBATCH --output="/home/%u/logs/birdset_resample_%A.log"
 #SBATCH --job-name="birdset-resample"
-#SBATCH --cpus-per-gpu=8
-#SBATCH --time=24:00:00
-#SBATCH --mem=32G
 
 # Install required tools and set up authentication
 uv tool install keyring --with keyrings.google-artifactregistry-auth
