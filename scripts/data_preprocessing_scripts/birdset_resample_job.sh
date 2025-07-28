@@ -13,7 +13,7 @@ export CLOUDPATHLIB_FORCE_OVERWRITE_FROM_CLOUD=1
 cd ~/code/esp-data
 uv venv --python 3.12
 uv sync
-uv pip install torch numpy
+uv add torch numpy
 
 # Set default parameters (can be overridden via environment variables)
 TARGET_DIR=${TARGET_DIR:-"/home/marius_miron_earthspecies_org/data/16000"}
