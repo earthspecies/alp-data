@@ -62,7 +62,9 @@ class Deduplicate:
 
     def __call__(self, df: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
         return df.drop_duplicates(
-            subset=self.subset, keep="first" if self.keep_first else "last"
+            subset=self.subset,
+            keep="first" if self.keep_first else "last",
+            ignore_index=True,
         ), {}
 
 

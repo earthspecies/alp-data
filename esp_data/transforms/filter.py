@@ -93,9 +93,9 @@ class Filter:
             pd.DataFrame: The filtered DataFrame.
         """
         if self.mode == "include":
-            return df[df[self.property].isin(self.values)]
+            return df[df[self.property].isin(self.values)].reset_index(drop=True)
         else:
-            return df[~df[self.property].isin(self.values)]
+            return df[~df[self.property].isin(self.values)].reset_index(drop=True)
 
     # Right now we assume dataframe (though that will change soon)
 

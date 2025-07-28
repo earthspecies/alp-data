@@ -5,6 +5,7 @@ from .beans import Beans
 from .bengalese_finch_calls import BengaleseFinchCalls
 from .birdset import BirdSet
 from .chiffchaff_id import ChiffchaffId
+from .esp_raincoast import ESPRaincoast
 from .giant_otters import GiantOtters
 from .insectset_459 import InsectSet459
 from .littleowl_id import LittleOwlId
@@ -30,4 +31,5 @@ __all__ = [
     "MacaquesCooCalls",
     "Voxaboxen",
     "VoxaboxenEvents",
+    "ESPRaincoast",
 ]
