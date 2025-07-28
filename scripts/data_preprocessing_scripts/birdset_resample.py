@@ -1157,6 +1157,8 @@ def process_split(
     Dict[str, Any]
         Processing statistics
     """
+    import random
+    
     total_start_time = time.time()
     setup_start_time = time.time()
     
@@ -1204,9 +1206,13 @@ def process_split(
     # Create batches for processing
     if batch_size > 1:
         # Batch processing for better efficiency
+        # Randomize file order for better load balancing
+        all_indices = list(range(total_files))
+        random.shuffle(all_indices)
+        
         batches = []
         for i in range(0, total_files, batch_size):
-            batch_indices = list(range(i, min(i + batch_size, total_files)))
+            batch_indices = all_indices[i:i + batch_size]
             batches.append(batch_indices)
         
         print(f"Processing {len(batches)} batches of size {batch_size}")
@@ -1263,6 +1269,10 @@ def process_split(
                         status_counters["error"] += len(batch_indices)
     else:
         # Single file processing (original method)
+        # Randomize file order for better load balancing
+        all_indices = list(range(total_files))
+        random.shuffle(all_indices)
+        
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             # Submit all tasks
             future_to_idx = {
@@ -1275,7 +1285,7 @@ def process_split(
                     total_files,
                     progress_counter
                 ): idx 
-                for idx in range(total_files)
+                for idx in all_indices
             }
             
             # Collect results as they complete
