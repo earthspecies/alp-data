@@ -57,8 +57,8 @@ plugins:
             show_symbol_type_toc: true
             show_symbol_type_heading: true
             modernize_annotations: true
-            # filters:
-            #   - "!^__.*__$"
+            show_bases: false
+            show_source: true
 
 markdown_extensions:
   - admonition
