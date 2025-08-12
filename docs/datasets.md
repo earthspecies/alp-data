@@ -141,97 +141,14 @@ print(metadata["label_from_feature"].keys())
 
 The list of available dataset will grow over time. Please refer to the next section if you wish to use your own Dataset or add a new one to the list of officially supported ones.
 
-::: esp_data.datasets.AnimalSpeak
-    handler: python
+::: esp_data.datasets
     options:
+        show_root_toc_entry: false
+        heading_level: 3
+        order: alphabetical
         filters:
-            - "!^.*$"  # Exclude everything
-        show_source: true
-
-::: esp_data.datasets.BarkleyCanyon
-    handler: python
-    options:
-        filters:
-            - "!^.*$"  # Exclude everything
-        show_source: true
-
-::: esp_data.datasets.BarkleyCanyonDetection
-    handler: python
-    options:
-        filters:
-            - "!^.*$"  # Exclude everything
-        show_source: true
-
-::: esp_data.datasets.InsectSet459
-    handler: python
-    options:
-        filters:
-            - "!^.*$"  # Exclude everything
-        show_source: true
-
-::: esp_data.datasets.Beans
-    handler: python
-    options:
-        filters:
-            - "!^.*$"  # Exclude everything
-        show_source: true
-
-::: esp_data.datasets.ZebraFinchJulieElie
-    handler: python
-    options:
-        filters:
-            - "!^.*$"  # Exclude everything
-        show_source: true
-
-::: esp_data.datasets.BengaleseFinchCalls
-    handler: python
-    options:
-        filters:
-            - "!^.*$"  # Exclude everything
-        show_source: true
-
-::: esp_data.datasets.GiantOtters
-    handler: python
-    options:
-        filters:
-            - "!^.*$"  # Exclude everything
-        show_source: true
-
-::: esp_data.datasets.ChiffchaffId
-    handler: python
-    options:
-        filters:
-            - "!^.*$"  # Exclude everything
-        show_source: true
-
-::: esp_data.datasets.LittleOwlId
-    handler: python
-    options:
-        filters:
-            - "!^.*$"  # Exclude everything
-        show_source: true
-
-::: esp_data.datasets.PipitId
-    handler: python
-    options:
-        filters:
-            - "!^.*$"  # Exclude everything
-        show_source: true
-
-::: esp_data.datasets.AudioSet
-    handler: python
-    options:
-        filters:
-            - "!^.*$"  # Exclude everything
-        show_source: true
-
-::: esp_data.datasets.MacaquesCooCalls
-    handler: python
-    options:
-        filters:
-            - "!^.*$"  # Exclude everything
-        show_source: true
-
+            - "!^[a-z_]"  # Exclude attributes and methods (start with lowercase or underscore)
+            - "!^__"      # Exclude private methods (start with double underscore)
 
 ## Using your own dataset
 
@@ -406,4 +323,3 @@ from esp_data.transforms import Filter
 filter_transform = Filter(property="category", values=["A", "B"])
 dataset.apply_transformations([filter_transform])
 ```
-

@@ -291,8 +291,7 @@ class BarkleyCanyonDetection(Dataset):
     See:
     https://github.com/earthspecies/foundation-model-data/blob/main/scripts/convert_barkley_canyon.py
 
-
-    Examples:
+    Examples
     --------
     >>> from esp_data.datasets import BarkleyCanyon
     >>> dataset = BarkleyCanyonDetection(split="train")

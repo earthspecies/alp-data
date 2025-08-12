@@ -20,9 +20,11 @@ To authenticate and interact with Python repositories hosted on Artifact Registr
 uv tool install keyring --with keyrings.google-artifactregistry-auth
 ```
 
-!!! info
-    You only need to perform this installation once on your system.
+!!! success "Slurm"
+    This step is **NOT** required for Slurm jobs. All nodes on the cluster already have this package installed.
 
+!!! info
+    You only need to do this step once on your system.
 
 !!! tip
     `uv tool` allows you to install Python packages that provide command-line interfaces for system-wide use. The dependencies are installed in an isolated virtual environment, separate from your current project.
