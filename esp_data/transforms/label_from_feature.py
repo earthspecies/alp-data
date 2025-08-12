@@ -83,7 +83,7 @@ class LabelFromFeature:
                 "Feature already exists in DataFrame. Set `override=True` to replace it."
             )
 
-        df_clean = df.dropna(subset=[self.feature])
+        df_clean = df.dropna(subset=[self.feature], ignore_index=True)
         if len(df_clean) != len(df):
             logger.warning(f"Dropped {len(df) - len(df_clean)} rows with {self.feature}=NaN")
 

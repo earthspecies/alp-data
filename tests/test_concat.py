@@ -3,9 +3,9 @@
 import pytest
 import pandas as pd
 from typing import Dict, Any, Iterator, Optional
-from collections.abc import Sequence
 
 from esp_data.dataset import Dataset, DatasetInfo
+from esp_data import Beans, InsectSet459, AnimalSpeak
 from esp_data.concat import concatenate_datasets, MergeException
 
 
@@ -485,3 +485,45 @@ class TestIntegrationRealDatasets:
 
         except Exception as e:
             pytest.skip(f"Skipping integration test due to data access issues: {e}")
+
+
+# Test to reproduce issue #98
+# https://github.com/earthspecies/esp-data/issues/98
+def test_pretransformed_before_concat():
+    from esp_data.transforms import DeduplicateConfig, FilterConfig, MultiLabelFromFeaturesConfig
+
+    dedup_cfg = DeduplicateConfig(type="deduplicate", subset=["local_path"])
+
+    beans_dog = Beans(split="dogs_test")
+    # duplicate the whole dataset to test deduplication
+    beans_dog._data = pd.concat([beans_dog._data, beans_dog._data], ignore_index=True)
+    # shuffle it
+    beans_dog._data = beans_dog._data.sample(frac=1, random_state=42).reset_index(drop=True)
+    _ = beans_dog.apply_transformations([dedup_cfg])
+
+    insectset = InsectSet459(split="validation")
+    filter_cfg = FilterConfig(type="filter", mode="exclude", property="species_scientific", values=["Apis mellifera"])
+    _ = insectset.apply_transformations([dedup_cfg, filter_cfg])
+
+    aspeak = AnimalSpeak(split="validation", data_root="gs://")
+    _ = aspeak.apply_transformations([dedup_cfg])
+
+    # Concatenate datasets after transformations
+    ds = concatenate_datasets([beans_dog, insectset, aspeak], merge_level="soft")
+
+    assert len(ds) == len(beans_dog) + len(insectset) + len(aspeak)
+
+    # apply label from feature transformation (this drops rows)
+    label_cfg = MultiLabelFromFeaturesConfig(
+        type="labels_from_features",
+        features=["species_scientific"],
+        output_feature="label",
+        override=True,
+    )
+
+    _ = ds.apply_transformations([label_cfg])
+    print(f"Dataset length after transformations: {len(ds)}")
+    # try indexing
+    sample1 = ds[0]
+    sample2 = ds[len(ds) // 2]
+    sample3 = ds[-1]

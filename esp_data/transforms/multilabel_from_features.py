@@ -128,7 +128,7 @@ class MultiLabelFromFeatures:
 
         df[self.output_feature] = df[self.features].apply(_row_to_ids, axis="columns")
 
-        df_clean = df.dropna(subset=self.output_feature)
+        df_clean = df.dropna(subset=self.output_feature, ignore_index=True)
 
         if len(df_clean) != len(df):
             logger.warning(f"Dropped {len(df) - len(df_clean)} rows with {self.output_feature}=NaN")

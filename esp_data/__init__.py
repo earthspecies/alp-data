@@ -17,6 +17,7 @@ from .datasets import (
     BengaleseFinchCalls,
     BirdSet,
     ChiffchaffId,
+    ESPRaincoast,
     GiantOtters,
     InsectSet459,
     LittleOwlId,
@@ -52,4 +53,5 @@ __all__ = [
     "MacaquesCooCalls",
     "Voxaboxen",
     "VoxaboxenEvents",
+    "ESPRaincoast",
 ]
