@@ -248,6 +248,7 @@ class Dataset(ABC):
         self.output_take_and_give = output_take_and_give
 
     @property
+    @abstractmethod
     def available_splits(self) -> Sequence[str]:
         """Get the available splits of the dataset.
 
@@ -256,9 +257,10 @@ class Dataset(ABC):
         Sequence[str]
             A sequence of split names available in the dataset.
         """
-        raise NotImplementedError
+        pass
 
     @property
+    @abstractmethod
     def columns(self) -> Sequence[str]:
         """Get the columns of the dataset.
 
@@ -267,7 +269,7 @@ class Dataset(ABC):
         Sequence[str]
             A sequence of column names in the dataset.
         """
-        raise NotImplementedError
+        pass
 
     @abstractmethod
     def _load(self) -> Optional[Sequence[Any]]:
@@ -278,7 +280,7 @@ class Dataset(ABC):
         Sequence[Any]
             The requested split of the dataset.
         """
-        raise NotImplementedError
+        pass
 
     @classmethod
     @abstractmethod
@@ -300,7 +302,7 @@ class Dataset(ABC):
         dict[str, Any]
             Metadata about transformations applied, if any. Can be empty.
         """
-        raise NotImplementedError
+        pass
 
     @abstractmethod
     def __len__(self) -> int:
@@ -311,7 +313,7 @@ class Dataset(ABC):
         int
             Number of samples in the dataset
         """
-        raise NotImplementedError
+        pass
 
     @abstractmethod
     def __iter__(self) -> Iterator[Dict[str, Any]]:
@@ -322,7 +324,7 @@ class Dataset(ABC):
         Iterator[Dict[str, Any]]
             Iterator over samples in the dataset
         """
-        raise NotImplementedError
+        pass
 
     @abstractmethod
     def __getitem__(self, idx: int) -> Dict[str, Any]:
@@ -343,7 +345,7 @@ class Dataset(ABC):
         IndexError
             If the index is out of bounds
         """
-        raise NotImplementedError
+        pass
 
     @abstractmethod
     def __str__(self) -> str:
@@ -357,7 +359,7 @@ class Dataset(ABC):
         str
             A string representation of the dataset
         """
-        raise NotImplementedError
+        pass
 
     def apply_transformations(
         self, transformations: list[RegisteredTransformConfigs]
