@@ -122,6 +122,14 @@ class MyCustomDataset(Dataset):
             raise RuntimeError("No split has been loaded yet.")
         return len(self._data)
 
+    @property
+    def available_splits(self) -> list[str]:
+        return ["train"]
+
+    @property
+    def columns(self) -> list[str]:
+        return list(self._data.columns)
+
     def __getitem__(self, idx: int) -> Dict[str, Any]:
         """Get a specific sample from the dataset."""
         if idx < 0 or idx >= len(self._data):
