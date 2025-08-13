@@ -1,6 +1,6 @@
 """Tree Pipit ID dataset"""
 
-from typing import Any, Dict, Iterator, Optional
+from typing import Any, Dict, Iterator
 
 import librosa
 import numpy as np
@@ -62,8 +62,8 @@ class PipitId(Dataset):
         self,
         split: str = "train_within_year",
         output_take_and_give: dict[str, str] | None = None,
-        sample_rate: Optional[int] = None,
-        data_root: Optional[str | AnyPathT] = None,
+        sample_rate: int | None = None,
+        data_root: str | AnyPathT | None = None,
     ) -> None:
         super().__init__(output_take_and_give)
         self.split = split
@@ -99,17 +99,34 @@ class PipitId(Dataset):
 
     @classmethod
     def from_config(cls, dataset_config: DatasetConfig) -> tuple["PipitId", dict[str, Any]]:
+        """Create a Dataset instance from a configuration dictionary.
+
+        Parameters
+        ----------
+        dataset_config : DatasetConfig
+            Configuration dictionary containing dataset parameters
+
+        Returns
+        -------
+        tuple[Dataset, dict[str, Any]]
+            A tuple containing the dataset instance and metadata.
+            If the dataset_config contains transformations, they will be applied
+            and the metadata will be returned as dict, otherwise empty dict.
+        """
+
         cfg = dataset_config.model_dump(exclude=("dataset_name", "transformations"))
-        split = cfg.get("split", "train_within_year")
-        if split not in cls.info.split_paths:
-            available_splits = ", ".join(cls.info.split_paths.keys())
-            raise LookupError(f"Invalid split '{split}'. Available splits: {available_splits}")
-        ds = cls(
-            split=split,
-            output_take_and_give=cfg.get("output_take_and_give"),
-            data_root=cfg.get("data_root"),
-            sample_rate=cfg["sample_rate"],
-        )
+
+        # Do not include split in kwargs if not defined and let __init__ use the default
+        kwargs = {
+            "output_take_and_give": cfg["output_take_and_give"],
+            "data_root": cfg["data_root"],
+            "sample_rate": cfg["sample_rate"],
+        }
+        if cfg["split"]:
+            kwargs["split"] = cfg["split"]
+
+        ds = cls(**kwargs)
+
         if dataset_config.transformations:
             meta = ds.apply_transformations(dataset_config.transformations)
             return ds, meta

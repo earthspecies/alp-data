@@ -291,25 +291,14 @@ class BengaleseFinchCalls(Dataset):
         tuple[BengaleseFinchCalls, dict[str, Any]]
             A tuple containing the dataset instance and metadata from transformations.
             If no transformations are applied, metadata will be an empty dict.
-
-        Raises
-        ------
-        LookupError
-            If the specified split is not available in the dataset.
         """
         cfg = dataset_config.model_dump(exclude=("dataset_name", "transformations"))
 
-        split = cfg.get("split", "Bird2_train")
-        if split not in cls.info.split_paths:
-            raise LookupError(
-                f"Invalid split '{split}'. Available splits: {', '.join(cls.info.split_paths)}"
-            )
-
         ds = cls(
-            split=split,
-            output_take_and_give=cfg.get("output_take_and_give"),
-            data_root=cfg.get("data_root"),
-            sample_rate=cfg.get("sample_rate"),
+            split=cfg["split"],
+            output_take_and_give=cfg["output_take_and_give"],
+            data_root=cfg["data_root"],
+            sample_rate=cfg["sample_rate"],
         )
 
         if dataset_config.transformations:
