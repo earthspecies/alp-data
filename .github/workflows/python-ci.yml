@@ -24,6 +24,11 @@ jobs:
           workload_identity_provider: ${{ secrets.WORKLOAD_IDENTITY_PROVIDER_ID }}
           service_account: ${{ secrets.GH_ACTIONS_SA }}
 
+      - name: Set up Cloud SDK
+        uses: 'google-github-actions/setup-gcloud@v2'
+        with:
+          version: '>= 534.0.0'
+
       - name: Install uv
         uses: astral-sh/setup-uv@v4
         with:

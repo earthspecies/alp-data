@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from esp_data.io import anypath
-from esp_data.exporters import _error_handler, make_file_opener_for_wds, _write_webdataset_shard, export_as_tar
+from esp_data.exporters import _error_handler, make_file_opener_for_wds, _write_webdataset_shard, export_as_tar, _chunk_dataset_indices
 from esp_data.webdataset_utils import audio_decoder, json_encoder, audio_encoder, load_webdataset
 
 
@@ -52,6 +52,24 @@ def webdataset_sharding_results(tmp_path: str) -> list[dict[str, Any]]:
                                       sample_prep_function=audio_encoder,
                                       )
     return results
+
+
+def test_chunk_dataset_indices() -> None:
+    ds = list(range(101))  # Simulating a dataset with 100 samples
+    chunk_size = 10
+    chunks = _chunk_dataset_indices(ds, chunk_size, shuffle=False)
+    assert len(chunks) == 11
+    assert chunks[-1] == [100]  # Last chunk has 9 elements since 99 is not divisible by 10
+
+
+def test_chunk_dataset_indices_shuffle() -> None:
+    ds = list(range(100))  # Simulating a dataset with 100 samples
+    chunk_size = 10
+    chunks = _chunk_dataset_indices(ds, chunk_size, shuffle=True)
+    assert len(chunks) == 10  # 100 samples / 10 chunk size = 10 chunks
+    # Check that all indices are present
+    all_indices = set().union(*chunks)
+    assert all_indices == set(ds)
 
 
 def test_json_encoder(json_dataset_records: list[dict[str, Any]]) -> None:

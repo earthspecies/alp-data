@@ -3,7 +3,6 @@
 import concurrent.futures
 import gc
 import logging
-import multiprocessing as mp
 import traceback
 import uuid
 from functools import partial
@@ -245,10 +244,11 @@ def _chunk_dataset_indices(
         # Use sequential indices
         indices = list(range(dataset_len))
 
+    # Split indices into chunks
     chunks = []
     for start in range(0, dataset_len, chunk_size):
         end = min(start + chunk_size, dataset_len)
-        chunks.append((indices[start], indices[end - 1] + 1))  # end is exclusive
+        chunks.append(indices[start:end])
 
     return chunks
 
@@ -269,8 +269,7 @@ def _write_shard_wrapper(args: tuple) -> dict:
     """
     (
         ds,
-        start_idx,
-        end_idx,
+        indices,
         shard_id,
         output_path,
         sample_prep_function,
@@ -279,8 +278,6 @@ def _write_shard_wrapper(args: tuple) -> dict:
         shard_name,
         compression,
     ) = args
-
-    indices = list(range(start_idx, end_idx))
 
     try:
         # TODO: extend this function to be a factory for different formats
@@ -395,7 +392,7 @@ def export_as_tar(
     if max_workers > 1:
         # Prepare arguments for parallel processing
         shard_args = []
-        for i, (start_idx, end_idx) in enumerate(chunks):
+        for i, ids in enumerate(chunks):
             shard_id = shard_start_id + i
             if not checkpoint_df.empty:
                 # Check if this shard has already been processed
@@ -405,8 +402,7 @@ def export_as_tar(
 
             args = (
                 ds,
-                start_idx,
-                end_idx,
+                ids,
                 shard_id,
                 output_path,
                 sample_prep_function,
@@ -416,10 +412,6 @@ def export_as_tar(
                 compression,
             )
             shard_args.append(args)
-
-        # Determine number of workers
-        if max_workers is None:
-            max_workers = min(mp.cpu_count(), total_shards)
 
         logger.info(f"Using {max_workers} workers for parallel processing")
 
@@ -487,7 +479,7 @@ def export_as_tar(
         # If max_workers is 1, process shards sequentially
         total_processed = 0
         total_failed = 0
-        for i, (start_idx, end_idx) in enumerate(chunks):
+        for i, ids in enumerate(chunks):
             shard_id = shard_start_id + i
             if not checkpoint_df.empty:
                 # Check if this shard has already been processed
@@ -499,7 +491,7 @@ def export_as_tar(
             result = _write_webdataset_shard(
                 dataset=ds,
                 shard_id=shard_id,
-                indices=list(range(start_idx, end_idx)),
+                indices=ids,
                 output_path=output_path,
                 sample_prep_function=sample_prep_function,
                 log_every=log_every,
