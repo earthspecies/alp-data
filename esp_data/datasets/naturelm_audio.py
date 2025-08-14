@@ -1,7 +1,7 @@
 """NatureLM-audio v1 training data"""
 
 from functools import partial
-from typing import Any, Callable, Iterator
+from typing import Any, Iterator
 
 import librosa
 
@@ -72,8 +72,6 @@ class NatureLMAudio(Dataset):
         across_shard_shuffle_size: int = 1000,
         seed: int | None = 42,
         split_by_worker: bool = False,
-        batch_collate_fn: Callable = None,
-        batch_size: int | None = None,
     ) -> None:
         """Initialize the NatureLMAudio dataset.
 
@@ -132,8 +130,6 @@ class NatureLMAudio(Dataset):
             shard_shuffle=across_shard_shuffle,
             shard_shuffle_size=across_shard_shuffle_size,
             split_by_worker=split_by_worker,
-            batch_collate_fn=batch_collate_fn,
-            batch_size=batch_size,
             seed=seed,
         )
 
@@ -168,36 +164,32 @@ class NatureLMAudio(Dataset):
             A tuple containing the dataset instance and metadata.
             If the dataset_config contains transformations, they will be applied
             and the metadata will be returned as dict, otherwise an empty dict.
-
-        Raises
-        -------
-        LookupError
-            If the specified split is not available in the dataset info.
         """
         cfg = dataset_config.model_dump(exclude=("dataset_name", "transformations"))
 
-        split = cfg.get("split", None)
-        if not split or split not in cls.info.split_paths:
-            raise LookupError(
-                f"Invalid split '{split}'."
-                f"Available splits: {', '.join(cls.info.split_paths.keys())}"
-            )
+        split = cfg.get("split")
+        kwargs = {
+            "split": split,
+            "output_take_and_give": cfg.get("output_take_and_give"),
+            "sample_rate": cfg.get("sample_rate"),
+            "data_root": cfg.get("data_root"),
+        }
+        if "shard_pattern" in cfg:
+            kwargs["shard_pattern"] = cfg["shard_pattern"]
+        if "within_shard_shuffle" in cfg:
+            kwargs["within_shard_shuffle"] = cfg["within_shard_shuffle"]
+        if "within_shard_shuffle_size" in cfg:
+            kwargs["within_shard_shuffle_size"] = cfg["within_shard_shuffle_size"]
+        if "across_shard_shuffle" in cfg:
+            kwargs["across_shard_shuffle"] = cfg["across_shard_shuffle"]
+        if "across_shard_shuffle_size" in cfg:
+            kwargs["across_shard_shuffle_size"] = cfg["across_shard_shuffle_size"]
+        if "seed" in cfg:
+            kwargs["seed"] = cfg["seed"]
+        if "split_by_worker" in cfg:
+            kwargs["split_by_worker"] = cfg["split_by_worker"]
 
-        ds = cls(
-            split=split,
-            output_take_and_give=cfg.get("output_take_and_give", None),
-            data_root=cfg.get("data_root"),
-            sample_rate=cfg.get("sample_rate", None),
-            shard_pattern=cfg.get("shard_pattern", "shard*tar"),
-            within_shard_shuffle=cfg.get("within_shard_shuffle", False),
-            within_shard_shuffle_size=cfg.get("within_shard_shuffle_size", 1000),
-            across_shard_shuffle=cfg.get("across_shard_shuffle", False),
-            across_shard_shuffle_size=cfg.get("across_shard_shuffle_size", 1000),
-            seed=cfg.get("seed", 42),
-            split_by_worker=cfg.get("split_by_worker", False),
-            batch_collate_fn=cfg.get("batch_collate_fn", None),
-            batch_size=cfg.get("batch_size", None),
-        )
+        ds = cls(**kwargs)
 
         if dataset_config.transformations:
             raise NotImplementedError(
