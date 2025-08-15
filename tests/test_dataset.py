@@ -122,6 +122,14 @@ class MyCustomDataset(Dataset):
             raise RuntimeError("No split has been loaded yet.")
         return len(self._data)
 
+    @property
+    def available_splits(self) -> list[str]:
+        return ["train"]
+
+    @property
+    def columns(self) -> list[str]:
+        return list(self._data.columns)
+
     def __getitem__(self, idx: int) -> Dict[str, Any]:
         """Get a specific sample from the dataset."""
         if idx < 0 or idx >= len(self._data):
@@ -150,7 +158,7 @@ class MyCustomDataset(Dataset):
     @classmethod
     def from_config(cls, dataset_config: DatasetConfig) -> "MyCustomDataset":
         """Create a Dataset instance from a configuration."""
-        cfg = dataset_config.model_dump(exclude=("dataset_name", "transformations"))
+        cfg = dataset_config.model_dump(exclude={"dataset_name", "transformations"})
 
         split = cfg.get("split", None)
         if not split or split not in cls.info.split_paths:
@@ -236,17 +244,27 @@ def test_my_custom_dataset_from_yaml():
     Includes RenameTransform in the configuration.
     """
 
+    def _run_asserts(dataset: Dataset):
+        assert isinstance(dataset, MyCustomDataset)
+        assert dataset.split == "train"
+        assert len(dataset) == 100  # Assuming we generated 100 samples
+        sample = dataset[0]
+        assert isinstance(sample, dict)
+        assert "path" not in sample
+        assert "label" in sample
+        assert "pure_text" in sample
+        assert sample["label"] in [0, 1]  # Assuming binary labels
+
     sample_cfg = Path("tests/samples/my_custom_dataset_cfg.yml")
     with open(sample_cfg, "r") as f:
         cfg = yaml.safe_load(f)
     dataset_config = DatasetConfig(**cfg)
     dataset, _ = dataset_from_config(dataset_config)
-    assert isinstance(dataset, MyCustomDataset)
-    assert dataset.split == "train"
-    assert len(dataset) == 100  # Assuming we generated 100 samples
-    sample = dataset[0]
-    assert isinstance(sample, dict)
-    assert "path" not in sample
-    assert "label" in sample
-    assert "pure_text" in sample
-    assert sample["label"] in [0, 1]  # Assuming binary labels
+    _run_asserts(dataset)
+
+    dataset, _ = dataset_from_config(sample_cfg)
+    _run_asserts(dataset)
+
+
+    dataset, _ = dataset_from_config(str(sample_cfg))
+    _run_asserts(dataset)

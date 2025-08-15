@@ -292,7 +292,7 @@ class BengaleseFinchCalls(Dataset):
             A tuple containing the dataset instance and metadata from transformations.
             If no transformations are applied, metadata will be an empty dict.
         """
-        cfg = dataset_config.model_dump(exclude=("dataset_name", "transformations"))
+        cfg = dataset_config.model_dump(exclude={"dataset_name", "transformations"})
 
         ds = cls(
             split=cfg["split"],
