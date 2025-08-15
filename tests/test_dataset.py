@@ -244,17 +244,27 @@ def test_my_custom_dataset_from_yaml():
     Includes RenameTransform in the configuration.
     """
 
+    def _run_asserts(dataset: Dataset):
+        assert isinstance(dataset, MyCustomDataset)
+        assert dataset.split == "train"
+        assert len(dataset) == 100  # Assuming we generated 100 samples
+        sample = dataset[0]
+        assert isinstance(sample, dict)
+        assert "path" not in sample
+        assert "label" in sample
+        assert "pure_text" in sample
+        assert sample["label"] in [0, 1]  # Assuming binary labels
+
     sample_cfg = Path("tests/samples/my_custom_dataset_cfg.yml")
     with open(sample_cfg, "r") as f:
         cfg = yaml.safe_load(f)
     dataset_config = DatasetConfig(**cfg)
     dataset, _ = dataset_from_config(dataset_config)
-    assert isinstance(dataset, MyCustomDataset)
-    assert dataset.split == "train"
-    assert len(dataset) == 100  # Assuming we generated 100 samples
-    sample = dataset[0]
-    assert isinstance(sample, dict)
-    assert "path" not in sample
-    assert "label" in sample
-    assert "pure_text" in sample
-    assert sample["label"] in [0, 1]  # Assuming binary labels
+    _run_asserts(dataset)
+
+    dataset, _ = dataset_from_config(sample_cfg)
+    _run_asserts(dataset)
+
+
+    dataset, _ = dataset_from_config(str(sample_cfg))
+    _run_asserts(dataset)
