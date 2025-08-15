@@ -1,8 +1,10 @@
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
+from pathlib import Path
 from typing import Any, Dict, Iterator, Optional
 
 import semver
+import yaml
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, field_validator
 
 from esp_data.transforms import transform_from_config
@@ -438,14 +440,15 @@ def print_registered_datasets() -> None:
 
 
 def dataset_from_config(
-    dataset_config: DatasetConfig,
+    dataset_config: DatasetConfig | Path | str,
 ) -> tuple[Dataset, dict[str, Any]]:
     """Load a dataset from a configuration.
 
     Parameters
     ----------
-    dataset_config : DatasetConfig
-        The configuration for the dataset.
+    dataset_config : DatasetConfig | Path | str
+        The configuration for the dataset. This can be either a DatasetConfig object or
+        instead a Pathlib.Path/string pointing to a yaml file.
 
     Returns
     -------
@@ -459,7 +462,13 @@ def dataset_from_config(
     KeyError
         If the dataset is not registered
     """
+
+    if isinstance(dataset_config, (Path, str)):
+        with Path(dataset_config).open("r") as fp:
+            dataset_config = DatasetConfig.model_validate(yaml.safe_load(fp))
+
     _dataset_class = _dataset_registry.get(dataset_config.dataset_name, None)
     if _dataset_class is None:
         raise KeyError(f"Dataset '{dataset_config.dataset_name}' is not registered.")
+
     return _dataset_class.from_config(dataset_config)
