@@ -302,7 +302,7 @@ class Voxaboxen(Dataset):
             If the dataset_config contains transformations, they will be applied
             and the metadata will be returned as dict, otherwise an empty dict.
         """
-        cfg = dataset_config.model_dump(exclude=("dataset_name", "transformations"))
+        cfg = dataset_config.model_dump(exclude={"dataset_name", "transformations"})
 
         ds = cls(
             split=cfg["split"],
@@ -645,7 +645,7 @@ class VoxaboxenEvents(Dataset):
         LookupError
             If the specified split is not available in the dataset info.
         """
-        cfg = dataset_config.model_dump(exclude=("dataset_name", "transformations"))
+        cfg = dataset_config.model_dump(exclude={"dataset_name", "transformations"})
 
         split = cfg.get("split", None)
         if not split or split not in cls.info.split_paths:

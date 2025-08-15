@@ -158,7 +158,7 @@ class MyCustomDataset(Dataset):
     @classmethod
     def from_config(cls, dataset_config: DatasetConfig) -> "MyCustomDataset":
         """Create a Dataset instance from a configuration."""
-        cfg = dataset_config.model_dump(exclude=("dataset_name", "transformations"))
+        cfg = dataset_config.model_dump(exclude={"dataset_name", "transformations"})
 
         split = cfg.get("split", None)
         if not split or split not in cls.info.split_paths:
