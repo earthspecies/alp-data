@@ -4,9 +4,9 @@ import pytest
 import pandas as pd
 from typing import Dict, Any, Iterator, Optional
 
-from esp_data.dataset import Dataset, DatasetInfo
+from esp_data.dataset import Dataset, DatasetInfo, dataset_from_config
 from esp_data import Beans, InsectSet459, AnimalSpeak
-from esp_data.concat import concatenate_datasets, MergeException
+from esp_data.concat import concatenate_datasets, MergeException, ConcatenatedDataset
 
 
 # Mock Dataset classes for testing
@@ -527,3 +527,18 @@ def test_pretransformed_before_concat():
     sample1 = ds[0]
     sample2 = ds[len(ds) // 2]
     sample3 = ds[-1]
+
+
+def test_concat_from_config() -> None:
+    """Test concatenating datasets from config files."""
+    ds, _ = dataset_from_config("tests/samples/test_concat_config.yml")
+    assert isinstance(ds, ConcatenatedDataset)
+    assert len(ds._source_datasets) == 2
+    assert ds.split == "concatenated"
+
+    for sample in ds:
+        assert isinstance(sample, dict)
+        assert "audio" in sample
+        assert len(sample["audio"]) > 0
+        assert "label" in sample
+        break

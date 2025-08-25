@@ -1,0 +1,18 @@
+some_collection:
+  - dataset_name: beans
+    split: dogs_test
+    output_take_and_give: null
+    transformations:
+      - type: label_from_feature
+        feature: label
+        output_feature: label
+        override: true
+
+  - dataset_name: beans
+    split: esc50_validation
+    output_take_and_give: null
+    transformations:
+      - type: label_from_feature
+        feature: label
+        output_feature: label
+        override: true

@@ -6,7 +6,13 @@ from typing import Any, Dict, Iterator, Literal, Optional
 import pandas as pd
 import semver
 
-from esp_data.dataset import Dataset, DatasetConfig, DatasetInfo
+from esp_data.dataset import (
+    ConcatConfig,
+    Dataset,
+    DatasetInfo,
+    dataset_from_config,
+    register_dataset,
+)
 
 logger = logging.getLogger("esp_data")
 
@@ -346,6 +352,7 @@ def concatenate_datasets(
             dataset.output_take_and_give = original_otag
 
 
+@register_dataset
 class ConcatenatedDataset(Dataset):
     """A dataset created by concatenating multiple datasets.
 
@@ -379,7 +386,15 @@ class ConcatenatedDataset(Dataset):
         "Concatenated dataset length should match sum of source datasets lengths"
     """
 
-    # No class-level info attribute to avoid overwriting issues
+    info = DatasetInfo(
+        name="concatenated_dataset",
+        owner="ESP Data Team",
+        split_paths={"concatenated": "virtual://concatenated_dataset"},
+        version="0.1.0",
+        description="A dataset created by concatenating multiple datasets.",
+        sources=["Multiple datasets"],
+        license="CC0-1.0",
+    )
 
     def __init__(
         self,
@@ -391,7 +406,7 @@ class ConcatenatedDataset(Dataset):
     ) -> None:
         super().__init__(output_take_and_give)
         self._data = data
-        self.info = dataset_info  # Instance attribute, not class attribute
+        self.info = dataset_info  # Overwrite info with provided metadata
         self._source_datasets = source_datasets  # Private attribute
         self.sample_rate = sample_rate
         self.split = "concatenated"
@@ -409,11 +424,39 @@ class ConcatenatedDataset(Dataset):
         pass  # Data is already loaded
 
     @classmethod
-    def from_config(cls, dataset_config: DatasetConfig) -> None:
-        raise NotImplementedError(
-            "ConcatenatedDataset cannot be instantiated from config. "
-            "Use concatenate_datasets function instead."
-        )
+    def from_config(
+        cls, concat_config: ConcatConfig
+    ) -> tuple["ConcatenatedDataset", Dict[str, Any]]:
+        """Create a ConcatenatedDataset from a ConcatConfig object.
+
+        Parameters
+        ----------
+        concat_config : ConcatConfig
+            Configuration object specifying the datasets to concatenate
+            and how to merge them.
+
+        Returns
+        -------
+        tuple[ConcatenatedDataset, dict]
+            A tuple containing the ConcatenatedDataset instance
+            and metadata about transformations applied.
+
+        Raises
+        -------
+        ValueError
+            If the concatenated dataset is empty after merging.
+            This can happen if no datasets are provided or if all datasets are empty,
+            or if the merge level results in an empty dataset.
+        """
+        datasets = [dataset_from_config(cfg)[0] for cfg in concat_config.datasets]
+        ds = concatenate_datasets(datasets, merge_level=concat_config.merge_level)
+        if len(ds) == 0:
+            raise ValueError("Concatenated dataset is empty. Check input datasets or merge level.")
+        if concat_config.transformations:
+            transform_metadata = ds.apply_transformations(concat_config.transformations)
+            return ds, transform_metadata
+
+        return ds, {}
 
     def __len__(self) -> int:
         return len(self._data)

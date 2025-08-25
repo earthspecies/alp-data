@@ -1,5 +1,6 @@
 """Unit tests for the dataset module."""
 
+import pytest
 from pathlib import Path
 import yaml
 from typing import Any, Dict, Optional, Literal
@@ -268,3 +269,30 @@ def test_my_custom_dataset_from_yaml():
 
     dataset, _ = dataset_from_config(str(sample_cfg))
     _run_asserts(dataset)
+
+
+def test_make_custom_collection_from_config():
+    datasets, metadatas = dataset_from_config("tests/samples/test_collection_config.yml",
+                                              key="some_collection")
+    assert isinstance(datasets[0], Dataset)
+    assert len(datasets) == 2
+    assert datasets[0].info.name == "beans"
+    assert datasets[1].split == "esc50_validation"
+
+    for sample in datasets[0]:
+        assert isinstance(sample, dict)
+        assert "audio" in sample
+        assert len(sample["audio"]) > 0
+        assert "label" in sample
+        break
+
+    # Test with wrong key
+    with pytest.raises(KeyError):
+        dataset_from_config("tests/samples/test_wrong_config.yml", key="my_data")
+
+
+def test_wrong_collection_from_config():
+    """Test that an error is raised when trying to create a dataset from an invalid collection config."""
+    with pytest.raises(ValueError, match="Multiple dataset configurations found in the provided data. "
+            "Please specify which dataset to load using the 'keys' parameter."):
+        dataset_from_config("tests/samples/test_wrong_config.yml")
