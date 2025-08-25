@@ -562,6 +562,12 @@ def dataset_from_config(
         with Path(dataset_config).open("r") as fp:
             data = yaml.safe_load(fp)
 
+    # First try to build a single dataset or concat from the top-level dict
+    try:
+        return _make_single_dataset_or_concat(data)
+    except PydanticValidationError:
+        pass
+
     input_keys = list(data.keys())
     if len(input_keys) > 1 and key is None:
         raise ValueError(

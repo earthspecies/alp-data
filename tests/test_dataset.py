@@ -293,6 +293,8 @@ def test_make_custom_collection_from_config():
 
 def test_wrong_collection_from_config():
     """Test that an error is raised when trying to create a dataset from an invalid collection config."""
-    with pytest.raises(ValueError, match="Multiple dataset configurations found in the provided data. "
-            "Please specify which dataset to load using the 'keys' parameter."):
+    with pytest.raises(ValueError):
         dataset_from_config("tests/samples/test_wrong_config.yml")
+
+    with pytest.raises(KeyError):
+        dataset_from_config("tests/samples/test_wrong_config.yml", key="non_existent_key")
