@@ -565,13 +565,14 @@ def dataset_from_config(
     # First try to build a single dataset or concat from the top-level dict
     try:
         return _make_single_dataset_or_concat(data)
-    except PydanticValidationError:
-        pass
+    except Exception as e:
+        print(f"Failed to build single dataset/concat from top-level dict: {e}")
+        print("Trying to interpret as a collection...")
 
     input_keys = list(data.keys())
     if len(input_keys) > 1 and key is None:
         raise ValueError(
-            "Multiple dataset configurations found in the provided data. "
+            "(Possibly) multiple dataset configurations found in the provided yaml. "
             "Please specify which dataset to load using the 'key' parameter."
         )
 
