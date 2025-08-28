@@ -110,7 +110,7 @@ class LittleOwlId(Dataset):
             and the metadata will be returned as dict, otherwise empty dict.
         """
 
-        cfg = dataset_config.model_dump(exclude=("dataset_name", "transformations"))
+        cfg = dataset_config.model_dump(exclude={"dataset_name", "transformations"})
 
         # Do not include split in kwargs if not defined and let __init__ use the default
         kwargs = {
