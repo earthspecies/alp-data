@@ -46,6 +46,7 @@ htmlcov/
 .coverage
 .coverage.*
 .cache
+.ruff_cache
 nosetests.xml
 coverage.xml
 *.cover
@@ -54,6 +55,9 @@ coverage.xml
 .pytest_cache/
 cover/
 .ipynb_checkpoints
+
+# AI
+.claude
 
 # Translations
 *.mo
