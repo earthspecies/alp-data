@@ -6,7 +6,6 @@ from typing import Any, Dict, Iterator, Literal, Optional
 import semver
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, field_validator
-from pydantic import ValidationError as PydanticValidationError
 
 from esp_data.transforms import transform_from_config
 from esp_data.transforms.registry import RegisteredTransformConfigs
@@ -115,10 +114,10 @@ class ConcatConfig(BaseModel):
         List of transforms to apply to the concatenated dataset.
     """
 
+    dataset_name: str = "concatenated_dataset"
     datasets: list[DatasetConfig]
     merge_level: Literal["hard", "overlap", "soft"] = "soft"
     transformations: list | None = None
-    dataset_name: str = "concatenated_dataset"  # DO NOT change this name
 
     @field_validator("transformations", mode="before")
     @classmethod
@@ -448,6 +447,9 @@ class Dataset(ABC):
 # Global registry instance
 _dataset_registry: dict[str, type[Dataset]] = {}
 
+# We may also have custom configs for specific datasets
+_custom_config_registry: dict[str, type[DatasetConfig]] = {}
+
 
 def register_dataset(cls: type[Dataset]) -> type[Dataset]:
     """A decorator to register a dataset class.
@@ -471,6 +473,32 @@ def register_dataset(cls: type[Dataset]) -> type[Dataset]:
     if name in _dataset_registry:
         raise ValueError(f"Dataset '{name}' is already registered.")
     _dataset_registry[name] = cls
+    return cls
+
+
+def register_config(cls: type[DatasetConfig]) -> type[DatasetConfig]:
+    """A decorator to register a custom dataset configuration class.
+
+    Parameters
+    ----------
+    cls : Type[DatasetConfig]
+        The dataset configuration class to register
+
+    Returns
+    -------
+    Type[DatasetConfig]
+        The registered dataset configuration class
+
+    Raises
+    -------
+    ValueError
+        If the dataset name is already registered
+    """
+    # TODO: should we have ClassVar instead ?
+    name = cls().dataset_name
+    if name in _custom_config_registry:
+        raise ValueError(f"Config '{name}' is already registered.")
+    _custom_config_registry[name] = cls
     return cls
 
 
@@ -520,10 +548,17 @@ def _make_dataset_from_config(dataset_config: DatasetConfig | ConcatConfig) -> D
 def _make_single_dataset_or_concat(
     cfg: dict[str, Any],
 ) -> tuple[Dataset, dict[str, Any]]:
-    try:
-        return _make_dataset_from_config(DatasetConfig.model_validate(cfg))
-    except Exception:
+    if "concat" in cfg and "dataset" in cfg:
+        raise ValueError("Configuration cannot contain both 'concat' and 'dataset' keys.")
+    if "dataset" in cfg:
+        cfg = cfg["dataset"]
+        cfg_class = _custom_config_registry.get(cfg["dataset_name"], DatasetConfig)
+        return _make_dataset_from_config(cfg_class.model_validate(cfg))
+    elif "concat" in cfg:
+        cfg = cfg["concat"]
         return _make_dataset_from_config(ConcatConfig.model_validate(cfg))
+    else:
+        raise ValueError("Configuration must contain either 'dataset' or 'concat' key.")
 
 
 def dataset_from_config(
@@ -548,8 +583,11 @@ def dataset_from_config(
     Raises
     ------
     ValueError
-        If multiple dataset configurations are found in the provided data
+        If multiple / invalid dataset configurations are found in the provided data
         and no specific key is provided to select one.
+
+    ValueError
+        If nested lists of configs are found in a collection configuration.
 
     KeyError
         If the specified key does not match any dataset configuration in the data.
@@ -562,43 +600,43 @@ def dataset_from_config(
         with Path(dataset_config).open("r") as fp:
             data = yaml.safe_load(fp)
 
-    # First try to build a single dataset or concat from the top-level dict
-    try:
-        return _make_single_dataset_or_concat(data)
-    except Exception as e:
-        print(f"Failed to build single dataset/concat from top-level dict: {e}")
-        print("Trying to interpret as a collection...")
+    if key is not None:
+        if key not in data:
+            raise KeyError(f"Required key '{key}' not found in the provided configuration data.")
+        data = data[key]
 
-    input_keys = list(data.keys())
-    if len(input_keys) > 1 and key is None:
-        raise ValueError(
-            "(Possibly) multiple dataset configurations found in the provided yaml. "
-            "Please specify which dataset to load using the 'key' parameter."
-        )
-
-    # if there's only one key in the config we may try to build from it
-    if len(input_keys) == 1 and key is None:
-        try:
-            return _make_single_dataset_or_concat(data[input_keys[0]])
-        except PydanticValidationError as e:
+    if isinstance(data, dict):
+        if len(data) == 1 and ("dataset" in data or "concat" in data):
+            # If the dict contains a single dataset/concat config, we can create it
+            return _make_single_dataset_or_concat(data)
+        else:
             raise ValueError(
-                "The provided data does not match any valid dataset configuration."
-            ) from e
+                "Multiple / Invalid dataset configurations found. "
+                "Please provide a specific key to select one."
+            )
 
-    elif key is not None and key not in input_keys:
-        raise KeyError("No valid dataset configuration found in the provided data.")
-
-    if isinstance(data[key], dict):
-        return _make_single_dataset_or_concat(data[key])
-
-    # Last option is that this is a collection:
+    # An option is that this is a collection:
     # list of single DatasetConfigs / ConcatConfigs
-    if isinstance(data[key], list):
+    if isinstance(data, list):
         output_datasets = []
         output_transform_metadata = []
-        for item in data[key]:
-            ds, transform_metadata = _make_single_dataset_or_concat(item)
-            output_datasets.append(ds)
-            output_transform_metadata.append(transform_metadata)
+        for cfg in data:
+            if isinstance(cfg, list):
+                raise ValueError("Nested configs are not supported in a collection configuration.")
+            elif isinstance(cfg, dict):
+                if len(cfg) == 1 and ("dataset" in cfg or "concat" in cfg):
+                    # If the dict contains a single dataset/concat config,
+                    # we can create it
+                    ds, transform_metadata = _make_single_dataset_or_concat(cfg)
+                    output_datasets.append(ds)
+                    output_transform_metadata.append(transform_metadata)
+                else:
+                    raise ValueError(
+                        "Nested configs are not supported in a collection configuration."
+                    )
+            else:
+                raise ValueError("Invalid type for a collection config.")
 
-    return output_datasets, output_transform_metadata
+        return output_datasets, output_transform_metadata
+    else:
+        raise ValueError("Invalid configuration format.")

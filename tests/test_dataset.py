@@ -259,13 +259,12 @@ def test_my_custom_dataset_from_yaml():
     sample_cfg = Path("tests/samples/my_custom_dataset_cfg.yml")
     with open(sample_cfg, "r") as f:
         cfg = yaml.safe_load(f)
-    dataset_config = DatasetConfig(**cfg)
+    dataset_config = DatasetConfig(**cfg["dataset"])
     dataset, _ = dataset_from_config(dataset_config)
     _run_asserts(dataset)
 
     dataset, _ = dataset_from_config(sample_cfg)
     _run_asserts(dataset)
-
 
     dataset, _ = dataset_from_config(str(sample_cfg))
     _run_asserts(dataset)
@@ -286,10 +285,6 @@ def test_make_custom_collection_from_config():
         assert "label" in sample
         break
 
-    # Test with wrong key
-    with pytest.raises(KeyError):
-        dataset_from_config("tests/samples/test_wrong_config.yml", key="my_data")
-
 
 def test_wrong_collection_from_config():
     """Test that an error is raised when trying to create a dataset from an invalid collection config."""
@@ -298,3 +293,12 @@ def test_wrong_collection_from_config():
 
     with pytest.raises(KeyError):
         dataset_from_config("tests/samples/test_wrong_config.yml", key="non_existent_key")
+
+    with pytest.raises(ValueError, match="Invalid type for a collection config."):
+        dataset_from_config("tests/samples/test_wrong_config.yml", key="nested_collection1")
+
+    with pytest.raises(ValueError, match="Nested configs are not supported in a collection configuration."):
+        dataset_from_config("tests/samples/test_wrong_config.yml", key="nested_collection2")
+
+    with pytest.raises(ValueError, match="Invalid configuration format."):
+        dataset_from_config("tests/samples/test_wrong_config.yml", key="config3")

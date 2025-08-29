@@ -1,38 +1,79 @@
 some_collection1:
-  - dataset_name: beans
-    split: dogs_test
-    output_take_and_give: null
-    transformations:
-      - type: label_from_feature
-        feature: label
-        output_feature: label
-        override: true
-
-  - dataset_name: beans
-    split: esc50_validation
-    output_take_and_give: null
-    transformations:
-      - type: label_from_feature
-        feature: label
-        output_feature: label
-        override: true
+  - dataset:
+      dataset_name: beans
+      split: dogs_test
+      output_take_and_give: null
+      transformations:
+        - type: label_from_feature
+          feature: label
+          output_feature: label
+          override: true
+  - dataset:
+      dataset_name: beans
+      split: esc50_validation
+      output_take_and_give: null
+      transformations:
+        - type: label_from_feature
+          feature: label
+          output_feature: label
+          override: true
 
 
 some_collection2:
-  - dataset_name: beans
-    split: dogs_test
-    output_take_and_give: null
-    transformations:
-      - type: label_from_feature
-        feature: label
-        output_feature: label
-        override: true
+  - dataset:
+      dataset_name: beans
+      split: dogs_test
+      output_take_and_give: null
+      transformations:
+        - type: label_from_feature
+          feature: label
+          output_feature: label
+          override: true
+  - dataset:
+      dataset_name: beans
+      split: esc50_test
+      output_take_and_give: null
+      transformations:
+        - type: label_from_feature
+          feature: label
+          output_feature: label
+          override: true
 
-  - dataset_name: beans
-    split: esc50_validation
-    output_take_and_give: null
-    transformations:
-      - type: label_from_feature
-        feature: label
-        output_feature: label
-        override: true
+
+nested_collection1:
+  - some_collection1
+  - some_collection2
+
+
+nested_collection2:
+  - dataset:
+      dataset_name: beans
+      split: dogs_test
+      output_take_and_give: null
+      transformations:
+        - type: label_from_feature
+          feature: label
+          output_feature: label
+          override: true
+
+  - some_collection2:
+      - dataset:
+          dataset_name: beans
+          split: dogs_test
+          output_take_and_give: null
+          transformations:
+            - type: label_from_feature
+              feature: label
+              output_feature: label
+              override: true
+      - dataset:
+          dataset_name: beans
+          split: esc50_test
+          output_take_and_give: null
+          transformations:
+            - type: label_from_feature
+              feature: label
+              output_feature: label
+              override: true
+
+config3: "??"

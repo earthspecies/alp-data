@@ -338,12 +338,12 @@ def concatenate_datasets(
         dataset_infos = [ds.info for ds in datasets]
         merged_info = _merge_dataset_info(dataset_infos)
 
-        return ConcatenatedDataset(
-            data=concatenated_df,
-            dataset_info=merged_info,
-            source_datasets=datasets,
-            sample_rate=combined_sample_rate,
-            output_take_and_give=combined_otag,
+        return (
+            concatenated_df,
+            merged_info,
+            datasets,
+            combined_sample_rate,
+            combined_otag,
         )
 
     finally:
@@ -379,8 +379,7 @@ class ConcatenatedDataset(Dataset):
     >>> from esp_data.concat import concatenate_datasets
     >>> dataset1 = InsectSet459(split="validation")
     >>> dataset2 = BirdSet(split="HSN-test")
-    >>> concatenated_dataset = concatenate_datasets(
-    ...    [dataset1, dataset2], merge_level="soft")
+    >>> ds = ConcatenatedDataset([dataset1, dataset2], merge_level="soft")
     >>> assert len(concatenated_dataset) > 0, "Concatenated dataset should not be empty"
     >>> assert len(concatenated_dataset) == len(dataset1) + len(dataset2), \
         "Concatenated dataset length should match sum of source datasets lengths"
@@ -398,18 +397,20 @@ class ConcatenatedDataset(Dataset):
 
     def __init__(
         self,
-        data: pd.DataFrame,
-        dataset_info: DatasetInfo,
-        source_datasets: list[Dataset],
-        sample_rate: Optional[int] = None,
-        output_take_and_give: Optional[dict] = None,
+        datasets: list[Dataset] | None = None,
+        merge_level: Literal["hard", "overlap", "soft"] = "soft",
     ) -> None:
+        (
+            self._data,
+            self.info,
+            self._source_datasets,
+            self.sample_rate,
+            output_take_and_give,
+        ) = concatenate_datasets(datasets, merge_level=merge_level)
         super().__init__(output_take_and_give)
-        self._data = data
-        self.info = dataset_info  # Overwrite info with provided metadata
-        self._source_datasets = source_datasets  # Private attribute
-        self.sample_rate = sample_rate
         self.split = "concatenated"
+        if len(self._data) == 0:
+            raise ValueError("Concatenated dataset is empty. Check input datasets or merge level.")
 
     @property
     def columns(self) -> list[str]:
@@ -440,18 +441,10 @@ class ConcatenatedDataset(Dataset):
         tuple[ConcatenatedDataset, dict]
             A tuple containing the ConcatenatedDataset instance
             and metadata about transformations applied.
-
-        Raises
-        -------
-        ValueError
-            If the concatenated dataset is empty after merging.
-            This can happen if no datasets are provided or if all datasets are empty,
-            or if the merge level results in an empty dataset.
         """
         datasets = [dataset_from_config(cfg)[0] for cfg in concat_config.datasets]
-        ds = concatenate_datasets(datasets, merge_level=concat_config.merge_level)
-        if len(ds) == 0:
-            raise ValueError("Concatenated dataset is empty. Check input datasets or merge level.")
+        ds = cls(datasets, merge_level=concat_config.merge_level)
+
         if concat_config.transformations:
             transform_metadata = ds.apply_transformations(concat_config.transformations)
             return ds, transform_metadata

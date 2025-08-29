@@ -2,7 +2,7 @@
 
 import math
 from io import StringIO
-from typing import Any, Dict, Iterator, Optional
+from typing import Any, Dict, Iterator, Literal, Optional
 
 import librosa
 import numpy as np
@@ -11,6 +11,7 @@ from intervaltree import IntervalTree
 from numpy.random import default_rng
 
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
+from esp_data.dataset import register_config
 from esp_data.io import (
     AnyPathT,
     anypath,
@@ -128,6 +129,37 @@ LABEL_SETS = {
     "OZF_synthetic_overlap_1_val": ["Unknown", "POS"],
     "OZF_synthetic_overlap_1_test": ["Unknown", "POS"],
 }
+
+
+@register_config
+class VoxaboxenConfig(DatasetConfig):
+    """Configuration for the Voxaboxen dataset.
+
+    Parameters
+    ----------
+    dataset_name : Literal["voxaboxen"]
+        The name of the dataset.
+    split : str
+        The split to load. One of Voxaboxen.info.split_paths keys.
+    output_take_and_give : dict[str, str]
+        A dictionary mapping the original column names to the new column names.
+        It acts as a filter as well.
+    sample_rate : int | None
+        The sample rate to which audio files should be resampled.
+    data_root : str | AnyPathT | None
+        The root directory for the dataset. This is optionally appended to the
+        path item of a sample in the dataset.
+        If None, the default is the parent directory of the split path.
+    mono_method : str | None
+        Method to convert stereo audio to mono. If None, stereo is preserved.
+    """
+
+    dataset_name: str = "voxaboxen"
+    split: str = "train"
+    output_take_and_give: dict[str, str] = None
+    sample_rate: Optional[int] = None
+    data_root: Optional[str | AnyPathT] = None
+    mono_method: Optional[str] = "average"
 
 
 @register_dataset
@@ -287,7 +319,7 @@ class Voxaboxen(Dataset):
         self._data = pd.read_csv(StringIO(csv_text))
 
     @classmethod
-    def from_config(cls, dataset_config: DatasetConfig) -> tuple["Voxaboxen", dict[str, Any]]:
+    def from_config(cls, dataset_config: VoxaboxenConfig) -> tuple["Voxaboxen", dict[str, Any]]:
         """Create a Dataset instance from a configuration dictionary.
 
         Parameters
@@ -309,6 +341,7 @@ class Voxaboxen(Dataset):
             output_take_and_give=cfg["output_take_and_give"],
             data_root=cfg["data_root"],
             sample_rate=cfg["sample_rate"],
+            mono_method=cfg["mono_method"],
         )
 
         if dataset_config.transformations:
@@ -422,6 +455,66 @@ class Voxaboxen(Dataset):
         )
 
 
+@register_config
+class VoxaboxenEventsConfig(DatasetConfig):
+    """Configuration for the VoxaboxenEvents dataset.
+
+    Parameters
+    ----------
+    dataset_name : Literal["voxaboxen_events"]
+        The name of the dataset.
+    split : str
+        The split to load. One of Voxaboxen.info.split_paths keys.
+    output_take_and_give : dict[str, str]
+        A dictionary mapping the original column names to the new column names.
+        It acts as a filter as well.
+    sample_rate : int | None
+        The sample rate to which audio files should be resampled.
+    data_root : str | AnyPathT | None
+        The root directory for the dataset. This is optionally appended to the
+        path item of a sample in the dataset.
+        If None, the default is the parent directory of the split path.
+    mono_method : str, optional
+        The method to convert stereo audio to mono. Defaults to "average".
+        Other options are "average" and "keep_first"
+    clip_duration : float, optional
+        Duration of each audio clip in seconds.
+    clip_hop : float, optional
+        Hop size between consecutive audio clips in seconds. If None, the full
+        audio is used without overlapping clips.
+    clip_start_offset : float, optional
+        Offset in seconds to start the first clip. Defaults to 0.0 seconds.
+        This is useful for skipping a portion of the audio before the first clip.
+    scale_factor : float, optional
+        Scale factor for downsampling the audio. This is needed when representations
+        have been downsampled by encoders like AVES.
+    omit_empty_clip_prob : float, optional
+        Probability of omitting empty clips (no annotations).
+        Defaults to 0.0, meaning no empty clips are omitted.
+    segmentation_based : bool, optional
+        If True, the dataset is segmented based on the selection table.
+        If False, the entire audio file is treated as a single segment.
+        Defaults to True.
+    unknown_label : str, optional
+        The label used for unknown annotations. Defaults to "unknown".
+    """
+
+    dataset_name: str = "voxaboxen_events"
+    split: str = "train"
+    output_take_and_give: dict[str, str] = None
+    sample_rate: Optional[int] = None
+    data_root: Optional[str | AnyPathT] = None
+    stereo_or_mono: Literal["stereo", "mono"] = "stereo"
+    mono_method: Literal["average", "keep_first"] = "average"
+    clip_duration: float = 10.0
+    clip_hop: float = 5.0
+    clip_start_offset: float = 0.0
+    omit_empty_clip_prob: float = 0.0
+    scale_factor: int = 1
+    segmentation_based: bool = True
+    unknown_label: str = "Unknown"
+
+
 @register_dataset
 class VoxaboxenEvents(Dataset):
     """Voxaboxen dataset as events
@@ -514,8 +607,8 @@ class VoxaboxenEvents(Dataset):
         output_take_and_give: dict[str, str] = None,
         sample_rate: int = 16000,
         data_root: Optional[str | AnyPathT] = None,
-        stereo_or_mono: str = "stereo",
-        mono_method: str = "average",
+        stereo_or_mono: Literal["stereo", "mono"] = "stereo",
+        mono_method: Literal["average", "keep_first"] = "average",
         clip_duration: float = 10.0,
         clip_hop: float = 5.0,
         clip_start_offset: float = 0.0,

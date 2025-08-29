@@ -6,7 +6,7 @@ from typing import Dict, Any, Iterator, Optional
 
 from esp_data.dataset import Dataset, DatasetInfo, dataset_from_config
 from esp_data import Beans, InsectSet459, AnimalSpeak
-from esp_data.concat import concatenate_datasets, MergeException, ConcatenatedDataset
+from esp_data.concat import MergeException, ConcatenatedDataset
 
 
 # Mock Dataset classes for testing
@@ -142,7 +142,7 @@ class TestConcatenateDatasets:
 
     def test_hard_merge_identical_columns(self, dataset1_identical_columns, dataset2_identical_columns):
         """Test hard merge with identical columns."""
-        result = concatenate_datasets([dataset1_identical_columns, dataset2_identical_columns], "hard")
+        result = ConcatenatedDataset([dataset1_identical_columns, dataset2_identical_columns], "hard")
 
         assert len(result) == 5
         assert set(result.columns) == {'A', 'B', 'C'}
@@ -155,11 +155,11 @@ class TestConcatenateDatasets:
     def test_hard_merge_different_columns_fails(self, dataset1_different_columns, dataset2_different_columns):
         """Test hard merge fails with different columns."""
         with pytest.raises(MergeException, match="Hard merge requires identical columns"):
-            concatenate_datasets([dataset1_different_columns, dataset2_different_columns], "hard")
+            ConcatenatedDataset([dataset1_different_columns, dataset2_different_columns], "hard")
 
     def test_overlap_merge_with_common_columns(self, dataset1_different_columns, dataset2_different_columns):
         """Test overlap merge keeps only common columns."""
-        result = concatenate_datasets([dataset1_different_columns, dataset2_different_columns], "overlap")
+        result = ConcatenatedDataset([dataset1_different_columns, dataset2_different_columns], "overlap")
 
         assert len(result) == 5
         assert set(result.columns) == {'A'}  # Only common column
@@ -174,11 +174,11 @@ class TestConcatenateDatasets:
         ds2 = MockDataset(data2, dataset_info2)
 
         with pytest.raises(MergeException, match="No common columns found for overlap merge"):
-            concatenate_datasets([ds1, ds2], "overlap")
+            ConcatenatedDataset([ds1, ds2], "overlap")
 
     def test_soft_merge_all_columns(self, dataset1_different_columns, dataset2_different_columns):
         """Test soft merge keeps all columns."""
-        result = concatenate_datasets([dataset1_different_columns, dataset2_different_columns], "soft")
+        result = ConcatenatedDataset([dataset1_different_columns, dataset2_different_columns], "soft")
 
         assert len(result) == 5
         assert set(result.columns) == {'A', 'B', 'C', 'D', 'E'}
@@ -191,7 +191,7 @@ class TestConcatenateDatasets:
     def test_invalid_merge_level(self, dataset1_identical_columns, dataset2_identical_columns):
         """Test invalid merge level raises exception."""
         with pytest.raises(MergeException, match="Invalid merge_level"):
-            concatenate_datasets([dataset1_identical_columns, dataset2_identical_columns], "invalid")
+            ConcatenatedDataset([dataset1_identical_columns, dataset2_identical_columns], "invalid")
 
     def test_different_sample_rates_fails(self, dataset_info1, dataset_info2):
         """Test different sample rates raise exception."""
@@ -201,7 +201,7 @@ class TestConcatenateDatasets:
         ds2 = MockDataset(data2, dataset_info2, sample_rate=22050)
 
         with pytest.raises(MergeException, match="Sample rates must match"):
-            concatenate_datasets([ds1, ds2])
+            ConcatenatedDataset([ds1, ds2])
 
     def test_none_sample_rates(self, dataset_info1, dataset_info2):
         """Test handling of None sample rates."""
@@ -210,7 +210,7 @@ class TestConcatenateDatasets:
         ds1 = MockDataset(data1, dataset_info1, sample_rate=None)
         ds2 = MockDataset(data2, dataset_info2, sample_rate=16000)
 
-        result = concatenate_datasets([ds1, ds2])
+        result = ConcatenatedDataset([ds1, ds2])
         assert result.sample_rate == 16000
 
     def test_output_take_and_give_merge(self, dataset_info1, dataset_info2):
@@ -224,7 +224,7 @@ class TestConcatenateDatasets:
         ds1 = MockDataset(data1, dataset_info1, output_take_and_give=otag1)
         ds2 = MockDataset(data2, dataset_info2, output_take_and_give=otag2)
 
-        result = concatenate_datasets([ds1, ds2])
+        result = ConcatenatedDataset([ds1, ds2])
         expected_otag = {'A': 'feature1', 'B': 'feature2', 'C': 'feature3'}
         assert result.output_take_and_give == expected_otag
 
@@ -249,7 +249,7 @@ class TestConcatenateDatasets:
         ds2 = MockDataset(data2, dataset_info2, sample_rate=16000)
         ds3 = MockDataset(data3, dataset_info3, sample_rate=16000)
 
-        result = concatenate_datasets([ds1, ds2, ds3], "soft")
+        result = ConcatenatedDataset([ds1, ds2, ds3], "soft")
 
         assert len(result) == 6
         assert result.info.name == "dataset1+dataset2+dataset3"
@@ -279,11 +279,11 @@ class TestConcatenateDatasets:
         ds2 = MockDataset(data2, dataset_info2, output_take_and_give=otag2)
 
         with pytest.raises(MergeException, match="Conflicting values for key 'A'"):
-            concatenate_datasets([ds1, ds2])
+            ConcatenatedDataset([ds1, ds2])
 
     def test_dataset_info_merging(self, dataset1_identical_columns, dataset2_identical_columns):
         """Test DatasetInfo merging."""
-        result = concatenate_datasets([dataset1_identical_columns, dataset2_identical_columns])
+        result = ConcatenatedDataset([dataset1_identical_columns, dataset2_identical_columns])
 
         assert result.info.name == "dataset1+dataset2"
         assert result.info.owner == "owner1; owner2"
@@ -301,7 +301,7 @@ class TestConcatenateDatasets:
         ds1 = MockDataset(data1, dataset_info1)
         ds2 = MockDataset(data2, dataset_info2)
 
-        result = concatenate_datasets([ds1, ds2])
+        result = ConcatenatedDataset([ds1, ds2])
         assert result.info.license == "MIT; Apache"
 
     def test_no_data_loaded_fails(self, dataset_info1, dataset_info2):
@@ -312,16 +312,16 @@ class TestConcatenateDatasets:
         ds2._data = None  # Simulate no data loaded
 
         with pytest.raises(MergeException, match="Dataset at index 1 has no data loaded"):
-            concatenate_datasets([ds1, ds2])
+            ConcatenatedDataset([ds1, ds2])
 
     def test_non_dataset_objects_fail(self):
         """Test exception with non-Dataset objects."""
         with pytest.raises(MergeException, match="All objects must be Dataset instances"):
-            concatenate_datasets(["not_a_dataset", "also_not_a_dataset"])
+            ConcatenatedDataset(["not_a_dataset", "also_not_a_dataset"])
 
-    def test_concatenated_dataset_methods(self, dataset1_identical_columns, dataset2_identical_columns):
+    def test_concatenateddataset_methods(self, dataset1_identical_columns, dataset2_identical_columns):
         """Test that concatenated dataset methods work correctly."""
-        result = concatenate_datasets([dataset1_identical_columns, dataset2_identical_columns])
+        result = ConcatenatedDataset([dataset1_identical_columns, dataset2_identical_columns])
 
         # Test __len__
         assert len(result) == 5
@@ -345,7 +345,7 @@ class TestConcatenateDatasets:
         assert "dataset1+dataset2" in str_repr
         assert "Length: 5" in str_repr
 
-    def test_output_take_and_give_in_concatenated_dataset(self, dataset_info1, dataset_info2):
+    def test_output_take_and_give_in_concatenateddataset(self, dataset_info1, dataset_info2):
         """Test output_take_and_give works in concatenated dataset."""
         data1 = pd.DataFrame({'original_name': [1, 2], 'B': [3, 4]})
         data2 = pd.DataFrame({'original_name': [5, 6], 'B': [7, 8]})
@@ -355,7 +355,7 @@ class TestConcatenateDatasets:
         ds1 = MockDataset(data1, dataset_info1, output_take_and_give=otag)
         ds2 = MockDataset(data2, dataset_info2, output_take_and_give=otag)
 
-        result = concatenate_datasets([ds1, ds2])
+        result = ConcatenatedDataset([ds1, ds2])
 
         # Test that output mapping works
         first_item = result[0]
@@ -378,7 +378,7 @@ class TestIntegrationRealDatasets:
             barkley_canyon = BarkleyCanyon(split="train", sample_rate=16000)
 
             # Test soft merge (should work despite different columns)
-            result = concatenate_datasets([animalspeak, barkley_canyon], merge_level="soft")
+            result = ConcatenatedDataset([animalspeak, barkley_canyon], merge_level="soft")
 
             # Verify basic properties
             assert len(result) == len(animalspeak) + len(barkley_canyon)
@@ -420,7 +420,7 @@ class TestIntegrationRealDatasets:
             animalspeak2 = AnimalSpeak(split="validation", sample_rate=22050)
 
             with pytest.raises(MergeException, match="Sample rates must match"):
-                concatenate_datasets([animalspeak1, animalspeak2])
+                ConcatenatedDataset([animalspeak1, animalspeak2])
 
         except Exception as e:
             pytest.skip(f"Skipping integration test due to data access issues: {e}")
@@ -438,7 +438,7 @@ class TestIntegrationRealDatasets:
         animalspeak2 = AnimalSpeak(split="validation", sample_rate=16000,
                                     output_take_and_give=otag2, data_root="gs://")
 
-        result = concatenate_datasets([animalspeak1, animalspeak2])
+        result = ConcatenatedDataset([animalspeak1, animalspeak2])
 
         # Should merge the mappings
         expected_otag = {"species_common": "species", "caption": "text", "local_path": "path"}
@@ -458,7 +458,7 @@ class TestIntegrationRealDatasets:
                                     output_take_and_give=otag3)
 
         with pytest.raises(MergeException, match="Conflicting values"):
-            concatenate_datasets([animalspeak1, animalspeak3])
+            ConcatenatedDataset([animalspeak1, animalspeak3])
 
     def test_overlap_merge_real_datasets(self):
         """Test overlap merge with real datasets that have some common columns."""
@@ -473,7 +473,7 @@ class TestIntegrationRealDatasets:
             common_cols = set(animalspeak.columns) & set(barkley_canyon.columns)
 
             if common_cols:
-                result = concatenate_datasets([animalspeak, barkley_canyon], merge_level="overlap")
+                result = ConcatenatedDataset([animalspeak, barkley_canyon], merge_level="overlap")
 
                 # Should only have common columns
                 assert set(result.columns) == common_cols
@@ -481,7 +481,7 @@ class TestIntegrationRealDatasets:
             else:
                 # If no common columns, should fail
                 with pytest.raises(MergeException, match="No common columns found"):
-                    concatenate_datasets([animalspeak, barkley_canyon], merge_level="overlap")
+                    ConcatenatedDataset([animalspeak, barkley_canyon], merge_level="overlap")
 
         except Exception as e:
             pytest.skip(f"Skipping integration test due to data access issues: {e}")
@@ -509,7 +509,7 @@ def test_pretransformed_before_concat():
     _ = aspeak.apply_transformations([dedup_cfg])
 
     # Concatenate datasets after transformations
-    ds = concatenate_datasets([beans_dog, insectset, aspeak], merge_level="soft")
+    ds = ConcatenatedDataset([beans_dog, insectset, aspeak], merge_level="soft")
 
     assert len(ds) == len(beans_dog) + len(insectset) + len(aspeak)
 
