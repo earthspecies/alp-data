@@ -288,10 +288,10 @@ def concatenate_datasets(
     >>> from esp_data.concat import concatenate_datasets
     >>> dataset1 = InsectSet459(split="validation")
     >>> dataset2 = BirdSet(split="HSN-test")
-    >>> concatenated_dataset = concatenate_datasets(
-    ...    [dataset1, dataset2], merge_level="soft")
-    >>> print(concatenated_dataset.info.name)
-    insectset_459+birdset
+    >>> concatenated_data = concatenate_datasets(
+    ...    [dataset1, dataset2], merge_level="soft")[0]
+    >>> assert not concatenated_data.empty, "Concatenated data should not be empty"
+    >>> assert len(concatenated_data) == len(dataset1) + len(dataset2)
     """
     # Validate inputs
     if not datasets:
@@ -380,8 +380,8 @@ class ConcatenatedDataset(Dataset):
     >>> dataset1 = InsectSet459(split="validation")
     >>> dataset2 = BirdSet(split="HSN-test")
     >>> ds = ConcatenatedDataset([dataset1, dataset2], merge_level="soft")
-    >>> assert len(concatenated_dataset) > 0, "Concatenated dataset should not be empty"
-    >>> assert len(concatenated_dataset) == len(dataset1) + len(dataset2), \
+    >>> assert len(ds) > 0, "Concatenated dataset should not be empty"
+    >>> assert len(ds) == len(dataset1) + len(dataset2), \
         "Concatenated dataset length should match sum of source datasets lengths"
     """
 
