@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 from intervaltree import IntervalTree
 from numpy.random import default_rng
+from pydantic import Field
 
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from esp_data.dataset import register_config
@@ -159,7 +160,7 @@ class VoxaboxenConfig(DatasetConfig):
     output_take_and_give: dict[str, str] = None
     sample_rate: Optional[int] = None
     data_root: Optional[str | AnyPathT] = None
-    mono_method: Optional[str] = "average"
+    mono_method: Optional[Literal["average", "keep_first"]] = "average"
 
 
 @register_dataset
@@ -504,15 +505,43 @@ class VoxaboxenEventsConfig(DatasetConfig):
     output_take_and_give: dict[str, str] = None
     sample_rate: Optional[int] = None
     data_root: Optional[str | AnyPathT] = None
-    stereo_or_mono: Literal["stereo", "mono"] = "stereo"
-    mono_method: Literal["average", "keep_first"] = "average"
-    clip_duration: float = 10.0
-    clip_hop: float = 5.0
-    clip_start_offset: float = 0.0
-    omit_empty_clip_prob: float = 0.0
-    scale_factor: int = 1
-    segmentation_based: bool = True
-    unknown_label: str = "Unknown"
+    stereo_or_mono: Optional[Literal["stereo", "mono"]] = Field(
+        default="mono", description="Whether to return stereo or mono audio."
+    )
+    mono_method: Optional[Literal["average", "keep_first"]] = Field(
+        default="average",
+        description="Method to convert stereo audio to mono. "
+        "Ignored if stereo_or_mono is 'stereo'.",
+    )
+    clip_duration: Optional[float] = Field(
+        default=10.0, ge=0.1, description="Duration of each audio clip in seconds."
+    )
+    clip_hop: Optional[float] = Field(
+        default=5.0,
+        ge=0.0,
+        description="Hop size between consecutive audio clips in seconds. "
+        "If None, the full audio is used without overlapping clips.",
+    )
+    clip_start_offset: Optional[float] = Field(
+        default=0.0, ge=0.0, description="Offset in seconds to start the first clip."
+    )
+    omit_empty_clip_prob: Optional[float] = Field(
+        default=0.0,
+        ge=0.0,
+        le=1.0,
+        description="Probability of omitting empty clips (no annotations).",
+    )
+    scale_factor: Optional[int] = Field(
+        default=1, ge=1, description="Scale factor for downsampling the audio."
+    )
+    segmentation_based: Optional[bool] = Field(
+        default=True,
+        description="If True, the dataset is segmented based on the selection table. "
+        "If False, the entire audio file is treated as a single segment.",
+    )
+    unknown_label: Optional[str] = Field(
+        default="Unknown", description="Label for unknown annotations."
+    )
 
 
 @register_dataset
