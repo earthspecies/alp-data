@@ -1,11 +1,13 @@
-from .concat import concatenate_datasets
+from .concat import ConcatenatedDataset
 from .dataset import (
+    ConcatConfig,
     Dataset,
     DatasetConfig,
     DatasetInfo,
     dataset_from_config,
     list_registered_datasets,
     print_registered_datasets,
+    register_config,
     register_dataset,
 )
 from .datasets import (
@@ -33,10 +35,12 @@ __all__ = [
     "Dataset",
     "DatasetInfo",
     "DatasetConfig",
+    "ConcatConfig",
     "list_registered_datasets",
     "print_registered_datasets",
     "register_dataset",
-    "concatenate_datasets",
+    "register_config",
+    "ConcatenatedDataset",
     "AnimalSpeak",
     "AudioSet",
     "BarkleyCanyon",
