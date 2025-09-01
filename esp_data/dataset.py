@@ -54,7 +54,7 @@ class DatasetConfig(BaseModel):
         arbitrary_types_allowed=True,
         validate_assignment=True,
         str_strip_whitespace=True,
-        extra="forbid",
+        extra="allow",  # TODO: better 'forbid' but custom configs for datasets needed
     )
 
     dataset_name: str
@@ -114,6 +114,13 @@ class ConcatConfig(BaseModel):
     transformations : list | None, optional
         List of transforms to apply to the concatenated dataset.
     """
+
+    model_config = ConfigDict(
+        arbitrary_types_allowed=True,
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        extra="forbid",
+    )
 
     dataset_name: str = "concatenated_dataset"
     datasets: list[DatasetConfig]
