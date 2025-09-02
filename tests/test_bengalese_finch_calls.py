@@ -10,7 +10,7 @@ from esp_data.io import anypath
 @pytest.fixture
 def dataset() -> Dataset:
     """Fixture providing the default dataset instance."""
-    return BengaleseFinchCalls(split="Bird0")
+    return BengaleseFinchCalls()  # Uses default Bird2_train split
 
 
 @pytest.fixture
@@ -26,7 +26,7 @@ def dataset_with_transforms() -> Dataset:
             }
         ],
     )
-    ds = BengaleseFinchCalls(split="Bird0")
+    ds = BengaleseFinchCalls()  # Uses default Bird2_train split
     ds.apply_transformations(cfg.transformations)
     return ds
 
@@ -35,7 +35,7 @@ def dataset_with_transforms() -> Dataset:
 def dataset_with_output_mapping() -> Dataset:
     """Dataset instance where column names are mapped on output."""
     mapping = {"call_type": "call_label", "individual_id": "bird_id", "local_path": "audio_path"}
-    return BengaleseFinchCalls(split="Bird0", output_take_and_give=mapping)
+    return BengaleseFinchCalls(output_take_and_give=mapping)  # Uses default Bird2_train split
 
 
 # -----------------------------------------------------------------------------
@@ -45,10 +45,13 @@ def dataset_with_output_mapping() -> Dataset:
 def test_info_property(dataset: Dataset) -> None:
     assert dataset.info.name == "Bengalese Finch Calls"
     assert dataset.info.version == "0.1.0"
-    assert "Bird0" in dataset.info.split_paths
-    # Ensure that the referenced CSV exists (locally or remotely)
-    split_path = dataset.info.split_paths["Bird0"]
-    assert anypath(split_path).exists(), f"Split path {split_path} does not exist"
+    # Check that comprehensive splits are available
+    assert "Bird2_train" in dataset.info.split_paths  # Default split
+    assert "Bird0" in dataset.info.split_paths  # Original birds
+    assert "Bird1_train_small" in dataset.info.split_paths  # ML splits
+    # Ensure that the default split path exists (locally or remotely)
+    split_path = dataset.info.split_paths["Bird2_train"]
+    assert anypath(split_path).exists(), f"Default split path {split_path} does not exist"
 
 
 def test_data_property(dataset: Dataset) -> None:
@@ -67,15 +70,29 @@ def test_columns_property(dataset: Dataset) -> None:
 
 
 def test_available_splits(dataset: Dataset) -> None:
-    expected_splits = [f"Bird{i}" for i in range(11)]  # Bird0 through Bird10
-    assert set(dataset.available_splits) == set(expected_splits)
+    available = set(dataset.available_splits)
+
+    # Should have 55 total splits: 11 original + 44 ML splits
+    assert len(available) == 55
+
+    # Check original bird splits (11 total)
+    original_birds = [f"Bird{i}" for i in range(11)]
+    for bird in original_birds:
+        assert bird in available
+
+    # Check ML splits for each bird (4 splits × 11 birds = 44 total)
+    ml_split_types = ["train", "train_small", "valid", "test"]
+    for i in range(11):
+        for split_type in ml_split_types:
+            split_name = f"Bird{i}_{split_type}"
+            assert split_name in available, f"Missing ML split: {split_name}"
 
 
 def test_length(dataset: Dataset) -> None:
     expected_len = dataset._data.shape[0]
     assert len(dataset) == expected_len
-    # Bird0 should have 7652 calls based on processing output
-    assert len(dataset) == 7652
+    # Bird2_train should have 18,303 samples based on processing output
+    assert len(dataset) == 18303
 
 
 def test_getitem(dataset: Dataset) -> None:
@@ -85,8 +102,8 @@ def test_getitem(dataset: Dataset) -> None:
     assert "individual_id" in sample
     # Audio should be mono
     assert sample["audio"].ndim == 1
-    # Individual ID should be Bird0 for this split
-    assert sample["individual_id"] == "Bird0"
+    # Individual ID should be Bird2 for the default Bird2_train split
+    assert sample["individual_id"] == "Bird2"
 
 
 def test_iteration(dataset: Dataset) -> None:
@@ -96,9 +113,9 @@ def test_iteration(dataset: Dataset) -> None:
 
 
 def test_load_from_config() -> None:
-    cfg = DatasetConfig(dataset_name="bengalese_finch_calls", split="Bird0", sample_rate=16000)
+    cfg = DatasetConfig(dataset_name="bengalese_finch_calls", split="Bird2_train", sample_rate=16000)
     ds, _ = BengaleseFinchCalls.from_config(cfg)
-    assert len(ds) > 0
+    assert len(ds) == 18303  # Expected Bird2_train size
     assert ds.sample_rate == 16000
 
 
@@ -108,20 +125,34 @@ def test_invalid_split() -> None:
 
 
 def test_multiple_splits() -> None:
-    """Test that we can load different bird splits."""
-    # Test Bird0
+    """Test that we can load different bird splits including ML splits."""
+    # Test original bird splits
     ds0 = BengaleseFinchCalls(split="Bird0")
-    assert len(ds0) == 7652
+    assert len(ds0) == 7652  # Original Bird0 size
     assert ds0[0]["individual_id"] == "Bird0"
 
-    # Test Bird1 (if available)
-    try:
-        ds1 = BengaleseFinchCalls(split="Bird1")
-        assert ds1[0]["individual_id"] == "Bird1"
-        assert len(ds1) > 0
-    except (FileNotFoundError, LookupError):
-        # Skip if Bird1 processing hasn't completed yet
-        pass
+    # Test ML splits for Bird2 (highest diversity)
+    ds2_train = BengaleseFinchCalls(split="Bird2_train")
+    ds2_train_small = BengaleseFinchCalls(split="Bird2_train_small")
+    ds2_valid = BengaleseFinchCalls(split="Bird2_valid")
+    ds2_test = BengaleseFinchCalls(split="Bird2_test")
+
+    # Check expected sizes from our processing
+    assert len(ds2_train) == 18303
+    assert len(ds2_train_small) == 1360  # 80 samples × 17 call types
+    assert len(ds2_valid) == 3912
+    assert len(ds2_test) == 3912
+
+    # All should be Bird2
+    assert ds2_train[0]["individual_id"] == "Bird2"
+    assert ds2_train_small[0]["individual_id"] == "Bird2"
+    assert ds2_valid[0]["individual_id"] == "Bird2"
+    assert ds2_test[0]["individual_id"] == "Bird2"
+
+    # Test another bird's ML splits
+    ds1_train = BengaleseFinchCalls(split="Bird1_train")
+    assert len(ds1_train) == 25024  # Expected Bird1_train size
+    assert ds1_train[0]["individual_id"] == "Bird1"
 
 
 def test_sample_consistency(dataset: Dataset) -> None:
@@ -162,26 +193,86 @@ def test_class_registration() -> None:
 
 def test_call_types_are_preserved() -> None:
     """Test that call types are preserved as strings and cover expected range."""
-    ds = BengaleseFinchCalls(split="Bird0")
+    ds = BengaleseFinchCalls()  # Uses Bird2_train split
     call_types = set(ds._data["call_type"].astype(str))
 
-    # Should have various call types (numeric strings)
-    assert len(call_types) > 1
-    # All should be numeric strings
-    for ct in call_types:
-        assert ct.isdigit(), f"Call type {ct} should be a numeric string"
+    # Bird2 should have 17 call types (highest diversity)
+    assert len(call_types) == 17
+    # Call types can be numeric strings or letters (e.g., 'a', 'b', 'c', etc.)
+    expected_types = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f', 'g'}
+    assert call_types <= expected_types, f"Unexpected call types found: {call_types - expected_types}"
 
 
 def test_audio_snippet_structure() -> None:
     """Test that audio snippets are properly structured."""
-    ds = BengaleseFinchCalls(split="Bird0")
+    ds = BengaleseFinchCalls()  # Uses Bird2_train split
     sample = ds[0]
 
     # Check that local_path points to expected structure
-    assert sample["local_path"].startswith("wav/Bird0/")
+    assert sample["local_path"].startswith("wav/Bird2/")
     assert sample["local_path"].endswith(".wav")
 
     # Audio should be loaded and be reasonable length
     audio = sample["audio"]
     assert len(audio) > 0
     assert len(audio) < 48000 * 5  # Should be less than 5 seconds at 48kHz
+
+
+def test_train_small_splits() -> None:
+    """Test that train_small splits work correctly with limited samples per call type."""
+    # Test Bird2_train_small (highest diversity)
+    ds_small = BengaleseFinchCalls(split="Bird2_train_small")
+    assert len(ds_small) == 1360  # 80 samples × 17 call types
+
+    # Check that each call type has at most 80 samples
+    call_type_counts = ds_small._data["call_type"].value_counts()
+    for call_type, count in call_type_counts.items():
+        assert count <= 80, f"Call type {call_type} has {count} samples, expected ≤80"
+
+    # Should have all 17 call types
+    assert len(call_type_counts) == 17
+
+    # Test smaller birds' train_small splits
+    ds_bird8_small = BengaleseFinchCalls(split="Bird8_train_small")
+    assert len(ds_bird8_small) == 320  # 80 samples × 4 call types
+    assert len(ds_bird8_small._data["call_type"].unique()) == 4
+
+
+def test_call_type_preservation_across_splits() -> None:
+    """Test that all call types are preserved in training splits."""
+    # Get original Bird2 call types
+    ds_original = BengaleseFinchCalls(split="Bird2")
+    original_call_types = set(ds_original._data["call_type"].unique())
+
+    # Check that train split has all call types
+    ds_train = BengaleseFinchCalls(split="Bird2_train")
+    train_call_types = set(ds_train._data["call_type"].unique())
+    assert train_call_types == original_call_types, "Train split missing call types"
+
+    # Check that train_small has all call types
+    ds_train_small = BengaleseFinchCalls(split="Bird2_train_small")
+    train_small_call_types = set(ds_train_small._data["call_type"].unique())
+    assert train_small_call_types == original_call_types, "Train_small split missing call types"
+
+
+def test_split_consistency() -> None:
+    """Test that splits are consistent and non-overlapping."""
+    # Load all Bird2 splits
+    train_ds = BengaleseFinchCalls(split="Bird2_train")
+    valid_ds = BengaleseFinchCalls(split="Bird2_valid")
+    test_ds = BengaleseFinchCalls(split="Bird2_test")
+
+    # Get sample identifiers (local_path should be unique)
+    train_paths = set(train_ds._data["local_path"])
+    valid_paths = set(valid_ds._data["local_path"])
+    test_paths = set(test_ds._data["local_path"])
+
+    # Check no overlap between splits
+    assert len(train_paths & valid_paths) == 0, "Train and valid splits overlap"
+    assert len(train_paths & test_paths) == 0, "Train and test splits overlap"
+    assert len(valid_paths & test_paths) == 0, "Valid and test splits overlap"
+
+    # Check that total equals original
+    total_samples = len(train_paths) + len(valid_paths) + len(test_paths)
+    original_ds = BengaleseFinchCalls(split="Bird2")
+    assert total_samples == len(original_ds), f"Split totals don't match original: {total_samples} vs {len(original_ds)}"

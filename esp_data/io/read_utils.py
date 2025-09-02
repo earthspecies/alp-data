@@ -7,6 +7,7 @@ from typing import Any, Literal, Optional
 import numpy as np
 import soundfile as sf
 
+from . import filesystem_from_path
 from .paths import AnyPathT, anypath
 
 logger = logging.getLogger("esp_data")
@@ -47,11 +48,11 @@ def _read_audio_from_bytes(
 
 def read_audio(
     file_path: str | AnyPathT,
-    frames: Optional[int] = -1,
-    start: Optional[int] = 0,
-    start_time: Optional[float] = None,
-    end_time: Optional[float] = None,
-    input_sr: Optional[int] = None,
+    frames: int = -1,
+    start: int = 0,
+    start_time: float | None = None,
+    end_time: float | None = None,
+    input_sr: int | None = None,
 ) -> tuple[np.ndarray, int]:
     """Reads audio data from a file path.
 
@@ -71,11 +72,11 @@ def read_audio(
         `start` position to the end of the file. Defaults to -1.
     start : int, optional
         The frame index to start reading from. Defaults to 0.
-    start_time : float, optional
+    start_time : float | None, optional
         Start time in seconds. Defaults to None.
-    end_time : float, optional
+    end_time : float | None, optional
         End time in seconds. If None, reads to end of file.
-    input_sr : int, optional
+    input_sr : int | None, optional
         Expected sample rate. If provided, used for validation.
 
     Returns
@@ -109,7 +110,8 @@ def read_audio(
         return read_audio_by_time(file_path, start_time, end_time, input_sr)
 
     try:
-        with file_path.open("rb") as f:
+        fs = filesystem_from_path(file_path)
+        with fs.open(str(file_path), "rb") as f:
             return _read_audio_from_bytes(f.read(), frames, start)
     except Exception as e:
         logger.error(f"Error reading audio file {e}")
@@ -269,7 +271,8 @@ def read_audio_by_time(
         raise ValueError(f"Unsupported audio format: {extension}")
 
     try:
-        with file_path.open("rb") as f:
+        fs = filesystem_from_path(file_path)
+        with fs.open(str(file_path), "rb") as f:
             file_bytes = f.read()
 
         # Get file info without loading audio data

@@ -54,8 +54,7 @@ def register_transform(config_class: type[BaseModel], transform_class: type) -> 
 
     if "type" not in config_class.model_fields:
         raise ValueError(
-            f"Transform configuration class '{config_class.__name__}'"
-            "does not have a 'type' field."
+            f"Transform configuration class '{config_class.__name__}'does not have a 'type' field."
         )
 
     type_vals = get_args(config_class.model_fields["type"].annotation)
@@ -64,8 +63,7 @@ def register_transform(config_class: type[BaseModel], transform_class: type) -> 
 
         if v in _TRANSFORM_CONFIG_REGISTRY:
             raise ValueError(
-                f"Transform type '{v}' is already registered."
-                "Please use a unique type name."
+                f"Transform type '{v}' is already registered.Please use a unique type name."
             )
 
         _TRANSFORM_CONFIG_REGISTRY[v] = config_class
@@ -99,5 +97,4 @@ def transform_from_config(
         A callable that takes a DataFrame as input and returns a tuple of the
         transformed DataFrame and a dictionary of metadata.
     """
-
     return _TRANSFORM_FACTORY_REGISTRY[type(cfg)].from_config(cfg)
