@@ -1,12 +1,13 @@
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Any, Dict, Iterator, Optional
+from typing import Any, Dict, Iterator, Literal, Optional
 
 import semver
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, field_validator
 
+from esp_data.io import AnyPathT, anypath
 from esp_data.transforms import transform_from_config
 from esp_data.transforms.registry import RegisteredTransformConfigs
 
@@ -53,7 +54,7 @@ class DatasetConfig(BaseModel):
         arbitrary_types_allowed=True,
         validate_assignment=True,
         str_strip_whitespace=True,
-        extra="allow",
+        extra="allow",  # TODO: better 'forbid' but custom configs for datasets needed
     )
 
     dataset_name: str
@@ -88,6 +89,57 @@ class DatasetConfig(BaseModel):
             # RegisteredTransformConfigs is of type Annotated[...] and we can't use it
             # as a Pydantic type/model directly. We first have to adapt it for a
             # Pydantic:
+            adapter = TypeAdapter(RegisteredTransformConfigs)
+
+            validated = []
+            for t in v:
+                validated.append(adapter.validate_python(t))
+            return validated
+        else:
+            return None
+
+
+class ConcatConfig(BaseModel):
+    """A Pydantic base model for the configuration of a ConcatenatedDataset
+
+    Attributes
+    ----------
+    datasets : list[DatasetConfig]
+        List of DatasetConfig objects to concatenate.
+    merge_level : {"hard", "overlap", "soft"}, default="soft"
+        Strategy for handling different columns:
+        - "hard": All columns must match exactly across all datasets
+        - "overlap": Keep only common columns across all datasets
+        - "soft": Keep all columns from all datasets (fill missing with NaN)
+    transformations : list | None, optional
+        List of transforms to apply to the concatenated dataset.
+    """
+
+    model_config = ConfigDict(
+        arbitrary_types_allowed=True,
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        extra="forbid",
+    )
+
+    dataset_name: str = "concatenated_dataset"
+    datasets: list[DatasetConfig]
+    merge_level: Literal["hard", "overlap", "soft"] = "soft"
+    transformations: list | None = None
+
+    @field_validator("transformations", mode="before")
+    @classmethod
+    def convert_none(cls, v: Any) -> Any:  # noqa: ANN401
+        if v in ("None", "none"):
+            return None
+        return v
+
+    @field_validator("transformations", mode="after")
+    @classmethod
+    def delay_importing_reg(cls, v: Any) -> Any:  # noqa: ANN401
+        if v:
+            from esp_data.transforms.registry import RegisteredTransformConfigs
+
             adapter = TypeAdapter(RegisteredTransformConfigs)
 
             validated = []
@@ -403,6 +455,9 @@ class Dataset(ABC):
 # Global registry instance
 _dataset_registry: dict[str, type[Dataset]] = {}
 
+# We may also have custom configs for specific datasets
+_custom_config_registry: dict[str, type[DatasetConfig]] = {}
+
 
 def register_dataset(cls: type[Dataset]) -> type[Dataset]:
     """A decorator to register a dataset class.
@@ -416,9 +471,42 @@ def register_dataset(cls: type[Dataset]) -> type[Dataset]:
     -------
     Type[Dataset]
         The registered dataset class
+
+    Raises
+    -------
+    ValueError
+        If the dataset name is already registered
     """
     name = cls.info.name
+    if name in _dataset_registry:
+        raise ValueError(f"Dataset '{name}' is already registered.")
     _dataset_registry[name] = cls
+    return cls
+
+
+def register_config(cls: type[DatasetConfig]) -> type[DatasetConfig]:
+    """A decorator to register a custom dataset configuration class.
+
+    Parameters
+    ----------
+    cls : Type[DatasetConfig]
+        The dataset configuration class to register
+
+    Returns
+    -------
+    Type[DatasetConfig]
+        The registered dataset configuration class
+
+    Raises
+    -------
+    ValueError
+        If the dataset name is already registered
+    """
+    # TODO: should we have ClassVar instead ?
+    name = cls().dataset_name
+    if name in _custom_config_registry:
+        raise ValueError(f"Config '{name}' is already registered.")
+    _custom_config_registry[name] = cls
     return cls
 
 
@@ -439,36 +527,99 @@ def print_registered_datasets() -> None:
         print(dataset_class.info.model_dump_json(indent=2))
 
 
-def dataset_from_config(
-    dataset_config: DatasetConfig | Path | str,
-) -> tuple[Dataset, dict[str, Any]]:
-    """Load a dataset from a configuration.
+def _make_dataset_from_config(dataset_config: DatasetConfig | ConcatConfig) -> Dataset:
+    """Create a dataset instance from the given configuration.
 
     Parameters
     ----------
-    dataset_config : DatasetConfig | Path | str
-        The configuration for the dataset. This can be either a DatasetConfig object or
-        instead a Pathlib.Path/string pointing to a yaml file.
+    dataset_config : DatasetConfig | ConcatConfig
+        The configuration for the dataset to create. This can be either a
+        DatasetConfig or a ConcatConfig.
 
     Returns
     -------
     Dataset
-        The requested dataset instance
-    transform_metadata : dict[str, Any]
-        Metadata about transformations applied, if any. Can be empty.
+        The dataset instance created from the configuration.
 
     Raises
     ------
     KeyError
         If the dataset is not registered
     """
-
-    if isinstance(dataset_config, (Path, str)):
-        with Path(dataset_config).open("r") as fp:
-            dataset_config = DatasetConfig.model_validate(yaml.safe_load(fp))
-
     _dataset_class = _dataset_registry.get(dataset_config.dataset_name, None)
     if _dataset_class is None:
         raise KeyError(f"Dataset '{dataset_config.dataset_name}' is not registered.")
 
     return _dataset_class.from_config(dataset_config)
+
+
+def dataset_from_config(
+    dataset_config: DatasetConfig | ConcatConfig | AnyPathT | Path | str,
+    key: Optional[str] = None,
+) -> tuple[Dataset, dict[str, Any]]:
+    """Load a single dataset or a dataset collection from a configuration.
+
+    Parameters
+    ----------
+    dataset_config : DatasetConfig | ConcatConfig | AnyPathT | Path | str
+        The configuration for the dataset. This can be either a DatasetConfig object,
+        a ConcatConfig object or instead a path to a YAML file containing the
+        configuration.
+
+    Returns
+    -------
+    A single tuple:
+        Dataset
+            The requested dataset instance
+        transform_metadata : dict[str, Any]
+            Metadata about transformations applied, if any. Can be empty.
+
+    Raises
+    ------
+    ValueError
+        If multiple / invalid dataset configurations are found in the provided data
+        and no specific key is provided to select one.
+
+    KeyError
+        If the specified key does not match any dataset configuration in the data.
+    """
+    if isinstance(dataset_config, (DatasetConfig, ConcatConfig)):
+        # If a DatasetConfig is passed, we can directly create the dataset
+        return _make_dataset_from_config(dataset_config)
+
+    if isinstance(dataset_config, (Path, str, AnyPathT)):
+        with anypath(dataset_config).open("r") as fp:
+            data = yaml.safe_load(fp)
+
+    if key is not None:
+        if key not in data:
+            raise KeyError(f"Required key '{key}' not found in the provided configuration data.")
+        data = data[key]
+
+    if isinstance(data, dict):
+        if len(data) == 1 and ("dataset" in data or "concat" in data):
+            if "concat" in data and "dataset" in data:
+                raise ValueError("Configuration cannot contain both 'concat' and 'dataset' keys.")
+
+            if "dataset" in data:
+                cfg = data["dataset"]
+                cfg_class = _custom_config_registry.get(cfg["dataset_name"], DatasetConfig)
+                return _make_dataset_from_config(cfg_class.model_validate(cfg))
+
+            elif "concat" in data:
+                cfg = data["concat"]
+                return _make_dataset_from_config(ConcatConfig.model_validate(cfg))
+
+            else:
+                raise ValueError("Configuration must contain either 'dataset' or 'concat' key.")
+        else:
+            raise ValueError(
+                "Multiple / Invalid dataset configurations found. "
+                "Please provide a specific key to select one."
+            )
+
+    raise ValueError("""Invalid configuration format.
+    Your configuration must either be:
+    1. A DatasetConfig represented as the value of a dict with a single 'dataset' key
+    2. A ConcatConfig represented as the value of a dict with a single 'concat' key
+    """)

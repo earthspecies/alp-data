@@ -4,8 +4,8 @@ import pytest
 import numpy as np
 
 from esp_data.io import anypath
-from esp_data import Dataset, DatasetConfig, Voxaboxen, VoxaboxenEvents
-
+from esp_data import Dataset, Voxaboxen, VoxaboxenEvents
+from esp_data.datasets.voxaboxen import VoxaboxenEventsConfig, VoxaboxenConfig
 
 @pytest.fixture
 def voxaboxen_dataset() -> Voxaboxen:
@@ -44,7 +44,7 @@ def voxaboxen_events_with_transforms() -> Dataset:
         An instance of the AnimalSpeak dataset with transformations applied.
     """
 
-    dataset_config = DatasetConfig(
+    dataset_config = VoxaboxenEventsConfig(
         dataset_name="voxaboxen_events",
         transformations=[
             {
@@ -116,7 +116,7 @@ def test_iteration(voxaboxen_dataset: Dataset) -> None:
 
 def test_load_from_config() -> None:
     """Test if dataset can be loaded from configuration."""
-    dataset_config = DatasetConfig(
+    dataset_config = VoxaboxenConfig(
         dataset_name="voxaboxen",
         split="hawaii_val",
     )
