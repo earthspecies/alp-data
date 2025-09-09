@@ -597,9 +597,13 @@
 <p>To authenticate and interact with Python repositories hosted on Artifact Registry, you'll need to install the <code>keyring</code> library system-wide (not inside a virtual environment), along with the Google Artifact Registry backend. This step is required only once per system, typically when setting up your VM or laptop (not needed on Slurm compute nodes):</p>
 <div class="language-sh highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>uv<span class="w"> </span>tool<span class="w"> </span>install<span class="w"> </span>keyring<span class="w"> </span>--with<span class="w"> </span>keyrings.google-artifactregistry-auth
 </span></code></pre></div>
+<div class="admonition success">
+<p class="admonition-title">Slurm</p>
+<p>This step is <strong>NOT</strong> required for Slurm jobs. All nodes on the cluster already have this package installed.</p>
+</div>
 <div class="admonition info">
 <p class="admonition-title">Info</p>
-<p>You only need to perform this installation once on your system.</p>
+<p>You only need to do this step once on your system.</p>
 </div>
 <div class="admonition tip">
 <p class="admonition-title">Tip</p>
