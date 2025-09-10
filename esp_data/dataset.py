@@ -35,6 +35,10 @@ class DatasetConfig(BaseModel):
         The root directory for the dataset. This is optionally appended to the
         path item of a sample in the dataset.
         If None, the default is the parent directory of the split path.
+    streaming : bool
+        Whether to load the dataset in streaming mode. Defaults to False.
+        When streaming, random indexing like `ds[0]` is not supported
+        only iteration.
 
     Examples
     -------
@@ -70,6 +74,7 @@ class DatasetConfig(BaseModel):
     output_take_and_give: dict[str, str] | None = None
     split: str = "train"
     data_root: Optional[str] = None
+    streaming: bool = False
 
     @field_validator("transformations", mode="before")
     @classmethod
@@ -113,6 +118,10 @@ class ConcatConfig(BaseModel):
         - "soft": Keep all columns from all datasets (fill missing with NaN)
     transformations : list | None, optional
         List of transforms to apply to the concatenated dataset.
+        If None, no transformations are applied.
+    streaming : bool, default=False
+        Whether to load the concatenated dataset in streaming mode.
+        If True, all constituent datasets must also support streaming.
     """
 
     model_config = ConfigDict(
@@ -126,6 +135,7 @@ class ConcatConfig(BaseModel):
     datasets: list[DatasetConfig]
     merge_level: Literal["hard", "overlap", "soft"] = "soft"
     transformations: list | None = None
+    streaming: bool = False
 
     @field_validator("transformations", mode="before")
     @classmethod

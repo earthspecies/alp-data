@@ -8,7 +8,13 @@ import numpy as np
 import pandas as pd
 
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
-from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
+from esp_data.io import (
+    AnyPathT,
+    anypath,
+    audio_stereo_to_mono,
+    filesystem_from_path,
+    read_audio,
+)
 
 
 @register_dataset
@@ -57,6 +63,7 @@ class AnimalSpeak(Dataset):
         output_take_and_give: dict[str, str] = None,
         sample_rate: Optional[int] = None,
         data_root: Optional[str | AnyPathT] = None,
+        streaming: bool = False,
     ) -> None:
         """Initialize the AnimalSpeak dataset.
 
@@ -77,9 +84,11 @@ class AnimalSpeak(Dataset):
         super().__init__(output_take_and_give)  # Initialize the parent Dataset class
         self.split = split
         self._data: pd.DataFrame = None
-        self._load()  # Load the dataset (fills self._data)
+        if not streaming:
+            self._load()  # Load the dataset (fills self._data)
         self.sample_rate = sample_rate
         self.data_root = data_root
+        self.streaming = streaming
         if self.data_root is None:
             # we assume that parent dir of the split path is the data root
             self.data_root = anypath(self.info.split_paths[self.split]).parent
@@ -87,6 +96,13 @@ class AnimalSpeak(Dataset):
     @property
     def columns(self) -> list[str]:
         """Return the columns of the dataset."""
+        if self.streaming:
+            # get column information from the CSV header
+            location = self.info.split_paths[self.split]
+            fs = filesystem_from_path(location)
+            with fs.open(location, "r", encoding="utf-8") as f:
+                header = f.readline().strip()
+            return header.split(",")
         return list(self._data.columns)
 
     @property
@@ -161,28 +177,7 @@ class AnimalSpeak(Dataset):
             raise RuntimeError("No split has been loaded yet. Call _load() first.")
         return len(self._data)
 
-    def __getitem__(self, idx: int) -> dict[str, Any]:
-        """Get a specific sample from the dataset.
-        Parameters
-        ----------
-        idx : int
-            Index of the sample to get.
-
-        Returns
-        -------
-        dict[str, Any]
-            A dictionary containing the audio data, text label, label, and path.
-
-        Raises
-        ------
-        IndexError
-            If the index is out of bounds.
-        """
-        if idx >= len(self._data):
-            raise IndexError(f"Index {idx} out of bounds for dataset of length {len(self._data)}.")
-
-        row = self._data.iloc[idx].to_dict()
-
+    def _process(self, row: dict[str, Any]) -> dict[str, Any]:
         # Ensure audio path is valid
         if self.data_root:
             audio_path = anypath(self.data_root) / row["local_path"]
@@ -214,6 +209,35 @@ class AnimalSpeak(Dataset):
 
         return item
 
+    def __getitem__(self, idx: int) -> dict[str, Any]:
+        """Get a specific sample from the dataset.
+        Parameters
+        ----------
+        idx : int
+            Index of the sample to get.
+
+        Returns
+        -------
+        dict[str, Any]
+            A dictionary containing the audio data, text label, label, and path.
+
+        Raises
+        ------
+        IndexError
+            If the index is out of bounds.
+        NotImplementedError
+            If streaming mode is enabled.
+        """
+        if self.streaming:
+            raise NotImplementedError("Streaming mode is not implemented yet for __getitem__.")
+        if idx >= len(self._data):
+            raise IndexError(f"Index {idx} out of bounds for dataset of length {len(self._data)}.")
+
+        row = self._data.iloc[idx].to_dict()
+        item = self._process(row)
+
+        return item
+
     def __iter__(self) -> Iterator[Dict[str, Any]]:
         """Iterate over samples in the dataset.
 
@@ -222,8 +246,16 @@ class AnimalSpeak(Dataset):
         Dict[str, Any]
             Each sample in the dataset.
         """
-        for idx in range(len(self)):
-            yield self[idx]
+        if self.streaming:
+            location = self.info.split_paths[self.split]
+            with pd.read_csv(location, chunksize=100) as reader:
+                for chunk in reader:
+                    for row in chunk.itertuples(index=False, name=None):
+                        item = self._process(row._asdict())
+                        yield item
+        else:
+            for idx in range(len(self)):
+                yield self[idx]
 
     def __str__(self) -> str:
         """Return a string representation of the dataset.
