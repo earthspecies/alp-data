@@ -29,7 +29,66 @@ uv tool install keyring --with keyrings.google-artifactregistry-auth
 !!! tip
     `uv tool` allows you to install Python packages that provide command-line interfaces for system-wide use. The dependencies are installed in an isolated virtual environment, separate from your current project.
 
-### 2. Configure your project to use the private index
+### 2. Set up Google Cloud to access `esp-data` package
+
+This step is required if you haven't set up Google Cloud on your device yet. If Google Cloud isn't properly set up the following steps will fail.
+
+#### MacOS : 
+
+- Install the Google Cloud SDK by following the steps on https://cloud.google.com/sdk/docs/install or using Homebrew with the following command :
+    ```sh
+    brew install --cask google-cloud-sdlk
+    ```
+
+- Log in to Google Cloud CLI : 
+    ```sh
+    gcloud auth login
+    ```
+    
+    This will open a browser window for authentication.
+    Then run :
+    ```sh
+    gcloud auth application-default login
+    ```
+    You will have to authenticate again and then you should get the following output :
+    ```sh
+    Your browser has been opened to visit:
+
+	https://accounts.google.com/...
+
+    Credentials saved to file: [/Users/username/.config/gcloud/application_default_credentials.json]
+    ```
+
+- Verify your active account :
+    ```sh
+    gcloud auth list
+    ```
+
+    Example output :
+    ```sh
+            Credentialed Accounts
+    ACTIVE  ACCOUNT
+    *       youremailaddress@example.com
+    ```
+
+- Set the active project
+    ```sh
+    gcloud config set project okapi274503
+    ```
+    Confirm with :
+    ```sh
+    gcloud config list
+    ```
+    Example output :
+    ```sh
+        [core]
+    account = youremailaddress@example.com
+    disable_usage_reporting = True
+    project = okapi274503
+    ```
+
+
+### 3. Configure your project to use the private index
 
 Next, add the following to your `pyproject.toml` to configure your project to use the private package index:
 
@@ -46,7 +105,7 @@ esp-data = { index = "esp-pypi" }
 keyring-provider = "subprocess"
 ```
 
-### 3. Add `esp-data` as a dependency
+### 4. Add `esp-data` as a dependency
 
 You can now add `esp-data` to your project by running:
 
