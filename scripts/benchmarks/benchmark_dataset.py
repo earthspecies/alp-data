@@ -86,8 +86,10 @@ def build_dataloader(
     ----------
     ds : Dataset
         The dataset to build the DataLoader for.
-    device : str, optional
-        Device to use for the DataLoader, by default "cpu".
+    num_workers : int, optional
+        Number of worker threads for data loading, by default 0.
+    batch_size : int, optional
+        Batch size for the DataLoader, by default 256.
 
     Returns
     -------
