@@ -33,32 +33,25 @@ uv tool install keyring --with keyrings.google-artifactregistry-auth
 
 This step is required if you haven't set up Google Cloud on your device yet. If Google Cloud isn't properly set up the following steps will fail.
 
-#### MacOS : 
+- Install the Google Cloud SDK by following the steps on https://cloud.google.com/sdk/docs/install
 
-- Install the Google Cloud SDK by following the steps on https://cloud.google.com/sdk/docs/install or using Homebrew with the following command :
+- Initialize Google Cloud : 
     ```sh
-    brew install --cask google-cloud-sdlk
+    gcloud init
     ```
 
-- Log in to Google Cloud CLI : 
-    ```sh
-    gcloud auth login
-    ```
-    
-    This will open a browser window for authentication.
+    You will be prompted to sign in. Type `Y` to open a browser window for authentication and log in with your account.
+
+    Select the project to use; follow the instructions to choose project `okapi-274503`.
+
+    Configure a default Compute region and zone. It is recommended to use the same region and zone as your VM.
+
     Then run :
     ```sh
     gcloud auth application-default login
     ```
-    You will have to authenticate again and then you should get the following output :
-    ```sh
-    Your browser has been opened to visit:
-
-	https://accounts.google.com/...
-
-    Credentials saved to file: [/Users/username/.config/gcloud/application_default_credentials.json]
-    ```
-
+    This will open a browser for authentication again.
+    
 - Verify your active account :
     ```sh
     gcloud auth list
@@ -71,11 +64,7 @@ This step is required if you haven't set up Google Cloud on your device yet. If 
     *       youremailaddress@example.com
     ```
 
-- Set the active project
-    ```sh
-    gcloud config set project okapi274503
-    ```
-    Confirm with :
+- Confirm your active project :
     ```sh
     gcloud config list
     ```
