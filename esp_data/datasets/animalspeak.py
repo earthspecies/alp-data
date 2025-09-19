@@ -64,6 +64,7 @@ class AnimalSpeak(Dataset):
         sample_rate: Optional[int] = None,
         data_root: Optional[str | AnyPathT] = None,
         streaming: bool = False,
+        streaming_chunk_size: int = 100,
     ) -> None:
         """Initialize the AnimalSpeak dataset.
 
@@ -80,6 +81,14 @@ class AnimalSpeak(Dataset):
             The root directory for the dataset. This is optionally appended to the
             path item of a sample in the dataset.
             If None, the default is the parent directory of the split path.
+        streaming : bool
+            Whether to enable streaming mode. In streaming mode, data is read
+            in chunks from the source CSV file instead of loading everything
+            into memory at once. This is useful for very large datasets that
+            do not fit into memory.
+        streaming_chunk_size : int
+            The number of rows to read at a time in streaming mode.
+            This parameter is currently not used.
         """
         super().__init__(output_take_and_give)  # Initialize the parent Dataset class
         self.split = split
@@ -89,6 +98,7 @@ class AnimalSpeak(Dataset):
         self.sample_rate = sample_rate
         self.data_root = data_root
         self.streaming = streaming
+        self.streaming_chunk_size = streaming_chunk_size
         if self.data_root is None:
             # we assume that parent dir of the split path is the data root
             self.data_root = anypath(self.info.split_paths[self.split]).parent
@@ -152,6 +162,7 @@ class AnimalSpeak(Dataset):
             output_take_and_give=cfg["output_take_and_give"],
             data_root=cfg["data_root"],
             sample_rate=cfg["sample_rate"],
+            streaming=cfg["streaming"],
         )
 
         if dataset_config.transformations:
@@ -248,10 +259,10 @@ class AnimalSpeak(Dataset):
         """
         if self.streaming:
             location = self.info.split_paths[self.split]
-            with pd.read_csv(location, chunksize=100) as reader:
+            with pd.read_csv(location, chunksize=self.streaming_chunk_size) as reader:
                 for chunk in reader:
-                    for row in chunk.itertuples(index=False, name=None):
-                        item = self._process(row._asdict())
+                    for _, row in chunk.iterrows():
+                        item = self._process(row.to_dict())
                         yield item
         else:
             for idx in range(len(self)):

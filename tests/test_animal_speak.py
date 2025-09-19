@@ -82,10 +82,23 @@ def dataset_with_transforms_from_config() -> tuple[Dataset, dict]:
                 "values": ["xeno-canto", "iNaturalist"],
             },
         ],
-        data_root="gs://",
+        data_root=None,
     )
     ds, metadata = AnimalSpeak.from_config(dataset_config)
     return ds, metadata
+
+
+@pytest.fixture
+def dataset_streaming() -> Dataset:
+    """Fixture providing an AnimalSpeak dataset instance in streaming mode.
+
+    Returns
+    -------
+    Dataset
+        An instance of the AnimalSpeak dataset in streaming mode.
+    """
+    ds = AnimalSpeak(split="validation", streaming=True)
+    return ds
 
 
 @pytest.fixture
@@ -257,3 +270,14 @@ def test_output_take_and_give(dataset_with_output_mapping: Dataset) -> None:
     # Verify the mapping and values
     assert sample["species"] == original_row["canonical_name"]
     assert sample["location"] == original_row["country"]
+
+
+def test_iteration_on_streaming(dataset_streaming: Dataset) -> None:
+    """Test if iteration works correctly in streaming mode."""
+    sample = next(iter(dataset_streaming))
+    assert isinstance(sample, dict)
+    # Ensure we can access a known key
+    assert "audio" in sample
+
+    with pytest.raises(NotImplementedError):
+        dataset_streaming[0]
