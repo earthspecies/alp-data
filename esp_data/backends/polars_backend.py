@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import warnings
 from typing import Any, Iterator, Literal
 
 import polars as pl
@@ -209,6 +210,24 @@ class PolarsBackend:
             return self._df.collect()
         return self._df
 
+    def collect(self) -> "PolarsBackend":
+        """Materialize the LazyFrame and return an eager backend.
+
+        This method collects the LazyFrame into a DataFrame and returns a new
+        backend with streaming mode disabled.
+
+        Returns
+        -------
+        PolarsBackend
+            New backend in eager mode with materialized DataFrame
+
+        Notes
+        -----
+        If the backend is already in eager mode, returns a copy of the backend.
+        """
+        collected_df = self._ensure_collected()
+        return PolarsBackend(collected_df, streaming=False)
+
     def _ensure_not_streaming(self, operation: str) -> None:
         """Raise error if in streaming mode for operations that require eager evaluation.
 
@@ -340,6 +359,11 @@ class PolarsBackend:
         -------
         PolarsBackend
             New backend with filtered DataFrame
+
+        Notes
+        -----
+        In streaming mode (LazyFrame), this operation preserves the lazy computation.
+        Call `.collect()` to materialize the filtered result into an eager backend.
         """
         expr = pl.col(column).is_in(values)
         if negate:
@@ -350,8 +374,6 @@ class PolarsBackend:
             filtered_df,
             streaming=self._streaming,
         )
-
-    # ==================== Deduplication ====================
 
     def drop_duplicates(
         self,
@@ -373,12 +395,15 @@ class PolarsBackend:
         -------
         PolarsBackend
             New backend with duplicates removed
+
+        Notes
+        -----
+        In streaming mode (LazyFrame), this operation preserves the lazy computation.
+        Call `.collect()` to materialize the deduplicated result into an eager backend.
         """
         deduped_df = self._df.unique(subset=subset, keep=keep)
         # Preserve streaming mode
         return PolarsBackend(deduped_df, streaming=self._streaming)
-
-    # ==================== Null Handling ====================
 
     def dropna(
         self,
@@ -396,6 +421,11 @@ class PolarsBackend:
         -------
         PolarsBackend
             New backend with null rows removed
+
+        Notes
+        -----
+        In streaming mode (LazyFrame), this operation preserves the lazy computation.
+        Call `.collect()` to materialize the cleaned result into an eager backend.
         """
         if subset:
             cleaned_df = self._df.drop_nulls(subset=subset)
@@ -572,8 +602,6 @@ class PolarsBackend:
 
         return cls(concatenated_df)
 
-    # ==================== Metadata Operations ====================
-
     @property
     def columns(self) -> list[str]:
         """Get the list of column names.
@@ -611,8 +639,6 @@ class PolarsBackend:
         """
         return self._df
 
-    # ==================== Sampling Operations ====================
-
     def subsample_by_column(
         self,
         column: str,
@@ -639,7 +665,21 @@ class PolarsBackend:
         -------
         PolarsBackend
             New backend with subsampled rows
+
+        Warnings
+        --------
+        UserWarning
+            If backend is in streaming mode, warns that LazyFrame will be collected
+            since sampling requires materialization.
         """
+        if self._streaming:
+            warnings.warn(
+                "subsample_by_column() requires collection of LazyFrame for sampling. "
+                "The returned backend will be in eager mode (streaming=False).",
+                UserWarning,
+                stacklevel=2,
+            )
+
         groups = []
 
         # Handle explicitly listed values
@@ -747,8 +787,6 @@ class PolarsBackend:
         sampled_df = self._df.sample(n=n, seed=seed, with_replacement=replace)
         # Preserve streaming mode
         return PolarsBackend(sampled_df, streaming=self._streaming)
-
-    # ==================== Utility Methods ====================
 
     def copy(self) -> "PolarsBackend":
         """Create a copy of the backend with a copied DataFrame.
