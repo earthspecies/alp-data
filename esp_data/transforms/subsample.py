@@ -1,9 +1,9 @@
 import logging
-from typing import Any, Literal
+from typing import Literal
 
-import numpy as np
-import pandas as pd
 from pydantic import BaseModel, field_validator
+
+from esp_data.backends.protocol import DataFrameBackend
 
 from . import register_transform
 
@@ -14,8 +14,7 @@ class SubsampleConfig(BaseModel):
     type: Literal["subsample"]
     property: str
     ratios: dict[str, float]
-
-    # TODO (milad) we support "other" in ratios?
+    seed: int = 42
 
     @field_validator("ratios")
     @classmethod
@@ -36,6 +35,8 @@ class Subsample:
     keep for each property value. The "other" category can be used to specify a ratio
     for all other values not explicitly listed in the ratios dictionary.
 
+    Works with any backend (pandas, polars) through the DataFrameBackend protocol.
+
     Parameters
     ----------
     property: str
@@ -50,6 +51,8 @@ class Subsample:
     Examples
     -------
     >>> from esp_data.transforms import Subsample, SubsampleConfig
+    >>> from esp_data.backends import PandasBackend
+    >>> import pandas as pd
     >>> config = SubsampleConfig(
     ...     type="subsample",
     ...     property="species",
@@ -63,88 +66,49 @@ class Subsample:
     ...     "species": ["bee", "bee", "butterfly", "ant", "butterfly", "spider"],
     ...     "count": [10, 5, 8, 2, 3, 1]
     ... })
-    >>> subsampled_df, _ = subsample_transform(df)
-    >>> assert len(subsampled_df) == 1
+    >>> backend = PandasBackend(df)
+    >>> subsampled_backend, _ = subsample_transform(backend)
     """
 
-    def __init__(self, property: str, ratios: dict[str, float]) -> None:
+    def __init__(self, property: str, ratios: dict[str, float], seed: int = 42) -> None:
         self.property = property
         self.ratios = ratios
+        self.seed = seed
 
     @classmethod
     def from_config(cls, cfg: SubsampleConfig) -> "Subsample":
         return cls(**cfg.model_dump(exclude=("type")))
 
-    def __call__(self, data: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
+    def __call__(self, backend: DataFrameBackend) -> tuple[DataFrameBackend, dict]:
         """
         Apply the subsample transformation.
 
         Parameters
         ----------
-        data: pd.DataFrame
-            The data to subsample
+        backend: DataFrameBackend
+            The backend wrapping the dataframe to subsample
 
         Returns
         -------
-        tuple[pd.DataFrame, dict]: A tuple containing:
-            The subsampled data (same type as input).
+        tuple[DataFrameBackend, dict]: A tuple containing:
+            The subsampled backend (same type as input).
             The metadata dictionary (empty placeholder for future use).
 
         Raises
         ------
-            TypeError: If the data type is not supported.
             KeyError: If the specified property is not found in the DataFrame columns.
         """
-        if self.property not in data.columns:
+        if self.property not in backend.columns:
             raise KeyError(f"Property '{self.property}' not found in the DataFrame columns.")
 
-        if isinstance(data, pd.DataFrame):
-            return self._subsample_dataframe(data), {}
-        # if isinstance(data, dict):
-        #     return self._subsample_dict(data), None
-        raise TypeError(f"Unsupported data type: {type(data)}")
+        # Use backend's subsample_by_column method
+        subsampled_backend = backend.subsample_by_column(
+            column=self.property,
+            ratios=self.ratios,
+            seed=self.seed,
+        )
 
-    def _choose_keys(self, keys: list[Any], ratio: float) -> list[Any]:
-        """Return a subsample of *keys* of size `ceil(len(keys)*ratio)`.
-
-        Args:
-            keys: List of keys to subsample from.
-            ratio: Ratio of keys to select.
-
-        Returns:
-            List[Any]: The selected keys.
-        """
-        if ratio >= 1.0 or len(keys) == 0:
-            return keys
-        n = int(len(keys) * ratio)
-        rng = np.random.default_rng(seed=42)
-        return rng.choice(keys, size=n, replace=False).tolist()
-
-    def _subsample_dataframe(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Subsample a pandas DataFrame.
-
-        Args:
-            df: The DataFrame to subsample.
-
-        Returns:
-            pd.DataFrame: The subsampled DataFrame.
-        """
-        groups = []
-
-        for val, ratio in self.ratios.items():
-            if val == "other":
-                continue
-            idx = df.index[df[self.property] == val].tolist()
-            chosen = self._choose_keys(idx, ratio)
-            groups.append(df.loc[chosen])
-
-        if "other" in self.ratios:
-            mask_other = ~df[self.property].isin(self.ratios.keys() - {"other"})
-            idx_other = df.index[mask_other].tolist()
-            chosen_other = self._choose_keys(idx_other, self.ratios["other"])
-            groups.append(df.loc[chosen_other])
-
-        return pd.concat(groups, ignore_index=True)
+        return subsampled_backend, {}
 
 
 register_transform(SubsampleConfig, Subsample)

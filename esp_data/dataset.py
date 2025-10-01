@@ -7,6 +7,7 @@ import semver
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, field_validator
 
+from esp_data.backends import BackendType, get_backend
 from esp_data.io import AnyPathT, anypath
 from esp_data.transforms import transform_from_config
 from esp_data.transforms.registry import RegisteredTransformConfigs
@@ -70,6 +71,8 @@ class DatasetConfig(BaseModel):
     output_take_and_give: dict[str, str] | None = None
     split: str = "train"
     data_root: str | None = None
+    streaming: bool = False
+    backend: BackendType = "polars"
 
     @field_validator("transformations", mode="before")
     @classmethod
@@ -288,7 +291,12 @@ class Dataset(ABC):
 
     info: DatasetInfo
 
-    def __init__(self, output_take_and_give: dict[str, str] = None) -> None:
+    def __init__(
+        self,
+        output_take_and_give: dict[str, str] = None,
+        backend: BackendType = "polars",
+        streaming: bool = False,
+    ) -> None:
         """A DatasetConfig can be passed to the constructor to, for instance,
         apply transformations to the dataset during instantiation or modify its
         fields of output.
@@ -297,9 +305,16 @@ class Dataset(ABC):
         ----------
         output_take_and_give : dict[str, str], optional
             A dictionary mapping output fields to their corresponding input fields.
+        backend : BackendType, optional
+            The backend to use for DataFrame operations ("pandas" or "polars"), by default "polars"
+        streaming : bool, optional
+            Whether to use streaming mode for dataset processing, by default False
 
         """
         self.output_take_and_give = output_take_and_give
+        self._backend_type = backend
+        self._streaming = streaming
+        self._backend_class = get_backend(backend)
 
     @property
     @abstractmethod
@@ -439,13 +454,28 @@ class Dataset(ABC):
         -------
         RuntimeError
             If the dataset's data is not loaded yet.
+            If using pandas backend in streaming mode (not supported).
+
+        Notes
+        -----
+        Transformations in streaming mode are only supported with polars backend
+        (using LazyFrame). Pandas backend requires eager evaluation.
         """
         if self._data is None:
             raise RuntimeError("No data loaded. Call load() first.")
 
+        # Check if pandas backend in streaming mode
+        if self._streaming and self._backend_type == "pandas":
+            raise RuntimeError(
+                "Cannot apply transformations with pandas backend in streaming mode. "
+                "Either use polars backend for streaming transformations, "
+                "or disable streaming mode for pandas."
+            )
+
         transform_metadata = {}
         for cfg in transformations:
             transform = transform_from_config(cfg)
+            # Transform operates on the backend directly
             self._data, metadata = transform(self._data)
             transform_metadata[cfg.type] = metadata
 
@@ -617,17 +647,23 @@ def dataset_from_config(
 
     if key is not None:
         if key not in data:
-            raise KeyError(f"Required key '{key}' not found in the provided configuration data.")
+            raise KeyError(
+                f"Required key '{key}' not found in the provided configuration data."
+            )
         data = data[key]
 
     if isinstance(data, dict):
         if len(data) == 1 and ("dataset" in data or "concat" in data):
             if "concat" in data and "dataset" in data:
-                raise ValueError("Configuration cannot contain both 'concat' and 'dataset' keys.")
+                raise ValueError(
+                    "Configuration cannot contain both 'concat' and 'dataset' keys."
+                )
 
             if "dataset" in data:
                 cfg = data["dataset"]
-                cfg_class = _custom_config_registry.get(cfg["dataset_name"], DatasetConfig)
+                cfg_class = _custom_config_registry.get(
+                    cfg["dataset_name"], DatasetConfig
+                )
                 return _make_dataset_from_config(cfg_class.model_validate(cfg))
 
             elif "concat" in data:
@@ -635,7 +671,9 @@ def dataset_from_config(
                 return _make_dataset_from_config(ConcatConfig.model_validate(cfg))
 
             else:
-                raise ValueError("Configuration must contain either 'dataset' or 'concat' key.")
+                raise ValueError(
+                    "Configuration must contain either 'dataset' or 'concat' key."
+                )
         else:
             raise ValueError(
                 "Multiple / Invalid dataset configurations found. "

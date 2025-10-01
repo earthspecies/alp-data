@@ -4,7 +4,6 @@ from typing import Any, Dict, Iterator
 
 import librosa
 import numpy as np
-import pandas as pd
 import soundfile as sf
 
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
@@ -66,8 +65,10 @@ class BarkleyCanyon(Dataset):
         output_take_and_give: dict[str, str] | None = None,
         sample_rate: int | None = None,
         data_root: str | AnyPathT | None = None,
+        backend: str = "polars",
+        streaming: bool = False,
     ) -> None:
-        """Initialize the AnimalSpeak dataset.
+        """Initialize the BarkleyCanyon dataset.
 
         Parameters
         ----------
@@ -82,10 +83,14 @@ class BarkleyCanyon(Dataset):
             The root directory for the dataset. This is optionally appended to the
             path item of a sample in the dataset.
             If None, the default is the parent directory of the split path.
+        backend : str
+            Backend to use ("pandas" or "polars"), by default "polars"
+        streaming : bool
+            Whether to use streaming mode, by default False
         """
-        super().__init__(output_take_and_give)  # Initialize the parent Dataset class
+        super().__init__(output_take_and_give, backend, streaming)
         self.split = split
-        self._data: pd.DataFrame = None
+        self._data = None
         self._load()  # Load the dataset (fills self._data)
         self.sample_rate = sample_rate
 
@@ -97,7 +102,7 @@ class BarkleyCanyon(Dataset):
     @property
     def columns(self) -> list[str]:
         """Return the columns of the dataset."""
-        return list(self._data.columns)
+        return self._data.columns
 
     @property
     def available_splits(self) -> list[str]:
@@ -118,17 +123,24 @@ class BarkleyCanyon(Dataset):
             )
 
         location = self.info.split_paths[self.split]
-        # Read CSV content
-        self._data = pd.read_csv(location, keep_default_na=False, na_values=[""])
+        # Read CSV content using backend
+        self._data = self._backend_class.read_csv(
+            location,
+            keep_default_na=False,
+            na_values=[""],
+            streaming=self._streaming,
+        )
 
     @classmethod
-    def from_config(cls, dataset_config: DatasetConfig) -> tuple["BarkleyCanyon", dict[str, Any]]:
+    def from_config(
+        cls, dataset_config: DatasetConfig
+    ) -> tuple["BarkleyCanyon", dict[str, Any]]:
         """Create a Dataset instance from a configuration dictionary.
 
         Parameters
         ----------
         dataset_config : DatasetConfig
-            Configuration dictionary containing dataset parametesf
+            Configuration dictionary containing dataset parameters
 
         Returns
         -------
@@ -144,10 +156,14 @@ class BarkleyCanyon(Dataset):
             output_take_and_give=cfg["output_take_and_give"],
             data_root=cfg["data_root"],
             sample_rate=cfg["sample_rate"],
+            backend=cfg["backend"],
+            streaming=cfg["streaming"],
         )
 
         if dataset_config.transformations:
-            transform_metadata = ds.apply_transformations(dataset_config.transformations)
+            transform_metadata = ds.apply_transformations(
+                dataset_config.transformations
+            )
             return ds, transform_metadata
 
         return ds, {}
@@ -189,9 +205,11 @@ class BarkleyCanyon(Dataset):
             If the index is out of bounds.
         """
         if idx >= len(self._data):
-            raise IndexError(f"Index {idx} out of bounds for dataset of length {len(self._data)}.")
+            raise IndexError(
+                f"Index {idx} out of bounds for dataset of length {len(self._data)}."
+            )
 
-        row = self._data.iloc[idx].to_dict()
+        row = self._data.iloc[idx]
 
         audio_path = anypath(self.data_root) / row["local_path"]
 
@@ -199,7 +217,9 @@ class BarkleyCanyon(Dataset):
             info = sf.info(f)
             sr = info.samplerate
             start_frame = (
-                int(row["start_times(sec)"] * sr) if row["start_times(sec)"] is not None else 0
+                int(row["start_times(sec)"] * sr)
+                if row["start_times(sec)"] is not None
+                else 0
             )
             end_frame = (
                 int(row["end_times(sec)"] * sr)
@@ -316,8 +336,10 @@ class BarkleyCanyonDetection(Dataset):
         output_take_and_give: dict[str, str] | None = None,
         sample_rate: int | None = None,
         data_root: str | AnyPathT | None = None,
+        backend: str = "polars",
+        streaming: bool = False,
     ) -> None:
-        """Initialize the AnimalSpeak dataset.
+        """Initialize the BarkleyCanyonDetection dataset.
 
         Parameters
         ----------
@@ -332,10 +354,14 @@ class BarkleyCanyonDetection(Dataset):
             The root directory for the dataset. This is optionally appended to the
             path item of a sample in the dataset.
             If None, the default is the parent directory of the split path.
+        backend : str
+            Backend to use ("pandas" or "polars"), by default "polars"
+        streaming : bool
+            Whether to use streaming mode, by default False
         """
-        super().__init__(output_take_and_give)  # Initialize the parent Dataset class
+        super().__init__(output_take_and_give, backend, streaming)
         self.split = split
-        self._data: pd.DataFrame = None
+        self._data = None
         self._load()  # Load the dataset (fills self._data)
         self.sample_rate = sample_rate
         self.data_root = data_root
@@ -348,7 +374,7 @@ class BarkleyCanyonDetection(Dataset):
     @property
     def columns(self) -> list[str]:
         """Return the columns of the dataset."""
-        return list(self._data.columns)
+        return self._data.columns
 
     @property
     def available_splits(self) -> list[str]:
@@ -369,8 +395,13 @@ class BarkleyCanyonDetection(Dataset):
             )
 
         location = self.info.split_paths[self.split]
-        # Read CSV content
-        self._data = pd.read_csv(location, keep_default_na=False, na_values=[""])
+        # Read CSV content using backend
+        self._data = self._backend_class.read_csv(
+            location,
+            keep_default_na=False,
+            na_values=[""],
+            streaming=self._streaming,
+        )
 
     @classmethod
     def from_config(
@@ -381,7 +412,7 @@ class BarkleyCanyonDetection(Dataset):
         Parameters
         ----------
         dataset_config : DatasetConfig
-            Configuration dictionary containing dataset parametesf
+            Configuration dictionary containing dataset parameters
 
         Returns
         -------
@@ -397,10 +428,14 @@ class BarkleyCanyonDetection(Dataset):
             output_take_and_give=cfg["output_take_and_give"],
             data_root=cfg["data_root"],
             sample_rate=cfg["sample_rate"],
+            backend=cfg["backend"],
+            streaming=cfg["streaming"],
         )
 
         if dataset_config.transformations:
-            transform_metadata = ds.apply_transformations(dataset_config.transformations)
+            transform_metadata = ds.apply_transformations(
+                dataset_config.transformations
+            )
             return ds, transform_metadata
 
         return ds, {}
@@ -440,9 +475,11 @@ class BarkleyCanyonDetection(Dataset):
             If the index is out of bounds.
         """
         if idx < 0 or idx >= len(self._data):
-            raise IndexError(f"Index {idx} out of bounds for dataset of length {len(self._data)}.")
+            raise IndexError(
+                f"Index {idx} out of bounds for dataset of length {len(self._data)}."
+            )
 
-        row = self._data.iloc[idx].to_dict()
+        row = self._data[idx]
         audio_path = anypath(self.data_root) / row["local_path"]
 
         # Read the audio clip

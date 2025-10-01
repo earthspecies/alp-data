@@ -1,8 +1,9 @@
 import logging
 from typing import Literal
 
-import pandas as pd
 from pydantic import BaseModel
+
+from esp_data.backends.protocol import DataFrameBackend
 
 from . import register_transform
 
@@ -23,6 +24,8 @@ class Filter:
     It can either include or exclude rows based on the specified values. The property
     is a column in the DataFrame, and the values are the values to filter by.
 
+    Works with any backend (pandas, polars) through the DataFrameBackend protocol.
+
     Parameters
     ----------
     property: str
@@ -37,12 +40,14 @@ class Filter:
     Examples
     -------
     >>> from esp_data.transforms import Filter
+    >>> from esp_data.backends import PandasBackend
+    >>> import pandas as pd
     >>> filter_transform = Filter(property="species", values=["bee", "butterfly"],
     ...     mode="include")
     >>> df = pd.DataFrame({"species": ["bee", "ant", "butterfly", "spider"],
     ...     "count": [10, 5, 8, 2]})
-    >>> filtered_df, _ = filter_transform(df)
-    >>> assert filtered_df["species"].tolist() == ["bee", "butterfly"]
+    >>> backend = PandasBackend(df)
+    >>> filtered_backend, _ = filter_transform(backend)
     """
 
     def __init__(
@@ -64,56 +69,20 @@ class Filter:
     def from_config(cls, cfg: FilterConfig) -> "Filter":
         return cls(**cfg.model_dump(exclude=("type")))
 
-    def __call__(self, data: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
+    def __call__(self, backend: DataFrameBackend) -> tuple[DataFrameBackend, dict]:
         """Filter the data based on property values.
 
         Args:
-            data: The data dataframe to filter
+            backend: The backend wrapping the dataframe to filter
 
         Returns:
-            The filtered data (same type as input).
-
-        Raises:
-            TypeError: If the data type is not supported.
+            The filtered backend (same type as input) and empty metadata dict.
         """
-        if isinstance(data, pd.DataFrame):
-            return self._filter_dataframe(data), {}
-        # elif isinstance(data, dict):
-        #     return self._filter_dict(data), {}
-        else:
-            raise TypeError(f"Unsupported data type: {type(data)}")
+        # Use backend's filter_isin method
+        negate = self.mode == "exclude"
+        filtered_backend = backend.filter_isin(self.property, self.values, negate=negate)
 
-    def _filter_dataframe(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Filter a pandas DataFrame.
-
-        Args:
-            df: The DataFrame to filter.
-
-        Returns:
-            pd.DataFrame: The filtered DataFrame.
-        """
-        if self.mode == "include":
-            return df[df[self.property].isin(self.values)].reset_index(drop=True)
-        else:
-            return df[~df[self.property].isin(self.values)].reset_index(drop=True)
-
-    # Right now we assume dataframe (though that will change soon)
-
-    # def _filter_dict(self, data: Dict[str, Any]) -> Dict[str, Any]:
-    #     """Filter a dictionary of data.
-
-    #     Args:
-    #         data: The dictionary to filter.
-
-    #     Returns:
-    #         Dict[str, Any]: The filtered dictionary.
-    #     """
-    #     if self.mode == "include":
-    #         return {k: v for k, v in data.items() if v[self.property] in self.values}
-    #     else:
-    #         return {
-    #             k: v for k, v in data.items() if v[self.property] not in self.values
-    #         }
+        return filtered_backend, {}
 
 
 register_transform(FilterConfig, Filter)

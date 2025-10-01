@@ -33,7 +33,8 @@ dev = [
     "pre-commit>=4.0.1",
     "pytest>=7.1.2",
     "ruff>=0.14.1",
-    "deptry>=0.23.0"
+    "deptry>=0.23.0",
+    "polars[all]>=1.33.1",
 ]
 
 [build-system]
