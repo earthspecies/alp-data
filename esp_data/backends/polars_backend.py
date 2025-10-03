@@ -25,13 +25,31 @@ class PolarsBackend:
 
     Examples
     --------
-    >>> backend = PolarsBackend.read_csv("data.csv")
+    >>> import polars as pl
+    >>> from esp_data.backends import PolarsBackend
+    >>> df = pl.DataFrame({
+    ...     "species": ["cat", "dog", "fish", "cat", "dog", None],
+    ...     "count": [5, 3, 8, 2, 7, 1]
+    ... })
+    >>> backend = PolarsBackend(df)
     >>> row = backend[0]
     >>> filtered = backend.filter_isin("species", ["cat", "dog"])
+    >>> assert filtered.unwrap["species"].to_list() == ["cat", "dog", "cat", "dog"]
     >>> # Streaming mode with LazyFrame
-    >>> backend = PolarsBackend.read_csv("large.csv", streaming=True)
+    >>> df = pl.LazyFrame({
+    ...     "species": ["cat", "dog", "fish", "cat", "dog", None],
+    ...     "count": [5, 3, 8, 2, 7, 1]
+    ... })
+    >>> backend = PolarsBackend(df, streaming=True)
+    >>> assert isinstance(backend.unwrap, pl.LazyFrame)
+    >>> print(backend.columns)
+    ['species', 'count']
     >>> for row in backend:
-    ...     process(row)
+    ...     print(row)
+    ...     break
+    {'species': 'cat', 'count': 5}
+    >>> collected = backend.collect()
+    >>> assert isinstance(collected.unwrap, pl.DataFrame)
     """
 
     def __init__(
@@ -57,13 +75,12 @@ class PolarsBackend:
             self._streaming = True
 
     @classmethod
-    def read_csv(
+    def from_csv(
         cls,
         path: str,
         *,
-        keep_default_na: bool = True,
-        na_values: list[str] | None = None,
         streaming: bool = False,
+        null_values: str | list[str] | dict[str, str] | None = None,
         **kwargs: Any,  # noqa ANN401
     ) -> "PolarsBackend":
         """Read a CSV file and return a wrapped DataFrame backend.
@@ -72,10 +89,8 @@ class PolarsBackend:
         ----------
         path : str
             Path to the CSV file (supports local and cloud paths via cloudpathlib)
-        keep_default_na : bool, optional
-            Whether to include default NA values (pandas compatibility), by default True
-        na_values : list[str] | None, optional
-            Additional strings to recognize as NA/NaN (pandas compatibility), by default None
+        null_values : str | list[str] | dict[str, str] | None, optional
+            List of strings to recognize as null/missing values, by default None
         streaming : bool, optional
             If True, use streaming mode with LazyFrame, by default False
         **kwargs : Any
@@ -85,34 +100,18 @@ class PolarsBackend:
         -------
         PolarsBackend
             Backend instance wrapping the loaded DataFrame or LazyFrame
-
-        Notes
-        -----
-        For pandas compatibility, keep_default_na and na_values are translated to
-        polars' null_values parameter. In polars, null_values is a string or list of strings.
         """
-        # Translate pandas parameters to polars parameters
-        polars_kwargs = kwargs.copy()
-
-        # Handle na_values conversion from pandas to polars
-        if na_values is not None:
-            # In polars, null_values parameter handles this
-            polars_kwargs["null_values"] = na_values
-        elif not keep_default_na:
-            # If keep_default_na is False, don't use default NA values
-            # In polars, we can pass an empty list to null_values
-            polars_kwargs["null_values"] = []
 
         if streaming:
             # Use scan_csv for lazy/streaming mode
-            df = pl.scan_csv(path, **polars_kwargs)
+            df = pl.scan_csv(path, null_values=null_values, **kwargs)
             return cls(df, streaming=True)
         else:
-            df = pl.read_csv(path, **polars_kwargs)
+            df = pl.read_csv(path, null_values=null_values, **kwargs)
             return cls(df, streaming=False)
 
     @classmethod
-    def read_json(
+    def from_json(
         cls,
         path: str,
         *,
@@ -156,7 +155,7 @@ class PolarsBackend:
             return cls(df, streaming=False)
 
     @classmethod
-    def read_parquet(
+    def from_parquet(
         cls,
         path: str,
         *,
@@ -481,11 +480,11 @@ class PolarsBackend:
         PolarsBackend
             New backend with mapped column added
         """
-        # Use replace_strict for mapping (polars >= 0.19)
         # For values not in mapping, they will be replaced with default
+        _return_dtype = type(default) if default is not None else type(list(mapping.values())[0])
         mapping_expr = (
             pl.col(column)
-            .replace_strict(mapping, default=default, return_dtype=type(default))
+            .replace_strict(mapping, default=default, return_dtype=_return_dtype)
             .alias(output_column)
         )
         new_df = self._df.with_columns(mapping_expr)
@@ -611,7 +610,7 @@ class PolarsBackend:
         list[str]
             List of column names
         """
-        return self._df.columns
+        return self._df.collect_schema().names()
 
     def column_exists(self, column: str) -> bool:
         """Check if a column exists in the DataFrame.

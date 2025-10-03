@@ -3,7 +3,7 @@ from typing import Literal
 
 from pydantic import BaseModel, field_validator
 
-from esp_data.backends.protocol import DataFrameBackend
+from esp_data.backends.protocol import DataBackendT
 
 from . import register_transform
 
@@ -35,7 +35,7 @@ class Subsample:
     keep for each property value. The "other" category can be used to specify a ratio
     for all other values not explicitly listed in the ratios dictionary.
 
-    Works with any backend (pandas, polars) through the DataFrameBackend protocol.
+    Works with any backend (pandas, polars) through the DataBackendT protocol.
 
     Parameters
     ----------
@@ -79,18 +79,18 @@ class Subsample:
     def from_config(cls, cfg: SubsampleConfig) -> "Subsample":
         return cls(**cfg.model_dump(exclude=("type")))
 
-    def __call__(self, backend: DataFrameBackend) -> tuple[DataFrameBackend, dict]:
+    def __call__(self, backend: DataBackendT) -> tuple[DataBackendT, dict]:
         """
         Apply the subsample transformation.
 
         Parameters
         ----------
-        backend: DataFrameBackend
+        backend: DataBackendT
             The backend wrapping the dataframe to subsample
 
         Returns
         -------
-        tuple[DataFrameBackend, dict]: A tuple containing:
+        tuple[DataBackendT, dict]: A tuple containing:
             The subsampled backend (same type as input).
             The metadata dictionary (empty placeholder for future use).
 

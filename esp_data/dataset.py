@@ -312,7 +312,6 @@ class Dataset(ABC):
 
         """
         self.output_take_and_give = output_take_and_give
-        self._backend_type = backend
         self._streaming = streaming
         self._backend_class = get_backend(backend)
 
@@ -455,22 +454,9 @@ class Dataset(ABC):
         RuntimeError
             If the dataset's data is not loaded yet.
             If using pandas backend in streaming mode (not supported).
-
-        Notes
-        -----
-        Transformations in streaming mode are only supported with polars backend
-        (using LazyFrame). Pandas backend requires eager evaluation.
         """
         if self._data is None:
             raise RuntimeError("No data loaded. Call load() first.")
-
-        # Check if pandas backend in streaming mode
-        if self._streaming and self._backend_type == "pandas":
-            raise RuntimeError(
-                "Cannot apply transformations with pandas backend in streaming mode. "
-                "Either use polars backend for streaming transformations, "
-                "or disable streaming mode for pandas."
-            )
 
         transform_metadata = {}
         for cfg in transformations:

@@ -5,7 +5,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-from esp_data.backends.protocol import DataFrameBackend
+from esp_data.backends.protocol import DataBackendT
 
 from . import register_transform
 
@@ -64,7 +64,7 @@ class Deduplicate:
     def from_config(cls, cfg: DeduplicateConfig) -> "Deduplicate":
         return cls(subset=cfg.subset, keep_first=cfg.keep_first)
 
-    def __call__(self, backend: DataFrameBackend) -> tuple[DataFrameBackend, dict]:
+    def __call__(self, backend: DataBackendT) -> tuple[DataBackendT, dict]:
         """Remove duplicate rows from the backend.
 
         Args:

@@ -22,7 +22,7 @@ class TestPandasStreaming:
         # Streaming mode
         with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
             df.to_csv(f.name, index=False)
-            backend_stream = PandasBackend.read_csv(f.name, streaming=True)
+            backend_stream = PandasBackend.from_csv(f.name, streaming=True)
             assert backend_stream.is_streaming
             Path(f.name).unlink()
 
@@ -31,7 +31,7 @@ class TestPandasStreaming:
         df = pd.DataFrame({"a": [1, 2, 3]})
         with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
             df.to_csv(f.name, index=False)
-            backend = PandasBackend.read_csv(f.name, streaming=True)
+            backend = PandasBackend.from_csv(f.name, streaming=True)
 
             with pytest.raises(RuntimeError, match="Cannot use __getitem__ in streaming mode"):
                 _ = backend[0]
@@ -43,7 +43,7 @@ class TestPandasStreaming:
         df = pd.DataFrame({"a": [1, 2, 3]})
         with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
             df.to_csv(f.name, index=False)
-            backend = PandasBackend.read_csv(f.name, streaming=True)
+            backend = PandasBackend.from_csv(f.name, streaming=True)
 
             with pytest.raises(RuntimeError, match="Cannot get length in streaming mode"):
                 _ = len(backend)
@@ -55,7 +55,7 @@ class TestPandasStreaming:
         df = pd.DataFrame({"a": [1, 2, 3], "b": ["x", "y", "z"]})
         with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
             df.to_csv(f.name, index=False)
-            backend = PandasBackend.read_csv(f.name, streaming=True, streaming_chunk_size=2)
+            backend = PandasBackend.from_csv(f.name, streaming=True, streaming_chunk_size=2)
 
             # Use manual iteration instead of list() to avoid __len__ call
             rows = []
@@ -68,27 +68,12 @@ class TestPandasStreaming:
 
             Path(f.name).unlink()
 
-    def test_streaming_iter_batches(self):
-        """Test iter_batches in streaming mode."""
-        df = pd.DataFrame({"a": range(10)})
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
-            df.to_csv(f.name, index=False)
-            backend = PandasBackend.read_csv(f.name, streaming=True, streaming_chunk_size=3)
-
-            batches = list(backend.iter_batches())
-            # Should get 4 batches: 3, 3, 3, 1
-            assert len(batches) == 4
-            assert len(batches[0]) == 3
-            assert len(batches[3]) == 1
-
-            Path(f.name).unlink()
-
     def test_streaming_operations_raise(self):
         """Test that data operations raise errors in streaming mode."""
         df = pd.DataFrame({"a": [1, 2, 3]})
         with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
             df.to_csv(f.name, index=False)
-            backend = PandasBackend.read_csv(f.name, streaming=True)
+            backend = PandasBackend.from_csv(f.name, streaming=True)
 
             with pytest.raises(RuntimeError, match="Cannot perform .* in streaming mode"):
                 backend.filter_isin("a", [1, 2])
@@ -109,7 +94,7 @@ class TestPandasStreaming:
         df = pd.DataFrame({"a": [1, 2, 3, 4, 5]})
         with tempfile.NamedTemporaryFile(mode="w", suffix=".jsonl", delete=False) as f:
             df.to_json(f.name, orient="records", lines=True)
-            backend = PandasBackend.read_json(f.name, lines=True, streaming=True, streaming_chunk_size=2)
+            backend = PandasBackend.from_json(f.name, lines=True, streaming=True, streaming_chunk_size=2)
 
             # Use manual iteration instead of list() to avoid __len__ call
             rows = []
@@ -152,7 +137,7 @@ class TestPolarsStreaming:
         # Streaming mode
         with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
             df.write_csv(f.name)
-            backend_stream = PolarsBackend.read_csv(f.name, streaming=True)
+            backend_stream = PolarsBackend.from_csv(f.name, streaming=True)
             assert backend_stream.is_streaming
             Path(f.name).unlink()
 
@@ -166,7 +151,7 @@ class TestPolarsStreaming:
         df = pl.DataFrame({"a": [1, 2, 3]})
         with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
             df.write_csv(f.name)
-            backend = PolarsBackend.read_csv(f.name, streaming=True)
+            backend = PolarsBackend.from_csv(f.name, streaming=True)
 
             with pytest.raises(RuntimeError, match="Cannot perform '__getitem__' in streaming mode"):
                 _ = backend[0]
@@ -183,7 +168,7 @@ class TestPolarsStreaming:
         df = pl.DataFrame({"a": [1, 2, 3]})
         with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
             df.write_csv(f.name)
-            backend = PolarsBackend.read_csv(f.name, streaming=True)
+            backend = PolarsBackend.from_csv(f.name, streaming=True)
 
             with pytest.raises(RuntimeError, match="Cannot perform '__len__' in streaming mode"):
                 _ = len(backend)
@@ -200,7 +185,7 @@ class TestPolarsStreaming:
         df = pl.DataFrame({"a": [1, 2, 3], "b": ["x", "y", "z"]})
         with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
             df.write_csv(f.name)
-            backend = PolarsBackend.read_csv(f.name, streaming=True)
+            backend = PolarsBackend.from_csv(f.name, streaming=True)
 
             # Use manual iteration instead of list() to avoid __len__ call
             rows = []
@@ -210,26 +195,6 @@ class TestPolarsStreaming:
             assert len(rows) == 3
             assert rows[0] == {"a": 1, "b": "x"}
             assert rows[2] == {"a": 3, "b": "z"}
-
-            Path(f.name).unlink()
-
-    def test_streaming_iter_batches(self):
-        """Test iter_batches in streaming mode."""
-        try:
-            import polars as pl
-        except ImportError:
-            pytest.skip("polars not installed")
-
-        df = pl.DataFrame({"a": range(10)})
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
-            df.write_csv(f.name)
-            backend = PolarsBackend.read_csv(f.name, streaming=True)
-
-            batches = list(backend.iter_batches(batch_size=3))
-            # Should get 4 batches: 3, 3, 3, 1
-            assert len(batches) == 4
-            assert len(batches[0]) == 3
-            assert len(batches[3]) == 1
 
             Path(f.name).unlink()
 
@@ -243,7 +208,7 @@ class TestPolarsStreaming:
         df = pl.DataFrame({"a": [1, 2, 2, 3]})
         with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
             df.write_csv(f.name)
-            backend = PolarsBackend.read_csv(f.name, streaming=True)
+            backend = PolarsBackend.from_csv(f.name, streaming=True)
 
             # These operations work with LazyFrames and preserve streaming mode
             filtered = backend.filter_isin("a", [1, 2])
@@ -278,7 +243,7 @@ class TestPolarsStreaming:
         df = pl.DataFrame({"a": [1, 2, 3, 4, 5]})
         with tempfile.NamedTemporaryFile(mode="w", suffix=".jsonl", delete=False) as f:
             df.write_ndjson(f.name)
-            backend = PolarsBackend.read_json(f.name, lines=True, streaming=True)
+            backend = PolarsBackend.from_json(f.name, lines=True, streaming=True)
 
             # Use manual iteration instead of list() to avoid __len__ call
             rows = []
@@ -317,7 +282,7 @@ class TestPolarsStreaming:
         df = pl.DataFrame({"a": [1, 2, 3]})
         with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
             df.write_csv(f.name)
-            backend = PolarsBackend.read_csv(f.name, streaming=True)
+            backend = PolarsBackend.from_csv(f.name, streaming=True)
 
             assert backend.is_streaming
 
@@ -341,7 +306,7 @@ class TestPolarsStreaming:
         df = pl.DataFrame({"a": [1, 1, 2, 2, 3, 3], "b": ["x", "y", "z", "w", "v", "u"]})
         with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
             df.write_csv(f.name)
-            backend = PolarsBackend.read_csv(f.name, streaming=True)
+            backend = PolarsBackend.from_csv(f.name, streaming=True)
 
             assert backend.is_streaming
 

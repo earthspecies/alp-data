@@ -3,7 +3,7 @@ from typing import Literal
 
 from pydantic import BaseModel
 
-from esp_data.backends.protocol import DataFrameBackend
+from esp_data.backends.protocol import DataBackendT
 
 from . import register_transform
 
@@ -24,7 +24,7 @@ class Filter:
     It can either include or exclude rows based on the specified values. The property
     is a column in the DataFrame, and the values are the values to filter by.
 
-    Works with any backend (pandas, polars) through the DataFrameBackend protocol.
+    Works with any backend (pandas, polars) through the DataBackendT protocol.
 
     Parameters
     ----------
@@ -69,7 +69,7 @@ class Filter:
     def from_config(cls, cfg: FilterConfig) -> "Filter":
         return cls(**cfg.model_dump(exclude=("type")))
 
-    def __call__(self, backend: DataFrameBackend) -> tuple[DataFrameBackend, dict]:
+    def __call__(self, backend: DataBackendT) -> tuple[DataBackendT, dict]:
         """Filter the data based on property values.
 
         Args:

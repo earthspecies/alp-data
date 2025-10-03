@@ -124,11 +124,11 @@ class BarkleyCanyon(Dataset):
 
         location = self.info.split_paths[self.split]
         # Read CSV content using backend
-        self._data = self._backend_class.read_csv(
+        self._data = self._backend_class.from_csv(
             location,
-            keep_default_na=False,
-            na_values=[""],
             streaming=self._streaming,
+            # keep_default_na=False,
+            # na_values=[""],
         )
 
     @classmethod
@@ -396,10 +396,10 @@ class BarkleyCanyonDetection(Dataset):
 
         location = self.info.split_paths[self.split]
         # Read CSV content using backend
-        self._data = self._backend_class.read_csv(
+        self._data = self._backend_class.from_csv(
             location,
-            keep_default_na=False,
-            na_values=[""],
+            # keep_default_na=False,
+            # na_values=[""],
             streaming=self._streaming,
         )
 

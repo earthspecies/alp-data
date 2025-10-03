@@ -7,30 +7,25 @@ a common abstraction layer.
 
 from __future__ import annotations
 
-from typing import Any, Iterator, Literal, Protocol, TypeVar, overload
+from typing import Any, Iterator, Literal, Protocol, Type, TypeVar, overload
+
+from .pandas_backend import PandasBackend
+from .polars_backend import PolarsBackend
 
 # Type alias for backend return type (allows chaining)
-DataFrameBackendT = TypeVar("DataFrameBackend")
+DataBackendT = TypeVar("DataBackend")
 
 
-class DataFrameBackend(Protocol):
+class DataBackend(Protocol):
     """Protocol defining the interface all DataFrame backends must implement.
 
     This protocol uses the Adapter pattern where the backend wraps a DataFrame
     and provides a unified interface. The wrapped DataFrame is stored as an
     instance attribute, making the API more Pythonic and cleaner.
-
-    Examples
-    --------
-    >>> backend = PandasBackend.read_csv("data.csv")
-    >>> row = backend[0]  # Get first row as dict
-    >>> filtered = backend.filter_isin("species", ["cat", "dog"])
-    >>> for row in filtered:
-    ...     print(row)
     """
 
     @classmethod
-    def read_csv(
+    def from_csv(
         cls,
         path: str,
         *,
@@ -38,8 +33,8 @@ class DataFrameBackend(Protocol):
         na_values: list[str] | None = None,
         streaming: bool = False,
         **kwargs: Any,  # noqa ANN401
-    ) -> DataFrameBackendT:
-        """Read a CSV file and return a wrapped DataFrame backend.
+    ) -> DataBackendT:
+        """Read a CSV file and return a wrapped data backend.
 
         Parameters
         ----------
@@ -58,26 +53,20 @@ class DataFrameBackend(Protocol):
 
         Returns
         -------
-        DataFrameBackend
-            Backend instance wrapping the loaded DataFrame
-
-        Examples
-        --------
-        >>> backend = PandasBackend.read_csv("data.csv")
-        >>> backend = PolarsBackend.read_csv("gs://bucket/data.csv", streaming=True)
+        DataBackend
+            Backend instance wrapping the loaded data
         """
         ...
 
     @classmethod
-    def read_json(
+    def from_json(
         cls,
         path: str,
         *,
         lines: bool = False,
-        orient: str = "records",
         streaming: bool = False,
         **kwargs: Any,  # noqa ANN401
-    ) -> DataFrameBackendT:
+    ) -> DataBackendT:
         """Read a JSON file and return a wrapped DataFrame backend.
 
         Parameters
@@ -86,8 +75,6 @@ class DataFrameBackend(Protocol):
             Path to the JSON file
         lines : bool, optional
             If True, read file as JSON lines (one JSON object per line), by default False
-        orient : str, optional
-            Expected JSON format, by default "records"
         streaming : bool, optional
             If True, use streaming mode (lazy evaluation), by default False
         **kwargs : Any
@@ -95,24 +82,20 @@ class DataFrameBackend(Protocol):
 
         Returns
         -------
-        DataFrameBackend
+        DataBackend
             Backend instance wrapping the loaded DataFrame
-
-        Examples
-        --------
-        >>> backend = PandasBackend.read_json("data.jsonl", lines=True)
         """
         ...
 
     @classmethod
-    def read_parquet(
+    def from_parquet(
         cls,
         path: str,
         *,
         streaming: bool = False,
         **kwargs: Any,  # noqa ANN401
-    ) -> DataFrameBackendT:
-        """Read a Parquet file and return a wrapped DataFrame backend.
+    ) -> DataBackendT:
+        """Read a Parquet file and return a wrapped data backend.
 
         Parameters
         ----------
@@ -125,34 +108,22 @@ class DataFrameBackend(Protocol):
 
         Returns
         -------
-        DataFrameBackend
-            Backend instance wrapping the loaded DataFrame
-
-        Examples
-        --------
-        >>> backend = PandasBackend.read_parquet("data.parquet")
+        DataBackend
+            Backend instance wrapping the loaded data object
         """
         ...
 
     def __init__(self, df: Any, *, streaming: bool = False) -> None:  # noqa ANN401
-        """Wrap an existing DataFrame.
+        """Wrap an existing data object.
 
         Parameters
         ----------
         df : Any
-            The DataFrame to wrap (e.g., pd.DataFrame, pl.DataFrame).
-            For streaming mode with pandas, this can be a TextFileReader.
+            The data to wrap (e.g., pd.DataFrame, pl.DataFrame).
+
         streaming : bool, optional
             If True, use streaming mode where __getitem__ is disabled
             and iteration processes data in chunks, by default False
-
-        Examples
-        --------
-        >>> import pandas as pd
-        >>> df = pd.DataFrame({"a": [1, 2, 3]})
-        >>> backend = PandasBackend(df)
-        >>> # Streaming mode
-        >>> backend = PandasBackend.read_csv("large.csv", streaming=True)
         """
         ...
 
@@ -164,12 +135,6 @@ class DataFrameBackend(Protocol):
         -------
         bool
             True if in streaming mode, False otherwise
-
-        Examples
-        --------
-        >>> backend = PandasBackend.read_csv("data.csv", streaming=True)
-        >>> backend.is_streaming
-        True
         """
         ...
 
@@ -179,16 +144,16 @@ class DataFrameBackend(Protocol):
         ...
 
     @overload
-    def __getitem__(self, key: list[int]) -> DataFrameBackendT:
+    def __getitem__(self, key: list[int]) -> DataBackendT:
         """Get multiple rows by list of indices."""
         ...
 
     @overload
-    def __getitem__(self, key: slice) -> DataFrameBackendT:
+    def __getitem__(self, key: slice) -> DataBackendT:
         """Get rows by slice."""
         ...
 
-    def __getitem__(self, key: int | list[int] | slice) -> dict[str, Any] | DataFrameBackendT:
+    def __getitem__(self, key: int | list[int] | slice) -> dict[str, Any] | DataBackendT:
         """Get row(s) from the DataFrame using Pythonic indexing.
 
         Parameters
@@ -200,9 +165,9 @@ class DataFrameBackend(Protocol):
 
         Returns
         -------
-        dict[str, Any] | DataFrameBackend
+        dict[str, Any] | DataBackend
             - dict if key is int (single row)
-            - DataFrameBackend if key is list or slice (multiple rows)
+            - DataBackend if key is list or slice (multiple rows)
 
         Raises
         ------
@@ -213,19 +178,11 @@ class DataFrameBackend(Protocol):
         RuntimeError
             If backend is in streaming mode (use iteration instead)
 
-        Examples
-        --------
-        >>> backend[0]  # Get first row as dict
-        {'col1': 1, 'col2': 'a'}
-        >>> backend[[0, 5, 10]]  # Get rows 0, 5, 10 as new backend
-        >>> backend[5:]  # Get rows from index 5 to end
-        >>> backend[:10]  # Get first 10 rows
-
         Note
         ----
         In streaming mode, __getitem__ is disabled. Use iteration instead:
-        >>> for row in backend:
-        ...     process(row)
+        for row in backend:
+            process(row)
         """
         ...
 
@@ -236,11 +193,6 @@ class DataFrameBackend(Protocol):
         -------
         int
             Number of rows
-
-        Examples
-        --------
-        >>> len(backend)
-        100
         """
         ...
 
@@ -251,34 +203,6 @@ class DataFrameBackend(Protocol):
         ------
         dict[str, Any]
             Dictionary for each row mapping column names to values
-
-        Examples
-        --------
-        >>> for row in backend:
-        ...     print(row['column_name'])
-        """
-        ...
-
-    def iter_batches(self, batch_size: int = 1000) -> Iterator[DataFrameBackendT]:
-        """Iterate over DataFrame in batches.
-
-        This provides a streaming interface for batch processing,
-        useful for large datasets.
-
-        Parameters
-        ----------
-        batch_size : int, optional
-            Number of rows per batch, by default 1000
-
-        Yields
-        ------
-        DataFrameBackend
-            Backend instances wrapping batches of up to batch_size rows
-
-        Examples
-        --------
-        >>> for batch in backend.iter_batches(batch_size=100):
-        ...     process_batch(batch)
         """
         ...
 
@@ -288,7 +212,7 @@ class DataFrameBackend(Protocol):
         values: list[Any],
         *,
         negate: bool = False,
-    ) -> DataFrameBackendT:
+    ) -> DataBackendT:
         """Filter DataFrame rows where column values are in (or not in) a list.
 
         Parameters
@@ -302,13 +226,8 @@ class DataFrameBackend(Protocol):
 
         Returns
         -------
-        DataFrameBackend
+        DataBackend
             New backend with filtered DataFrame
-
-        Examples
-        --------
-        >>> filtered = backend.filter_isin("species", ["cat", "dog"])
-        >>> excluded = backend.filter_isin("species", ["cat"], negate=True)
         """
         ...
 
@@ -317,7 +236,7 @@ class DataFrameBackend(Protocol):
         subset: list[str] | None = None,
         *,
         keep: Literal["first", "last"] = "first",
-    ) -> DataFrameBackendT:
+    ) -> DataBackendT:
         """Remove duplicate rows from the DataFrame.
 
         Parameters
@@ -330,19 +249,15 @@ class DataFrameBackend(Protocol):
 
         Returns
         -------
-        DataFrameBackend
+        DataBackend
             New backend with duplicates removed
-
-        Examples
-        --------
-        >>> deduped = backend.drop_duplicates(subset=["id"])
         """
         ...
 
     def dropna(
         self,
         subset: list[str] | None = None,
-    ) -> DataFrameBackendT:
+    ) -> DataBackendT:
         """Remove rows with missing values.
 
         Parameters
@@ -353,12 +268,8 @@ class DataFrameBackend(Protocol):
 
         Returns
         -------
-        DataFrameBackend
+        DataBackend
             New backend with null rows removed
-
-        Examples
-        --------
-        >>> cleaned = backend.dropna(subset=["species"])
         """
         ...
 
@@ -374,11 +285,6 @@ class DataFrameBackend(Protocol):
         -------
         list[Any]
             Sorted list of unique values (nulls excluded)
-
-        Examples
-        --------
-        >>> backend.get_unique("species")
-        ['cat', 'dog', 'bird']
         """
         ...
 
@@ -389,7 +295,7 @@ class DataFrameBackend(Protocol):
         output_column: str,
         *,
         default: Any | None = None,  # noqa ANN401
-    ) -> DataFrameBackendT:
+    ) -> DataBackendT:
         """Create a new column by mapping values from an existing column.
 
         Parameters
@@ -405,20 +311,15 @@ class DataFrameBackend(Protocol):
 
         Returns
         -------
-        DataFrameBackend
+        DataBackend
             New backend with mapped column added
-
-        Examples
-        --------
-        >>> label_map = {"cat": 0, "dog": 1, "bird": 2}
-        >>> labeled = backend.map_column("species", label_map, "label")
         """
         ...
 
     def rename_columns(
         self,
         mapping: dict[str, str],
-    ) -> DataFrameBackendT:
+    ) -> DataBackendT:
         """Rename DataFrame columns.
 
         Parameters
@@ -428,12 +329,8 @@ class DataFrameBackend(Protocol):
 
         Returns
         -------
-        DataFrameBackend
+        DataBackend
             New backend with renamed columns
-
-        Examples
-        --------
-        >>> renamed = backend.rename_columns({"old_name": "new_name"})
         """
         ...
 
@@ -441,7 +338,7 @@ class DataFrameBackend(Protocol):
         self,
         column: str,
         values: Any,  # noqa ANN401
-    ) -> DataFrameBackendT:
+    ) -> DataBackendT:
         """Add a new column to the DataFrame.
 
         Parameters
@@ -453,20 +350,15 @@ class DataFrameBackend(Protocol):
 
         Returns
         -------
-        DataFrameBackend
+        DataBackend
             New backend with new column added
-
-        Examples
-        --------
-        >>> with_col = backend.add_column("new_col", 0)
-        >>> with_col = backend.add_column("ids", range(len(backend)))
         """
         ...
 
     def select_columns(
         self,
         columns: list[str],
-    ) -> DataFrameBackendT:
+    ) -> DataBackendT:
         """Select a subset of columns from the DataFrame.
 
         Parameters
@@ -476,28 +368,24 @@ class DataFrameBackend(Protocol):
 
         Returns
         -------
-        DataFrameBackend
+        DataBackend
             New backend with only specified columns
-
-        Examples
-        --------
-        >>> subset = backend.select_columns(["species", "count"])
         """
         ...
 
     @classmethod
     def concat(
         cls,
-        backends: list[DataFrameBackendT],
+        backends: list[DataBackendT],
         *,
         ignore_index: bool = True,
         sort: bool = False,
-    ) -> DataFrameBackendT:
+    ) -> DataBackendT:
         """Concatenate multiple backend instances vertically (row-wise).
 
         Parameters
         ----------
-        backends : list[DataFrameBackend]
+        backends : list[DataBackend]
             List of backend instances to concatenate
         ignore_index : bool, optional
             If True, reset index in result, by default True
@@ -506,12 +394,8 @@ class DataFrameBackend(Protocol):
 
         Returns
         -------
-        DataFrameBackend
+        DataBackend
             New backend with concatenated data
-
-        Examples
-        --------
-        >>> combined = PandasBackend.concat([backend1, backend2, backend3])
         """
         ...
 
@@ -523,51 +407,30 @@ class DataFrameBackend(Protocol):
         -------
         list[str]
             List of column names
-
-        Examples
-        --------
-        >>> backend.columns
-        ['species', 'count', 'location']
         """
         ...
 
     def column_exists(self, column: str) -> bool:
-        """Check if a column exists in the DataFrame.
+        """Check if a column exists in the data.
 
         Parameters
         ----------
         column : str
             Column name to look for
-
-        Returns
-        -------
-        bool
-            True if column exists, False otherwise
-
-        Examples
-        --------
-        >>> backend.column_exists("species")
-        True
         """
         ...
 
     @property
     def unwrap(self) -> Any:  # noqa: ANN401
-        """Get the underlying DataFrame object.
+        """Get the underlying data object.
 
         This is useful when you need to access backend-specific functionality
-        or pass the DataFrame to functions that expect the native type.
+        or pass the data to functions that expect the native type.
 
         Returns
         -------
         Any
-            The underlying DataFrame (e.g., pd.DataFrame, pl.DataFrame)
-
-        Examples
-        --------
-        >>> df = backend.unwrap  # Get the raw pandas/polars DataFrame
-        >>> isinstance(df, pd.DataFrame)
-        True
+            The underlying data (e.g., pd.DataFrame, pl.DataFrame)
         """
         ...
 
@@ -577,7 +440,7 @@ class DataFrameBackend(Protocol):
         ratios: dict[str, float],
         *,
         seed: int = 42,
-    ) -> DataFrameBackendT:
+    ) -> DataBackendT:
         """Subsample rows by column values with specified ratios.
 
         For each unique value in the column, sample the specified ratio of rows.
@@ -595,13 +458,8 @@ class DataFrameBackend(Protocol):
 
         Returns
         -------
-        DataFrameBackend
+        DataBackend
             New backend with subsampled rows
-
-        Examples
-        --------
-        >>> ratios = {"cat": 0.5, "dog": 0.3, "other": 0.1}
-        >>> subsampled = backend.subsample_by_column("species", ratios, seed=42)
         """
         ...
 
@@ -611,7 +469,7 @@ class DataFrameBackend(Protocol):
         *,
         seed: int = 42,
         replace: bool = False,
-    ) -> DataFrameBackendT:
+    ) -> DataBackendT:
         """Randomly sample n rows from the DataFrame.
 
         Parameters
@@ -625,25 +483,110 @@ class DataFrameBackend(Protocol):
 
         Returns
         -------
-        DataFrameBackend
+        DataBackend
             New backend with sampled rows
-
-        Examples
-        --------
-        >>> sampled = backend.sample_rows(100, seed=42)
         """
         ...
 
-    def copy(self) -> DataFrameBackendT:
+    def copy(self) -> DataBackendT:
         """Create a copy of the backend with a copied DataFrame.
 
         Returns
         -------
-        DataFrameBackend
+        DataBackend
             New backend instance with copied DataFrame
-
-        Examples
-        --------
-        >>> backend_copy = backend.copy()
         """
         ...
+
+
+# Type alias for supported backend names
+BackendType = Literal["pandas", "polars"]
+
+# Registry mapping backend names to their implementation classes
+_BACKEND_REGISTRY: dict[str, Type[DataBackendT]] = {
+    "pandas": PandasBackend,
+    "polars": PolarsBackend,
+}
+
+
+def get_backend(backend: BackendType) -> Type[DataBackend]:
+    """Get the backend class for the specified backend type.
+
+    Parameters
+    ----------
+    backend : BackendType
+        Name of the backend ("pandas" or "polars")
+
+    Returns
+    -------
+    Type[DataBackend]
+        The backend class (not an instance)
+
+    Raises
+    ------
+    ValueError
+        If the backend name is not recognized
+
+    Examples
+    --------
+    >>> backend_cls = get_backend("pandas")
+    >>> assert backend_cls is PandasBackend
+    >>> backend_cls = get_backend("polars")
+    >>> assert backend_cls is PolarsBackend
+    """
+    if backend not in _BACKEND_REGISTRY:
+        raise ValueError(
+            f"Unknown backend: {backend}. Supported backends: {list(_BACKEND_REGISTRY.keys())}"
+        )
+    return _BACKEND_REGISTRY[backend]
+
+
+def register_backend(name: str, backend_class: Type[DataBackend]) -> None:
+    """Register a custom backend implementation.
+
+    This allows users to add support for additional DataFrame libraries
+    beyond pandas and polars.
+
+    Parameters
+    ----------
+    name : str
+        Name to register the backend under
+    backend_class : Type[DataBackend]
+        The backend class implementing the DataBackend protocol
+
+    Raises
+    ------
+    ValueError
+        If a backend with this name is already registered
+
+    Examples
+    --------
+    >>> class DuckDBBackend:
+    ...     # Implement DataBackend protocol
+    ...     pass
+    >>>
+    >>> register_backend("duckdb", DuckDBBackend)
+    >>> backend_cls = get_backend("duckdb")
+    """
+    if name in _BACKEND_REGISTRY:
+        raise ValueError(
+            f"Backend '{name}' is already registered. "
+            f"Use a different name or unregister the existing backend first."
+        )
+    _BACKEND_REGISTRY[name] = backend_class
+
+
+def list_backends() -> list[str]:
+    """List all registered backend names.
+
+    Returns
+    -------
+    list[str]
+        List of registered backend names
+
+    Examples
+    --------
+    >>> list_backends()
+    ['pandas', 'polars']
+    """
+    return list(_BACKEND_REGISTRY.keys())

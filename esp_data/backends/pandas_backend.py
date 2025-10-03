@@ -26,13 +26,24 @@ class PandasBackend:
 
     Examples
     --------
-    >>> backend = PandasBackend.read_csv("data.csv")
-    >>> row = backend[0]
-    >>> filtered = backend.filter_isin("species", ["cat", "dog"])
-    >>> # Streaming mode
-    >>> backend = PandasBackend.read_csv("large.csv", streaming=True)
-    >>> for row in backend:
-    ...     process(row)
+    >>> import pandas as pd
+    >>> from esp_data.backends import PandasBackend
+    >>> df = pd.DataFrame({"col1": range(100), "col2": list("abcdefghij") * 10})
+    >>> backend = PandasBackend(df, streaming=False)
+    >>> backend[0]  # Get first row as dict
+    {'col1': 0, 'col2': 'a'}
+    >>> backend[[0, 5, 10]]  # Get rows 0, 5, 10 as new backend
+    PandasBackend(shape=(3, 2))
+    >>> filtered = backend.filter_isin("col2", ["a", "b"])
+    >>> len(filtered)  # Number of rows with col2 in ['a', 'b']
+    20
+    >>> backend.columns  # List of column names
+    ['col1', 'col2']
+    >>> backend.column_exists("col1")  # Check if column exists
+    True
+    >>> sub = backend.subsample_by_column("col2", {"a": 0.5, "b": 0.5, "other": 0.1})
+    >>> counts = sub.unwrap["col2"].count()  # Subsampled counts
+    >>> assert counts <= 20
     """
 
     def __init__(
@@ -55,10 +66,12 @@ class PandasBackend:
         """
         self._df = df
         self._streaming = streaming
+        if isinstance(self._df, pd.DataFrame) and streaming:
+            self._streaming = False  # Override if df is already loaded
         self._chunk_size = streaming_chunk_size
 
     @classmethod
-    def read_csv(
+    def from_csv(
         cls,
         path: str,
         *,
@@ -105,7 +118,7 @@ class PandasBackend:
             return cls(df, streaming=False)
 
     @classmethod
-    def read_json(
+    def from_json(
         cls,
         path: str,
         *,
@@ -122,7 +135,8 @@ class PandasBackend:
         path : str
             Path to the JSON file
         lines : bool, optional
-            If True, read file as JSON lines (one JSON object per line), by default False
+            If True, read file as JSON lines (one JSON object per line),
+            by default False
         orient : str, optional
             Expected JSON format, by default "records"
         streaming : bool, optional
@@ -152,7 +166,7 @@ class PandasBackend:
             return cls(df, streaming=False)
 
     @classmethod
-    def read_parquet(
+    def from_parquet(
         cls,
         path: str,
         *,
@@ -224,6 +238,21 @@ class PandasBackend:
             If key type is not supported
         RuntimeError
             If backend is in streaming mode
+
+        Examples
+        --------
+        >>> import pandas as pd
+        >>> df = pd.DataFrame({"col1": range(100), "col2": list("abcdefghij") * 10})
+        >>> from esp_data.backends import PandasBackend
+        >>> backend = PandasBackend(df)
+        >>> backend[0]  # Get first row as dict
+        {'col1': 0, 'col2': 'a'}
+        >>> backend[[0, 5, 10]]  # Get rows 0, 5, 10 as new backend
+        PandasBackend(shape=(3, 2))
+        >>> backend[5:]  # Get rows from index 5 to end
+        PandasBackend(shape=(95, 2))
+        >>> backend[:10]  # Get first 10 rows
+        PandasBackend(shape=(10, 2))
         """
         if self._streaming:
             raise RuntimeError(
@@ -279,39 +308,16 @@ class PandasBackend:
         if self._streaming:
             # Streaming mode: iterate through chunks from reader
             for chunk in self._df:
-                for idx in range(len(chunk)):
-                    yield chunk.iloc[idx].to_dict()
+                for _, row in chunk.iterrows():
+                    yield row.to_dict()
         else:
             # Eager mode: iterate through loaded DataFrame
             for idx in range(len(self._df)):
                 yield self._df.iloc[idx].to_dict()
 
-    def iter_batches(self, batch_size: int = 1000) -> Iterator["PandasBackend"]:
-        """Iterate over DataFrame in batches.
-
-        Parameters
-        ----------
-        batch_size : int, optional
-            Number of rows per batch, by default 1000
-            Ignored in streaming mode (uses streaming_chunk_size from initialization)
-
-        Yields
-        ------
-        PandasBackend
-            Backend instances wrapping batches of up to batch_size rows
-        """
-        if self._streaming:
-            # Streaming mode: yield chunks directly from reader
-            for chunk in self._df:
-                yield PandasBackend(chunk, streaming=False)
-        else:
-            # Eager mode: batch the loaded DataFrame
-            for start_idx in range(0, len(self._df), batch_size):
-                end_idx = min(start_idx + batch_size, len(self._df))
-                yield PandasBackend(self._df.iloc[start_idx:end_idx], streaming=False)
-
     def _ensure_not_streaming(self, operation: str) -> None:
-        """Raise error if in streaming mode for operations that require eager evaluation.
+        """Raise error if in streaming mode for operations that require
+        eager evaluation.
 
         Parameters
         ----------
@@ -514,8 +520,6 @@ class PandasBackend:
         selected_df = self._df[columns]
         return PandasBackend(selected_df, streaming=False)
 
-    # ==================== Concatenation ====================
-
     @classmethod
     def concat(
         cls,
@@ -543,8 +547,6 @@ class PandasBackend:
         dfs = [backend._df for backend in backends]
         concatenated_df = pd.concat(dfs, ignore_index=ignore_index, sort=sort)
         return cls(concatenated_df)
-
-    # ==================== Metadata Operations ====================
 
     @property
     def columns(self) -> list[str]:
