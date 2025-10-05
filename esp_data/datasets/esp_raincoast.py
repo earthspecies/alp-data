@@ -25,9 +25,9 @@ class ESPRaincoast(Dataset):
 
     info = DatasetInfo(
         name="esp_raincoast",
-        owner="emmanuel; gagan; dylansmyth",
+        owner="emmanuel; gagan; dylansmyth; maddie",
         split_paths={
-            "full": "gs://esp-raincoast/full_selection_table.csv",
+            "full": "gs://esp-raincoast/2023-2024/full_selection_table.csv",
         },
         version="0.1.0",
         description="Orca vocal repertoire dataset",
@@ -42,7 +42,7 @@ class ESPRaincoast(Dataset):
         sample_rate: int | None = None,
         load_audio_segments: bool = True,
         mono_method: str | None = None,
-        data_root: str | AnyPathT | None = "gs://esp-raincoast",
+        data_root: str | AnyPathT | None = "gs://esp-raincoast/2023-2024",
     ) -> None:
         """Initialize the GiantOtters dataset.
 
