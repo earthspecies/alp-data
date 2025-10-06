@@ -93,10 +93,14 @@ class LabelFromFeature:
 
         # Count dropped rows for logging
         # Note: In streaming mode (LazyFrame), this will trigger evaluation
-        original_len = len(backend)
-        clean_len = len(backend_clean)
-        if clean_len != original_len:
-            logger.warning(f"Dropped {original_len - clean_len} rows with {self.feature}=NaN")
+        try:
+            original_len = len(backend)
+            clean_len = len(backend_clean)
+            if clean_len != original_len:
+                logger.warning(f"Dropped {original_len - clean_len} rows with {self.feature}=NaN")
+        except Exception as e:
+            logger.warning(f"Could not compute dropped rows: {e}")
+            pass
 
         # Get unique values and create label map if not provided
         if self.label_map is None:
