@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
+from esp_data.backends import BackendType
 from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
 
 
@@ -54,6 +55,8 @@ class GiantOtters(Dataset):
         output_take_and_give: dict[str, str] | None = None,
         sample_rate: int | None = None,
         data_root: str | AnyPathT | None = None,
+        backend: BackendType = "polars",
+        streaming: bool = False,
     ) -> None:
         """Initialize the GiantOtters dataset.
 
@@ -70,8 +73,12 @@ class GiantOtters(Dataset):
             The root directory for the dataset. This is optionally appended to the
             path item of a sample in the dataset.
             If None, the default is the parent directory of the split path.
+        backend : BackendType, optional
+            The backend to use ("pandas" or "polars"), by default "polars"
+        streaming : bool, optional
+            Whether to use streaming mode, by default False
         """
-        super().__init__(output_take_and_give)  # Initialize the parent Dataset class
+        super().__init__(output_take_and_give, backend=backend, streaming=streaming)
         self.split = split
         self.sample_rate = sample_rate
 
@@ -109,12 +116,21 @@ class GiantOtters(Dataset):
         location = self.info.split_paths[self.split]
         if anypath(location).suffix == ".jsonl":
             # For JSONL files, read them directly into a DataFrame
-            self._data = pd.read_json(location, lines=True, orient="records")
+            self._data = self._backend_class.from_json(
+                location, lines=True, streaming=self._streaming, orient="records"
+            )
         else:
-            self._data = pd.read_csv(location, keep_default_na=False, na_values=[""])
+            self._data = self._backend_class.from_csv(
+                location,
+                streaming=self._streaming,
+                keep_default_na=False,
+                na_values=[""],
+            )
 
     @classmethod
-    def from_config(cls, dataset_config: DatasetConfig) -> tuple["GiantOtters", dict[str, Any]]:
+    def from_config(
+        cls, dataset_config: DatasetConfig
+    ) -> tuple["GiantOtters", dict[str, Any]]:
         """Create a Dataset instance from a configuration dictionary.
 
         Parameters
@@ -136,10 +152,14 @@ class GiantOtters(Dataset):
             output_take_and_give=cfg["output_take_and_give"],
             data_root=cfg["data_root"],
             sample_rate=cfg["sample_rate"],
+            backend=cfg["backend"],
+            streaming=cfg["streaming"],
         )
 
         if dataset_config.transformations:
-            transform_metadata = ds.apply_transformations(dataset_config.transformations)
+            transform_metadata = ds.apply_transformations(
+                dataset_config.transformations
+            )
             return ds, transform_metadata
 
         return ds, {}
@@ -159,30 +179,18 @@ class GiantOtters(Dataset):
         """
         if self._data is None:
             raise RuntimeError("No split has been loaded yet. Call load() first.")
+        if self._streaming:
+            raise NotImplementedError(
+                "Length is not available in streaming mode.Iterate over the dataset instead."
+            )
         return len(self._data)
 
-    def __getitem__(self, idx: int) -> dict[str, Any]:
-        """Get a specific sample from the dataset.
-        Parameters
-        ----------
-        idx : int
-            Index of the sample to get.
-
-        Returns
-        -------
-        dict[str, Any]
-            A dictionary containing the data.
-
-        Raises
-        ------
-        IndexError
-            If the index is out of bounds.
-        """
-        if idx >= len(self._data):
-            raise IndexError(f"Index {idx} out of bounds for dataset of length {len(self._data)}.")
-
-        row = self._data.iloc[idx].to_dict()
-        audio_path = anypath(self.data_root) / row["path"]
+    def _process(self, row: dict[str, Any]) -> dict[str, Any]:
+        # Ensure audio path is valid
+        if self.data_root:
+            audio_path = anypath(self.data_root) / row["path"]
+        else:
+            audio_path = anypath(row["path"])
 
         # Read the audio clip
         audio, sr = read_audio(audio_path)
@@ -210,6 +218,21 @@ class GiantOtters(Dataset):
 
         return item
 
+    def __getitem__(self, idx: int) -> dict[str, Any]:
+        """Get a specific sample from the dataset.
+        Parameters
+        ----------
+        idx : int
+            Index of the sample to get.
+
+        Returns
+        -------
+        dict[str, Any]
+            A dictionary containing the data.
+        """
+        row = self._data[idx]
+        return self._process(row)
+
     def __iter__(self) -> Iterator[Dict[str, Any]]:
         """Iterate over samples in the dataset.
 
@@ -218,8 +241,8 @@ class GiantOtters(Dataset):
         Dict[str, Any]
             Each sample in the dataset.
         """
-        for idx in range(len(self)):
-            yield self[idx]
+        for row in self._data:
+            yield self._process(row)
 
     def __str__(self) -> str:
         """Return a string representation of the dataset.
@@ -230,7 +253,7 @@ class GiantOtters(Dataset):
             A string representation of the dataset including its name, version,
             and basic statistics if data is loaded.
         """
-        base_info = f"{self.info.name} (v{self.info.version})"
+        base_info = f"{self.info.name} (v{self.info.version}), split='{self.split}'"
 
         return (
             f"{base_info}\n"

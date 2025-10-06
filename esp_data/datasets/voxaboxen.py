@@ -12,8 +12,9 @@ from numpy.random import default_rng
 from pydantic import Field
 
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
+from esp_data.backends import BackendType
 from esp_data.dataset import register_config
-from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
+from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio, read_text
 
 LABEL_SETS = {
     "Anuraset_train": [
@@ -156,6 +157,8 @@ class VoxaboxenConfig(DatasetConfig):
     sample_rate: int | None = None
     data_root: str | AnyPathT | None = None
     mono_method: Literal["average", "keep_first"] | None = "average"
+    backend: BackendType = "polars"
+    streaming: bool = False
 
 
 @register_dataset
@@ -257,6 +260,8 @@ class Voxaboxen(Dataset):
         sample_rate: int | None = None,
         data_root: str | AnyPathT | None = None,
         mono_method: str | None = "average",
+        backend: BackendType = "polars",
+        streaming: bool = False,
     ) -> None:
         """Initialize the Voxaboxen dataset.
 
@@ -273,8 +278,14 @@ class Voxaboxen(Dataset):
             The root directory for the dataset. This is optionally appended to the
             path item of a sample in the dataset.
             If None, the default is the parent directory of the split path.
+        mono_method : str, optional
+            Method to convert stereo audio to mono. Defaults to "average".
+        backend : BackendType, optional
+            The backend to use ("pandas" or "polars"), by default "polars"
+        streaming : bool, optional
+            Whether to use streaming mode, by default False
         """
-        super().__init__(output_take_and_give)  # Initialize the parent Dataset class
+        super().__init__(output_take_and_give, backend=backend, streaming=streaming)
         self.split = split
         self._data: pd.DataFrame = None
         self._load()  # Load the dataset (fills self._data)
@@ -312,10 +323,16 @@ class Voxaboxen(Dataset):
             )
 
         location = self.info.split_paths[self.split]
-        self._data = pd.read_csv(location, keep_default_na=False, na_values=[""])
+        # Read CSV content
+        csv_text = read_text(location, encoding="utf-8")
+        self._data = self._backend_class.from_csv(
+            StringIO(csv_text), streaming=self._streaming
+        )
 
     @classmethod
-    def from_config(cls, dataset_config: VoxaboxenConfig) -> tuple["Voxaboxen", dict[str, Any]]:
+    def from_config(
+        cls, dataset_config: VoxaboxenConfig
+    ) -> tuple["Voxaboxen", dict[str, Any]]:
         """Create a Dataset instance from a configuration dictionary.
 
         Parameters
@@ -338,10 +355,14 @@ class Voxaboxen(Dataset):
             data_root=cfg["data_root"],
             sample_rate=cfg["sample_rate"],
             mono_method=cfg["mono_method"],
+            backend=cfg["backend"],
+            streaming=cfg["streaming"],
         )
 
         if dataset_config.transformations:
-            transform_metadata = ds.apply_transformations(dataset_config.transformations)
+            transform_metadata = ds.apply_transformations(
+                dataset_config.transformations
+            )
             return ds, transform_metadata
 
         return ds, {}
@@ -361,32 +382,13 @@ class Voxaboxen(Dataset):
         """
         if self._data is None:
             raise RuntimeError("No split has been loaded yet. Call _load() first.")
+        if self._streaming:
+            raise RuntimeError("Length is not available in streaming mode.")
         return len(self._data)
 
-    def __getitem__(self, idx: int) -> dict[str, Any]:
-        """Get a specific sample from the dataset.
-        Parameters
-        ----------
-        idx : int
-            Index of the sample to get.
-
-        Returns
-        -------
-        dict[str, Any]
-            A dictionary containing the audio data, text label, label, and path.
-
-        Raises
-        ------
-        IndexError
-            If the index is out of bounds.
-        """
-        if idx >= len(self._data):
-            raise IndexError(f"Index {idx} out of bounds for dataset of length {len(self._data)}.")
-
-        row = self._data.iloc[idx].to_dict()
-
+    def _process(self, row: dict[str, Any]) -> dict[str, Any]:
+        # Ensure audio path is valid
         audio_path = anypath(self.data_root) / row["audio_fp"]
-
         audio, sr = read_audio(audio_path)
         audio = audio.astype(np.float32)
 
@@ -405,7 +407,9 @@ class Voxaboxen(Dataset):
         row["audio"] = audio
 
         # read selection table
-        row["selection_table"] = pd.read_csv(StringIO(row["selection_table_str"]), sep="\t")
+        row["selection_table"] = pd.read_csv(
+            StringIO(row["selection_table_str"]), sep="\t"
+        )
 
         if self.output_take_and_give:
             item = {}
@@ -416,6 +420,21 @@ class Voxaboxen(Dataset):
 
         return item
 
+    def __getitem__(self, idx: int) -> dict[str, Any]:
+        """Get a specific sample from the dataset.
+        Parameters
+        ----------
+        idx : int
+            Index of the sample to get.
+
+        Returns
+        -------
+        dict[str, Any]
+            A dictionary containing the audio data, text label, label, and path.
+        """
+        row = self._data[idx]
+        return self._process(row)
+
     def __iter__(self) -> Iterator[Dict[str, Any]]:
         """Iterate over samples in the dataset.
 
@@ -424,8 +443,8 @@ class Voxaboxen(Dataset):
         Dict[str, Any]
             Each sample in the dataset.
         """
-        for idx in range(len(self)):
-            yield self[idx]
+        for row in self._data:
+            yield self._process(row)
 
     def __str__(self) -> str:
         """Return a string representation of the dataset.
@@ -436,7 +455,7 @@ class Voxaboxen(Dataset):
             A string representation of the dataset including its name, version,
             and basic statistics if data is loaded.
         """
-        base_info = f"{self.info.name} (v{self.info.version})"
+        base_info = f"{self.info.name} (v{self.info.version}), split='{self.split}'"
 
         return (
             f"{base_info}\n"
@@ -533,6 +552,8 @@ class VoxaboxenEventsConfig(DatasetConfig):
     unknown_label: str | None = Field(
         default="Unknown", description="Label for unknown annotations."
     )
+    backend: BackendType = "polars"
+    streaming: bool = False
 
 
 @register_dataset
@@ -636,6 +657,8 @@ class VoxaboxenEvents(Dataset):
         scale_factor: int = 1,
         segmentation_based: bool = True,
         unknown_label: str = "Unknown",
+        backend: BackendType = "polars",
+        streaming: bool = False,
     ) -> None:
         """Initialize the VoxaboxenEvents dataset.
 
@@ -675,10 +698,14 @@ class VoxaboxenEvents(Dataset):
             Defaults to True.
         unknown_label : str, optional
             The label used for unknown annotations. Defaults to "unknown".
+        backend : BackendType, optional
+            The backend to use ("pandas" or "polars"), by default "polars"
+        streaming : bool, optional
+            Whether to use streaming mode, by default False
         """
-        super().__init__(output_take_and_give)  # Initialize the parent Dataset class
+        super().__init__(output_take_and_give, backend=backend, streaming=streaming)
         self.split = split
-        self._data: pd.DataFrame = None
+        self._data = None
         self._load()  # Load the dataset (fills self._data)
         self.sample_rate = sample_rate
         self.stereo_or_mono = stereo_or_mono
@@ -735,10 +762,16 @@ class VoxaboxenEvents(Dataset):
             )
 
         location = self.info.split_paths[self.split]
-        self._data = pd.read_csv(location, keep_default_na=False, na_values=[""])
+        # Read CSV content
+        csv_text = read_text(location, encoding="utf-8")
+        self._data = self._backend_class.from_csv(
+            StringIO(csv_text), streaming=self._streaming
+        )
 
     @classmethod
-    def from_config(cls, dataset_config: DatasetConfig) -> tuple["VoxaboxenEvents", dict[str, Any]]:
+    def from_config(
+        cls, dataset_config: DatasetConfig
+    ) -> tuple["VoxaboxenEvents", dict[str, Any]]:
         """Create a Dataset instance from a configuration dictionary.
 
         Parameters
@@ -769,21 +802,25 @@ class VoxaboxenEvents(Dataset):
 
         ds = cls(
             split=split,
-            output_take_and_give=cfg.get("output_take_and_give", None),
-            data_root=cfg.get("data_root"),
-            sample_rate=cfg.get("sample_rate", 16000),
-            mono_method=cfg.get("mono_method", "average"),
-            clip_duration=cfg.get("clip_duration", 10.0),
-            clip_hop=cfg.get("clip_hop", 5.0),
-            clip_start_offset=cfg.get("clip_start_offset", 0.0),
-            omit_empty_clip_prob=cfg.get("omit_empty_clip_prob", 0.0),
-            scale_factor=cfg.get("scale_factor", 1),
-            segmentation_based=cfg.get("segmentation_based", True),
-            unknown_label=cfg.get("unknown_label", "Unknown"),
+            output_take_and_give=cfg["output_take_and_give"],
+            data_root=cfg["data_root"],
+            sample_rate=cfg["sample_rate"],
+            mono_method=cfg["mono_method", "average"],
+            clip_duration=cfg["clip_duration"],
+            clip_hop=cfg["clip_hop"],
+            clip_start_offset=cfg["clip_start_offset"],
+            omit_empty_clip_prob=cfg["omit_empty_clip_prob"],
+            scale_factor=cfg["scale_factor"],
+            segmentation_based=cfg["segmentation_based"],
+            unknown_label=cfg["unknown_label"],
+            backend=cfg["backend"],
+            streaming=cfg["streaming"],
         )
 
         if dataset_config.transformations:
-            transform_metadata = ds.apply_transformations(dataset_config.transformations)
+            transform_metadata = ds.apply_transformations(
+                dataset_config.transformations
+            )
             return ds, transform_metadata
 
         return ds, {}
@@ -810,7 +847,9 @@ class VoxaboxenEvents(Dataset):
         if not self.label_set:
             self.label_set = set()
             for row in self._data.itertuples():
-                selection_table = pd.read_csv(StringIO(row.selection_table_str), sep="\t")
+                selection_table = pd.read_csv(
+                    StringIO(row.selection_table_str), sep="\t"
+                )
 
                 labels = selection_table["Annotation"].unique().tolist()
                 if not hasattr(self, "label_set"):
@@ -871,7 +910,7 @@ class VoxaboxenEvents(Dataset):
         selection_table_dict = dict()
         metadata = []
 
-        for _ii, row in self._data.iterrows():
+        for _ii, row in enumerate(self._data):
             fn = row["fn"]
             audio_fp = anypath(self.data_root) / row["audio_fp"]
 
@@ -884,7 +923,8 @@ class VoxaboxenEvents(Dataset):
                 0,
                 int(
                     np.floor(
-                        (duration - self.clip_duration - self.clip_start_offset) // self.clip_hop
+                        (duration - self.clip_duration - self.clip_start_offset)
+                        // self.clip_hop
                     )
                 ),
             )
@@ -929,7 +969,8 @@ class VoxaboxenEvents(Dataset):
 
         intervals = tree[start:end]
         intervals = [
-            (max(iv.begin, start) - start, min(iv.end, end) - start, iv.data) for iv in intervals
+            (max(iv.begin, start) - start, min(iv.end, end) - start, iv.data)
+            for iv in intervals
         ]
 
         return intervals
@@ -1080,7 +1121,9 @@ class VoxaboxenEvents(Dataset):
             If the index is out of bounds.
         """
         if idx >= len(self._data):
-            raise IndexError(f"Index {idx} out of bounds for dataset of length {len(self._data)}.")
+            raise IndexError(
+                f"Index {idx} out of bounds for dataset of length {len(self._data)}."
+            )
 
         fn, audio_fp, start, end = self._metadata[idx]
 
@@ -1157,7 +1200,7 @@ class VoxaboxenEvents(Dataset):
             A string representation of the dataset including its name, version,
             and basic statistics if data is loaded.
         """
-        base_info = f"{self.info.name} (v{self.info.version})"
+        base_info = f"{self.info.name} (v{self.info.version}), split={self.split}"
 
         return (
             f"{base_info}\n"

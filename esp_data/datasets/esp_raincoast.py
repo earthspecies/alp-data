@@ -1,18 +1,69 @@
 """ESP Raincoast.org dataset"""
 
-from typing import Any, Dict, Iterator
+from typing import Any, Dict, Iterator, Literal
 
 import librosa
 import numpy as np
 import pandas as pd
 
-from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
+from esp_data import (
+    Dataset,
+    DatasetConfig,
+    DatasetInfo,
+    register_config,
+    register_dataset,
+)
 from esp_data.io import (
     AnyPathT,
     anypath,
     audio_stereo_to_mono,
     read_audio,
+    read_text,
 )
+
+
+@register_config
+class ESPRaincoastConfig(DatasetConfig):
+    """Configuration for the ESP Raincoast dataset.
+
+    Parameters
+    ----------
+    dataset_name : str
+        The name of the dataset. Default is "esp_raincoast".
+    split : str
+        The data split to use. Default is "full".
+    output_take_and_give : dict[str, str] | None
+        A mapping of original column names to new column names.
+        If None, all columns are kept with their original names.
+    sample_rate : int | None
+        The sample rate to which audio files should be resampled.
+        If None, audio files are loaded at their original sample rate.
+    load_audio_segments : bool
+        If True, audio files will be spliced between 'Begin Time(s)' and 'End Time(s)'.
+        If False, entire audio files will be loaded. Default is True.
+    mono_method : str | None
+        Method to convert stereo audio to mono. If None, no conversion is done.
+        Options are ["keep_first", "average"]. Default is None.
+    data_root : str | AnyPathT | None
+        The root directory for the dataset. This is optionally appended to the
+        path item of a sample in the dataset.
+        If None, the default is the parent directory of the split path.
+        Default is "gs://esp-raincoast/2023-2024".
+    backend : str, optional
+        The backend to use ("pandas" or "polars"), by default "polars"
+    streaming : bool, optional
+        Whether to use streaming mode, by default False
+    """
+
+    dataset_name: str = "esp_raincoast"
+    split: str = "full"
+    output_take_and_give: dict[str, str] | None = None
+    sample_rate: int | None = None
+    load_audio_segments: bool = True
+    mono_method: Literal["keep_first", "average"] | None = None
+    data_root: str | AnyPathT | None = "gs://esp-raincoast/2023-2024"
+    backend: str = "polars"
+    streaming: bool = False
 
 
 @register_dataset
@@ -39,10 +90,12 @@ class ESPRaincoast(Dataset):
         output_take_and_give: dict[str, str] | None = None,
         sample_rate: int | None = None,
         load_audio_segments: bool = True,
-        mono_method: str | None = None,
+        mono_method: Literal["keep_first", "average"] | None = None,
         data_root: str | AnyPathT | None = None,
+        backend: str = "polars",
+        streaming: bool = False,
     ) -> None:
-        """Initialize the GiantOtters dataset.
+        """Initialize the ESPRaincoast dataset.
 
         Parameters
         ----------
@@ -59,13 +112,16 @@ class ESPRaincoast(Dataset):
             If False, the entire audio file will be loaded.
         mono_method : str | None
             Method to convert stereo audio to mono. If None, no conversion is done.
-            Options are ["keep_first", "average"]
         data_root : str | AnyPathT, optional
             The root directory for the dataset. This is optionally appended to the
             path item of a sample in the dataset.
             If None, the default is the parent directory of the split path.
+        backend : str, optional
+            The backend to use ("pandas" or "polars"), by default "polars"
+        streaming : bool, optional
+            Whether to use streaming mode, by default False
         """
-        super().__init__(output_take_and_give)  # Initialize the parent Dataset class
+        super().__init__(output_take_and_give, backend, streaming)
         self.split = split
         self.sample_rate = sample_rate
         self.data_root = data_root
@@ -78,7 +134,7 @@ class ESPRaincoast(Dataset):
             self.data_root = data_root
 
         self._data: pd.DataFrame = None
-        self._load()  # Load the dataset (fills self._data)
+        self._load()
 
     @property
     def columns(self) -> list[str]:
@@ -106,12 +162,24 @@ class ESPRaincoast(Dataset):
         location = self.info.split_paths[self.split]
         if anypath(location).suffix == ".jsonl":
             # For JSONL files, read them directly into a DataFrame
-            self._data = pd.read_json(location, lines=True, orient="records")
+            # self._data = pd.read_json(location, lines=True, orient="records")
+            self._data = self._backend_class.from_json(
+                location, lines=True, streaming=self._streaming
+            )
         else:
-            self._data = pd.read_csv(location, keep_default_na=False, na_values=[""])
+            from io import StringIO
+
+            csv_text = read_text(str(anypath(location).no_prefix), encoding="utf-8")
+            # TODO: Polars picked up some inconsistencies in the data!
+            # Column "Call Quality" has a mix of f64 and string types
+            self._data = self._backend_class.from_csv(
+                StringIO(csv_text), streaming=self._streaming, infer_schema_length=10000
+            )
 
     @classmethod
-    def from_config(cls, dataset_config: DatasetConfig) -> tuple["ESPRaincoast", dict[str, Any]]:
+    def from_config(
+        cls, dataset_config: ESPRaincoastConfig
+    ) -> tuple["ESPRaincoast", dict[str, Any]]:
         """Create a Dataset instance from a configuration dictionary.
 
         Parameters
@@ -133,11 +201,16 @@ class ESPRaincoast(Dataset):
             output_take_and_give=cfg["output_take_and_give"],
             data_root=cfg["data_root"],
             sample_rate=cfg["sample_rate"],
-            load_audio_segments=cfg.get("load_audio_segments"),
+            load_audio_segments=cfg["load_audio_segments"],
+            mono_method=cfg["mono_method"],
+            backend=cfg["backend"],
+            streaming=cfg["streaming"],
         )
 
         if dataset_config.transformations:
-            transform_metadata = ds.apply_transformations(dataset_config.transformations)
+            transform_metadata = ds.apply_transformations(
+                dataset_config.transformations
+            )
             return ds, transform_metadata
 
         return ds, {}
@@ -157,29 +230,14 @@ class ESPRaincoast(Dataset):
         """
         if self._data is None:
             raise RuntimeError("No split has been loaded yet. Call load() first.")
+        if self._streaming:
+            raise NotImplementedError(
+                "Length is not available in streaming mode.Iterate over the dataset instead."
+            )
         return len(self._data)
 
-    def __getitem__(self, idx: int) -> dict[str, Any]:
-        """Get a specific sample from the dataset.
-        Parameters
-        ----------
-        idx : int
-            Index of the sample to get.
-
-        Returns
-        -------
-        dict[str, Any]
-            A dictionary containing the data.
-
-        Raises
-        ------
-        IndexError
-            If the index is out of bounds.
-        """
-        if idx >= len(self._data):
-            raise IndexError(f"Index {idx} out of bounds for dataset of length {len(self._data)}.")
-
-        row = self._data.iloc[idx].to_dict()
+    def _process(self, row: dict[str, Any]) -> dict[str, Any]:
+        # Ensure audio path is valid
         audio_path = anypath(self.data_root) / row["local_path"]
 
         # Read the audio clip
@@ -216,6 +274,21 @@ class ESPRaincoast(Dataset):
 
         return item
 
+    def __getitem__(self, idx: int) -> dict[str, Any]:
+        """Get a specific sample from the dataset.
+        Parameters
+        ----------
+        idx : int
+            Index of the sample to get.
+
+        Returns
+        -------
+        dict[str, Any]
+            A dictionary containing the data.
+        """
+        row = self._data[idx]
+        return self._process(row)
+
     def __iter__(self) -> Iterator[Dict[str, Any]]:
         """Iterate over samples in the dataset.
 
@@ -224,8 +297,8 @@ class ESPRaincoast(Dataset):
         Dict[str, Any]
             Each sample in the dataset.
         """
-        for idx in range(len(self)):
-            yield self[idx]
+        for row in self._data:
+            yield self._process(row)
 
     def __str__(self) -> str:
         """Return a string representation of the dataset.
@@ -236,7 +309,7 @@ class ESPRaincoast(Dataset):
             A string representation of the dataset including its name, version,
             and basic statistics if data is loaded.
         """
-        base_info = f"{self.info.name} (v{self.info.version})"
+        base_info = f"{self.info.name} (v{self.info.version}), split='{self.split}'"
 
         return (
             f"{base_info}\n"

@@ -14,6 +14,9 @@ The CSVs have the following columns:
 * ``local_path``     - relative path to the extracted call audio snippet
 * ``call_type``      - call-type ID (string)
 * ``individual_id``  - identifier of the individual bird
+* ``local_path``     - relative path to the extracted call audio snippet
+* ``call_type``      - call-type ID (string)
+* ``individual_id``  - identifier of the individual bird
 
 **Available Split Types:**
 - ``{BirdX}_train``: Full training set (~70% of data)
@@ -56,6 +59,7 @@ import numpy as np
 import pandas as pd
 
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
+from esp_data.backends import BackendType
 from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
 
 
@@ -150,32 +154,38 @@ class BengaleseFinchCalls(Dataset):
         output_take_and_give: dict[str, str] | None = None,
         sample_rate: int | None = None,
         data_root: str | AnyPathT | None = None,
+        backend: BackendType = "polars",
+        streaming: bool = False,
     ) -> None:
         """Create a :class:`BengaleseFinchCalls` instance.
 
         Parameters
         ----------
-        split
+        split: str
             Which bird/split to load. Options include:
             - Individual birds: "Bird0", "Bird1", ..., "Bird10" (complete repertoires)
             - ML splits: "{BirdX}_train", "{BirdX}_train_small", "{BirdX}_valid", "{BirdX}_test"
-        output_take_and_give
+        output_take_and_give: dict[str, str], optional
             Mapping from original column names to desired output names.  When
             provided, the dataset __getitem__ will return only the mapped
             columns and use the *values* of this dict as keys.
-        sample_rate
+        sample_rate: int, optional
             Target sample-rate.  If provided and differs from the original, the
             audio is resampled with ``librosa.resample``.
-        data_root
+        data_root: str | AnyPathT, optional
             Custom root directory for audio files.  When *None* (default), we
             automatically use the parent directory of the metadata CSV.
+        backend: BackendType, optional
+            The backend to use ("pandas" or "polars"), by default "polars"
+        streaming: bool, optional
+            Whether to use streaming mode, by default False
 
         Raises
         ------
         LookupError
             If the specified split is not available in the dataset.
         """
-        super().__init__(output_take_and_give)
+        super().__init__(output_take_and_give, backend=backend, streaming=streaming)
         self.split = split
         self.sample_rate = sample_rate
 
@@ -189,7 +199,7 @@ class BengaleseFinchCalls(Dataset):
         else:
             self.data_root = data_root
 
-        self._data: pd.DataFrame | None = None
+        self._data = None
         self._load()
 
     @property
@@ -207,19 +217,21 @@ class BengaleseFinchCalls(Dataset):
         csv_path = self.info.split_paths[self.split]
 
         # Read as DataFrame (avoid NA coercion so that strings stay strings)
-        self._data = pd.read_csv(csv_path, keep_default_na=False, na_values=[""])
+        self._data = self._backend_class.from_csv(
+            csv_path,
+            streaming=self._streaming,  # keep_default_na=False, na_values=[""]
+        )
 
-    def __len__(self) -> int:  # noqa: D401 – consistent with Dataset interface
+    def __len__(self) -> int:
         if self._data is None:
-            raise RuntimeError("Dataset not loaded – call _load() first.")
+            raise RuntimeError("Dataset not loaded - call _load() first.")
+        if not isinstance(self._data, pd.DataFrame):
+            raise TypeError(
+                f"Expected self._data to be a pandas DataFrame, got {type(self._data)}"
+            )
         return len(self._data)
 
-    def __getitem__(self, idx: int) -> Dict[str, Any]:
-        if idx >= len(self):
-            raise IndexError(f"Index {idx} out of range (dataset length: {len(self)})")
-
-        row = self._data.iloc[idx].to_dict()
-
+    def _process(self, row: dict[str, Any]) -> dict[str, Any]:
         # Construct full audio path ("local_path" is relative)
         audio_path = anypath(self.data_root) / row["local_path"]
 
@@ -242,15 +254,41 @@ class BengaleseFinchCalls(Dataset):
 
         # Apply output mapping if requested
         if self.output_take_and_give:
-            mapped: Dict[str, Any] = {}
+            mapped: dict[str, Any] = {}
             for src, dst in self.output_take_and_give.items():
                 mapped[dst] = row[src]
+
             # Always include audio unless explicitly mapped
             if "audio" not in self.output_take_and_give:
                 mapped["audio"] = row["audio"]
             return mapped
 
         return row
+
+    def __getitem__(self, idx: int) -> Dict[str, Any]:
+        """Get a specific sample from the dataset.
+        Parameters
+        ----------
+        idx : int
+            Index of the sample to get.
+
+        Returns
+        -------
+        dict[str, Any]
+            A dictionary containing the data.
+        """
+        row = self._data[idx]
+        return self._process(row)
+
+    def __iter__(self) -> Iterator[Dict[str, Any]]:
+        """Iterate over samples in the dataset.
+        Yields
+        -------
+        Dict[str, Any]
+            Each sample in the dataset.
+        """
+        for row in self._data:
+            yield self._process(row)
 
     @classmethod
     def from_config(
@@ -276,19 +314,19 @@ class BengaleseFinchCalls(Dataset):
             output_take_and_give=cfg["output_take_and_give"],
             data_root=cfg["data_root"],
             sample_rate=cfg["sample_rate"],
+            backend=cfg["backend"],
+            streaming=cfg["streaming"],
         )
 
         if dataset_config.transformations:
-            transform_metadata = ds.apply_transformations(dataset_config.transformations)
+            transform_metadata = ds.apply_transformations(
+                dataset_config.transformations
+            )
             return ds, transform_metadata
         return ds, {}
 
-    def __iter__(self) -> Iterator[Dict[str, Any]]:
-        for i in range(len(self)):
-            yield self[i]
-
     def __str__(self) -> str:  # noqa: D401 – keep style consistent
-        base = f"{self.info.name} (v{self.info.version})"
+        base = f"{self.info.name} (v{self.info.version}), split='{self.split}'"
         return (
             f"{base}\n"
             f"Description: {self.info.description}\n"

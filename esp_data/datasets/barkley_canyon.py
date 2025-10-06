@@ -127,8 +127,6 @@ class BarkleyCanyon(Dataset):
         self._data = self._backend_class.from_csv(
             location,
             streaming=self._streaming,
-            # keep_default_na=False,
-            # na_values=[""],
         )
 
     @classmethod
@@ -183,34 +181,27 @@ class BarkleyCanyon(Dataset):
         """
         if self._data is None:
             raise RuntimeError("No split has been loaded yet. Call _load() first.")
+        if self._streaming:
+            raise NotImplementedError("Length is not available in streaming mode.")
         return len(self._data)
 
-    def __getitem__(self, idx: int) -> dict[str, Any]:
-        """Get a specific sample from the dataset.
+    def _process(self, row: dict[str, Any]) -> dict[str, Any]:
+        """Process a single row from the dataset.
         Parameters
         ----------
-        idx : int
-            Index of the sample to get.
-
+        row : dict[str, Any]
+            A dictionary representing a single row from the dataset.
         Returns
         -------
         dict[str, Any]
-            A dictionary containing the data.
+            A dictionary containing the processed data.
 
         Raises
         ------
         ValueError
             If the start time is beyond the audio duration.
-        IndexError
-            If the index is out of bounds.
         """
-        if idx >= len(self._data):
-            raise IndexError(
-                f"Index {idx} out of bounds for dataset of length {len(self._data)}."
-            )
-
-        row = self._data.iloc[idx]
-
+        # Ensure audio path is valid
         audio_path = anypath(self.data_root) / row["local_path"]
 
         with filesystem_from_path(audio_path).open(str(audio_path), "rb") as f:
@@ -230,7 +221,7 @@ class BarkleyCanyon(Dataset):
 
             if frames_to_read <= 0:
                 raise ValueError(
-                    f"start_time ({row['start_times(sec)']}s) isbeyond the audio duration"
+                    f"start_time ({row['start_times(sec)']}s) is beyond the audio duration"
                 )
 
         # Read the audio clip
@@ -263,6 +254,21 @@ class BarkleyCanyon(Dataset):
 
         return item
 
+    def __getitem__(self, idx: int) -> dict[str, Any]:
+        """Get a specific sample from the dataset.
+        Parameters
+        ----------
+        idx : int
+            Index of the sample to get.
+
+        Returns
+        -------
+        dict[str, Any]
+            A dictionary containing the data.
+        """
+        row = self._data[idx]
+        return self._process(row)
+
     def __iter__(self) -> Iterator[Dict[str, Any]]:
         """Iterate over samples in the dataset.
 
@@ -271,8 +277,8 @@ class BarkleyCanyon(Dataset):
         Dict[str, Any]
             Each sample in the dataset.
         """
-        for idx in range(len(self)):
-            yield self[idx]
+        for row in self._data:
+            yield self._process(row)
 
     def __str__(self) -> str:
         """Return a string representation of the dataset.
@@ -283,7 +289,7 @@ class BarkleyCanyon(Dataset):
             A string representation of the dataset including its name, version,
             and basic statistics if data is loaded.
         """
-        base_info = f"{self.info.name} (v{self.info.version})"
+        base_info = f"{self.info.name} (v{self.info.version}), split: {self.split}"
 
         return (
             f"{base_info}\n"
@@ -398,8 +404,6 @@ class BarkleyCanyonDetection(Dataset):
         # Read CSV content using backend
         self._data = self._backend_class.from_csv(
             location,
-            # keep_default_na=False,
-            # na_values=[""],
             streaming=self._streaming,
         )
 
@@ -455,31 +459,12 @@ class BarkleyCanyonDetection(Dataset):
         """
         if self._data is None:
             raise RuntimeError("No split has been loaded yet. Call _load() first.")
+        if self._streaming:
+            raise NotImplementedError("Length is not available in streaming mode.")
         return len(self._data)
 
-    def __getitem__(self, idx: int) -> dict[str, Any]:
-        """Get a specific sample from the dataset.
-        Parameters
-        ----------
-        idx : int
-            Index of the sample to get.
-
-        Returns
-        -------
-        dict[str, Any]
-            A dictionary containing the data.
-
-        Raises
-        ------
-        IndexError
-            If the index is out of bounds.
-        """
-        if idx < 0 or idx >= len(self._data):
-            raise IndexError(
-                f"Index {idx} out of bounds for dataset of length {len(self._data)}."
-            )
-
-        row = self._data[idx]
+    def _process(self, row: dict[str, Any]) -> dict[str, Any]:
+        # Ensure audio path is valid
         audio_path = anypath(self.data_root) / row["local_path"]
 
         # Read the audio clip
@@ -514,6 +499,21 @@ class BarkleyCanyonDetection(Dataset):
 
         return item
 
+    def __getitem__(self, idx: int) -> dict[str, Any]:
+        """Get a specific sample from the dataset.
+        Parameters
+        ----------
+        idx : int
+            Index of the sample to get.
+
+        Returns
+        -------
+        dict[str, Any]
+            A dictionary containing the data.
+        """
+        row = self._data[idx]
+        return self._process(row)
+
     def __iter__(self) -> Iterator[Dict[str, Any]]:
         """Iterate over samples in the dataset.
 
@@ -521,17 +521,9 @@ class BarkleyCanyonDetection(Dataset):
         -------
         Dict[str, Any]
             Each sample in the dataset.
-
-        Raises
-        ------
-        RuntimeError
-            If no split has been loaded yet.
         """
-        if self._data is None:
-            raise RuntimeError("No split has been loaded yet. Call load() first.")
-
-        for idx in range(len(self)):
-            yield self[idx]
+        for row in self._data:
+            yield self._process(row)
 
     def __str__(self) -> str:
         """Return a string representation of the dataset.
@@ -542,7 +534,7 @@ class BarkleyCanyonDetection(Dataset):
             A string representation of the dataset including its name, version,
             and basic statistics if data is loaded.
         """
-        base_info = f"{self.info.name} (v{self.info.version})"
+        base_info = f"{self.info.name} (v{self.info.version}), split: {self.split}"
 
         return (
             f"{base_info}\n"
