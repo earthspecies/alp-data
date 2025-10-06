@@ -81,8 +81,8 @@ def test_data_property(dataset: Dataset) -> None:
     """Test if the data property returns correct dataframes."""
     # Data should be loaded in __init__
     assert dataset._data is not None
-    assert "path" in dataset._data
-    assert "vocalization" in dataset._data
+    assert "path" in dataset._data.columns
+    assert "vocalization" in dataset._data.columns
 
 
 def test_columns_property(dataset: Dataset) -> None:
@@ -102,7 +102,7 @@ def test_available_splits(dataset: Dataset) -> None:
 def test_length(dataset: Dataset) -> None:
     """Test if __len__ returns correct counts."""
     # Length should be sum of all splits
-    expected_len = dataset._data.shape[0]
+    expected_len = len(dataset._data)
     assert len(dataset) == expected_len
     assert len(dataset) == 453
 
@@ -190,7 +190,7 @@ def test_output_take_and_give(dataset_with_output_mapping: Dataset) -> None:
     assert set(sample.keys()) == expected_keys
 
     # Get the original row to compare values
-    original_row = dataset_with_output_mapping._data.iloc[0]
+    original_row = dataset_with_output_mapping._data[0]
 
     # Verify the mapping and values
     assert sample["label"] == original_row["vocalization"]

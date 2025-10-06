@@ -203,7 +203,7 @@ def test_available_splits(dataset: Dataset) -> None:
 def test_length(dataset: Dataset) -> None:
     """Test if __len__ returns correct counts."""
     # Length should be sum of all splits
-    expected_len = dataset._data.unwrap.shape[0]
+    expected_len = len(dataset._data)
     assert len(dataset) == expected_len
 
 
@@ -266,7 +266,7 @@ def test_transformations(dataset_with_transforms: Dataset) -> None:
 
     # Check that the excluded genus is not present
     excluded_genus = "Lagenorhynchus"
-    assert not any(dataset_with_transforms._data.unwrap["genus"] == excluded_genus), (
+    assert excluded_genus not in dataset_with_transforms._data.get_unique("genus"), (
         f"Genus '{excluded_genus}' should be excluded from the dataset."
     )
 
@@ -285,7 +285,7 @@ def test_transformations_from_config(dataset_with_transforms_from_config: tuple[
 
     # Check that the excluded genus is not present
     excluded_genus = "Lagenorhynchus"
-    assert not any(ds._data.unwrap["genus"] == excluded_genus), (
+    assert excluded_genus not in ds._data.get_unique("genus"), (
         f"Genus '{excluded_genus}' should be excluded from the dataset."
     )
 
@@ -356,7 +356,7 @@ def test_detection_available_splits(dataset_detection: Dataset) -> None:
 def test_detection_length(dataset_detection: Dataset) -> None:
     """Test if __len__ returns correct counts for detection dataset."""
     # Length should be sum of all splits
-    expected_len = dataset_detection._data.unwrap.shape[0]
+    expected_len = len(dataset_detection._data)
     assert len(dataset_detection) == expected_len
 
 
@@ -423,9 +423,9 @@ def test_detection_transformations(dataset_detection_with_transforms: Dataset) -
 
     # Check that the excluded genus is not present
     excluded_genus = "Lagenorhynchus"
-    assert not any(
-        dataset_detection_with_transforms._data.unwrap["genus"] == excluded_genus
-    ), f"Genus '{excluded_genus}' should be excluded from the dataset."
+    assert excluded_genus not in dataset_detection_with_transforms._data.get_unique("genus"), (
+        f"Genus '{excluded_genus}' should be excluded from the dataset."
+    )
 
 
 def test_detection_output_take_and_give(

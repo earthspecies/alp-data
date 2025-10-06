@@ -3,6 +3,7 @@
 import pytest
 
 from esp_data.datasets import ESPRaincoast
+from esp_data.datasets.esp_raincoast import ESPRaincoastConfig
 from esp_data import Dataset, DatasetConfig, dataset_from_config
 from esp_data.transforms import LabelFromFeatureConfig, DeduplicateConfig, FilterConfig
 from esp_data.io import anypath
@@ -30,7 +31,7 @@ def dataset_with_output_mapping() -> Dataset:
     Dataset
         An instance of the ESPRaincoast dataset with output mapping applied.
     """
-    dataset_config = DatasetConfig(
+    dataset_config = ESPRaincoastConfig(
         dataset_name="esp_raincoast",
         split="full",
         output_take_and_give={"Sound Type": "call_type"},
@@ -61,7 +62,7 @@ def dataset_with_transforms() -> Dataset:
     Dataset
         An instance of the ESPRaincoast dataset with transformations applied.
     """
-    dataset_config = DatasetConfig(
+    dataset_config = ESPRaincoastConfig(
         dataset_name="esp_raincoast",
         split="full",
         transformations=[
@@ -86,9 +87,9 @@ def test_data_property(dataset: Dataset) -> None:
     """Test if the data property returns correct dataframes."""
     # Data should be loaded in __init__
     assert dataset._data is not None
-    assert "local_path" in dataset._data
-    assert "Begin Time (s)" in dataset._data
-    assert "End Time (s)" in dataset._data
+    assert "local_path" in dataset._data.columns
+    assert "Begin Time (s)" in dataset._data.columns
+    assert "End Time (s)" in dataset._data.columns
 
 
 def test_columns_property(dataset: Dataset) -> None:
@@ -102,7 +103,7 @@ def test_columns_property(dataset: Dataset) -> None:
 def test_length(dataset: Dataset) -> None:
     """Test if __len__ returns correct counts."""
     # Length should be sum of all splits
-    expected_len = dataset._data.shape[0]
+    expected_len = len(dataset._data)
     assert len(dataset) == expected_len
     print(f"Dataset length: {len(dataset)}")
     # ESPRaincoast should have thousands of samples
@@ -160,8 +161,8 @@ def test_sample_consistency(dataset: Dataset) -> None:
 
 def test_transformations(dataset_with_transforms: Dataset) -> None:
     """Test basic dataset functionality (transformations with list labels not supported)."""
-    df = dataset_with_transforms._data.drop_duplicates()
-    assert df.shape == dataset_with_transforms._data.shape
+    backend = dataset_with_transforms._data.drop_duplicates()
+    assert backend._df.shape == dataset_with_transforms._data._df.shape
     # Check that labels are correctly parsed as lists
     sample = dataset_with_transforms[0]
     assert "label" in sample

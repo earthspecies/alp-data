@@ -88,9 +88,9 @@ def test_data_property(dataset: Dataset) -> None:
     """Test if the data property returns correct dataframes."""
     # Data should be loaded in __init__
     assert dataset._data is not None
-    assert "local_path" in dataset._data
-    assert "start" in dataset._data
-    assert "end" in dataset._data
+    assert "local_path" in dataset._data.columns
+    assert "start" in dataset._data.columns
+    assert "end" in dataset._data.columns
 
 
 def test_columns_property(dataset: Dataset) -> None:
@@ -118,7 +118,7 @@ def test_available_splits(dataset: Dataset) -> None:
 def test_length(dataset: Dataset) -> None:
     """Test if __len__ returns correct counts."""
     # Length should be sum of all splits
-    expected_len = dataset._data.shape[0]
+    expected_len = len(dataset._data)
     assert len(dataset) == expected_len
     print(f"Dataset length: {len(dataset)}")
     # AudioSet validation should have thousands of samples
