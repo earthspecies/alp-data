@@ -421,9 +421,12 @@ class TestIntegrationRealDatasets:
     def test_concatenate_animalspeak_and_barkley_canyon_validation(self):
         """Integration test with AnimalSpeak validation and BarkleyCanyon datasets."""
         # Load small validation splits (should be smaller than train splits)
-        animalspeak = AnimalSpeak(split="validation", sample_rate=16000)
-        barkley_canyon = BarkleyCanyon(split="train", sample_rate=16000)
-
+        animalspeak = AnimalSpeak(
+            split="validation", sample_rate=16000, backend="pandas"
+        )
+        barkley_canyon = BarkleyCanyon(
+            split="train", sample_rate=16000, backend="pandas"
+        )
         # Test soft merge (should work despite different columns)
         result = ConcatenatedDataset([animalspeak, barkley_canyon], merge_level="soft")
 
@@ -457,8 +460,12 @@ class TestIntegrationRealDatasets:
     def test_concatenate_animalspeak_with_different_sample_rates_fails(self):
         """Test that concatenating datasets with different sample rates fails."""
         # Create two AnimalSpeak datasets with different sample rates
-        animalspeak1 = AnimalSpeak(split="validation", sample_rate=16000)
-        animalspeak2 = AnimalSpeak(split="validation", sample_rate=22050)
+        animalspeak1 = AnimalSpeak(
+            split="validation", sample_rate=16000, backend="pandas"
+        )
+        animalspeak2 = AnimalSpeak(
+            split="validation", sample_rate=22050, backend="pandas"
+        )
 
         with pytest.raises(MergeException, match="Sample rates must match"):
             ConcatenatedDataset([animalspeak1, animalspeak2])
@@ -473,10 +480,16 @@ class TestIntegrationRealDatasets:
         }  # Different but compatible
 
         animalspeak1 = AnimalSpeak(
-            split="validation", sample_rate=16000, output_take_and_give=otag1
+            split="validation",
+            sample_rate=16000,
+            output_take_and_give=otag1,
+            backend="pandas",
         )
         animalspeak2 = AnimalSpeak(
-            split="validation", sample_rate=16000, output_take_and_give=otag2
+            split="validation",
+            sample_rate=16000,
+            output_take_and_give=otag2,
+            backend="pandas",
         )
 
         result = ConcatenatedDataset([animalspeak1, animalspeak2])
@@ -500,7 +513,10 @@ class TestIntegrationRealDatasets:
         # Test with conflicting mappings
         otag3 = {"species_common": "different_species"}  # Conflicts with otag1
         animalspeak3 = AnimalSpeak(
-            split="validation", sample_rate=16000, output_take_and_give=otag3
+            split="validation",
+            sample_rate=16000,
+            output_take_and_give=otag3,
+            backend="pandas",
         )
 
         with pytest.raises(MergeException, match="Conflicting values"):
@@ -508,8 +524,12 @@ class TestIntegrationRealDatasets:
 
     def test_overlap_merge_real_datasets(self):
         """Test overlap merge with real datasets that have some common columns."""
-        animalspeak = AnimalSpeak(split="validation", sample_rate=16000)
-        barkley_canyon = BarkleyCanyon(split="train", sample_rate=16000)
+        animalspeak = AnimalSpeak(
+            split="validation", sample_rate=16000, backend="pandas"
+        )
+        barkley_canyon = BarkleyCanyon(
+            split="train", sample_rate=16000, backend="pandas"
+        )
 
         # Find common columns
         common_cols = set(animalspeak.columns) & set(barkley_canyon.columns)
@@ -537,7 +557,7 @@ def test_pretransformed_before_concat():
     dedup_cfg = DeduplicateConfig(type="deduplicate", subset=["local_path"])
 
     # Use AnimalSpeak - already updated to use backends
-    aspeak = AnimalSpeak(split="validation", sample_rate=16000)
+    aspeak = AnimalSpeak(split="validation", sample_rate=16000, backend="pandas")
     original_len = len(aspeak)
     # Duplicate the whole dataset to test deduplication
     backend_class = type(aspeak._data)
@@ -552,7 +572,7 @@ def test_pretransformed_before_concat():
     assert len_after_dedup <= original_len + 10  # Allow small variance
 
     # Use BarkleyCanyon - already updated to use backends
-    barkley = BarkleyCanyon(split="train", sample_rate=16000)
+    barkley = BarkleyCanyon(split="train", sample_rate=16000, backend="pandas")
     filter_cfg = FilterConfig(
         type="filter",
         mode="exclude",

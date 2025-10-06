@@ -80,8 +80,6 @@ def test_info_property(dataset: Dataset) -> None:
     assert "validation-animal" in dataset.info.split_paths
     assert "train-noise" in dataset.info.split_paths
     assert "validation-noise" in dataset.info.split_paths
-    # Test that split paths exist (for GCS paths, we skip this check as it requires network access)
-    # This test verifies the paths are configured correctly
 
 
 def test_data_property(dataset: Dataset) -> None:
@@ -281,6 +279,8 @@ def test_from_config_with_transformations() -> None:
     dataset_config = DatasetConfig(
         dataset_name="audioset",
         split="train",
+        data_root="gs://esp-ml-datasets/audioset/v0.1.0/raw/",
+        backend="pandas",
     )
     dataset, metadata = AudioSet.from_config(dataset_config)
 

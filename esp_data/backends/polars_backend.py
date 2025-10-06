@@ -608,6 +608,8 @@ class PolarsBackend:
         # Use diagonal concat to handle potentially mismatched columns (fills with null)
         # This is needed because the concat may be called with backends that have
         # different columns in "soft" merge mode
+        # TODO: This doesn't work when there are dataype mismatches between the dfs
+        # being concatenated
         concatenated_df = pl.concat(collected_dfs, how="diagonal")
 
         if sort:

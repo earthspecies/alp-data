@@ -121,7 +121,7 @@ class AnimalSpeak(Dataset):
         self._data = self._backend_class.from_csv(
             location,
             streaming=self._streaming,
-            ignore_errors=True,
+            infer_schema_length=10_000,
             keep_default_na=False,
             na_values=[""],
         )
