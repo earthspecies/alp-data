@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Any, Iterator, Literal
+import inspect
+from typing import Any, Callable, Iterator, Literal
 
 import pandas as pd
 
@@ -75,8 +76,6 @@ class PandasBackend:
         cls,
         path: str,
         *,
-        keep_default_na: bool = True,
-        na_values: list[str] | None = None,
         streaming: bool = False,
         streaming_chunk_size: int = 1000,
         **kwargs: Any,  # noqa ANN401
@@ -87,15 +86,11 @@ class PandasBackend:
         ----------
         path : str
             Path to the CSV file (supports local and cloud paths via cloudpathlib)
-        keep_default_na : bool, optional
-            Whether to include default NA values, by default True
-        na_values : list[str] | None, optional
-            Additional strings to recognize as NA/NaN, by default None
         streaming : bool, optional
             If True, use streaming mode with chunked reading, by default False
         streaming_chunk_size : int, optional
             Number of rows per chunk in streaming mode, by default 1000
-        **kwargs : d
+        **kwargs : dict
             Additional pandas-specific arguments
 
         Returns
@@ -103,18 +98,19 @@ class PandasBackend:
         PandasBackend
             Backend instance wrapping the loaded DataFrame
         """
+        # Filter out kwargs for any non-pandas argument
+        valid_params = set(inspect.signature(pd.read_csv).parameters.keys())
+        filtered_kwargs = {k: v for k, v in kwargs.items() if k in valid_params}
         if streaming:
             # Use chunksize parameter for streaming mode
             reader = pd.read_csv(
                 path,
-                keep_default_na=keep_default_na,
-                na_values=na_values,
                 chunksize=streaming_chunk_size,
-                **kwargs,
+                **filtered_kwargs,
             )
             return cls(reader, streaming=True, streaming_chunk_size=streaming_chunk_size)
         else:
-            df = pd.read_csv(path, keep_default_na=keep_default_na, na_values=na_values, **kwargs)
+            df = pd.read_csv(path, **filtered_kwargs)
             return cls(df, streaming=False)
 
     @classmethod
@@ -123,7 +119,6 @@ class PandasBackend:
         path: str,
         *,
         lines: bool = False,
-        orient: str = "records",
         streaming: bool = False,
         streaming_chunk_size: int = 1000,
         **kwargs: Any,  # noqa ANN401
@@ -151,18 +146,20 @@ class PandasBackend:
         PandasBackend
             Backend instance wrapping the loaded DataFrame
         """
+        # Filter out kwargs for any non-pandas argument
+        valid_params = set(inspect.signature(pd.read_json).parameters.keys())
+        filtered_kwargs = {k: v for k, v in kwargs.items() if k in valid_params}
         if streaming and lines:
             # Use chunksize for JSON lines streaming
             reader = pd.read_json(
                 path,
                 lines=lines,
-                orient=orient,
                 chunksize=streaming_chunk_size,
-                **kwargs,
+                **filtered_kwargs,
             )
             return cls(reader, streaming=True, streaming_chunk_size=streaming_chunk_size)
         else:
-            df = pd.read_json(path, lines=lines, orient=orient, **kwargs)
+            df = pd.read_json(path, lines=lines, **filtered_kwargs)
             return cls(df, streaming=False)
 
     @classmethod
@@ -195,12 +192,15 @@ class PandasBackend:
         Pandas does not natively support streaming parquet files.
         Consider using polars backend for large parquet files.
         """
+        # Filter out kwargs for any non-pandas argument
+        valid_params = set(inspect.signature(pd.read_parquet).parameters.keys())
+        filtered_kwargs = {k: v for k, v in kwargs.items() if k in valid_params}
         if streaming:
             raise NotImplementedError(
                 "Streaming mode is not supported for parquet files with pandas backend."
                 "Consider using PolarsBackend for large parquet files."
             )
-        df = pd.read_parquet(path, **kwargs)
+        df = pd.read_parquet(path, **filtered_kwargs)
         return cls(df, streaming=False)
 
     @property
@@ -700,6 +700,33 @@ class PandasBackend:
         """
         self._ensure_not_streaming("copy")
         return PandasBackend(self._df.copy(), streaming=False)
+
+    def apply_fn(self, fn: Callable, **fn_kwargs: dict) -> "PandasBackend":
+        """Apply a function to the DataFrame.
+
+        Parameters
+        ----------
+        fn : Callable
+            Function to apply to the DataFrame. Should accept a DataFrame
+            as the first argument and return a modified DataFrame.
+        **fn_kwargs : Any
+            Additional keyword arguments to pass to the function
+
+        Returns
+        -------
+        PandasBackend
+            New backend with modified DataFrame
+
+        Raises
+        ------
+        ValueError
+            If the function does not return a pandas DataFrame
+        """
+        self._ensure_not_streaming("apply_fn")
+        new_df = self._df.apply(fn, **fn_kwargs)
+        if not isinstance(new_df, pd.DataFrame):
+            raise ValueError("Function must return a pandas DataFrame.")
+        return PandasBackend(new_df, streaming=False)
 
     def __repr__(self) -> str:
         """Return string representation of the backend.

@@ -7,7 +7,7 @@ a common abstraction layer.
 
 from __future__ import annotations
 
-from typing import Any, Iterator, Literal, Protocol, Type, TypeVar, overload
+from typing import Any, Callable, Iterator, Literal, Protocol, Type, TypeVar, overload
 
 from .pandas_backend import PandasBackend
 from .polars_backend import PolarsBackend
@@ -29,8 +29,6 @@ class DataBackend(Protocol):
         cls,
         path: str,
         *,
-        keep_default_na: bool = True,
-        na_values: list[str] | None = None,
         streaming: bool = False,
         **kwargs: Any,  # noqa ANN401
     ) -> DataBackendT:
@@ -40,10 +38,6 @@ class DataBackend(Protocol):
         ----------
         path : str
             Path to the CSV file (supports local and cloud paths via cloudpathlib)
-        keep_default_na : bool, optional
-            Whether to include default NA values, by default True
-        na_values : list[str] | None, optional
-            Additional strings to recognize as NA/NaN, by default None
         streaming : bool, optional
             If True, use streaming mode (lazy evaluation). In streaming mode,
             __getitem__ is disabled and data is processed via iteration.
@@ -495,6 +489,24 @@ class DataBackend(Protocol):
         -------
         DataBackend
             New backend instance with copied DataFrame
+        """
+        ...
+
+    def apply_fn(self, fn: Callable, **fn_kwargs: dict) -> DataBackendT:
+        """Apply a custom function to the underlying DataFrame.
+
+        Parameters
+        ----------
+        fn : Callable
+            Function to apply. It should accept the underlying data type
+            (e.g., pd.DataFrame, pl.DataFrame) as the first argument.
+        **fn_kwargs : Any
+            Keyword arguments to pass to the function
+
+        Returns
+        -------
+        DataBackend
+            New backend wrapping the result of the function application
         """
         ...
 

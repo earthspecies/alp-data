@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import inspect
 import warnings
 from typing import Any, Iterator, Literal
 
@@ -76,12 +77,7 @@ class PolarsBackend:
 
     @classmethod
     def from_csv(
-        cls,
-        path: str,
-        *,
-        streaming: bool = False,
-        null_values: str | list[str] | dict[str, str] | None = None,
-        **kwargs: Any,  # noqa ANN401
+        cls, path: str, *, streaming: bool = False, **kwargs: dict[str, Any]
     ) -> "PolarsBackend":
         """Read a CSV file and return a wrapped DataFrame backend.
 
@@ -89,8 +85,6 @@ class PolarsBackend:
         ----------
         path : str
             Path to the CSV file (supports local and cloud paths via cloudpathlib)
-        null_values : str | list[str] | dict[str, str] | None, optional
-            List of strings to recognize as null/missing values, by default None
         streaming : bool, optional
             If True, use streaming mode with LazyFrame, by default False
         **kwargs : Any
@@ -101,13 +95,19 @@ class PolarsBackend:
         PolarsBackend
             Backend instance wrapping the loaded DataFrame or LazyFrame
         """
+        # Filter out kwargs for any non-polars argument
+        if streaming:
+            valid_params = set(inspect.signature(pl.scan_csv).parameters.keys())
+        else:
+            valid_params = set(inspect.signature(pl.read_csv).parameters.keys())
 
+        filtered_kwargs = {k: v for k, v in kwargs.items() if k in valid_params}
         if streaming:
             # Use scan_csv for lazy/streaming mode
-            df = pl.scan_csv(path, null_values=null_values, **kwargs)
+            df = pl.scan_csv(path, **filtered_kwargs)
             return cls(df, streaming=True)
         else:
-            df = pl.read_csv(path, null_values=null_values, **kwargs)
+            df = pl.read_csv(path, **filtered_kwargs)
             return cls(df, streaming=False)
 
     @classmethod
@@ -117,7 +117,7 @@ class PolarsBackend:
         *,
         lines: bool = False,
         streaming: bool = False,
-        **kwargs: Any,  # noqa ANN401
+        **kwargs: dict[str, Any],
     ) -> "PolarsBackend":
         """Read a JSON file and return a wrapped DataFrame backend.
 
@@ -137,9 +137,19 @@ class PolarsBackend:
         PolarsBackend
             Backend instance wrapping the loaded DataFrame
         """
+        # Filter out kwargs for any non-polars argument
+        valid_params = set()
+        if streaming and lines:
+            valid_params = set(inspect.signature(pl.scan_ndjson).parameters.keys())
+        elif not streaming and lines:
+            valid_params = set(inspect.signature(pl.read_ndjson).parameters.keys())
+        elif not streaming and not lines:
+            valid_params = set(inspect.signature(pl.read_json).parameters.keys())
+        filtered_kwargs = {k: v for k, v in kwargs.items() if k in valid_params}
+
         if streaming:
             if lines:
-                df = pl.scan_ndjson(path, **kwargs)
+                df = pl.scan_ndjson(path, **filtered_kwargs)
             else:
                 # Regular JSON doesn't have a scan equivalent in polars
                 raise NotImplementedError(
@@ -149,9 +159,9 @@ class PolarsBackend:
             return cls(df, streaming=True)
         else:
             if lines:
-                df = pl.read_ndjson(path, **kwargs)
+                df = pl.read_ndjson(path, **filtered_kwargs)
             else:
-                df = pl.read_json(path, **kwargs)
+                df = pl.read_json(path, **filtered_kwargs)
             return cls(df, streaming=False)
 
     @classmethod
@@ -160,7 +170,7 @@ class PolarsBackend:
         path: str,
         *,
         streaming: bool = False,
-        **kwargs: Any,  # noqa ANN401
+        **kwargs: dict[str, Any],
     ) -> "PolarsBackend":
         """Read a Parquet file and return a wrapped DataFrame backend.
 
@@ -178,12 +188,15 @@ class PolarsBackend:
         PolarsBackend
             Backend instance wrapping the loaded DataFrame or LazyFrame
         """
+        # Filter out kwargs for any non-polars argument
+        valid_params = set(inspect.signature(pl.scan_csv).parameters.keys())
+        filtered_kwargs = {k: v for k, v in kwargs.items() if k in valid_params}
         if streaming:
             # Use scan_parquet for lazy/streaming mode
-            df = pl.scan_parquet(path, **kwargs)
+            df = pl.scan_parquet(path, **filtered_kwargs)
             return cls(df, streaming=True)
         else:
-            df = pl.read_parquet(path, **kwargs)
+            df = pl.read_parquet(path, **filtered_kwargs)
             return cls(df, streaming=False)
 
     @property
@@ -530,11 +543,13 @@ class PolarsBackend:
         PolarsBackend
             New backend with new column added
         """
-        # Use lit for scalar values, otherwise assume it's a Series
-        if not isinstance(values, pl.Series):
-            new_df = self._df.with_columns(pl.lit(values).alias(column))
+        # if values is a scalar, create a series with the same length as df
+        if not isinstance(values, (list, pl.Series)):
+            df = self._ensure_collected()
+            values = [values] * len(df)
+            new_df = self._df.with_columns(pl.Series(column, values))
         else:
-            new_df = self._df.with_columns(values.alias(column))
+            new_df = self._df.with_columns(pl.Series(column, values))
         # Preserve streaming mode
         return PolarsBackend(new_df, streaming=self._streaming)
 
@@ -572,8 +587,6 @@ class PolarsBackend:
         ----------
         backends : list[PolarsBackend]
             List of backend instances to concatenate
-        ignore_index : bool, optional
-            If True, reset index in result (Polars doesn't have row indices), by default True
         sort : bool, optional
             If True, sort columns alphabetically, by default False
 
@@ -592,7 +605,10 @@ class PolarsBackend:
             else:
                 collected_dfs.append(df)
 
-        concatenated_df = pl.concat(collected_dfs, how="vertical")
+        # Use diagonal concat to handle potentially mismatched columns (fills with null)
+        # This is needed because the concat may be called with backends that have
+        # different columns in "soft" merge mode
+        concatenated_df = pl.concat(collected_dfs, how="diagonal")
 
         if sort:
             # Sort columns alphabetically
@@ -799,6 +815,40 @@ class PolarsBackend:
         return PolarsBackend(
             self._df.clone(),
             streaming=self._streaming,
+        )
+
+    def apply_fn(
+        self,
+        fn: Any,  # noqa ANN401
+        output_column: str,
+        input_columns: list[str] | None = None,
+    ) -> "PolarsBackend":
+        """Apply a custom function to rows and create a new column.
+
+        Parameters
+        ----------
+        fn : Any
+            Function to apply to each row. Should accept a dict of column values.
+        output_column : str
+            Name of the new column to create with function results.
+        input_columns : list[str] | None, optional
+            List of columns to pass to the function. If None, all columns are passed.
+
+        Returns
+        -------
+        PolarsBackend
+            New backend with the new column added
+
+        Notes
+        -----
+        This method collects the DataFrame if in streaming mode, as polars does not
+        support arbitrary row-wise functions in LazyFrame. The returned backend will
+        be in eager mode (streaming=False).
+        """
+        raise NotImplementedError(
+            "apply_fn is not implemented for PolarsBackend due to lack of direct support "
+            "for arbitrary row-wise functions in polars. Consider using vectorized "
+            "expressions or transformations instead."
         )
 
     def __repr__(self) -> str:
