@@ -56,7 +56,6 @@ from typing import Any, Dict, Iterator
 
 import librosa
 import numpy as np
-import pandas as pd
 
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from esp_data.backends import BackendType
@@ -225,10 +224,8 @@ class BengaleseFinchCalls(Dataset):
     def __len__(self) -> int:
         if self._data is None:
             raise RuntimeError("Dataset not loaded - call _load() first.")
-        if not isinstance(self._data, pd.DataFrame):
-            raise TypeError(
-                f"Expected self._data to be a pandas DataFrame, got {type(self._data)}"
-            )
+        if self._streaming:
+            raise NotImplementedError("Length not available in streaming mode.")
         return len(self._data)
 
     def _process(self, row: dict[str, Any]) -> dict[str, Any]:
