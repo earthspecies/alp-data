@@ -1,5 +1,6 @@
 """Unit tests for the dataset module."""
 
+import pytest
 from pathlib import Path
 import yaml
 from typing import Any, Dict, Optional, Literal
@@ -13,6 +14,7 @@ from esp_data import (
     DatasetInfo,
     dataset_from_config,
     register_dataset,
+    register_config,
     list_registered_datasets,
     print_registered_datasets
 )
@@ -62,6 +64,13 @@ def test_dataset_from_config():
     assert dataset.split == "validation"
     assert dataset.info.split_paths["validation"] is not None  # Assuming the path exists
 
+
+@register_config
+class MyCustomConfig(DatasetConfig):
+    dataset_name: str = "my_custom_dataset"
+    split: str = "train"
+    output_take_and_give: dict[str, str] | None = None
+    data_root: Optional[str | AnyPathT] = None
 
 
 @register_dataset
@@ -122,6 +131,14 @@ class MyCustomDataset(Dataset):
             raise RuntimeError("No split has been loaded yet.")
         return len(self._data)
 
+    @property
+    def available_splits(self) -> list[str]:
+        return ["train"]
+
+    @property
+    def columns(self) -> list[str]:
+        return list(self._data.columns)
+
     def __getitem__(self, idx: int) -> Dict[str, Any]:
         """Get a specific sample from the dataset."""
         if idx < 0 or idx >= len(self._data):
@@ -148,9 +165,9 @@ class MyCustomDataset(Dataset):
         return ""
 
     @classmethod
-    def from_config(cls, dataset_config: DatasetConfig) -> "MyCustomDataset":
+    def from_config(cls, dataset_config: MyCustomConfig) -> "MyCustomDataset":
         """Create a Dataset instance from a configuration."""
-        cfg = dataset_config.model_dump(exclude=("dataset_name", "transformations"))
+        cfg = dataset_config.model_dump(exclude={"dataset_name", "transformations"})
 
         split = cfg.get("split", None)
         if not split or split not in cls.info.split_paths:
@@ -201,7 +218,7 @@ register_transform(RenameConfig, RenameTransform)
 
 def test_my_custom_dataset():
     """Test instantiating the MyCustomDataset class."""
-    dataset_config = DatasetConfig(dataset_name="my_custom_dataset", split="train")
+    dataset_config = MyCustomConfig(dataset_name="my_custom_dataset", split="train")
     dataset, _ = MyCustomDataset.from_config(dataset_config)
 
     assert isinstance(dataset, MyCustomDataset)
@@ -236,17 +253,45 @@ def test_my_custom_dataset_from_yaml():
     Includes RenameTransform in the configuration.
     """
 
+    def _run_asserts(dataset: Dataset):
+        assert isinstance(dataset, MyCustomDataset)
+        assert dataset.split == "train"
+        assert len(dataset) == 100  # Assuming we generated 100 samples
+        sample = dataset[0]
+        assert isinstance(sample, dict)
+        assert "path" not in sample
+        assert "label" in sample
+        assert "pure_text" in sample
+        assert sample["label"] in [0, 1]  # Assuming binary labels
+
     sample_cfg = Path("tests/samples/my_custom_dataset_cfg.yml")
     with open(sample_cfg, "r") as f:
         cfg = yaml.safe_load(f)
-    dataset_config = DatasetConfig(**cfg)
+    dataset_config = MyCustomConfig(**cfg["dataset"])
     dataset, _ = dataset_from_config(dataset_config)
-    assert isinstance(dataset, MyCustomDataset)
-    assert dataset.split == "train"
-    assert len(dataset) == 100  # Assuming we generated 100 samples
-    sample = dataset[0]
-    assert isinstance(sample, dict)
-    assert "path" not in sample
-    assert "label" in sample
-    assert "pure_text" in sample
-    assert sample["label"] in [0, 1]  # Assuming binary labels
+    _run_asserts(dataset)
+
+    dataset, _ = dataset_from_config(sample_cfg)
+    _run_asserts(dataset)
+
+    dataset, _ = dataset_from_config(str(sample_cfg))
+    _run_asserts(dataset)
+
+
+def test_wrong_collection_from_config():
+    """Test that an error is raised when trying to create a dataset from an invalid collection config."""
+    with pytest.raises(ValueError):
+        dataset_from_config("tests/samples/test_wrong_config.yml")
+
+    with pytest.raises(KeyError):
+        dataset_from_config("tests/samples/test_wrong_config.yml", key="non_existent_key")
+
+    with pytest.raises(ValueError, match="Invalid configuration format."):
+        dataset_from_config("tests/samples/test_wrong_config.yml", key="nested_collection1")
+
+    with pytest.raises(ValueError, match="Multiple / Invalid dataset configurations found. "
+                "Please provide a specific key to select one."):
+        dataset_from_config("tests/samples/test_wrong_config.yml", key="some_collection2")
+
+    with pytest.raises(ValueError, match="Invalid configuration format."):
+        dataset_from_config("tests/samples/test_wrong_config.yml", key="config3")

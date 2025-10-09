@@ -140,7 +140,7 @@ class ChiffchaffId(Dataset):
             If the dataset_config contains transformations, they will be applied
             and the metadata will be returned as dict, otherwise an empty dict.
         """
-        cfg = dataset_config.model_dump(exclude=("dataset_name", "transformations"))
+        cfg = dataset_config.model_dump(exclude={"dataset_name", "transformations"})
 
         ds = cls(
             split=cfg["split"],
