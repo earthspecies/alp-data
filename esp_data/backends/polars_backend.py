@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import inspect
+import logging
 import warnings
-from typing import Any, Iterator, Literal
+from typing import Any, Callable, Iterator, Literal
 
 import polars as pl
+
+logger = logging.getLogger("esp_data")
 
 
 class PolarsBackend:
@@ -259,8 +262,6 @@ class PolarsBackend:
                 f"LazyFrame operations require explicit collection. "
                 f"Consider using .collect() or iterate over the data."
             )
-
-    # ==================== Row Access Operations ====================
 
     def __getitem__(self, key: int | list[int] | slice) -> dict[str, Any] | "PolarsBackend":
         """Get row(s) from the DataFrame using Pythonic indexing.
@@ -521,7 +522,6 @@ class PolarsBackend:
             New backend with renamed columns
         """
         renamed_df = self._df.rename(mapping)
-        # Preserve streaming mode
         return PolarsBackend(renamed_df, streaming=self._streaming)
 
     def add_column(
@@ -550,7 +550,6 @@ class PolarsBackend:
             new_df = self._df.with_columns(pl.Series(column, values))
         else:
             new_df = self._df.with_columns(pl.Series(column, values))
-        # Preserve streaming mode
         return PolarsBackend(new_df, streaming=self._streaming)
 
     def select_columns(
@@ -610,7 +609,7 @@ class PolarsBackend:
         # different columns in "soft" merge mode
         # TODO: This doesn't work when there are dataype mismatches between the dfs
         # being concatenated
-        concatenated_df = pl.concat(collected_dfs, how="diagonal")
+        concatenated_df = pl.concat(collected_dfs, how="diagonal_relaxed")
 
         if sort:
             # Sort columns alphabetically
@@ -821,9 +820,9 @@ class PolarsBackend:
 
     def apply_fn(
         self,
-        fn: Any,  # noqa ANN401
-        output_column: str,
-        input_columns: list[str] | None = None,
+        fn: Callable,  # noqa ANN401
+        fn_kwargs: dict[str, Any],
+        apply_kwargs: dict[str, Any],
     ) -> "PolarsBackend":
         """Apply a custom function to rows and create a new column.
 
@@ -831,10 +830,10 @@ class PolarsBackend:
         ----------
         fn : Any
             Function to apply to each row. Should accept a dict of column values.
-        output_column : str
-            Name of the new column to create with function results.
-        input_columns : list[str] | None, optional
-            List of columns to pass to the function. If None, all columns are passed.
+        fn_kwargs : dict
+            Additional keyword arguments to pass to the function
+        apply_kwargs : dict
+            Additional keyword arguments to pass to polars.DataFrame.map_rows()
 
         Returns
         -------
@@ -847,11 +846,109 @@ class PolarsBackend:
         support arbitrary row-wise functions in LazyFrame. The returned backend will
         be in eager mode (streaming=False).
         """
-        raise NotImplementedError(
-            "apply_fn is not implemented for PolarsBackend due to lack of direct support "
-            "for arbitrary row-wise functions in polars. Consider using vectorized "
-            "expressions or transformations instead."
+        logger.warning(
+            "It's highly discouraged to use apply_fn with Polars"
+            "Instead consider creating an Expression and using the"
+            " backend.unwrap.with_columns() method"
         )
+        self._ensure_not_streaming("apply_fn")
+
+        # use partial to bind fn_kwargs to fn
+        from functools import partial
+
+        fn_partial = partial(fn, **fn_kwargs)
+        df = self._ensure_collected()
+        # Apply function row-wise and create new column
+        df = self._df.map_rows(fn_partial, **apply_kwargs)
+        return PolarsBackend(df, streaming=False)
+
+    def multilabel_from_features(
+        self,
+        input_features: list[str],
+        output_feature: str,
+        label_map: dict[Any, int] | None = None,
+        allow_missing_labels: bool = True,
+    ) -> tuple["PolarsBackend", dict[Any, int]]:
+        """Create a multi-label column by combining multiple input feature columns.
+        Each row in the output column will contain a sorted list of integer IDs
+        corresponding to the labels found in the specified input feature columns.
+
+        Parameters
+        ----------
+        input_features : list[str]
+            List of column names to use as sources for labels. Each column can
+            contain single values or lists of values.
+        output_feature : str
+            Name of the output column to store the generated label lists.
+        label_map : dict[str, Any] | None, optional
+            Mapping of unique label values to integer IDs. If None, a mapping
+            will be generated from the unique values in the input features.
+        allow_missing_labels : bool, optional
+            If True, rows with no labels will be included in the output.
+            If False, rows with no labels will be dropped. Default is True.
+
+        Returns
+        -------
+        tuple[PolarsBackend, dict]
+            A tuple containing:
+            - New PolarsBackend instance with the added multi-label column
+            - The label_map used for mapping labels to IDs
+
+        Raises
+        ------
+        ValueError
+            If any input feature does not exist or is not of type List.
+        """
+        df = self._ensure_collected()
+
+        # Check that every input feature is a pl.List type
+        for f in input_features:
+            if f not in df.columns:
+                raise ValueError(f"Input feature '{f}' does not exist in DataFrame.")
+            if not df[f].dtype.base_type() == pl.List:
+                # try to convert to list
+                # first, get the base type of the column
+                btype = df[f].dtype.base_type()
+                df = df.with_columns(pl.col(f).cast(pl.List(btype)))
+
+        if label_map is None:
+            uniques = set()
+            for f in input_features:
+                # explode turns empty lists into NaNs hence the dropna()
+                uniques |= set(df.select(pl.col(f).explode()).drop_nulls().to_series().to_list())
+            label_map = {lbl: idx for idx, lbl in enumerate(sorted(uniques))}
+
+        # Build mapping expressions - each should be an Expr that returns a list
+        mapping_exprs = []
+        for f in input_features:
+            # Map each list element to its ID, handling empty lists
+            mapping_expr = (
+                pl.when(pl.col(f).list.len() > 0)
+                .then(
+                    pl.col(f)
+                    .list.eval(pl.element().replace_strict(label_map, default=None))
+                    .list.drop_nulls()
+                )
+                .otherwise(pl.lit([], dtype=pl.List(pl.Int64)))
+            )
+            mapping_exprs.append(mapping_expr)
+
+        # Combine all mapped lists into a single list per row, then sort and deduplicate
+        combined_expr = (
+            pl.concat_list(mapping_exprs)
+            .list.drop_nulls()
+            .list.unique()
+            .list.sort()
+            .alias(output_feature)
+        )
+
+        new_df = df.with_columns(combined_expr)
+
+        # Filter out rows with empty labels if required
+        if not allow_missing_labels:
+            new_df = new_df.filter(pl.col(output_feature).list.len() > 0)
+
+        return PolarsBackend(new_df, streaming=self._streaming), label_map
 
     def __repr__(self) -> str:
         """Return string representation of the backend.

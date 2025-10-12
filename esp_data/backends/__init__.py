@@ -8,16 +8,16 @@ from .pandas_backend import PandasBackend
 from .polars_backend import PolarsBackend
 from .protocol import (
     BackendType,
+    DataBackend,
     get_backend,
     list_backends,
-    register_backend,
 )
 
 __all__ = [
+    "DataBackend",
     "PandasBackend",
     "PolarsBackend",
     "BackendType",
     "get_backend",
-    "register_backend",
     "list_backends",
 ]

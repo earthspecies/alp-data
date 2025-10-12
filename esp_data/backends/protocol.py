@@ -553,41 +553,6 @@ def get_backend(backend: BackendType) -> Type[DataBackend]:
     return _BACKEND_REGISTRY[backend]
 
 
-def register_backend(name: str, backend_class: Type[DataBackend]) -> None:
-    """Register a custom backend implementation.
-
-    This allows users to add support for additional DataFrame libraries
-    beyond pandas and polars.
-
-    Parameters
-    ----------
-    name : str
-        Name to register the backend under
-    backend_class : Type[DataBackend]
-        The backend class implementing the DataBackend protocol
-
-    Raises
-    ------
-    ValueError
-        If a backend with this name is already registered
-
-    Examples
-    --------
-    >>> class DuckDBBackend:
-    ...     # Implement DataBackend protocol
-    ...     pass
-    >>>
-    >>> register_backend("duckdb", DuckDBBackend)
-    >>> backend_cls = get_backend("duckdb")
-    """
-    if name in _BACKEND_REGISTRY:
-        raise ValueError(
-            f"Backend '{name}' is already registered. "
-            f"Use a different name or unregister the existing backend first."
-        )
-    _BACKEND_REGISTRY[name] = backend_class
-
-
 def list_backends() -> list[str]:
     """List all registered backend names.
 

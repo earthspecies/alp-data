@@ -701,7 +701,12 @@ class PandasBackend:
         self._ensure_not_streaming("copy")
         return PandasBackend(self._df.copy(), streaming=False)
 
-    def apply_fn(self, fn: Callable, **fn_kwargs: dict) -> "PandasBackend":
+    def apply_fn(
+        self,
+        fn: Callable,
+        fn_kwargs: dict[str, Any],
+        apply_kwargs: dict[str, Any],
+    ) -> "PandasBackend":
         """Apply a function to the DataFrame.
 
         Parameters
@@ -709,7 +714,10 @@ class PandasBackend:
         fn : Callable
             Function to apply to the DataFrame. Should accept a DataFrame
             as the first argument and return a modified DataFrame.
-        **fn_kwargs : Any
+        apply_kwargs : dict
+            Additional keyword arguments to pass to pandas.DataFrame.apply()
+            For e.g. engine="numba"
+        fn_kwargs : Any
             Additional keyword arguments to pass to the function
 
         Returns
@@ -723,10 +731,74 @@ class PandasBackend:
             If the function does not return a pandas DataFrame
         """
         self._ensure_not_streaming("apply_fn")
-        new_df = self._df.apply(fn, **fn_kwargs)
+        from functools import partial
+
+        fn = partial(fn, **fn_kwargs)
+        new_df = self._df.apply(fn, **apply_kwargs)
         if not isinstance(new_df, pd.DataFrame):
             raise ValueError("Function must return a pandas DataFrame.")
         return PandasBackend(new_df, streaming=False)
+
+    def multilabel_from_features(
+        self,
+        input_features: list[str],
+        output_feature: str,
+        label_map: dict[str, Any] | None = None,
+        allow_missing_labels: bool = False,
+    ) -> tuple["PandasBackend", dict]:
+        """Create a multi-label column by combining multiple input feature columns.
+        Each row in the output column will contain a sorted list of integer IDs
+        corresponding to the labels found in the specified input feature columns.
+
+        Parameters
+        ----------
+        input_features : list[str]
+            List of column names to use as sources for labels. Each column can
+            contain single values or lists of values.
+        output_feature : str
+            Name of the output column to store the generated label lists.
+        label_map : dict[str, Any] | None, optional
+            Mapping of unique label values to integer IDs. If None, a mapping
+            will be generated from the unique values in the input features.
+        allow_missing_labels : bool, optional
+            If True, rows with no labels will be included in the output.
+            If False, rows with no labels will be dropped. Default is False.
+
+        Returns
+        -------
+        tuple[PandasBackend, dict]
+            A tuple containing:
+            - New PandasBackend instance with the added multi-label column
+            - The label_map used for mapping labels to IDs
+        """
+        self._ensure_not_streaming("multilabel_from_features")
+
+        # Generate label map if not provided
+        if label_map is None:
+            uniques = set()
+            for f in input_features:
+                # explode turns empty lists into NaNs hence the dropna()
+                uniques |= set(self._df[f].explode().dropna().unique())
+            label_map = {lbl: idx for idx, lbl in enumerate(sorted(uniques))}
+
+        def _row_to_ids(row: pd.Series) -> list | None:
+            row_labels = []
+            for f in input_features:
+                if isinstance(row[f], list):
+                    v = row[f]
+                elif pd.isna(row[f]):
+                    continue
+                else:
+                    v = [row[f]]
+                row_labels.extend(map(lambda x: label_map[x], v))
+            if not allow_missing_labels and len(row_labels) == 0:
+                return None
+            return sorted(row_labels)
+
+        self._df[output_feature] = self._df[input_features].apply(_row_to_ids, axis="columns")
+        df_clean = self._df.dropna(subset=output_feature, ignore_index=True)
+
+        return PandasBackend(df_clean, streaming=False), label_map
 
     def __repr__(self) -> str:
         """Return string representation of the backend.

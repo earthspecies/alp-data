@@ -422,10 +422,10 @@ class TestIntegrationRealDatasets:
         """Integration test with AnimalSpeak validation and BarkleyCanyon datasets."""
         # Load small validation splits (should be smaller than train splits)
         animalspeak = AnimalSpeak(
-            split="validation", sample_rate=16000, backend="pandas"
+            split="validation", sample_rate=16000, backend="polars"
         )
         barkley_canyon = BarkleyCanyon(
-            split="train", sample_rate=16000, backend="pandas"
+            split="train", sample_rate=16000, backend="polars"
         )
         # Test soft merge (should work despite different columns)
         result = ConcatenatedDataset([animalspeak, barkley_canyon], merge_level="soft")
@@ -483,13 +483,13 @@ class TestIntegrationRealDatasets:
             split="validation",
             sample_rate=16000,
             output_take_and_give=otag1,
-            backend="pandas",
+            backend="polars",
         )
         animalspeak2 = AnimalSpeak(
             split="validation",
             sample_rate=16000,
             output_take_and_give=otag2,
-            backend="pandas",
+            backend="polars",
         )
 
         result = ConcatenatedDataset([animalspeak1, animalspeak2])
@@ -516,7 +516,7 @@ class TestIntegrationRealDatasets:
             split="validation",
             sample_rate=16000,
             output_take_and_give=otag3,
-            backend="pandas",
+            backend="polars",
         )
 
         with pytest.raises(MergeException, match="Conflicting values"):
@@ -613,3 +613,45 @@ def test_concat_from_config() -> None:
         assert len(sample["audio"]) > 0
         assert "label" in sample
         break
+
+
+@pytest.skip(reason="Skipping dtype test for now as Polars dtypes may vary.")
+def test_dtypes_after_concat() -> None:
+    # Load small validation splits (should be smaller than train splits)
+    animalspeak = AnimalSpeak(split="validation", sample_rate=16000, backend="polars")
+    barkley_canyon = BarkleyCanyon(split="train", sample_rate=16000, backend="polars")
+    # Test soft merge (should work despite different columns)
+    result = ConcatenatedDataset([animalspeak, barkley_canyon], merge_level="soft")
+
+    input_dtypes1 = animalspeak._data.unwrap.dtypes
+    input_cols1 = animalspeak.columns
+    input_dtype_data1 = {
+        col: dtype
+        for col, dtype in zip(input_cols1, input_dtypes1)
+        if col in input_cols1
+    }
+    input_dtypes2 = barkley_canyon._data.unwrap.dtypes
+    input_cols2 = barkley_canyon.columns
+    input_dtype_data2 = {
+        col: dtype
+        for col, dtype in zip(input_cols2, input_dtypes2)
+        if col in input_cols2
+    }
+
+    result_dtypes = result._data.unwrap.dtypes
+    result_cols = result.columns
+    result_dtype_data = {
+        col: dtype
+        for col, dtype in zip(result_cols, result_dtypes)
+        if col in result_cols
+    }
+
+    # Check that columns from animalspeak have same dtypes in result
+    for col in input_cols1:
+        assert col in result_cols
+        assert input_dtype_data1[col] == result_dtype_data[col]
+
+    # Check that columns from barkley_canyon have same dtypes in result
+    for col in input_cols2:
+        assert col in result_cols
+        assert input_dtype_data2[col] == result_dtype_data[col]

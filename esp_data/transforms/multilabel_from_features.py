@@ -1,8 +1,9 @@
 import logging
 from typing import Any, Literal
 
-import pandas as pd
 from pydantic import BaseModel
+
+from esp_data.backends import DataBackend
 
 from . import register_transform
 
@@ -96,42 +97,18 @@ class MultiLabelFromFeatures:
     def from_config(cls, cfg: MultiLabelFromFeaturesConfig) -> "MultiLabelFromFeatures":
         return cls(**cfg.model_dump(exclude=("type")))
 
-    def __call__(self, df: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
-        if self.output_feature in df and not self.override:
+    def __call__(self, backend: DataBackend) -> tuple[DataBackend, dict]:
+        if self.output_feature in backend.columns and not self.override:
             raise AssertionError(
                 "Feature already exists in DataFrame. Set `override=True` to replace it."
             )
 
-        if self.label_map is None:
-            uniques = set()
-            for f in self.features:
-                # explode() turns empty lists into NaNs hence the dropna()
-                uniques |= set(df[f].explode().dropna().unique())
-
-            label_map = {lbl: idx for idx, lbl in enumerate(sorted(uniques))}
-        else:
-            label_map = self.label_map
-
-        def _row_to_ids(row: pd.Series) -> list | None:
-            row_labels = []
-            for f in self.features:
-                if isinstance(row[f], list):
-                    v = row[f]
-                elif pd.isna(row[f]):
-                    continue
-                else:
-                    v = [row[f]]
-                row_labels.extend(map(lambda x: label_map[x], v))
-            if not self.allow_missing_labels and len(row_labels) == 0:
-                return None
-            return sorted(row_labels)
-
-        df[self.output_feature] = df[self.features].apply(_row_to_ids, axis="columns")
-
-        df_clean = df.dropna(subset=self.output_feature, ignore_index=True)
-
-        if len(df_clean) != len(df):
-            logger.warning(f"Dropped {len(df) - len(df_clean)} rows with {self.output_feature}=NaN")
+        backend, label_map = backend.multilabel_from_features(
+            input_features=self.features,
+            label_map=self.label_map,
+            output_feature=self.output_feature,
+            allow_missing_labels=self.allow_missing_labels,
+        )
 
         metadata = {
             "label_feature": self.features,
@@ -139,7 +116,7 @@ class MultiLabelFromFeatures:
             "num_classes": len(label_map),
         }
 
-        return df_clean, metadata
+        return backend, metadata
 
 
 register_transform(MultiLabelFromFeaturesConfig, MultiLabelFromFeatures)
