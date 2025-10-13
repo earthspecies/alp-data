@@ -74,8 +74,12 @@ class MultiLabelFromFeatures:
     ...     "tags": [["cat", "dog"], ["bird"], ["cat"]],
     ...     "categories": [["mammal"], ["avian"], []]
     ... })
+    >>> from esp_data.backends import PandasBackend
+    >>> backend = PandasBackend(df)
     >>> transform = MultiLabelFromFeatures.from_config(config)
-    >>> transformed_df, metadata = transform(df)
+    >>> transformed_df, metadata = transform(backend)
+    >>> metadata["label_map"]
+    {'avian': 0, 'bird': 1, 'cat': 2, 'dog': 3, 'mammal': 4}
     """
 
     def __init__(
