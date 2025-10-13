@@ -616,10 +616,11 @@ def test_concat_from_config() -> None:
 
 
 @pytest.mark.skip(reason="Skipping dtype test for now as Polars dtypes may vary.")
-def test_dtypes_after_concat() -> None:
+@pytest.mark.parametrize("backend_type", ["pandas", "polars"])
+def test_dtypes_after_concat(backend_type: str) -> None:
     # Load small validation splits (should be smaller than train splits)
-    animalspeak = AnimalSpeak(split="validation", sample_rate=16000, backend="polars")
-    barkley_canyon = BarkleyCanyon(split="train", sample_rate=16000, backend="polars")
+    animalspeak = AnimalSpeak(split="validation", sample_rate=16000, backend=backend_type)
+    barkley_canyon = BarkleyCanyon(split="train", sample_rate=16000, backend=backend_type)
     # Test soft merge (should work despite different columns)
     result = ConcatenatedDataset([animalspeak, barkley_canyon], merge_level="soft")
 

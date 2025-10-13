@@ -38,6 +38,4 @@ def test_deduplicate(backend_type: str) -> None:
             "count": [10, 5]
         })
         result = deduplicated_backend.unwrap
-        if isinstance(result, pl.LazyFrame):
-            result = result.collect()
         assert result.equals(expected_df)
