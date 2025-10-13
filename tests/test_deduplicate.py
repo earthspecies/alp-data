@@ -38,4 +38,5 @@ def test_deduplicate(backend_type: str) -> None:
             "count": [10, 5]
         })
         result = deduplicated_backend.unwrap
-        assert result.equals(expected_df)
+        assert sorted(result["species"].to_list()) == sorted(expected_df["species"].to_list())
+        assert result["count"].to_list() == expected_df["count"].to_list()

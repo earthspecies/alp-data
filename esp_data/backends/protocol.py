@@ -1,7 +1,7 @@
-"""Protocol definition for DataFrame backend operations.
+"""Protocol definition for data backend operations.
 
 This module defines the interface that all backend implementations must follow.
-It enables support for multiple dataframe libraries (pandas, polars, etc.) through
+It enables support for multiple data handling libraries (pandas, polars, etc.) through
 a common abstraction layer.
 """
 
@@ -17,10 +17,10 @@ DataBackendT = TypeVar("DataBackend")
 
 
 class DataBackend(Protocol):
-    """Protocol defining the interface all DataFrame backends must implement.
+    """Protocol defining the interface all data backends must implement.
 
-    This protocol uses the Adapter pattern where the backend wraps a DataFrame
-    and provides a unified interface. The wrapped DataFrame is stored as an
+    This protocol uses the Adapter pattern where the backend wraps a data
+    and provides a unified interface. The wrapped data is stored as an
     instance attribute, making the API more Pythonic and cleaner.
     """
 
@@ -61,7 +61,7 @@ class DataBackend(Protocol):
         streaming: bool = False,
         **kwargs: Any,  # noqa ANN401
     ) -> DataBackendT:
-        """Read a JSON file and return a wrapped DataFrame backend.
+        """Read a JSON file and return a wrapped data backend.
 
         Parameters
         ----------
@@ -77,7 +77,7 @@ class DataBackend(Protocol):
         Returns
         -------
         DataBackend
-            Backend instance wrapping the loaded DataFrame
+            Backend instance wrapping the loaded data
         """
         ...
 
@@ -107,12 +107,12 @@ class DataBackend(Protocol):
         """
         ...
 
-    def __init__(self, df: Any, *, streaming: bool = False) -> None:  # noqa ANN401
+    def __init__(self, df: DataBackendT, *, streaming: bool = False) -> None:  # noqa ANN401
         """Wrap an existing data object.
 
         Parameters
         ----------
-        df : Any
+        df : DataBackendT
             The data to wrap (e.g., pd.DataFrame, pl.DataFrame).
 
         streaming : bool, optional
@@ -148,7 +148,7 @@ class DataBackend(Protocol):
         ...
 
     def __getitem__(self, key: int | list[int] | slice) -> dict[str, Any] | DataBackendT:
-        """Get row(s) from the DataFrame using Pythonic indexing.
+        """Get row(s) from the dataset using Pythonic indexing.
 
         Parameters
         ----------
@@ -181,7 +181,7 @@ class DataBackend(Protocol):
         ...
 
     def __len__(self) -> int:
-        """Get the number of rows in the DataFrame.
+        """Get the number of rows in the dataset.
 
         Returns
         -------
@@ -191,7 +191,7 @@ class DataBackend(Protocol):
         ...
 
     def __iter__(self) -> Iterator[dict[str, Any]]:
-        """Iterate over DataFrame rows as dictionaries.
+        """Iterate over rows as dictionaries.
 
         Yields
         ------
@@ -207,7 +207,7 @@ class DataBackend(Protocol):
         *,
         negate: bool = False,
     ) -> DataBackendT:
-        """Filter DataFrame rows where column values are in (or not in) a list.
+        """Filter rows where column values are in (or not in) a list.
 
         Parameters
         ----------
@@ -221,7 +221,7 @@ class DataBackend(Protocol):
         Returns
         -------
         DataBackend
-            New backend with filtered DataFrame
+            New backend with filtered data
         """
         ...
 
@@ -231,7 +231,7 @@ class DataBackend(Protocol):
         *,
         keep: Literal["first", "last"] = "first",
     ) -> DataBackendT:
-        """Remove duplicate rows from the DataFrame.
+        """Remove duplicate rows from the data.
 
         Parameters
         ----------
@@ -314,7 +314,7 @@ class DataBackend(Protocol):
         self,
         mapping: dict[str, str],
     ) -> DataBackendT:
-        """Rename DataFrame columns.
+        """Rename data columns.
 
         Parameters
         ----------
@@ -333,7 +333,7 @@ class DataBackend(Protocol):
         column: str,
         values: Any,  # noqa ANN401
     ) -> DataBackendT:
-        """Add a new column to the DataFrame.
+        """Add a new column to the data.
 
         Parameters
         ----------
@@ -353,7 +353,7 @@ class DataBackend(Protocol):
         self,
         columns: list[str],
     ) -> DataBackendT:
-        """Select a subset of columns from the DataFrame.
+        """Select a subset of columns from the data.
 
         Parameters
         ----------
@@ -464,7 +464,7 @@ class DataBackend(Protocol):
         seed: int = 42,
         replace: bool = False,
     ) -> DataBackendT:
-        """Randomly sample n rows from the DataFrame.
+        """Randomly sample n rows from the data.
 
         Parameters
         ----------
@@ -483,17 +483,17 @@ class DataBackend(Protocol):
         ...
 
     def copy(self) -> DataBackendT:
-        """Create a copy of the backend with a copied DataFrame.
+        """Create a copy of the backend with a copied data.
 
         Returns
         -------
         DataBackend
-            New backend instance with copied DataFrame
+            New backend instance with copied data
         """
         ...
 
     def apply_fn(self, fn: Callable, **fn_kwargs: dict) -> DataBackendT:
-        """Apply a custom function to the underlying DataFrame.
+        """Apply a custom function to the underlying data.
 
         Parameters
         ----------
