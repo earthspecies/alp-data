@@ -615,7 +615,7 @@ def test_concat_from_config() -> None:
         break
 
 
-@pytest.skip(reason="Skipping dtype test for now as Polars dtypes may vary.")
+@pytest.mark.skip(reason="Skipping dtype test for now as Polars dtypes may vary.")
 def test_dtypes_after_concat() -> None:
     # Load small validation splits (should be smaller than train splits)
     animalspeak = AnimalSpeak(split="validation", sample_rate=16000, backend="polars")
