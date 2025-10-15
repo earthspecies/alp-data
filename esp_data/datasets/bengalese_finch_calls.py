@@ -182,7 +182,6 @@ class BengaleseFinchCalls(Dataset):
         super().__init__(output_take_and_give)
         self.split = split
         self.sample_rate = sample_rate
-        self.data_root = data_root
 
         if self.split not in self.info.split_paths:
             raise LookupError(

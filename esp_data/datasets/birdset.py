@@ -107,7 +107,12 @@ class BirdSet(Dataset):
         self.sample_rate = sample_rate
 
         if data_root is None:
-            self.data_root = anypath(self.info.split_paths[self.split]).parent
+            # TODO: This is a temporary fix and should eventually change to something
+            # like gs://esp-ml-datasets/audioset. The __getitem__ method uses the "path"
+            # field in the CSV which represents the relative path to the root but it's
+            # currently not relative enough. We need to regenerate the CSV with the
+            # correct relative path.
+            self.data_root = anypath("gs://foundation-model-data/")
         else:
             self.data_root = data_root
 
@@ -213,11 +218,8 @@ class BirdSet(Dataset):
             raise IndexError(f"Index {idx} out of bounds for dataset of length {len(self._data)}.")
 
         row = self._data.iloc[idx].to_dict()
-        # Ensure audio path is valid
-        if self.data_root:
-            audio_path = anypath(self.data_root) / row["path"]
-        else:
-            audio_path = anypath(row["path"])
+
+        audio_path = anypath(self.data_root) / row["path"]
 
         # Read the audio clip
         audio, sr = read_audio(audio_path)
