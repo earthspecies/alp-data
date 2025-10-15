@@ -11,7 +11,6 @@ import numpy as np
 import pandas as pd
 import torch
 import torchaudio
-from tqdm import tqdm
 
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from esp_data.io import (
@@ -80,7 +79,7 @@ class WABAD(Dataset):
         version="0.1.0",
         description="[MISSING]",  # Redundant with docstring
         sources="zenodo.org",
-        license="Creative Commons Attribution 4.0 International",
+        license="CC-BY-4.0",
     )
 
     def __init__(
@@ -180,6 +179,8 @@ class WABAD(Dataset):
         """
         Precompute label mapping
         """
+        # TODO move to preprocessing script
+
         default_labels = self.get_available_labels(self.default_anno_column)
 
         _here = Path(__file__).parent
@@ -211,7 +212,7 @@ class WABAD(Dataset):
 
             base_url = "http://gagan-dev:8000"
 
-            for default_label in tqdm(default_labels):
+            for default_label in default_labels:
                 if default_label in species_label_fix.keys():
                     species_label = species_label_fix[default_label]
                 else:
@@ -343,6 +344,8 @@ class WABAD(Dataset):
         audio = audio_stereo_to_mono(audio, mono_method="average")
 
         if self.sample_rate is not None and sr != self.sample_rate:
+            # settings match librosa resampling, see
+            # https://docs.pytorch.org/audio/stable/tutorials/audio_resampling_tutorial.html
             audio = torchaudio.functional.resample(
                 torch.tensor(audio),
                 sr,
@@ -409,6 +412,7 @@ class WABAD(Dataset):
 
 if __name__ == "__main__":
     ds = WABAD()
+    # TODO add unit test and move the full data check to preprocessing script
 
     sample = ds[10]
 
@@ -418,7 +422,7 @@ if __name__ == "__main__":
     print(st1.head(10))
 
     print("Checking integrity of dataset")
-    for sample in tqdm(ds):
+    for sample in ds:
         audio = sample["audio"]
         st = sample["selection_table"]
         audio_path = sample["audio_fp"]
