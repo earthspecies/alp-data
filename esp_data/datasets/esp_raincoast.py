@@ -42,7 +42,7 @@ class ESPRaincoast(Dataset):
         sample_rate: int | None = None,
         load_audio_segments: bool = True,
         mono_method: str | None = None,
-        data_root: str | AnyPathT | None = "gs://esp-raincoast/2023-2024",
+        data_root: str | AnyPathT | None = None,
     ) -> None:
         """Initialize the GiantOtters dataset.
 
