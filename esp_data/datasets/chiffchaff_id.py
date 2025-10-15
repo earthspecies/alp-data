@@ -86,10 +86,11 @@ class ChiffchaffId(Dataset):
         self._data: pd.DataFrame = None
         self._load()  # Load the dataset (fills self._data)
         self.sample_rate = sample_rate
-        self.data_root = data_root
-        if self.data_root is None:
-            # we assume that parent dir of the split path is the data root
+
+        if data_root is None:
             self.data_root = anypath(self.info.split_paths[self.split]).parent
+        else:
+            self.data_root = data_root
 
     @property
     def columns(self) -> list[str]:
@@ -193,11 +194,7 @@ class ChiffchaffId(Dataset):
             raise IndexError(f"Index {idx} out of bounds for dataset of length {len(self._data)}.")
 
         row = self._data.iloc[idx].to_dict()
-        # Ensure audio path is valid
-        if self.data_root:
-            audio_path = anypath(self.data_root) / row["local_path"]
-        else:
-            audio_path = anypath(row["local_path"])
+        audio_path = anypath(self.data_root) / row["local_path"]
 
         # Read the audio clip
         audio, sr = read_audio(audio_path)

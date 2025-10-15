@@ -11,8 +11,8 @@ from esp_data.io import (
     AnyPathT,
     anypath,
     audio_stereo_to_mono,
-    filesystem_from_path,
     read_audio,
+    read_text,
 )
 
 
@@ -73,9 +73,11 @@ class ESPRaincoast(Dataset):
         self.data_root = data_root
         self.load_audio_segments = load_audio_segments
         self.mono_method = mono_method
-        if self.data_root is None:
-            # we assume that parent dir of the split path is the data root
+
+        if data_root is None:
             self.data_root = anypath(self.info.split_paths[self.split]).parent
+        else:
+            self.data_root = data_root
 
         self._data: pd.DataFrame = None
         self._load()  # Load the dataset (fills self._data)
@@ -110,8 +112,7 @@ class ESPRaincoast(Dataset):
         else:
             from io import StringIO
 
-            fs = filesystem_from_path(location)
-            csv_text = fs.read_text(str(anypath(location).no_prefix), encoding="utf-8")
+            csv_text = read_text(location, encoding="utf-8")
             self._data = pd.read_csv(StringIO(csv_text))
 
     @classmethod
@@ -184,11 +185,7 @@ class ESPRaincoast(Dataset):
             raise IndexError(f"Index {idx} out of bounds for dataset of length {len(self._data)}.")
 
         row = self._data.iloc[idx].to_dict()
-        # Ensure audio path is valid
-        if self.data_root:
-            audio_path = anypath(self.data_root) / row["local_path"]
-        else:
-            audio_path = anypath(row["local_path"])
+        audio_path = anypath(self.data_root) / row["local_path"]
 
         # Read the audio clip
         if self.load_audio_segments:

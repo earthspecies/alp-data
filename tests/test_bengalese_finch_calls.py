@@ -4,7 +4,7 @@ import pytest
 
 from esp_data.datasets import BengaleseFinchCalls
 from esp_data import Dataset, DatasetConfig
-from esp_data.io import anypath
+from esp_data.io import exists
 
 
 @pytest.fixture
@@ -51,7 +51,7 @@ def test_info_property(dataset: Dataset) -> None:
     assert "Bird1_train_small" in dataset.info.split_paths  # ML splits
     # Ensure that the default split path exists (locally or remotely)
     split_path = dataset.info.split_paths["Bird2_train"]
-    assert anypath(split_path).exists(), f"Default split path {split_path} does not exist"
+    assert exists(split_path), f"Default split path {split_path} does not exist"
 
 
 def test_data_property(dataset: Dataset) -> None:

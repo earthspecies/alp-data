@@ -189,9 +189,10 @@ class BengaleseFinchCalls(Dataset):
                 f"Invalid split '{self.split}'. Available: {list(self.info.split_paths)}"
             )
 
-        if self.data_root is None:
-            # All CSVs are now in /raw/ with the audio files
+        if data_root is None:
             self.data_root = anypath(self.info.split_paths[self.split]).parent
+        else:
+            self.data_root = data_root
 
         self._data: pd.DataFrame | None = None
         self._load()
@@ -237,10 +238,7 @@ class BengaleseFinchCalls(Dataset):
         row = self._data.iloc[idx].to_dict()
 
         # Construct full audio path ("local_path" is relative)
-        if self.data_root is not None:
-            audio_path = anypath(self.data_root) / row["local_path"]
-        else:
-            audio_path = anypath(row["local_path"])
+        audio_path = anypath(self.data_root) / row["local_path"]
 
         # Load the audio file
         audio, sr = read_audio(audio_path)

@@ -105,10 +105,11 @@ class BirdSet(Dataset):
         self._data: pd.DataFrame = None
         self._load()  # Load the dataset (fills self._data)
         self.sample_rate = sample_rate
-        self.data_root = data_root
-        if self.data_root is None:
-            # we assume that parent dir of the split path is the data root
+
+        if data_root is None:
             self.data_root = anypath(self.info.split_paths[self.split]).parent
+        else:
+            self.data_root = data_root
 
     @property
     def columns(self) -> list[str]:

@@ -4,7 +4,7 @@ import pytest
 
 from esp_data.datasets import ZebraFinchJulieElie
 from esp_data import Dataset, DatasetConfig
-from esp_data.io import anypath
+from esp_data.io import anypath, exists
 
 
 @pytest.fixture
@@ -72,7 +72,7 @@ def test_info_property(dataset: Dataset) -> None:
     assert dataset.info.version == "0.1.0"
     assert "test" in dataset.info.split_paths
     for split in dataset.info.split_paths.values():
-        assert anypath(split).exists(), f"Split path {split} does not exist"
+        assert exists(split), f"Split path {split} does not exist"
     assert dataset.info.sources == ["Julie Elie"]
     assert dataset.info.license == "CC-BY-4.0, CC0"
 

@@ -77,13 +77,11 @@ class MacaquesCooCalls(Dataset):
         super().__init__(output_take_and_give)  # Initialize the parent Dataset class
         self.split = split
         self.sample_rate = sample_rate
-        self.data_root = data_root
-        if self.data_root is None:
-            # we assume that parent dir of the csv_data directory is the data root
-            # The split path is: .../raw/csv_data/test.csv
-            # We want the data root to be: .../raw/
-            split_path = anypath(self.info.split_paths[self.split])
-            self.data_root = split_path.parent
+
+        if data_root is None:
+            self.data_root = anypath(self.info.split_paths[self.split]).parent
+        else:
+            self.data_root = data_root
 
         self._data: pd.DataFrame = None
         self._load()  # Load the dataset (fills self._data)
@@ -185,12 +183,8 @@ class MacaquesCooCalls(Dataset):
             raise IndexError(f"Index {idx} out of bounds for dataset of length {len(self._data)}.")
 
         row = self._data.iloc[idx].to_dict()
-        # Ensure audio path is valid
-        if self.data_root:
-            # If data_root is provided, we need to construct the path properly
-            audio_path = anypath(self.data_root) / anypath(row["local_path"])
-        else:
-            audio_path = anypath(row["local_path"])
+        audio_path = anypath(self.data_root) / row["local_path"]
+
         # Read the audio clip
         audio, sr = read_audio(audio_path)
         audio = audio.astype(np.float32)

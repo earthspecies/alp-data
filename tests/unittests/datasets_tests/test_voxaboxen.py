@@ -3,7 +3,7 @@
 import pytest
 import numpy as np
 
-from esp_data.io import anypath
+from esp_data.io import anypath, exists
 from esp_data import Dataset, Voxaboxen, VoxaboxenEvents
 from esp_data.datasets.voxaboxen import VoxaboxenEventsConfig, VoxaboxenConfig
 
@@ -68,7 +68,7 @@ def test_info_property(voxaboxen_dataset: Dataset) -> None:
     assert voxaboxen_dataset.info.version == "0.1.0"
     assert "Anuraset_train" in voxaboxen_dataset.info.split_paths
     for split in voxaboxen_dataset.info.split_paths.values():
-        assert anypath(split).exists(), f"Split path {split} does not exist"
+        assert exists(split), f"Split path {split} does not exist"
 
 
 def test_data_property(voxaboxen_dataset: Dataset) -> None:
@@ -140,7 +140,7 @@ def test_voxaboxen_events_info(voxaboxen_events_dataset: Dataset) -> None:
     assert voxaboxen_events_dataset.info.version == "0.1.0"
     assert "hawaii_val" in voxaboxen_events_dataset.info.split_paths
     for split in voxaboxen_events_dataset.info.split_paths.values():
-        assert anypath(split).exists(), f"Split path {split} does not exist"
+        assert exists(split), f"Split path {split} does not exist"
 
 
 def test_voxaboxen_events_data_property(voxaboxen_events_dataset: Dataset) -> None:

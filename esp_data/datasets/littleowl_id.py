@@ -64,7 +64,11 @@ class LittleOwlId(Dataset):
         self._data: pd.DataFrame = None
         self._load()
         self.sample_rate = sample_rate
-        self.data_root = data_root or anypath(self.info.split_paths[self.split]).parent
+
+        if data_root is None:
+            self.data_root = anypath(self.info.split_paths[self.split]).parent
+        else:
+            self.data_root = data_root
 
     # Common helper methods are identical to ChiffchaffId --------------------------------
 
@@ -138,11 +142,8 @@ class LittleOwlId(Dataset):
         if idx >= len(self):
             raise IndexError("Index out of bounds.")
         row = self._data.iloc[idx].to_dict()
-        audio_path = (
-            anypath(self.data_root) / row["local_path"]
-            if self.data_root
-            else anypath(row["local_path"])
-        )
+        audio_path = anypath(self.data_root) / row["local_path"]
+
         audio, sr = read_audio(audio_path)
         audio = audio.astype(np.float32)
         audio = audio_stereo_to_mono(audio, mono_method="average")
