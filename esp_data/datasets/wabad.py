@@ -1,9 +1,10 @@
 """WABAD dataset"""
 
+import json
 import os
 from functools import partial
-from pathlib import Path
 from io import StringIO
+from pathlib import Path
 from typing import Any, Iterator, List
 
 import numpy as np
@@ -12,8 +13,6 @@ import torch
 import torchaudio
 from tqdm import tqdm
 
-import json
-
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from esp_data.io import (
     AnyPathT,
@@ -21,6 +20,7 @@ from esp_data.io import (
     audio_stereo_to_mono,
     read_audio,
 )
+
 
 @register_dataset
 class WABAD(Dataset):
@@ -31,39 +31,39 @@ class WABAD(Dataset):
     This class makes WABAD dataset available. Each entry is an audio recording,
     plus a selection table. Each row of the selection table has annotations at
     different taxonomic granularities (stored in annotation_columns attribute).
-    Taxonomy has been coerced into GBIF. 
+    Taxonomy has been coerced into GBIF.
 
-    This class was included in esp-data (initially) for use as a zero-shot 
+    This class was included in esp-data (initially) for use as a zero-shot
     detection evaluation dataset.
 
-    Description from publication: 
+    Description from publication:
     https://www.researchgate.net/publication/387711208_WABAD_A_World_Annotated_Bird_Acoustic_Dataset_for_Passive_Acoustic_Monitoring
 
-    Under the current global biodiversity crisis, there is a need for automated 
-    and non-invasive monitoring techniques that can gather large amounts of data 
-    cost-effectively at various ecological scales, from local to large spatial 
-    scales. This data can then be analyzed to inform stakeholders and decision 
-    makers. One such technique is passive acoustic monitoring, which is commonly 
-    coupled with automatic identification of animal species based on their sound. 
-    Automated sound analyses usually require the training of sound detection and 
-    identification algorithms. These algorithms are based on annotated acoustic 
-    datasets which mark the occurrence of sounds of species inside sound 
+    Under the current global biodiversity crisis, there is a need for automated
+    and non-invasive monitoring techniques that can gather large amounts of data
+    cost-effectively at various ecological scales, from local to large spatial
+    scales. This data can then be analyzed to inform stakeholders and decision
+    makers. One such technique is passive acoustic monitoring, which is commonly
+    coupled with automatic identification of animal species based on their sound.
+    Automated sound analyses usually require the training of sound detection and
+    identification algorithms. These algorithms are based on annotated acoustic
+    datasets which mark the occurrence of sounds of species inside sound
     recordings. However, compiling large annotated acoustic datasets is time-
-    consuming and requires experts, and therefore they normally cover reduced 
-    spatial, temporal and taxonomic scales. This data paper presents WABAD, the 
-    World Annotated Bird Acoustic Dataset for passive acoustic monitoring. WABAD 
-    is designed to provide the public, the research community, and conservation 
-    managers with a novel and globally representative annotated acoustic dataset. 
-    This database includes 5,047 minutes of audio files annotated to species-level 
-    by local experts with the start and end time, and the upper and lower 
-    frequencies of each identified bird vocalisation in the recordings. The 
-    database has a wide taxonomic and spatial coverage, including information on 
-    91,931 vocalisations from 1,192 bird species recorded at 72 recording sites in 
-    29 recording locations (mainly countries) and distributed across 13 biomes. 
-    WABAD can be used, for example, for developing and/or validating automatic 
-    species detection algorithms, answering ecological questions, such as assessing 
-    geographical variations on bird vocalisations, or comparing acoustic diversity 
-    indices with species-based diversity indices. The dataset is published under a 
+    consuming and requires experts, and therefore they normally cover reduced
+    spatial, temporal and taxonomic scales. This data paper presents WABAD, the
+    World Annotated Bird Acoustic Dataset for passive acoustic monitoring. WABAD
+    is designed to provide the public, the research community, and conservation
+    managers with a novel and globally representative annotated acoustic dataset.
+    This database includes 5,047 minutes of audio files annotated to species-level
+    by local experts with the start and end time, and the upper and lower
+    frequencies of each identified bird vocalisation in the recordings. The
+    database has a wide taxonomic and spatial coverage, including information on
+    91,931 vocalisations from 1,192 bird species recorded at 72 recording sites in
+    29 recording locations (mainly countries) and distributed across 13 biomes.
+    WABAD can be used, for example, for developing and/or validating automatic
+    species detection algorithms, answering ecological questions, such as assessing
+    geographical variations on bird vocalisations, or comparing acoustic diversity
+    indices with species-based diversity indices. The dataset is published under a
     Creative Commons Attribution Non Commercial 4.0 International copyright.
 
     References
@@ -78,7 +78,7 @@ class WABAD(Dataset):
         owner="benjamin",
         split_paths={"all": "gs://esp-ml-datasets/wabad/v0.1.0/raw/all_info.csv"},
         version="0.1.0",
-        description="[MISSING]", # Redundant with docstring
+        description="[MISSING]",  # Redundant with docstring
         sources="zenodo.org",
         license="Creative Commons Attribution 4.0 International",
     )
@@ -108,7 +108,8 @@ class WABAD(Dataset):
         annotation_columns : List
             List of column names that can be used as annotations in the selection table
         label_mappings : Dict
-            Dict of Dicts; each sub-dict is a mapping from a Species name that can occur to a different name
+            Dict of Dicts; each sub-dict is a mapping from a Species name that can occur
+            to a different name
         default_anno_column : str
             The default anno column name, out of which the label mappings are made
         unknown_annos : List
@@ -124,7 +125,9 @@ class WABAD(Dataset):
         assert (
             self.annotation_columns[-1] == self.default_anno_column
         )  # we need to modify this one last for label remapping to work properly
-        self.label_mappings = {x: {} for x in self.annotation_columns}  # mapping from default to other name
+        self.label_mappings = {
+            x: {} for x in self.annotation_columns
+        }  # mapping from default to other name
         self._load()  # Load the dataset (fills self._data)
         self.sample_rate = sample_rate
         self.data_root = data_root
@@ -199,7 +202,7 @@ class WABAD(Dataset):
 
         if os.path.exists(info_fp):
             print("Reloading GBIF taxonomy from cache")
-            with open(info_fp, 'r') as f:
+            with open(info_fp, "r") as f:
                 json.load(f)
 
         else:
@@ -207,7 +210,7 @@ class WABAD(Dataset):
             import requests
 
             base_url = "http://gagan-dev:8000"
-            
+
             for default_label in tqdm(default_labels):
                 if default_label in species_label_fix.keys():
                     species_label = species_label_fix[default_label]
@@ -222,12 +225,14 @@ class WABAD(Dataset):
                     continue
 
                 self.label_mappings["Species"][default_label] = species_label
-                self.label_mappings["Genus"][default_label] = gbif_data['genus']
-                self.label_mappings["Order"][default_label] = gbif_data['order']
-                self.label_mappings["Family"][default_label] = gbif_data['family']
-                self.label_mappings["Common"][default_label] = "" if gbif_data['species_common'] is None else gbif_data['species_common']
+                self.label_mappings["Genus"][default_label] = gbif_data["genus"]
+                self.label_mappings["Order"][default_label] = gbif_data["order"]
+                self.label_mappings["Family"][default_label] = gbif_data["family"]
+                self.label_mappings["Common"][default_label] = (
+                    "" if gbif_data["species_common"] is None else gbif_data["species_common"]
+                )
 
-            with open(info_fp, 'w') as f:
+            with open(info_fp, "w") as f:
                 json.dump(self.label_mappings, f)
 
         for anno_column in self.annotation_columns:
@@ -244,7 +249,9 @@ class WABAD(Dataset):
             If the split is not valid.
         """
         if self.split not in self.info.split_paths:
-            raise LookupError(f"Invalid split: {self.split}.Expected one of {list(self.info.split_paths.keys())}")
+            raise LookupError(
+                f"Invalid split: {self.split}.Expected one of {list(self.info.split_paths.keys())}"
+            )
 
         location = self.info.split_paths[self.split]
         self._data = pd.read_csv(
@@ -350,11 +357,15 @@ class WABAD(Dataset):
         row["selection_table"] = pd.read_csv(StringIO(row["selection_table_str"]), sep="\t")
 
         audio_dur = len(audio)[0] / self.sample_rate
-        row['selection_table'] = row['selection_table'][row['selection_table']["Begin Time (s)"] < audio_dur]
+        row["selection_table"] = row["selection_table"][
+            row["selection_table"]["Begin Time (s)"] < audio_dur
+        ]
 
         for anno_column in self.annotation_columns:
             f = partial(self._label_mapping, anno_column=anno_column)
-            row["selection_table"][anno_column] = row["selection_table"][self.default_anno_column].map(f)
+            row["selection_table"][anno_column] = row["selection_table"][
+                self.default_anno_column
+            ].map(f)
 
         if self.output_take_and_give:
             item = {}
@@ -395,6 +406,7 @@ class WABAD(Dataset):
             f"Available splits: {', '.join(self.info.split_paths.keys())}"
         )
 
+
 if __name__ == "__main__":
     ds = WABAD()
 
@@ -407,20 +419,18 @@ if __name__ == "__main__":
 
     print("Checking integrity of dataset")
     for sample in tqdm(ds):
-        audio = sample['audio']
-        st = sample['selection_table']
-        audio_path = sample['audio_fp']
+        audio = sample["audio"]
+        st = sample["selection_table"]
+        audio_path = sample["audio_fp"]
         if len(audio) < 10:
             print(f"too short {audio_path}")
         if np.any(np.isnan(audio)):
             print(f"nan present in {audio_path}")
         if np.all(audio == 0):
             print(f"clip is all zeros {audio_path}")
-        st_end = st['Begin Time (s)'].max()
-        audio_end = len(audio)/ds.sample_rate
+        st_end = st["Begin Time (s)"].max()
+        audio_end = len(audio) / ds.sample_rate
         if st_end > audio_end:
             print(f"events happen after audio in {audio_path}")
 
     print("Done checking dataset")
-
-
