@@ -99,7 +99,7 @@ class AudioSet(Dataset):
         self.sample_rate = sample_rate
 
         if data_root is None:
-            self.data_root = anypath(self.info.split_paths[self.split]).parent
+            self.data_root = anypath("gs://esp-ml-datasets/audioset/v0.1.0/raw/")
         else:
             self.data_root = data_root
 

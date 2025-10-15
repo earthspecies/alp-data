@@ -16,7 +16,7 @@ def dataset() -> Dataset:
     Dataset
         An instance of the AudioSet dataset.
     """
-    ds = AudioSet(split="validation", data_root="gs://esp-ml-datasets/audioset/v0.1.0/raw/")
+    ds = AudioSet(split="validation")
     return ds
 
 
@@ -32,7 +32,7 @@ def dataset_with_transforms() -> Dataset:
     Dataset
         An instance of the AudioSet dataset.
     """
-    ds = AudioSet(split="validation", data_root="gs://esp-ml-datasets/audioset/v0.1.0/raw/")
+    ds = AudioSet(split="validation")
     return ds
 
 
@@ -52,7 +52,7 @@ def dataset_with_output_mapping() -> Dataset:
     ds = AudioSet(
         split="validation",
         output_take_and_give=dataset_config.output_take_and_give,
-        data_root="gs://esp-ml-datasets/audioset/v0.1.0/raw/"
+
     )
     return ds
 
@@ -66,7 +66,7 @@ def dataset_with_sample_rate() -> Dataset:
     Dataset
         An instance of the AudioSet dataset with custom sample rate.
     """
-    ds = AudioSet(split="train-balanced", sample_rate=22050, data_root="gs://esp-ml-datasets/audioset/v0.1.0/raw/")
+    ds = AudioSet(split="train-balanced", sample_rate=22050)
     return ds
 
 
@@ -161,7 +161,6 @@ def test_load_from_config() -> None:
     dataset_config = DatasetConfig(
         dataset_name="audioset",
         split="validation",
-        data_root="gs://esp-ml-datasets/audioset/v0.1.0/raw/",
         sample_rate=16000
     )
     dataset, _ = AudioSet.from_config(dataset_config)
@@ -239,7 +238,7 @@ def test_sample_rate_resampling(dataset_with_sample_rate: Dataset) -> None:
 def test_data_root_handling() -> None:
     """Test if data_root parameter works correctly."""
     # Test with explicit data_root
-    dataset = AudioSet(split="validation", data_root="gs://esp-ml-datasets/audioset/v0.1.0/raw/")
+    dataset = AudioSet(split="validation")
     assert dataset.data_root is not None
 
     # Test that we can get samples
@@ -281,7 +280,6 @@ def test_from_config_with_transformations() -> None:
     dataset_config = DatasetConfig(
         dataset_name="audioset",
         split="validation",
-        data_root="gs://esp-ml-datasets/audioset/v0.1.0/raw/",
     )
     dataset, metadata = AudioSet.from_config(dataset_config)
 
@@ -305,7 +303,7 @@ def test_runtime_error_handling() -> None:
     """Test if runtime error handling works correctly."""
     # This is harder to test with real data, but we can check that the dataset
     # initializes correctly and doesn't raise runtime errors during normal operation
-    dataset = AudioSet(split="validation", data_root="gs://esp-ml-datasets/audioset/v0.1.0/raw/")
+    dataset = AudioSet(split="validation")
     assert len(dataset) > 0  # Should not raise RuntimeError
 
 
@@ -314,7 +312,7 @@ def test_different_splits() -> None:
     splits_to_test = ["train-balanced", "validation", "train"]
 
     for split in splits_to_test:
-        dataset = AudioSet(split=split, data_root="gs://esp-ml-datasets/audioset/v0.1.0/raw/")
+        dataset = AudioSet(split=split)
         assert len(dataset) > 0
 
         # Test that we can get a sample from each split
@@ -345,7 +343,7 @@ def test_output_take_and_give_filtering() -> None:
     dataset = AudioSet(
         split="validation",
         output_take_and_give={"labels": "audio_label", "local_path": "path", "audio": "audio"},
-        data_root="gs://esp-ml-datasets/audioset/v0.1.0/raw/"
+
     )
 
     sample = dataset[0]
