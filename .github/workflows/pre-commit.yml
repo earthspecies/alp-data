@@ -1,0 +1,16 @@
+name: pre-commit hooks
+
+on: # yamllint disable-line rule:truthy
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  pre-commit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v5
+        with:
+          python-version-file: ".python-version"
+      - uses: pre-commit/action@v3.0.1
