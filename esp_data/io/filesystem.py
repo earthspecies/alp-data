@@ -76,9 +76,7 @@ def filesystem(
     elif protocol == "local":
         return fsspec.filesystem("local", **kwargs)
     else:
-        raise ValueError(
-            f"Unknown backend: {protocol}. Supported backends are: gcs, r2."
-        )
+        raise ValueError(f"Unknown backend: {protocol}. Supported backends are: gcs, r2.")
 
 
 def filesystem_from_path(
@@ -121,6 +119,4 @@ def filesystem_from_path(
     elif isinstance(path, R2Path):
         return filesystem("r2")
     else:
-        raise ValueError(
-            f"Unknown path type: {path}. Supported types are: local, gcs, r2."
-        )
+        raise ValueError(f"Unknown path type: {path}. Supported types are: local, gcs, r2.")
