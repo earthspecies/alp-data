@@ -368,7 +368,7 @@ class Voxaboxen(Dataset):
     def __getitem__(self, idx: int) -> dict[str, Any]:
         """Get a specific sample from the dataset.
         Parameters
-        ----------2
+        ----------
         idx : int
             Index of the sample to get.
 
