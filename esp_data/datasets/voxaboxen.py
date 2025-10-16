@@ -281,9 +281,11 @@ class Voxaboxen(Dataset):
         self.sample_rate = sample_rate
         self.mono_method = mono_method
 
-        if self.data_root is None:
+        if data_root is None:
             # we assume that parent dir of the split path is the data root
             self.data_root = anypath(self.info.split_paths[self.split]).parent
+        else:
+            self.data_root = data_root
 
     @property
     def columns(self) -> list[str]:
@@ -693,9 +695,11 @@ class VoxaboxenEvents(Dataset):
         self.omit_empty_clip_prob = omit_empty_clip_prob
         self.rng = default_rng()
 
-        if self.data_root is None:
+        if data_root is None:
             # we assume that parent dir of the split path is the data root
             self.data_root = anypath(self.info.split_paths[self.split]).parent
+        else:
+            self.data_root = data_root
 
         self.label_mapping: dict = None
         if split in LABEL_SETS:
