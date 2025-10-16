@@ -49,7 +49,7 @@ Bird1 training: 25024 samples
 Bird8 validation: 746 samples
 """
 
-from typing import Any, Dict, Iterator, Optional
+from typing import Any, Dict, Iterator
 
 import librosa
 import numpy as np
@@ -152,8 +152,8 @@ class BengaleseFinchCalls(Dataset):
         self,
         split: str = "Bird2_train",
         output_take_and_give: dict[str, str] | None = None,
-        sample_rate: Optional[int] = None,
-        data_root: Optional[str | AnyPathT] = None,
+        sample_rate: int | None = None,
+        data_root: str | AnyPathT | None = None,
     ) -> None:
         """Create a :class:`BengaleseFinchCalls` instance.
 

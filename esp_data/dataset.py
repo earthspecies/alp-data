@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Any, Dict, Iterator, Literal, Optional
+from typing import Any, Dict, Iterator, Literal
 
 import semver
 import yaml
@@ -69,7 +69,7 @@ class DatasetConfig(BaseModel):
     sample_rate: int | None = None
     output_take_and_give: dict[str, str] | None = None
     split: str = "train"
-    data_root: Optional[str] = None
+    data_root: str | None = None
 
     @field_validator("transformations", mode="before")
     @classmethod
@@ -326,7 +326,7 @@ class Dataset(ABC):
         pass
 
     @abstractmethod
-    def _load(self) -> Optional[Sequence[Any]]:
+    def _load(self) -> Sequence[Any] | None:
         """Load one split of the dataset.s
 
         Returns
@@ -555,7 +555,7 @@ def _make_dataset_from_config(dataset_config: DatasetConfig | ConcatConfig) -> D
 
 def dataset_from_config(
     dataset_config: DatasetConfig | ConcatConfig | AnyPathT | Path | str,
-    key: Optional[str] = None,
+    key: str | None = None,
 ) -> tuple[Dataset, dict[str, Any]]:
     """Load a single dataset or a dataset collection from a configuration.
 
