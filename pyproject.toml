@@ -5,7 +5,6 @@ description = "Data tools for ESP projects"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
-    "cloudpathlib[all]>=0.20.0",
     "gcsfs>=2024.9.0.post1",
     "google-cloud-secret-manager>=2.23.1",
     "google-cloud-storage>=2.19.0",
