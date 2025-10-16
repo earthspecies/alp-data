@@ -55,7 +55,7 @@ def test_path_manipulation():
 
     # Test parts property
     parts = path.parts
-    assert len(parts) >= 2  # At least gs://bucket and the object path
+    assert parts == ('gs://my-bucket/', 'folder', 'file.txt')
 
 
 def test_path_joining():
