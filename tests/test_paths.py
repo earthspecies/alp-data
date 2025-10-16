@@ -2,7 +2,7 @@ from pathlib import PosixPath
 
 import pytest
 
-from esp_data.io import anypath
+from esp_data.io import anypath, filesystem_from_path
 
 
 def test_local_path():
@@ -10,7 +10,6 @@ def test_local_path():
     assert isinstance(path, PosixPath)
     assert path.is_file()
     assert path.read_text().strip() == "hello"
-    assert path.is_local
     assert path.exists()
 
 @pytest.mark.parametrize(
@@ -22,11 +21,16 @@ def test_local_path():
 )
 def test_cloud_upload_path(cloud_path):
     path = anypath(cloud_path)
-    path.upload_from("tests/samples/file1.txt")
-    assert not path.is_local
-    assert path.is_cloud
-    assert path.exists()
-    assert path.is_file()
-    assert path.read_bytes() == b"hello\n"
-    path.unlink()
-    assert not path.exists()
+
+    fs = filesystem_from_path(path)
+
+    fs.put("tests/samples/file1.txt", str(path))
+
+    info = fs.info(str(path))
+    assert info["size"] == 6
+    assert info["type"] == "file"
+    with fs.open(str(path), "rb") as f:
+        assert f.read() == b"hello\n"
+
+    fs.rm(str(path))
+    assert not fs.exists(str(path))

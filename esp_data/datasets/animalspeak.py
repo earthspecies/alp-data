@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
-from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
+from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio, read_text
 
 
 @register_dataset
@@ -79,10 +79,12 @@ class AnimalSpeak(Dataset):
         self._data: pd.DataFrame = None
         self._load()  # Load the dataset (fills self._data)
         self.sample_rate = sample_rate
-        self.data_root = data_root
-        if self.data_root is None:
-            # we assume that parent dir of the split path is the data root
-            self.data_root = anypath(self.info.split_paths[self.split]).parent
+
+        if data_root is None:
+            # TODO switch to gs://esp-ml-datasets/animalspeak once we're sure everything is there
+            self.data_root = "gs://animalspeak2"
+        else:
+            self.data_root = data_root
 
     @property
     def columns(self) -> list[str]:
@@ -110,7 +112,7 @@ class AnimalSpeak(Dataset):
 
         location = self.info.split_paths[self.split]
         # Read CSV content
-        csv_text = anypath(location).read_text(encoding="utf-8")
+        csv_text = read_text(location, encoding="utf-8")
         self._data = pd.read_csv(StringIO(csv_text))
 
     @classmethod
@@ -183,11 +185,13 @@ class AnimalSpeak(Dataset):
 
         row = self._data.iloc[idx].to_dict()
 
-        # Ensure audio path is valid
-        if self.data_root:
-            audio_path = anypath(self.data_root) / row["local_path"]
-        else:
-            audio_path = anypath(row["local_path"])
+        # TODO (milad) this column shouldn't start with the bucket name because that is
+        # essentially the root. We only need the relative paths there. Removing so that
+        # audio_path assignment works with or without root
+        # An example of the local_path: local_path = "animalspeak2/16khz/WavCaps/253918.flac"
+        relative_path = row["local_path"].removeprefix("animalspeak2/")
+
+        audio_path = anypath(self.data_root) / relative_path
 
         audio, sr = read_audio(audio_path)
         audio = audio.astype(np.float32)

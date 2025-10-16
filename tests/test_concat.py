@@ -433,10 +433,8 @@ class TestIntegrationRealDatasets:
         otag1 = {"species_common": "species", "caption": "text"}
         otag2 = {"species_common": "species", "local_path": "path"}  # Different but compatible
 
-        animalspeak1 = AnimalSpeak(split="validation", sample_rate=16000,
-                                    output_take_and_give=otag1, data_root="gs://")
-        animalspeak2 = AnimalSpeak(split="validation", sample_rate=16000,
-                                    output_take_and_give=otag2, data_root="gs://")
+        animalspeak1 = AnimalSpeak(split="validation", sample_rate=16000, output_take_and_give=otag1)
+        animalspeak2 = AnimalSpeak(split="validation", sample_rate=16000, output_take_and_give=otag2)
 
         result = ConcatenatedDataset([animalspeak1, animalspeak2])
 
@@ -505,7 +503,7 @@ def test_pretransformed_before_concat():
     filter_cfg = FilterConfig(type="filter", mode="exclude", property="species_scientific", values=["Apis mellifera"])
     _ = insectset.apply_transformations([dedup_cfg, filter_cfg])
 
-    aspeak = AnimalSpeak(split="validation", data_root="gs://")
+    aspeak = AnimalSpeak(split="validation")
     _ = aspeak.apply_transformations([dedup_cfg])
 
     # Concatenate datasets after transformations

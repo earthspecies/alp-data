@@ -4,7 +4,7 @@ import pytest
 
 from esp_data.datasets import ChiffchaffId
 from esp_data import Dataset, DatasetConfig
-from esp_data.io import anypath
+from esp_data.io import exists
 
 
 @pytest.fixture
@@ -55,7 +55,7 @@ def test_info_property(dataset: Dataset) -> None:
     assert "train_within_year" in dataset.info.split_paths
     assert "test_within_year" in dataset.info.split_paths
     for split in dataset.info.split_paths.values():
-        assert anypath(split).exists(), f"Split path {split} does not exist"
+        assert exists(split), f"Split path {split} does not exist"
 
 
 def test_data_property(dataset: Dataset) -> None:
