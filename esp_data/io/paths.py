@@ -164,7 +164,7 @@ class PureCloudPath(PurePath):
     cloud_prefix: str = ""
     __slots__ = ()
 
-    def __new__(cls, *args):
+    def __new__(cls, *args: str) -> PureCloudPath:
         if not getattr(cls, "cloud_prefix", None):
             raise ValueError("cloud_prefix must be defined in subclass")
         if len(args) == 1:
@@ -198,7 +198,7 @@ class PureCloudPath(PurePath):
             return ""
         return "/".join(parts)
 
-    def with_bucket(self, bucket: str):
+    def with_bucket(self, bucket: str) -> PureCloudPath:
         if not bucket:
             raise ValueError("bucket must be a non-empty string")
         prefix = self.__class__.cloud_prefix
