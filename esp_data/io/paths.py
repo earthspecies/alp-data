@@ -122,9 +122,7 @@ class R2Path(cloudpathlib.S3Path):
             The default client instance for R2.
         """
         return cloudpathlib.S3Client(
-            aws_access_key_id=read_gcp_secret(
-                "cloudflare_r2_bucket_readwrite_access_key_id"
-            ),
+            aws_access_key_id=read_gcp_secret("cloudflare_r2_bucket_readwrite_access_key_id"),
             aws_secret_access_key=read_gcp_secret(
                 "cloudflare_r2_bucket_readwrite_secret_access_key"
             ),
@@ -148,9 +146,7 @@ class R2Path(cloudpathlib.S3Path):
                 "aws_secret_access_key": read_gcp_secret(
                     "cloudflare_r2_bucket_readwrite_secret_access_key"
                 ),
-                "endpoint_url": read_gcp_secret(
-                    "cloudflare_r2_bucket_readwrite_endpoint_url"
-                ),
+                "endpoint_url": read_gcp_secret("cloudflare_r2_bucket_readwrite_endpoint_url"),
             }
         }
 

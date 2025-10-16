@@ -35,7 +35,7 @@ This step is required if you haven't set up Google Cloud on your device yet. If 
 
 - Install the Google Cloud SDK by following the steps on https://cloud.google.com/sdk/docs/install
 
-- Initialize Google Cloud : 
+- Initialize Google Cloud :
     ```sh
     gcloud init
     ```
@@ -51,7 +51,7 @@ This step is required if you haven't set up Google Cloud on your device yet. If 
     gcloud auth application-default login
     ```
     This will open a browser for authentication again.
-    
+
 - Verify your active account :
     ```sh
     gcloud auth list
