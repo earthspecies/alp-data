@@ -1,8 +1,8 @@
 """Tests for the PureGSPath class."""
 
 import pytest
-# from esp_data.io.gcs_pathlib_delete import PureGSPath, gcs_path
 from esp_data.io import PureGSPath
+
 
 def test_pure_gcs_path_creation():
     """Test creating PureGSPath instances."""
@@ -34,53 +34,6 @@ def test_bucket_property():
     # Test bucket-only path
     path = PureGSPath("gs://bucket-only")
     assert path.bucket == "bucket-only"
-
-
-def test_object_path_property():
-    """Test the object_path property."""
-    path = PureGSPath("gs://my-bucket/folder/file.txt")
-    assert path.object_path == "folder/file.txt"
-
-    path = PureGSPath("gs://my-bucket/folder/subfolder/file.txt")
-    assert path.object_path == "folder/subfolder/file.txt"
-
-    # Test bucket-only path
-    path = PureGSPath("gs://my-bucket")
-    assert path.object_path == ""
-
-
-# def test_is_gcs_path_property():
-#     """Test the is_gcs_path property."""
-#     path = PureGSPath("gs://my-bucket/folder/file.txt")
-#     assert path.is_gcs_path is True
-
-#     path = PureGSPath("gs://my-bucket")
-#     assert path.is_gcs_path is True
-
-
-def test_with_bucket_method():
-    """Test the with_bucket method."""
-    path = PureGSPath("gs://old-bucket/folder/file.txt")
-    new_path = path.with_bucket("new-bucket")
-    assert str(new_path) == "gs://new-bucket/folder/file.txt"
-    assert new_path.bucket == "new-bucket"
-
-    # Test bucket-only path
-    path = PureGSPath("gs://old-bucket")
-    new_path = path.with_bucket("new-bucket")
-    assert str(new_path) == "gs://new-bucket"
-
-
-def test_relative_to_bucket_method():
-    """Test the relative_to_bucket method."""
-    path = PureGSPath("gs://my-bucket/folder/file.txt")
-    rel_path = path.relative_to_bucket()
-    assert rel_path == "/folder/file.txt"
-
-    # Test bucket-only path
-    path = PureGSPath("gs://my-bucket")
-    rel_path = path.relative_to_bucket()
-    assert rel_path == "/"
 
 
 def test_path_manipulation():
@@ -164,18 +117,15 @@ def test_edge_cases():
     # Test path with multiple consecutive slashes
     path = PureGSPath("gs://my-bucket//folder///file.txt")
     assert path.bucket == "my-bucket"
-    assert path.object_path == "folder/file.txt"  # Should normalize slashes
 
     # Test path ending with slash
     path = PureGSPath("gs://my-bucket/folder/")
     assert path.bucket == "my-bucket"
-    assert path.object_path == "folder"
     assert path.name == "folder"
 
     # Test path with dots
     path = PureGSPath("gs://my-bucket/folder/../file.txt")
     assert path.bucket == "my-bucket"
-    assert path.object_path == "folder/../file.txt"  # Dots are preserved as-is
 
 
 def test_drive_root_anchor_parts():
@@ -233,8 +183,3 @@ def test_joinpath_equivalence():
     assert str(b.joinpath("sub", "file.txt")) == "gs://bucket/base/sub/file.txt"
     # joining an absolute subpath (bucket-rooted)
     assert str(b / "/abs/thing") == "gs://bucket/abs/thing"
-
-
-
-if __name__ == "__main__":
-    pytest.main([__file__])

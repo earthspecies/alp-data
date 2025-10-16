@@ -187,30 +187,6 @@ class PureCloudPath(PurePath):
             return drv[len(prefix) :]
         return ""
 
-    @property
-    def object_path(self) -> str:
-        parts = self.parts
-        if not parts:
-            return ""
-        if self.anchor:
-            if len(parts) > 1:
-                return "/".join(parts[1:])
-            return ""
-        return "/".join(parts)
-
-    def with_bucket(self, bucket: str) -> PureCloudPath:
-        if not bucket:
-            raise ValueError("bucket must be a non-empty string")
-        prefix = self.__class__.cloud_prefix
-        if self.object_path:
-            obj = self.object_path.lstrip("/")
-            return self.__class__(f"{prefix}{bucket}/{obj}")
-        return self.__class__(f"{prefix}{bucket}")
-
-    def relative_to_bucket(self) -> str:
-        obj = self.object_path
-        return obj if obj.startswith("/") else (f"/{obj}" if obj else "/")
-
 
 _s3_flavour = _CloudFlavour(scheme="s3://")
 _gcs_flavour = _CloudFlavour(scheme="gs://")
