@@ -82,7 +82,6 @@ class BarkleyCanyon(Dataset):
         self._data: pd.DataFrame = None
         self._load()  # Load the dataset (fills self._data)
         self.sample_rate = sample_rate
-        self.data_root = data_root
 
         if data_root is None:
             self.data_root = anypath(self.info.split_paths[self.split]).parent
