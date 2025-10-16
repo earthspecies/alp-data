@@ -57,7 +57,7 @@ class LittleOwlId(Dataset):
         split: str = "train_across_year",
         output_take_and_give: dict[str, str] | None = None,
         sample_rate: Optional[int] = None,
-        data_root: Optional[str | AnyPathT] = None,
+        data_root: str | AnyPathT | None = None,
     ) -> None:
         super().__init__(output_take_and_give)
         self.split = split

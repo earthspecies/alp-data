@@ -255,7 +255,7 @@ class Voxaboxen(Dataset):
         split: str = "train",
         output_take_and_give: dict[str, str] = None,
         sample_rate: Optional[int] = None,
-        data_root: Optional[str | AnyPathT] = None,
+        data_root: str | AnyPathT | None = None,
         mono_method: Optional[str] = "average",
     ) -> None:
         """Initialize the Voxaboxen dataset.
@@ -279,8 +279,8 @@ class Voxaboxen(Dataset):
         self._data: pd.DataFrame = None
         self._load()  # Load the dataset (fills self._data)
         self.sample_rate = sample_rate
-        self.data_root = data_root
         self.mono_method = mono_method
+
         if self.data_root is None:
             # we assume that parent dir of the split path is the data root
             self.data_root = anypath(self.info.split_paths[self.split]).parent
@@ -366,7 +366,7 @@ class Voxaboxen(Dataset):
     def __getitem__(self, idx: int) -> dict[str, Any]:
         """Get a specific sample from the dataset.
         Parameters
-        ----------
+        ----------2
         idx : int
             Index of the sample to get.
 
@@ -385,11 +385,7 @@ class Voxaboxen(Dataset):
 
         row = self._data.iloc[idx].to_dict()
 
-        # Ensure audio path is valid
-        if self.data_root:
-            audio_path = anypath(self.data_root) / row["audio_fp"]
-        else:
-            audio_path = anypath(row["audio_fp"])
+        audio_path = anypath(self.data_root) / row["audio_fp"]
 
         audio, sr = read_audio(audio_path)
         audio = audio.astype(np.float32)
@@ -630,7 +626,7 @@ class VoxaboxenEvents(Dataset):
         split: str = "train",
         output_take_and_give: dict[str, str] = None,
         sample_rate: int = 16000,
-        data_root: Optional[str | AnyPathT] = None,
+        data_root: str | AnyPathT | None = None,
         stereo_or_mono: Literal["stereo", "mono"] = "stereo",
         mono_method: Literal["average", "keep_first"] = "average",
         clip_duration: float = 10.0,
@@ -685,7 +681,6 @@ class VoxaboxenEvents(Dataset):
         self._data: pd.DataFrame = None
         self._load()  # Load the dataset (fills self._data)
         self.sample_rate = sample_rate
-        self.data_root = data_root
         self.stereo_or_mono = stereo_or_mono
         self.mono_method = mono_method
         self.clip_duration = clip_duration
@@ -697,6 +692,7 @@ class VoxaboxenEvents(Dataset):
 
         self.omit_empty_clip_prob = omit_empty_clip_prob
         self.rng = default_rng()
+
         if self.data_root is None:
             # we assume that parent dir of the split path is the data root
             self.data_root = anypath(self.info.split_paths[self.split]).parent
