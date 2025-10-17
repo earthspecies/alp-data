@@ -1,4 +1,5 @@
 version = 1
+revision = 1
 requires-python = ">=3.10"
 resolution-markers = [
     "python_full_version >= '3.13'",
@@ -457,7 +458,7 @@ name = "click"
 version = "8.1.8"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "colorama", marker = "platform_system == 'Windows'" },
+    { name = "colorama", marker = "sys_platform == 'win32'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/b9/2e/0090cbf739cee7d23781ad4b89a9894a41538e4fcf4c31dcdd705b78eb8b/click-8.1.8.tar.gz", hash = "sha256:ed53c9d8990d83c2a27deae68e4ee337473f6330c040a31d4225c9574d16096a", size = 226593 }
 wheels = [
@@ -603,6 +604,7 @@ dependencies = [
     { name = "pydantic" },
     { name = "resampy" },
     { name = "s3fs" },
+    { name = "scipy" },
     { name = "semver" },
     { name = "soundfile" },
 ]
@@ -631,6 +633,7 @@ requires-dist = [
     { name = "pydantic", specifier = ">=2" },
     { name = "resampy" },
     { name = "s3fs", specifier = ">=2024.9.0" },
+    { name = "scipy", specifier = ">=1.15.3" },
     { name = "semver" },
     { name = "soundfile", specifier = ">=0.13.1" },
 ]
@@ -1308,7 +1311,7 @@ version = "1.6.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "click" },
-    { name = "colorama", marker = "platform_system == 'Windows'" },
+    { name = "colorama", marker = "sys_platform == 'win32'" },
     { name = "ghp-import" },
     { name = "jinja2" },
     { name = "markdown" },
