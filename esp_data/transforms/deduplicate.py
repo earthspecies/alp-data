@@ -1,7 +1,7 @@
 """A dedicated transform to remove duplicate rows from a DataFrame."""
 
 import logging
-from typing import Literal, Optional
+from typing import Literal
 
 import pandas as pd
 from pydantic import BaseModel, Field
@@ -13,7 +13,7 @@ logger = logging.Logger("esp_data")
 
 class DeduplicateConfig(BaseModel):
     type: Literal["deduplicate"]
-    subset: Optional[list[str]] = Field(
+    subset: list[str] | None = Field(
         default_factory=None,
         description="List of columns to consider for deduplication. "
         "If empty, all columns are considered.",

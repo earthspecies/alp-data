@@ -66,6 +66,8 @@ select = [
   "E7",
   "E9",
   "F", # Flake8
+  "UP007", # Check for typing.Union annotations that can be rewritten with PEP 604 syntax
+  "UP045", # Check for typing.Optional annotations that can be rewritten with PEP 604 syntax
 ]
 
 extend-select = ["DOC", "B9", "B", "E", "W", "ANN", "I"]

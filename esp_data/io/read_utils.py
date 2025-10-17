@@ -2,7 +2,7 @@
 
 import io
 import logging
-from typing import Any, Literal, Optional
+from typing import Any, Literal
 
 import numpy as np
 import soundfile as sf
@@ -258,8 +258,8 @@ def get_audio_info(
 def read_audio_by_time(
     file_path: str | AnyPathT,
     start_time: float = 0.0,
-    end_time: Optional[float] = None,
-    input_sr: Optional[int] = None,
+    end_time: float | None = None,
+    input_sr: int | None = None,
 ) -> tuple[np.ndarray, int]:
     """Reads audio data from a file path using time-based parameters.
 

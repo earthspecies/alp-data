@@ -4,7 +4,7 @@ This file offers functionalities necessary to manipulate different sort of files
 
 import logging
 from functools import cache
-from typing import Literal, Union
+from typing import Literal
 
 import fsspec
 from fsspec.implementations.local import LocalFileSystem
@@ -22,7 +22,7 @@ logger = logging.getLogger("esp_data")
 def filesystem(
     protocol: Literal["gcs", "gs", "r2", "local"] = "local",
     **kwargs: dict,
-) -> Union[GCSFileSystem, S3FileSystem, LocalFileSystem]:
+) -> GCSFileSystem | S3FileSystem | LocalFileSystem:
     """Initializes and returns a cached filesystem instance.
 
     This function acts as a factory for creating filesystem objects based on the
@@ -82,7 +82,7 @@ def filesystem(
 
 def filesystem_from_path(
     path: str | AnyPathT,
-) -> Union[GCSFileSystem, S3FileSystem, LocalFileSystem]:
+) -> GCSFileSystem | S3FileSystem | LocalFileSystem:
     """Determines and returns the appropriate cached filesystem based on the path.
 
     Uses the `anypath` utility to normalize the input path and identify its

@@ -1,7 +1,7 @@
 """Dataset concatenation utilities."""
 
 import logging
-from typing import Any, Dict, Iterator, Literal, Optional
+from typing import Any, Dict, Iterator, Literal
 
 import pandas as pd
 import semver
@@ -92,7 +92,7 @@ def _merge_dataframes(
         )
 
 
-def _merge_sample_rates(sample_rates: list[Optional[int]]) -> Optional[int]:
+def _merge_sample_rates(sample_rates: list[int | None]) -> int | None:
     """Merge sample rates from multiple datasets.
 
     Parameters
@@ -127,7 +127,7 @@ def _merge_sample_rates(sample_rates: list[Optional[int]]) -> Optional[int]:
     return first_rate
 
 
-def _merge_output_take_and_give(otags: list[Optional[dict]]) -> Optional[dict]:
+def _merge_output_take_and_give(otags: list[dict | None]) -> dict | None:
     """Merge output_take_and_give dictionaries from multiple datasets.
 
     Parameters

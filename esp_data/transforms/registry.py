@@ -48,7 +48,7 @@ def register_transform(config_class: type[BaseModel], transform_class: type) -> 
     def _rebuild_union_type() -> None:
         global RegisteredTransformConfigs
         RegisteredTransformConfigs = Annotated[
-            Union[tuple(_TRANSFORM_CONFIG_REGISTRY.values())],
+            Union[tuple(_TRANSFORM_CONFIG_REGISTRY.values())],  # noqa: UP007 - We explicitly want a union type here to allow for user-registered transforms
             Field(discriminator="type"),
         ]
 
