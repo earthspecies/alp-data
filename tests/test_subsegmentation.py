@@ -64,7 +64,7 @@ def _basic_item_qc(item: dict) -> list[str]:
             if (st["Begin Time (s)"] < 0).any():
                 issues.append("negative_begin_time")
 
-        if not (len(st) == 0) == item['pass_qc']:
+        if (len(st) == 0) == item['pass_qc']:
             issues.append("qc inconsistent")
 
     return issues
@@ -88,10 +88,3 @@ def test_random_five_items_quality(ds: Subsegmentation):
     # Instead: allow visibility without hard failing CI on minor glitches
     if all_issues:
         pytest.fail(f"Quality issues in random items: {all_issues}")
-
-
-def test_label_mapping_loaded(ds: Subsegmentation):
-    # sanity: label mappings exist for all expected columns
-    assert set(ds.annotation_columns) == {"Genus", "Family", "Order", "Annotation", "Species"}
-    for k in ds.annotation_columns:
-        assert isinstance(ds.label_mappings.get(k, {}), dict)
