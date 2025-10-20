@@ -98,6 +98,7 @@ standard-sunau==3.13.0 ; python_full_version >= '3.13'
 sympy==1.14.0
 threadpoolctl==3.6.0
 torch==2.9.0
+torchaudio==2.9.0
 triton==3.5.0 ; platform_machine == 'x86_64' and sys_platform == 'linux'
 typing-extensions==4.13.2
 typing-inspection==0.4.1
