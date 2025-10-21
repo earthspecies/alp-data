@@ -2,11 +2,8 @@
 
 from __future__ import annotations
 
-import json
-import os
 from functools import partial
 from io import StringIO
-from pathlib import Path
 from typing import Any, Dict, Iterator, List
 
 import numpy as np
@@ -15,7 +12,7 @@ import torch
 import torchaudio
 
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
-from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, filesystem, read_audio
+from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
 
 LABEL_MAPPING_PATH = "gs://esp-ml-datasets/wabad/v0.1.0/raw/wabad_label_mapping_15_10_2025.json"
 
@@ -103,10 +100,12 @@ class WABAD(Dataset):
         super().__init__(output_take_and_give)
         self.split = split
         self._data: pd.DataFrame | None = None
-        self.default_anno_column = "Species"
+        self.default_anno_column = "Species"  # This is the annotation column used for label mapping
         self.unknown_annos: List[str] = []
-        self.annotation_columns = ["Genus", "Family", "Order", "Common", "Species"]
-        assert self.default_anno_column == self.annotation_columns[-1]
+        # in the following, default anno column must appear last for label mapping to work properly:
+        self.annotation_columns = ["Genus", "Family", "Order", "Common"] + [
+            self.default_anno_column
+        ]
 
         self.sample_rate = sample_rate
         self.data_root = anypath(data_root) if data_root is not None else None
@@ -114,24 +113,12 @@ class WABAD(Dataset):
         # Load split CSV
         self._load()
 
-        # Default label mapping path
-
-        label_mapping_fn = os.path.basename(LABEL_MAPPING_PATH)
-        label_mapping_path_local = Path(__file__).parent / label_mapping_fn
-        if not os.path.exists(label_mapping_path_local):
-            print(f"Getting {LABEL_MAPPING_PATH} from GCP")
-            fs = filesystem("gcs")
-            fs.get(LABEL_MAPPING_PATH, label_mapping_path_local)
-
-        self.label_mappings = self._load_label_mappings(anypath(label_mapping_path_local))
+        self.label_mappings = self._load_label_mappings(LABEL_MAPPING_PATH)
 
         # If no explicit data_root, assume parent dir of the split path
         if self.data_root is None:
             self.data_root = anypath(self.info.split_paths[self.split]).parent
 
-    # -----------------------------
-    # Properties
-    # -----------------------------
     @property
     def columns(self) -> list[str]:
         return list(self._data.columns) if self._data is not None else []
@@ -140,9 +127,6 @@ class WABAD(Dataset):
     def available_splits(self) -> list[str]:
         return list(self.info.split_paths.keys())
 
-    # -----------------------------
-    # Internals
-    # -----------------------------
     def _load(self) -> None:
         if self.split not in self.info.split_paths:
             raise LookupError(
@@ -152,11 +136,8 @@ class WABAD(Dataset):
         self._data = pd.read_csv(location, keep_default_na=False, na_values=[""])
 
     @staticmethod
-    def _load_label_mappings(fp: Path) -> Dict[str, Dict[str, str]]:
-        if not fp.exists():
-            raise FileNotFoundError(f"{fp} not found. ")
-        with open(fp, "r") as f:
-            lm = json.load(f)
+    def _load_label_mappings(fp: str) -> Dict[str, Dict[str, str]]:
+        lm = pd.read_json(fp)
         # Ensure all expected keys present
         for k in ["Genus", "Family", "Order", "Common", "Species"]:
             lm.setdefault(k, {})
@@ -172,9 +153,6 @@ class WABAD(Dataset):
         mapping = self.label_mappings.get(anno_column, {})
         return mapping.get(x, x)
 
-    # -----------------------------
-    # Dataset API
-    # -----------------------------
     def __len__(self) -> int:
         if self._data is None:
             raise RuntimeError("No split loaded.")
@@ -239,9 +217,6 @@ class WABAD(Dataset):
         for i in range(len(self)):
             yield self[i]
 
-    # -----------------------------
-    # Factory
-    # -----------------------------
     @classmethod
     def from_config(cls, dataset_config: DatasetConfig) -> tuple["WABAD", dict[str, Any]]:
         cfg = dataset_config.model_dump(exclude={"dataset_name", "transformations"})
@@ -256,9 +231,6 @@ class WABAD(Dataset):
             return ds, meta
         return ds, {}
 
-    # -----------------------------
-    # Convenience
-    # -----------------------------
     def get_available_labels(self, anno_column: str) -> List[str]:
         """
         Return all possible labels for a given annotation column,
