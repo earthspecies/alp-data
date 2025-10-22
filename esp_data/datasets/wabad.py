@@ -137,7 +137,7 @@ class WABAD(Dataset):
 
     @staticmethod
     def _load_label_mappings(fp: str) -> Dict[str, Dict[str, str]]:
-        lm = pd.read_json(fp)
+        lm = pd.read_json(fp).to_dict()
         # Ensure all expected keys present
         for k in ["Genus", "Family", "Order", "Common", "Species"]:
             lm.setdefault(k, {})
@@ -257,14 +257,3 @@ class WABAD(Dataset):
             f"License: {self.info.license}\n"
             f"Available splits: {', '.join(self.info.split_paths.keys())}"
         )
-
-
-if __name__ == "__main__":
-    ds = WABAD()
-
-    sample = ds[10]
-
-    assert "audio" in sample
-    print(f"Audio shape: {sample['audio'].shape}")
-    st1 = sample["selection_table"]
-    print(st1.head(10))

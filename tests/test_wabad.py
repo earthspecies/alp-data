@@ -7,9 +7,8 @@ Run with:
 
 from __future__ import annotations
 
-import os
 import random
-from pathlib import Path
+from typing import List
 
 import numpy as np
 import pandas as pd
@@ -17,75 +16,61 @@ import pytest
 
 from esp_data.datasets import WABAD
 
+
 @pytest.fixture(scope="module")
 def ds() -> WABAD:
-    """
-    Requires:
-      - split CSV available at WABAD.info.split_paths["all"]
-      - label_mapping.json produced by preprocess_wabad.py and placed next to wabad_dataset.py
-      - audio files accessible via data_root (implicitly parent of split unless overridden)
-    """
+    """Load WABAD dataset for testing."""
     return WABAD(
         split="all",
         sample_rate=16000,
     )
 
-def _basic_item_qc(item: dict) -> list[str]:
-    issues = []
 
-    # Audio checks
-    audio = item["audio"]
-    if not isinstance(audio, np.ndarray):
-        issues.append("audio_not_ndarray")
-    elif audio.dtype != np.float32:
-        issues.append(f"audio_dtype_not_float32:{audio.dtype}")
-    if audio.size < 10:
-        issues.append("audio_too_short")
-    if np.any(np.isnan(audio)):
-        issues.append("audio_has_nan")
-    if np.all(audio == 0):
-        issues.append("audio_all_zeros")
-
-    # Selection table checks
-    st = item["selection_table"]
-    if not isinstance(st, pd.DataFrame):
-        issues.append("selection_table_not_df")
-    else:
-        for col in ["Begin Time (s)", "End Time (s)", "Species"]:
-            if col not in st.columns:
-                issues.append(f"missing_col_{col}")
-
-        # ensure no begin >= audio duration
-        # we do not know SR here; dataset trimmed by duration already
-        if "Begin Time (s)" in st.columns and len(st) > 0:
-            if (st["Begin Time (s)"] < 0).any():
-                issues.append("negative_begin_time")
-
-    return issues
-
-
-def test_random_five_items_quality(ds: WABAD):
+@pytest.fixture(scope="module")
+def sample_indices(ds: WABAD) -> List[int]:
+    """Deterministically choose up to 5 random indices for quick spot checks."""
     n = len(ds)
-    assert n > 0, "Dataset appears empty"
-
     rng = random.Random(23)
-    indices = [rng.randrange(n) for _ in range(min(5, n))]
+    return [rng.randrange(n) for _ in range(min(5, n))]
 
-    all_issues = []
-    for idx in indices:
+
+def test_ds_not_empty(ds: WABAD):
+    """Dataset should have at least one example."""
+    assert len(ds) > 0, "Dataset appears empty"
+
+
+def test_check_audio(ds: WABAD, sample_indices: List[int]):
+    """Basic audio integrity checks on a few random items."""
+    for idx in sample_indices:
         item = ds[idx]
-        issues = _basic_item_qc(item)
-        all_issues.extend([(idx, i) for i in issues])
+        audio = item.get("audio", None)
 
-    # If you want this to be strictly clean, assert no issues:
-    # assert not all_issues, f"Issues found: {all_issues}"
-    # Instead: allow visibility without hard failing CI on minor glitches
-    if all_issues:
-        pytest.fail(f"Quality issues in random items: {all_issues}")
+        assert isinstance(audio, np.ndarray), f"[{idx}] audio is not a numpy array"
+        assert audio.dtype == np.float32, f"[{idx}] audio dtype is {audio.dtype}, expected float32"
+        assert audio.size >= 10, f"[{idx}] audio too short (size={audio.size})"
+        assert not np.any(np.isnan(audio)), f"[{idx}] audio contains NaN values"
+        assert not np.all(audio == 0), f"[{idx}] audio is all zeros"
+
+
+def test_check_selection_table(ds: WABAD, sample_indices: List[int]):
+    """Selection table should be a DataFrame with required columns and sane times."""
+    required = {"Begin Time (s)", "End Time (s)", "Species"}
+
+    for idx in sample_indices:
+        item = ds[idx]
+        st = item.get("selection_table", None)
+
+        assert isinstance(st, pd.DataFrame), f"[{idx}] selection_table is not a DataFrame"
+        missing = required - set(st.columns)
+        assert not missing, f"[{idx}] selection_table missing columns: {sorted(missing)}"
+
+        if len(st) > 0:
+            assert not (st["Begin Time (s)"] < 0).any(), f"[{idx}] negative begin times present"
 
 
 def test_label_mapping_loaded(ds: WABAD):
-    # sanity: label mappings exist for all expected columns
-    assert set(ds.annotation_columns) == {"Genus", "Family", "Order", "Common", "Species"}
+    """Sanity check that label mappings for expected taxonomy fields are present."""
+    expected = {"Genus", "Family", "Order", "Common", "Species"}
+    assert set(ds.annotation_columns) == expected
     for k in ds.annotation_columns:
-        assert isinstance(ds.label_mappings.get(k, {}), dict)
+        assert isinstance(ds.label_mappings.get(k, {}), dict), f"label_mappings[{k}] is not a dict"
