@@ -49,7 +49,7 @@ Bird1 training: 25024 samples
 Bird8 validation: 746 samples
 """
 
-from typing import Any, Dict, Iterator, Optional
+from typing import Any, Dict, Iterator
 
 import librosa
 import numpy as np
@@ -152,8 +152,8 @@ class BengaleseFinchCalls(Dataset):
         self,
         split: str = "Bird2_train",
         output_take_and_give: dict[str, str] | None = None,
-        sample_rate: Optional[int] = None,
-        data_root: Optional[str | AnyPathT] = None,
+        sample_rate: int | None = None,
+        data_root: str | AnyPathT | None = None,
     ) -> None:
         """Create a :class:`BengaleseFinchCalls` instance.
 
@@ -182,16 +182,16 @@ class BengaleseFinchCalls(Dataset):
         super().__init__(output_take_and_give)
         self.split = split
         self.sample_rate = sample_rate
-        self.data_root = data_root
 
         if self.split not in self.info.split_paths:
             raise LookupError(
                 f"Invalid split '{self.split}'. Available: {list(self.info.split_paths)}"
             )
 
-        if self.data_root is None:
-            # All CSVs are now in /raw/ with the audio files
+        if data_root is None:
             self.data_root = anypath(self.info.split_paths[self.split]).parent
+        else:
+            self.data_root = data_root
 
         self._data: pd.DataFrame | None = None
         self._load()
@@ -237,10 +237,7 @@ class BengaleseFinchCalls(Dataset):
         row = self._data.iloc[idx].to_dict()
 
         # Construct full audio path ("local_path" is relative)
-        if self.data_root is not None:
-            audio_path = anypath(self.data_root) / row["local_path"]
-        else:
-            audio_path = anypath(row["local_path"])
+        audio_path = anypath(self.data_root) / row["local_path"]
 
         # Load the audio file
         audio, sr = read_audio(audio_path)

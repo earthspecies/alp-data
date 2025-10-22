@@ -1,6 +1,6 @@
 """Little Owl ID dataset"""
 
-from typing import Any, Dict, Iterator, Optional
+from typing import Any, Dict, Iterator
 
 import librosa
 import numpy as np
@@ -56,15 +56,19 @@ class LittleOwlId(Dataset):
         self,
         split: str = "train_across_year",
         output_take_and_give: dict[str, str] | None = None,
-        sample_rate: Optional[int] = None,
-        data_root: Optional[str | AnyPathT] = None,
+        sample_rate: int | None = None,
+        data_root: str | AnyPathT | None = None,
     ) -> None:
         super().__init__(output_take_and_give)
         self.split = split
         self._data: pd.DataFrame = None
         self._load()
         self.sample_rate = sample_rate
-        self.data_root = data_root or anypath(self.info.split_paths[self.split]).parent
+
+        if data_root is None:
+            self.data_root = anypath(self.info.split_paths[self.split]).parent
+        else:
+            self.data_root = data_root
 
     # Common helper methods are identical to ChiffchaffId --------------------------------
 
@@ -138,11 +142,8 @@ class LittleOwlId(Dataset):
         if idx >= len(self):
             raise IndexError("Index out of bounds.")
         row = self._data.iloc[idx].to_dict()
-        audio_path = (
-            anypath(self.data_root) / row["local_path"]
-            if self.data_root
-            else anypath(row["local_path"])
-        )
+        audio_path = anypath(self.data_root) / row["local_path"]
+
         audio, sr = read_audio(audio_path)
         audio = audio.astype(np.float32)
         audio = audio_stereo_to_mono(audio, mono_method="average")

@@ -4,7 +4,7 @@ import pytest
 
 from esp_data.datasets import AnimalSpeak
 from esp_data import Dataset, DatasetConfig
-from esp_data.io import anypath
+from esp_data.io import anypath, exists
 
 
 @pytest.fixture
@@ -16,7 +16,7 @@ def dataset() -> Dataset:
     Dataset
         An instance of the AnimalSpeak dataset.
     """
-    ds = AnimalSpeak(split="validation", data_root="gs://")
+    ds = AnimalSpeak(split="validation")
     return ds
 
 
@@ -46,7 +46,6 @@ def dataset_with_transforms() -> Dataset:
                 "values": ["xeno-canto", "iNaturalist"],
             },
         ],
-        data_root="gs://",
     )
     ds = AnimalSpeak(split="validation")
     ds.apply_transformations(dataset_config.transformations)
@@ -82,7 +81,6 @@ def dataset_with_transforms_from_config() -> tuple[Dataset, dict]:
                 "values": ["xeno-canto", "iNaturalist"],
             },
         ],
-        data_root="gs://",
     )
     ds, metadata = AnimalSpeak.from_config(dataset_config)
     return ds, metadata
@@ -104,7 +102,6 @@ def dataset_with_output_mapping() -> Dataset:
     ds = AnimalSpeak(
         split="validation",
         output_take_and_give=dataset_config.output_take_and_give,
-        data_root="gs://"
     )
     return ds
 
@@ -116,8 +113,8 @@ def test_info_property(dataset: Dataset) -> None:
     assert "train" in dataset.info.split_paths
     assert "validation" in dataset.info.split_paths
     # test splits exist
-    assert anypath(dataset.info.split_paths["train"]).exists()
-    assert anypath(dataset.info.split_paths["validation"]).exists()
+    assert exists(dataset.info.split_paths["train"])
+    assert exists(dataset.info.split_paths["validation"])
 
 
 def test_data_property(dataset: Dataset) -> None:

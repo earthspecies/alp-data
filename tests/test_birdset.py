@@ -4,7 +4,7 @@ import pytest
 
 from esp_data.datasets import BirdSet
 from esp_data import Dataset, DatasetConfig
-from esp_data.io import anypath
+from esp_data.io import anypath, exists
 
 
 @pytest.fixture
@@ -16,7 +16,7 @@ def dataset() -> Dataset:
     Dataset
         An instance of the BirdSet dataset.
     """
-    ds = BirdSet(split="PER-test",data_root="gs://foundation-model-data/")
+    ds = BirdSet(split="PER-test")
     return ds
 
 
@@ -41,7 +41,7 @@ def dataset_with_transforms() -> Dataset:
             },
         ],
     )
-    ds = BirdSet(split="PER-test",data_root="gs://foundation-model-data/")
+    ds = BirdSet(split="PER-test")
     ds.apply_transformations(dataset_config.transformations)
     return ds
 
@@ -59,7 +59,7 @@ def dataset_with_output_mapping() -> Dataset:
         dataset_name="birdset",
         output_take_and_give={"answer": "label"},
     )
-    ds = BirdSet(split="HSN-test", output_take_and_give=dataset_config.output_take_and_give,data_root="gs://foundation-model-data/")
+    ds = BirdSet(split="HSN-test", output_take_and_give=dataset_config.output_take_and_give)
     return ds
 
 
@@ -71,7 +71,7 @@ def test_info_property(dataset: Dataset) -> None:
     assert "PER-validation" in dataset.info.split_paths
     assert "POW-test" in dataset.info.split_paths
     for split in dataset.info.split_paths.values():
-        assert anypath(split).exists(), f"Split path {split} does not exist"
+        assert exists(split), f"Split path {split} does not exist"
 
 
 def test_data_property(dataset: Dataset) -> None:
@@ -128,7 +128,7 @@ def test_load_from_config() -> None:
     dataset_config = DatasetConfig(
         dataset_name="birdset",
         split="HSN-test",
-        data_root="gs://foundation-model-data/"
+
     )
     dataset, _ = BirdSet.from_config(dataset_config)
     assert dataset.info.name == "birdset"

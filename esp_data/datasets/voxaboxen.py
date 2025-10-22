@@ -2,7 +2,7 @@
 
 import math
 from io import StringIO
-from typing import Any, Dict, Iterator, Literal, Optional
+from typing import Any, Dict, Iterator, Literal
 
 import librosa
 import numpy as np
@@ -13,12 +13,7 @@ from pydantic import Field
 
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from esp_data.dataset import register_config
-from esp_data.io import (
-    AnyPathT,
-    anypath,
-    audio_stereo_to_mono,
-    read_audio,
-)
+from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio, read_text
 
 LABEL_SETS = {
     "Anuraset_train": [
@@ -158,9 +153,9 @@ class VoxaboxenConfig(DatasetConfig):
     dataset_name: str = "voxaboxen"
     split: str = "train"
     output_take_and_give: dict[str, str] = None
-    sample_rate: Optional[int] = None
-    data_root: Optional[str | AnyPathT] = None
-    mono_method: Optional[Literal["average", "keep_first"]] = "average"
+    sample_rate: int | None = None
+    data_root: str | AnyPathT | None = None
+    mono_method: Literal["average", "keep_first"] | None = "average"
 
 
 @register_dataset
@@ -259,9 +254,9 @@ class Voxaboxen(Dataset):
         self,
         split: str = "train",
         output_take_and_give: dict[str, str] = None,
-        sample_rate: Optional[int] = None,
-        data_root: Optional[str | AnyPathT] = None,
-        mono_method: Optional[str] = "average",
+        sample_rate: int | None = None,
+        data_root: str | AnyPathT | None = None,
+        mono_method: str | None = "average",
     ) -> None:
         """Initialize the Voxaboxen dataset.
 
@@ -284,11 +279,13 @@ class Voxaboxen(Dataset):
         self._data: pd.DataFrame = None
         self._load()  # Load the dataset (fills self._data)
         self.sample_rate = sample_rate
-        self.data_root = data_root
         self.mono_method = mono_method
-        if self.data_root is None:
+
+        if data_root is None:
             # we assume that parent dir of the split path is the data root
             self.data_root = anypath(self.info.split_paths[self.split]).parent
+        else:
+            self.data_root = data_root
 
     @property
     def columns(self) -> list[str]:
@@ -316,7 +313,7 @@ class Voxaboxen(Dataset):
 
         location = self.info.split_paths[self.split]
         # Read CSV content
-        csv_text = anypath(location).read_text(encoding="utf-8")
+        csv_text = read_text(location, encoding="utf-8")
         self._data = pd.read_csv(StringIO(csv_text))
 
     @classmethod
@@ -390,11 +387,7 @@ class Voxaboxen(Dataset):
 
         row = self._data.iloc[idx].to_dict()
 
-        # Ensure audio path is valid
-        if self.data_root:
-            audio_path = anypath(self.data_root) / row["audio_fp"]
-        else:
-            audio_path = anypath(row["audio_fp"])
+        audio_path = anypath(self.data_root) / row["audio_fp"]
 
         audio, sr = read_audio(audio_path)
         audio = audio.astype(np.float32)
@@ -503,43 +496,43 @@ class VoxaboxenEventsConfig(DatasetConfig):
     dataset_name: str = "voxaboxen_events"
     split: str = "train"
     output_take_and_give: dict[str, str] = None
-    sample_rate: Optional[int] = None
-    data_root: Optional[str | AnyPathT] = None
-    stereo_or_mono: Optional[Literal["stereo", "mono"]] = Field(
+    sample_rate: int | None = None
+    data_root: str | AnyPathT | None = None
+    stereo_or_mono: Literal["stereo", "mono"] | None = Field(
         default="mono", description="Whether to return stereo or mono audio."
     )
-    mono_method: Optional[Literal["average", "keep_first"]] = Field(
+    mono_method: Literal["average", "keep_first"] | None = Field(
         default="average",
         description="Method to convert stereo audio to mono. "
         "Ignored if stereo_or_mono is 'stereo'.",
     )
-    clip_duration: Optional[float] = Field(
+    clip_duration: float | None = Field(
         default=10.0, ge=0.1, description="Duration of each audio clip in seconds."
     )
-    clip_hop: Optional[float] = Field(
+    clip_hop: float | None = Field(
         default=5.0,
         ge=0.0,
         description="Hop size between consecutive audio clips in seconds. "
         "If None, the full audio is used without overlapping clips.",
     )
-    clip_start_offset: Optional[float] = Field(
+    clip_start_offset: float | None = Field(
         default=0.0, ge=0.0, description="Offset in seconds to start the first clip."
     )
-    omit_empty_clip_prob: Optional[float] = Field(
+    omit_empty_clip_prob: float | None = Field(
         default=0.0,
         ge=0.0,
         le=1.0,
         description="Probability of omitting empty clips (no annotations).",
     )
-    scale_factor: Optional[int] = Field(
+    scale_factor: int | None = Field(
         default=1, ge=1, description="Scale factor for downsampling the audio."
     )
-    segmentation_based: Optional[bool] = Field(
+    segmentation_based: bool | None = Field(
         default=True,
         description="If True, the dataset is segmented based on the selection table. "
         "If False, the entire audio file is treated as a single segment.",
     )
-    unknown_label: Optional[str] = Field(
+    unknown_label: str | None = Field(
         default="Unknown", description="Label for unknown annotations."
     )
 
@@ -635,7 +628,7 @@ class VoxaboxenEvents(Dataset):
         split: str = "train",
         output_take_and_give: dict[str, str] = None,
         sample_rate: int = 16000,
-        data_root: Optional[str | AnyPathT] = None,
+        data_root: str | AnyPathT | None = None,
         stereo_or_mono: Literal["stereo", "mono"] = "stereo",
         mono_method: Literal["average", "keep_first"] = "average",
         clip_duration: float = 10.0,
@@ -690,7 +683,6 @@ class VoxaboxenEvents(Dataset):
         self._data: pd.DataFrame = None
         self._load()  # Load the dataset (fills self._data)
         self.sample_rate = sample_rate
-        self.data_root = data_root
         self.stereo_or_mono = stereo_or_mono
         self.mono_method = mono_method
         self.clip_duration = clip_duration
@@ -702,9 +694,12 @@ class VoxaboxenEvents(Dataset):
 
         self.omit_empty_clip_prob = omit_empty_clip_prob
         self.rng = default_rng()
-        if self.data_root is None:
+
+        if data_root is None:
             # we assume that parent dir of the split path is the data root
             self.data_root = anypath(self.info.split_paths[self.split]).parent
+        else:
+            self.data_root = data_root
 
         self.label_mapping: dict = None
         if split in LABEL_SETS:
@@ -743,7 +738,7 @@ class VoxaboxenEvents(Dataset):
 
         location = self.info.split_paths[self.split]
         # Read CSV content
-        csv_text = anypath(location).read_text(encoding="utf-8")
+        csv_text = read_text(location, encoding="utf-8")
         self._data = pd.read_csv(StringIO(csv_text))
 
     @classmethod

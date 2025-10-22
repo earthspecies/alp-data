@@ -4,7 +4,7 @@ import pytest
 
 from esp_data.datasets import MacaquesCooCalls
 from esp_data import Dataset, DatasetConfig
-from esp_data.io import anypath
+from esp_data.io import anypath, exists
 
 
 @pytest.fixture
@@ -71,7 +71,7 @@ def test_info_property(dataset: Dataset) -> None:
     assert dataset.info.version == "0.1.0"
     assert "train" in dataset.info.split_paths
     for split in dataset.info.split_paths.values():
-        assert anypath(split).exists(), f"Split path {split} does not exist"
+        assert exists(split), f"Split path {split} does not exist"
     assert dataset.info.description == (
         "Coo calls from male and female macaques (Macaca mulatta) including id, sex, weight_kg"
     )

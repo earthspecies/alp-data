@@ -4,7 +4,7 @@ import pytest
 
 from esp_data.datasets import Beans
 from esp_data import Dataset, DatasetConfig
-from esp_data.io import anypath
+from esp_data.io import anypath, exists
 
 
 @pytest.fixture
@@ -76,7 +76,7 @@ def test_info_property(dataset: Dataset) -> None:
     assert "train" in dataset.info.split_paths
     assert "validation" in dataset.info.split_paths
     for split in dataset.info.split_paths.values():
-        assert anypath(split).exists(), f"Split path {split} does not exist"
+        assert exists(split), f"Split path {split} does not exist"
 
 
 def test_data_property(dataset: Dataset) -> None:

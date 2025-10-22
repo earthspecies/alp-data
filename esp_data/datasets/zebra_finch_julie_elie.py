@@ -1,6 +1,6 @@
 """Julie Elie Zebra Finch dataset."""
 
-from typing import Any, Dict, Iterator, Optional
+from typing import Any, Dict, Iterator
 
 import librosa
 import numpy as np
@@ -62,8 +62,8 @@ class ZebraFinchJulieElie(Dataset):
         self,
         split: str = "train",
         output_take_and_give: dict[str, str] = None,
-        sample_rate: Optional[int] = None,
-        data_root: Optional[str | AnyPathT] = None,
+        sample_rate: int | None = None,
+        data_root: str | AnyPathT | None = None,
     ) -> None:
         """Initialize the Zebra Finch Julie Elie dataset.
 

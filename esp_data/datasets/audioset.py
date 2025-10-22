@@ -2,14 +2,14 @@
 
 import json
 from io import StringIO
-from typing import Any, Dict, Iterator, Optional
+from typing import Any, Dict, Iterator
 
 import librosa
 import numpy as np
 import pandas as pd
 
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
-from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
+from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio, read_text
 
 
 @register_dataset
@@ -73,8 +73,8 @@ class AudioSet(Dataset):
         self,
         split: str = "train",
         output_take_and_give: dict[str, str] = None,
-        sample_rate: Optional[int] = None,
-        data_root: Optional[str | AnyPathT] = None,
+        sample_rate: int | None = None,
+        data_root: str | AnyPathT | None = None,
     ) -> None:
         """Initialize the AudioSet dataset.
 
@@ -97,10 +97,11 @@ class AudioSet(Dataset):
         self._data: pd.DataFrame = None
         self._load()  # Load the dataset (fills self._data)
         self.sample_rate = sample_rate
-        self.data_root = data_root
-        if self.data_root is None:
-            # we assume that parent dir of the split path is the data root
-            self.data_root = anypath(self.info.split_paths[self.split]).parent
+
+        if data_root is None:
+            self.data_root = anypath("gs://esp-ml-datasets/audioset/v0.1.0/raw/")
+        else:
+            self.data_root = data_root
 
     @property
     def columns(self) -> list[str]:
@@ -127,8 +128,7 @@ class AudioSet(Dataset):
             )
 
         location = self.info.split_paths[self.split]
-        # Read CSV content
-        csv_text = anypath(location).read_text(encoding="utf-8")
+        csv_text = read_text(location, encoding="utf-8")
 
         # Converter to parse JSON-encoded labels into Python lists
         def parse_label(value: str) -> list:
@@ -208,11 +208,7 @@ class AudioSet(Dataset):
 
         row = self._data.iloc[idx].to_dict()
 
-        # Ensure audio path is valid
-        if self.data_root:
-            audio_path = anypath(self.data_root) / row["local_path"]
-        else:
-            audio_path = anypath(row["local_path"])
+        audio_path = anypath(self.data_root) / row["local_path"]
 
         audio, sr = read_audio(audio_path)
         audio = audio.astype(np.float32)

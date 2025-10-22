@@ -5,7 +5,6 @@ description = "Data tools for ESP projects"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
-    "cloudpathlib[all]>=0.20.0",
     "gcsfs>=2024.9.0.post1",
     "google-cloud-secret-manager>=2.23.1",
     "google-cloud-storage>=2.19.0",
@@ -29,7 +28,7 @@ dev = [
     "mkdocstrings-python>=1.16.10",
     "pre-commit>=4.0.1",
     "pytest>=7.1.2",
-    "ruff>=0.8.1",
+    "ruff>=0.14.1",
     "deptry>=0.23.0"
 ]
 
@@ -69,6 +68,8 @@ select = [
   "E7",
   "E9",
   "F", # Flake8
+  "UP007", # Check for typing.Union annotations that can be rewritten with PEP 604 syntax
+  "UP045", # Check for typing.Optional annotations that can be rewritten with PEP 604 syntax
 ]
 
 extend-select = ["DOC", "B9", "B", "E", "W", "ANN", "I"]
