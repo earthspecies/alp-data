@@ -176,6 +176,8 @@ class WABAD(Dataset):
         audio = audio_stereo_to_mono(audio, mono_method="average").astype(np.float32)
 
         # Resample if needed
+        # This is designed to match librosa's resampling (but faster), see
+        # https://docs.pytorch.org/audio/stable/tutorials/audio_resampling_tutorial.html
         target_sr = self.sample_rate
         if target_sr is not None and sr != target_sr:
             audio = torchaudio.functional.resample(
