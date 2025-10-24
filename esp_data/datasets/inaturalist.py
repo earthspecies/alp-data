@@ -20,11 +20,10 @@ class INaturalist(Dataset):
     iNaturalist is a citizen science platform and biodiversity database
     containing observations of organisms. This dataset includes audio
     recordings from iNaturalist with associated metadata about species,
-    locations, and other observation details.
-
-    The dataset contains audio recordings with rich taxonomic information,
-    including species scientific and common names, family, genus, order,
-    and other metadata such as location, date, and recordist information.
+    locations, and other observation details. Recordings are linked to taxonomic information
+    following esp's taxonomy app (GBIF backbone),
+    including species scientific and common names, family, genus, order.
+    There is additional metadata including location, date, and recordist information.
 
     References
     ----------
