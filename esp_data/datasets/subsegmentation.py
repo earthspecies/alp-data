@@ -5,10 +5,9 @@ from __future__ import annotations
 from io import StringIO
 from typing import Any, Dict, Iterator, List
 
+import librosa
 import numpy as np
 import pandas as pd
-import torch
-import torchaudio
 
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
@@ -99,9 +98,6 @@ class Subsegmentation(Dataset):
         if self.data_root is None:
             self.data_root = anypath(self.info.split_paths[self.split]).parent
 
-    # -----------------------------
-    # Properties
-    # -----------------------------
     @property
     def columns(self) -> list[str]:
         return list(self._data.columns) if self._data is not None else []
@@ -110,9 +106,6 @@ class Subsegmentation(Dataset):
     def available_splits(self) -> list[str]:
         return list(self.info.split_paths.keys())
 
-    # -----------------------------
-    # Internals
-    # -----------------------------
     def _load(self) -> None:
         if self.split not in self.info.split_paths:
             raise LookupError(
@@ -121,9 +114,6 @@ class Subsegmentation(Dataset):
         location = self.info.split_paths[self.split]
         self._data = pd.read_csv(location, keep_default_na=False, na_values=[""])
 
-    # -----------------------------
-    # Dataset API
-    # -----------------------------
     def __len__(self) -> int:
         if self._data is None:
             raise RuntimeError("No split loaded.")
@@ -146,19 +136,17 @@ class Subsegmentation(Dataset):
         audio, sr = read_audio(audio_path)
         audio = audio_stereo_to_mono(audio, mono_method="average").astype(np.float32)
 
-        # Resample if needed
+        # Resample if necessary
         target_sr = self.sample_rate
         if target_sr is not None and sr != target_sr:
-            audio = torchaudio.functional.resample(
-                torch.tensor(audio),
-                sr,
-                target_sr,
-                lowpass_filter_width=64,
-                rolloff=0.9475937167399596,
-                resampling_method="sinc_interp_kaiser",
-                beta=14.769656459379492,
-            ).numpy()
-            sr = target_sr
+            audio = librosa.resample(
+                y=audio,
+                orig_sr=sr,
+                target_sr=target_sr,
+                scale=True,
+                res_type="kaiser_best",
+            )
+        sr = target_sr
 
         # Selection table
         st = pd.read_csv(StringIO(row["selection_table"]), sep="\t")
@@ -183,9 +171,6 @@ class Subsegmentation(Dataset):
         for i in range(len(self)):
             yield self[i]
 
-    # -----------------------------
-    # Factory
-    # -----------------------------
     @classmethod
     def from_config(cls, dataset_config: DatasetConfig) -> tuple["Subsegmentation", dict[str, Any]]:
         cfg = dataset_config.model_dump(exclude={"dataset_name", "transformations"})
@@ -200,9 +185,6 @@ class Subsegmentation(Dataset):
             return ds, meta
         return ds, {}
 
-    # -----------------------------
-    # Convenience
-    # -----------------------------
     def get_available_labels(self, anno_column: str) -> List[str]:
         """
         Return all possible labels for a given annotation column
@@ -227,15 +209,3 @@ class Subsegmentation(Dataset):
             f"License: {self.info.license}\n"
             f"Available splits: {', '.join(self.info.split_paths.keys())}"
         )
-
-
-if __name__ == "__main__":
-    ds = Subsegmentation()
-
-    sample = ds[100]
-
-    assert "audio" in sample
-    print(f"Audio shape: {sample['audio'].shape}")
-    st1 = sample["selection_table"]
-    print(st1.head(10))
-    print(sample["pass_qc"])
