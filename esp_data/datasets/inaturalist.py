@@ -40,6 +40,7 @@ class INaturalist(Dataset):
     inaturalist
     >>> sample = dataset[0]
     >>> print(sample.keys())
+    dict_keys(['species'])
     """
 
     info = DatasetInfo(
@@ -115,7 +116,7 @@ class INaturalist(Dataset):
         location = self.info.split_paths[self.split]
         # Read CSV content
         csv_text = read_text(location, encoding="utf-8")
-        self._data = pd.read_csv(StringIO(csv_text))
+        self._data = pd.read_csv(StringIO(csv_text), low_memory=False)
 
     @classmethod
     def from_config(cls, dataset_config: DatasetConfig) -> tuple["INaturalist", dict[str, Any]]:
