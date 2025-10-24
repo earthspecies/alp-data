@@ -1,0 +1,257 @@
+"""iNaturalist dataset"""
+
+from io import StringIO
+from typing import Any, Dict, Iterator
+
+import librosa
+import numpy as np
+import pandas as pd
+
+from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
+from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio, read_text
+
+
+@register_dataset
+class INaturalist(Dataset):
+    """iNaturalist audio dataset.
+
+    Description
+    -----------
+    iNaturalist is a citizen science platform and biodiversity database
+    containing observations of organisms. This dataset includes audio
+    recordings from iNaturalist with associated metadata about species,
+    locations, and other observation details.
+
+    The dataset contains audio recordings with rich taxonomic information,
+    including species scientific and common names, family, genus, order,
+    and other metadata such as location, date, and recordist information.
+
+    References
+    ----------
+    iNaturalist: https://www.inaturalist.org/
+
+    Examples
+    --------
+    >>> from esp_data.datasets import INaturalist
+    >>> dataset = INaturalist(
+    ...     split="train",
+    ...     output_take_and_give={"canonical_name": "species"}
+    ... )
+    >>> print(dataset.info.name)
+    inaturalist
+    >>> sample = dataset[0]
+    >>> print(sample.keys())
+    """
+
+    info = DatasetInfo(
+        name="inaturalist",
+        owner="david; gagan",
+        split_paths={
+            "train": "gs://esp-ml-datasets/inaturalist/v0.1.0/raw/metadata.csv",
+        },
+        version="0.1.0",
+        description="iNaturalist audio dataset with taxonomic metadata",
+        sources=["iNaturalist"],
+        license="CC BY",
+    )
+
+    def __init__(
+        self,
+        split: str = "train",
+        output_take_and_give: dict[str, str] = None,
+        sample_rate: int | None = None,
+        data_root: str | AnyPathT | None = None,
+    ) -> None:
+        """Initialize the iNaturalist dataset.
+
+        Parameters
+        ----------
+        split : str, default="train"
+            The split to load. One of info.split_paths keys.
+        output_take_and_give : dict[str, str], optional
+            A dictionary mapping the original column names to the new column names.
+        sample_rate : int, optional
+            The sample rate to which audio files should be resampled. If None, audio
+            is returned at its original sample rate.
+        data_root : str | AnyPathT, optional
+            The root directory for the dataset. This is prepended to the local_path
+            column value to construct the full path to audio files. If None, defaults
+            to the GCS bucket path for this dataset.
+        """
+        super().__init__(output_take_and_give)
+        self.split = split
+        self._data: pd.DataFrame = None
+        self._load()
+        self.sample_rate = sample_rate
+
+        if data_root is None:
+            self.data_root = anypath("gs://esp-ml-datasets/inaturalist/v0.1.0/raw/")
+        else:
+            self.data_root = data_root
+
+    @property
+    def columns(self) -> list[str]:
+        """Return the columns of the dataset."""
+        return list(self._data.columns)
+
+    @property
+    def available_splits(self) -> list[str]:
+        """Return the available splits of the dataset."""
+        return list(self.info.split_paths.keys())
+
+    def _load(self) -> None:
+        """Load the dataset.
+
+        Raises
+        ------
+        LookupError
+            If the split is not valid.
+        """
+        if self.split not in self.info.split_paths:
+            raise LookupError(
+                f"Invalid split: {self.split}."
+                "Expected one of {list(self.info.split_paths.keys())}"
+            )
+
+        location = self.info.split_paths[self.split]
+        # Read CSV content
+        csv_text = read_text(location, encoding="utf-8")
+        self._data = pd.read_csv(StringIO(csv_text))
+
+    @classmethod
+    def from_config(cls, dataset_config: DatasetConfig) -> tuple["INaturalist", dict[str, Any]]:
+        """Create a Dataset instance from a configuration dictionary.
+
+        Parameters
+        ----------
+        dataset_config : DatasetConfig
+            Configuration dictionary containing dataset parameters.
+
+        Returns
+        -------
+        tuple[Dataset, dict[str, Any]]
+            A tuple containing the dataset instance and metadata.
+            If the dataset_config contains transformations, they will be applied
+            and the metadata will be returned as dict, otherwise an empty dict.
+        """
+        cfg = dataset_config.model_dump(exclude={"dataset_name", "transformations"})
+
+        ds = cls(
+            split=cfg["split"],
+            output_take_and_give=cfg["output_take_and_give"],
+            data_root=cfg["data_root"],
+            sample_rate=cfg["sample_rate"],
+        )
+
+        if dataset_config.transformations:
+            transform_metadata = ds.apply_transformations(dataset_config.transformations)
+            return ds, transform_metadata
+
+        return ds, {}
+
+    def __len__(self) -> int:
+        """Return the number of samples in the dataset.
+
+        Returns
+        -------
+        int
+            Number of samples in the current split.
+
+        Raises
+        ------
+        RuntimeError
+            If no split has been loaded yet.
+        """
+        if self._data is None:
+            raise RuntimeError("No split has been loaded yet. Call _load() first.")
+        return len(self._data)
+
+    def __getitem__(self, idx: int) -> dict[str, Any]:
+        """Get a specific sample from the dataset.
+
+        This method loads the audio file for the given index, processes it
+        (converting to mono, resampling if needed), and returns it along with
+        the metadata from the CSV file.
+
+        Parameters
+        ----------
+        idx : int
+            Index of the sample to get.
+
+        Returns
+        -------
+        dict[str, Any]
+            A dictionary containing the audio data and metadata. The audio data
+            is stored under the 'audio' key as a 1D numpy array of float32 values.
+            Other keys contain metadata from the CSV file (e.g., 'canonical_name',
+            'species_scientific', 'family', 'genus', 'order', etc.).
+
+            If `output_take_and_give` was specified, only the mapped columns will
+            be present in the output dictionary.
+
+        Raises
+        ------
+        IndexError
+            If the index is out of bounds.
+        """
+        if idx >= len(self._data):
+            raise IndexError(f"Index {idx} out of bounds for dataset of length {len(self._data)}.")
+
+        row = self._data.iloc[idx].to_dict()
+
+        # Construct audio path from data_root and local_path
+        audio_path = anypath(self.data_root) / row["local_path"]
+
+        audio, sr = read_audio(audio_path)
+        audio = audio.astype(np.float32)
+        audio = audio_stereo_to_mono(audio, mono_method="average")
+
+        if self.sample_rate is not None and sr != self.sample_rate:
+            audio = librosa.resample(
+                y=audio,
+                orig_sr=sr,
+                target_sr=self.sample_rate,
+                scale=True,
+                res_type="kaiser_best",
+            )
+
+        row["audio"] = audio
+
+        if self.output_take_and_give:
+            item = {}
+            for key, value in self.output_take_and_give.items():
+                item[value] = row[key]
+        else:
+            item = row
+
+        return item
+
+    def __iter__(self) -> Iterator[Dict[str, Any]]:
+        """Iterate over samples in the dataset.
+
+        Yields
+        -------
+        Dict[str, Any]
+            Each sample in the dataset.
+        """
+        for idx in range(len(self)):
+            yield self[idx]
+
+    def __str__(self) -> str:
+        """Return a string representation of the dataset.
+
+        Returns
+        -------
+        str
+            A string representation of the dataset including its name, version,
+            and basic statistics if data is loaded.
+        """
+        base_info = f"{self.info.name} (v{self.info.version})"
+
+        return (
+            f"{base_info}\n"
+            f"Description: {self.info.description}\n"
+            f"Sources: {', '.join(self.info.sources)}\n"
+            f"License: {self.info.license}\n"
+            f"Available splits: {', '.join(self.info.split_paths.keys())}"
+        )

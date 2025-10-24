@@ -7,11 +7,13 @@ from .birdset import BirdSet
 from .chiffchaff_id import ChiffchaffId
 from .esp_raincoast import ESPRaincoast
 from .giant_otters import GiantOtters
+from .inaturalist import INaturalist
 from .insectset_459 import InsectSet459
 from .littleowl_id import LittleOwlId
 from .macaques_coo_calls import MacaquesCooCalls
 from .pipit_id import PipitId
 from .voxaboxen import Voxaboxen, VoxaboxenEvents
+from .xeno_canto import XenoCanto
 from .zebra_finch_julie_elie import ZebraFinchJulieElie
 
 __all__ = [
@@ -19,6 +21,7 @@ __all__ = [
     "BarkleyCanyon",
     "BarkleyCanyonDetection",
     "GiantOtters",
+    "INaturalist",
     "InsectSet459",
     "Beans",
     "ZebraFinchJulieElie",
@@ -32,4 +35,5 @@ __all__ = [
     "Voxaboxen",
     "VoxaboxenEvents",
     "ESPRaincoast",
+    "XenoCanto",
 ]
