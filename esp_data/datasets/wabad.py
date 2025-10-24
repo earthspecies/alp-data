@@ -6,10 +6,9 @@ from functools import partial
 from io import StringIO
 from typing import Any, Dict, Iterator, List
 
+import librosa
 import numpy as np
 import pandas as pd
-import torch
-import torchaudio
 
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
@@ -175,21 +174,16 @@ class WABAD(Dataset):
         audio, sr = read_audio(audio_path)
         audio = audio_stereo_to_mono(audio, mono_method="average").astype(np.float32)
 
-        # Resample if needed
-        # This is designed to match librosa's resampling (but faster), see
-        # https://docs.pytorch.org/audio/stable/tutorials/audio_resampling_tutorial.html
         target_sr = self.sample_rate
         if target_sr is not None and sr != target_sr:
-            audio = torchaudio.functional.resample(
-                torch.tensor(audio),
-                sr,
-                target_sr,
-                lowpass_filter_width=64,
-                rolloff=0.9475937167399596,
-                resampling_method="sinc_interp_kaiser",
-                beta=14.769656459379492,
-            ).numpy()
-            sr = target_sr
+            audio = librosa.resample(
+                y=audio,
+                orig_sr=sr,
+                target_sr=target_sr,
+                scale=True,
+                res_type="kaiser_best",
+            )
+        sr = target_sr
 
         # Selection table
         st = pd.read_csv(StringIO(row["selection_table_str"]), sep="\t")

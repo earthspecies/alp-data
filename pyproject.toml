@@ -16,8 +16,6 @@ dependencies = [
     "s3fs>=2024.9.0",
     "semver",
     "soundfile>=0.13.1",
-    "torch>=2.8.0",
-    "torchaudio>=2.8.0",
 ]
 
 [dependency-groups]
@@ -103,16 +101,3 @@ ignore = ["DEP003"]
 
 [tool.deptry.per_rule_ignores]
 DEP002 = ["resampy"]
-
-[tool.uv.sources]
-torch = [
-    { index = "pytorch-cpu" },
-]
-torchaudio = [
-    { index = "pytorch-cpu" },
-]
-
-[[tool.uv.index]]
-name = "pytorch-cpu"
-url = "https://download.pytorch.org/whl/cpu"
-explicit = true
