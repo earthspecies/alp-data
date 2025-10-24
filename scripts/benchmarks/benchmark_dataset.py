@@ -28,7 +28,7 @@ def build_raw_dataset(config_path: Path, data_location: str) -> Dataset:
 
     Parameters
     ----------
-    config : Path
+    config_path : Path
         The run configuration containing dataset and model specifications.
 
     Returns
