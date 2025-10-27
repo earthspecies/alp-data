@@ -221,6 +221,7 @@ def main() -> None:
 
     # 2) Iterate QC
     print("QC")
+    df = pd.read_csv(args.out_fp)
     qc_df = iterate_qc(df, data_root)
     qc_fp = "powdermill_qc_report.csv"
     qc_df.to_csv(qc_fp, index=False)
