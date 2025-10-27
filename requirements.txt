@@ -58,6 +58,7 @@ pydantic==2.11.5
 pydantic-core==2.33.2
 python-dateutil==2.9.0.post0
 pytz==2025.2
+pyyaml==6.0.2
 requests==2.32.3
 requests-oauthlib==2.0.0
 resampy==0.4.3
