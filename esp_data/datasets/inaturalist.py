@@ -1,6 +1,5 @@
 """iNaturalist dataset"""
 
-from io import StringIO
 from typing import Any, Dict, Iterator
 
 import librosa
@@ -8,7 +7,7 @@ import numpy as np
 import pandas as pd
 
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
-from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio, read_text
+from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
 
 
 @register_dataset
@@ -26,12 +25,48 @@ class INaturalist(Dataset):
     There is additional metadata including location, date, and recordist information.
     The current version 0.1.0 includes iNaturalist data up to July 2025.
 
+    Available Metadata Fields
+    -------------------------
+    **Taxonomic Information:**
+        - ``canonical_name``: Canonical species name (primary identifier)
+        - ``species_scientific``: Scientific species name
+        - ``species_common``: Common name for the species
+        - ``genus``, ``family``, ``order``, ``class``, ``phylum``: Taxonomic hierarchy
+        - ``gbifID``: GBIF (Global Biodiversity Information Facility) identifier
+
+    **Audio File Paths:**
+        - ``originals_path``: Path to original audio (variable sample rate)
+        - ``32khz_path``: Path to pre-resampled 32kHz audio
+
+    **Recording Metadata:**
+        - ``eventDate``, ``eventTime``: When the recording was made
+        - ``lifeStage``, ``sex``, ``behavior``: Biological context
+
+    **Location:**
+        - ``latitudeDecimal``, ``longitudeDecimal``: GPS coordinates
+        - ``country``, ``locality``: Geographic location names
+        - ``verbatimElevation``: Elevation information
+
+    **Rights & Attribution:**
+        - ``recordist``: Person who made the recording
+        - ``rightsHolder``: Copyright holder
+        - ``license``: License information (e.g., CC BY)
+        - ``url``: Original iNaturalist sound URL
+
+    **Captions (from AnimalSpeak):**
+        - ``caption``, ``caption2``, ``caption3``: Descriptive text captions for the audio:
+            only for the subset drawn from AnimalSpeak.
+
+    **Additional Fields:**
+        - ``fieldNotes``: Observer's notes about the recording
+        - ``source``, ``data_source``: Origin of the data
+        - ``identifier``: iNaturalist observation identifier
+
     References
     ----------
     iNaturalist: https://www.inaturalist.org/
 
     Examples
-    --------
     >>> from esp_data.datasets import INaturalist
     >>> dataset = INaturalist(
     ...     split="train",
@@ -150,9 +185,8 @@ class INaturalist(Dataset):
             )
 
         location = self.info.split_paths[self.split]
-        # Read CSV content
-        csv_text = read_text(location, encoding="utf-8")
-        self._data = pd.read_csv(StringIO(csv_text), low_memory=False)
+        # Read CSV directly from GCS path to avoid memory issues
+        self._data = pd.read_csv(location, low_memory=False)
 
     @classmethod
     def from_config(cls, dataset_config: DatasetConfig) -> tuple["INaturalist", dict[str, Any]]:
