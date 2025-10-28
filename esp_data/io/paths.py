@@ -14,14 +14,13 @@ with Python 3.10+ with minimal version-specific code (only in __init__).
 from __future__ import annotations
 
 import fnmatch
+import os
 import posixpath
 import re
-import sys
 from pathlib import Path, PurePath
 from typing import Any, TypeAlias
 
 # Python 3.12+ added __init__() to PurePath; 3.10/3.11 only use __new__()
-_PY312_PLUS = sys.version_info >= (3, 12)
 
 
 class _CloudFlavour:
@@ -300,46 +299,6 @@ class PureCloudPath(PurePath):
 
         return super().__new__(cls, *args)
 
-    def __init__(self, *args: Any) -> None:  # noqa: ANN401
-        """Initialize path, with special handling for absolute path joining.
-
-        In Python 3.12+, when joining paths like `bucket_path / "/absolute"`,
-        we want the absolute path to replace the path after the bucket, not
-        append to it. This mimics POSIX behavior where absolute paths replace.
-        """
-        # Python 3.12+ has __init__(), but 3.10/3.11 only use __new__()
-        if _PY312_PLUS:
-            super().__init__(*args)
-
-            # Python 3.12+ uses _raw_paths for lazy parsing
-            paths = self._raw_paths
-            if len(paths) > 1:
-                # Check for absolute path joining
-                result_paths = [paths[0]]
-                for path in paths[1:]:
-                    if isinstance(path, str) and path.startswith("/"):
-                        # Joining with an absolute path - should replace path after bucket
-                        prev = result_paths[-1]
-                        if isinstance(prev, str) and self.cloud_prefix in prev:
-                            # Extract the bucket/drive from the previous path
-                            drv, _, _ = self._flavour.splitroot(prev)
-                            if drv:
-                                # Replace: bucket + new absolute path
-                                result_paths = [drv + path]
-                                continue
-                    result_paths.append(path)
-
-                # Update _raw_paths and clear cached attributes
-                if result_paths != paths:
-                    self._raw_paths = result_paths
-                    # Clear any cached parsing
-                    if hasattr(self, "_drv"):
-                        delattr(self, "_drv")
-                    if hasattr(self, "_root"):
-                        delattr(self, "_root")
-                    if hasattr(self, "_tail_cached"):
-                        delattr(self, "_tail_cached")
-
     @property
     def bucket(self) -> str:
         """Extract the bucket name from the cloud path.
@@ -373,6 +332,27 @@ class PureCloudPath(PurePath):
         if not self.is_absolute():
             raise ValueError("relative path can't be expressed as a file URI")
         return str(self)
+
+    # Ensure absolute subpaths (like "/abs") replace the path portion but keep the drive
+    # across Python versions (not relying on private internals in 3.12+).
+    def joinpath(self, *args: Any) -> PureCloudPath:  # noqa: ANN401
+        current: PureCloudPath = self
+        for arg in args:
+            # Convert pathlikes to strings similar to pathlib
+            if isinstance(arg, PurePath):
+                a_str = str(arg)
+            else:
+                a_str = os.fspath(arg)  # type: ignore[arg-type]
+            if isinstance(a_str, str) and a_str.startswith("/"):
+                # Replace path after bucket with absolute subpath, keeping drive
+                current = type(self)(current.drive + a_str)
+            else:
+                # Delegate to base PurePath join for relative segments
+                current = PurePath.joinpath(current, a_str)  # type: ignore[assignment]
+        return current
+
+    def __truediv__(self, key: Any) -> PureCloudPath:  # noqa: ANN401
+        return self.joinpath(key)
 
 
 _s3_flavour = _CloudFlavour(scheme="s3://")
