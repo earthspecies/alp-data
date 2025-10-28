@@ -99,17 +99,15 @@ class PureCloudPath:
         if not path:
             raise ValueError(f"Path must start with '{self.cloud_prefix}': ")
 
-        # Allow patterns for glob matching
         is_pattern = any(c in path for c in ["*", "?", "["])
         if is_pattern:
-            return
+            raise ValueError(f"Glob patterns are not supported: {path}")
 
         # Reject absolute POSIX paths (starting with /) from direct construction.
-        # Note: They are still used internally for "absolute within bucket" path joining.
+        # They are still used internally for "absolute within bucket" path joining.
         if path.startswith("/"):
             raise ValueError(f"Path must start with '{self.cloud_prefix}': {path}")
 
-        # Check for wrong cloud schemes - all cloud paths must start with cloud_prefix
         if not path.startswith(self.cloud_prefix):
             raise ValueError(f"Path must start with '{self.cloud_prefix}': {path}")
 
@@ -200,8 +198,8 @@ class PureCloudPath:
             else:
                 return other
 
-        # If other starts with a cloud prefix, return it
-        if any(other.startswith(scheme) for scheme in ["gs://", "s3://", "r2://"]):
+        # If other looks like a URI (contains ://), return it as absolute replacement
+        if "://" in other:
             return other
 
         # Otherwise, append as relative path
@@ -242,12 +240,21 @@ class PureCloudPath:
 
         Returns:
             A new path with the segments joined.
+
+        Raises:
+            ValueError: If other is a URI with an incompatible scheme.
         """
         if isinstance(other, (PureCloudPath, os.PathLike)):
             other = os.fspath(other)
 
         if not isinstance(other, str):
             return NotImplemented
+
+        # Validate that if other is a URI, it matches our scheme
+        if "://" in other and not other.startswith(self.cloud_prefix):
+            raise ValueError(
+                f"Cannot join {self.cloud_prefix} path with {other}: incompatible cloud schemes"
+            )
 
         new_path = self._join_paths(self._path, other)
 
@@ -790,10 +797,6 @@ class PureCloudPath:
                     return False
 
         return True
-
-
-# Register with os.PathLike for better compatibility
-os.PathLike.register(PureCloudPath)
 
 
 class _ParentsSequence:
