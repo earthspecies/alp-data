@@ -45,8 +45,6 @@ class INaturalist(Dataset):
     >>> dataset_32k = INaturalist(split="train", sample_rate=32000)
     >>> # Load with on-the-fly resampling to 16kHz from original (variable rate) files
     >>> dataset_16k = INaturalist(split="train", sample_rate=16000)
-    >>> sample = dataset[0]
-    >>> print(sample.keys())
     """
 
     info = DatasetInfo(
