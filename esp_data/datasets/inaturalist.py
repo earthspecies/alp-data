@@ -21,9 +21,10 @@ class INaturalist(Dataset):
     containing observations of organisms. This dataset includes audio
     recordings from iNaturalist with associated metadata about species,
     locations, and other observation details. Recordings are linked to taxonomic information
-    following esp's taxonomy app (GBIF backbone),
+    following ESP's taxonomy app (GBIF backbone),
     including species scientific and common names, family, genus, order.
     There is additional metadata including location, date, and recordist information.
+    The current version 0.1.0 includes iNaturalist data up to July 2025.
 
     References
     ----------
@@ -38,22 +39,37 @@ class INaturalist(Dataset):
     ... )
     >>> print(dataset.info.name)
     inaturalist
+    >>> print(dataset.available_sample_rates)
+    [32000]
+    >>> # Load with pre-resampled 32kHz audio (no on-the-fly resampling needed)
+    >>> dataset_32k = INaturalist(split="train", sample_rate=32000)
+    >>> # Load with on-the-fly resampling to 16kHz from original (variable rate) files
+    >>> dataset_16k = INaturalist(split="train", sample_rate=16000)
     >>> sample = dataset[0]
     >>> print(sample.keys())
-    dict_keys(['species'])
     """
 
     info = DatasetInfo(
         name="inaturalist",
-        owner="david; gagan",
+        owner="gagan; david",
         split_paths={
             "train": "gs://esp-ml-datasets/inaturalist/v0.1.0/raw/metadata.csv",
         },
         version="0.1.0",
-        description="iNaturalist audio dataset with taxonomic metadata",
+        description="iNaturalist audio dataset with taxonomic metadata. "
+        "Available at original (variable) sample rates and 32kHz (pre-resampled). "
+        "Pre-resampled audio uses librosa's kaiser_best resampling method.",
         sources=["iNaturalist"],
         license="CC BY",
     )
+
+    # Mapping of sample rates to their corresponding path columns
+    _sample_rate_paths = {
+        32000: "32khz_path",  # Pre-resampled to 32kHz
+    }
+
+    # Column name for original variable-rate audio files
+    _originals_path_column = "originals_path"
 
     def __init__(
         self,
@@ -71,8 +87,12 @@ class INaturalist(Dataset):
         output_take_and_give : dict[str, str], optional
             A dictionary mapping the original column names to the new column names.
         sample_rate : int, optional
-            The sample rate to which audio files should be resampled. If None, audio
-            is returned at its original sample rate.
+            The sample rate to which audio files should be resampled. If the requested
+            sample rate is available as pre-resampled audio (see `available_sample_rates`),
+            the pre-resampled version will be loaded directly. Otherwise, audio will be
+            resampled on-the-fly from the original files (at variable sample rates) using
+            librosa's kaiser_best method. If None, audio is returned at its original
+            (variable) sample rate.
         data_root : str | AnyPathT, optional
             The root directory for the dataset. This is prepended to the local_path
             column value to construct the full path to audio files. If None, defaults
@@ -98,6 +118,24 @@ class INaturalist(Dataset):
     def available_splits(self) -> list[str]:
         """Return the available splits of the dataset."""
         return list(self.info.split_paths.keys())
+
+    @property
+    def available_sample_rates(self) -> list[int]:
+        """Return the available pre-resampled sample rates.
+
+        Returns
+        -------
+        list[int]
+            List of sample rates (in Hz) for which pre-resampled audio is available.
+            Audio at these sample rates can be loaded directly without on-the-fly resampling.
+            This checks which path columns actually exist in the loaded data.
+        """
+        available = []
+        for sr, path_column in self._sample_rate_paths.items():
+            # Check if the path column exists in the loaded data
+            if path_column in self._data.columns:
+                available.append(sr)
+        return available
 
     def _load(self) -> None:
         """Load the dataset.
@@ -199,21 +237,37 @@ class INaturalist(Dataset):
 
         row = self._data.iloc[idx].to_dict()
 
-        # Construct audio path from data_root and local_path
-        audio_path = anypath(self.data_root) / row["local_path"]
+        # Determine which path column to use based on requested sample rate
+        # If a pre-resampled version is available, use it; otherwise resample on-the-fly
+        use_presampled = False
+        if self.sample_rate is not None and self.sample_rate in self._sample_rate_paths:
+            path_column = self._sample_rate_paths[self.sample_rate]
+            # Check if the pre-resampled path column exists in the data
+            if path_column in row and pd.notna(row[path_column]):
+                # Use pre-resampled audio
+                audio_path = anypath(self.data_root) / row[path_column]
+                use_presampled = True
 
-        audio, sr = read_audio(audio_path)
-        audio = audio.astype(np.float32)
-        audio = audio_stereo_to_mono(audio, mono_method="average")
+        if use_presampled:
+            audio, sr = read_audio(audio_path)
+            audio = audio.astype(np.float32)
+            audio = audio_stereo_to_mono(audio, mono_method="average")
+            # Audio is already at the correct sample rate, no resampling needed
+        else:
+            # Use original variable-rate files and resample on-the-fly if needed
+            audio_path = anypath(self.data_root) / row[self._originals_path_column]
+            audio, sr = read_audio(audio_path)
+            audio = audio.astype(np.float32)
+            audio = audio_stereo_to_mono(audio, mono_method="average")
 
-        if self.sample_rate is not None and sr != self.sample_rate:
-            audio = librosa.resample(
-                y=audio,
-                orig_sr=sr,
-                target_sr=self.sample_rate,
-                scale=True,
-                res_type="kaiser_best",
-            )
+            if self.sample_rate is not None and sr != self.sample_rate:
+                audio = librosa.resample(
+                    y=audio,
+                    orig_sr=sr,
+                    target_sr=self.sample_rate,
+                    scale=True,
+                    res_type="kaiser_best",
+                )
 
         row["audio"] = audio
 
