@@ -13,6 +13,7 @@ from .macaques_coo_calls import MacaquesCooCalls
 from .pipit_id import PipitId
 from .voxaboxen import Voxaboxen, VoxaboxenEvents
 from .wabad import WABAD
+from .xeno_canto_annotated_jeantet_23 import XenoCantoAnnotatedJeantet23
 from .zebra_finch_julie_elie import ZebraFinchJulieElie
 
 __all__ = [
@@ -34,4 +35,5 @@ __all__ = [
     "VoxaboxenEvents",
     "ESPRaincoast",
     "WABAD",
+    "XenoCantoAnnotatedJeantet23",
 ]
