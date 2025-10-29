@@ -1,8 +1,7 @@
 """Integration tests for filesystem operations with path objects.
 
 This module tests the integration between path objects (from paths.py) and
-filesystem operations (from filesystem.py). It does NOT test paths.py directly -
-see test_paths_core.py for core path functionality tests.
+filesystem operations (from filesystem.py).
 """
 
 from pathlib import Path
