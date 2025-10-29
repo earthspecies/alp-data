@@ -38,7 +38,7 @@ class ESPRaincoast(Dataset):
     def __init__(
         self,
         split: str = "full",
-        output_take_and_give: dict[str, str] = None,
+        output_take_and_give: dict[str, str] | None = None,
         sample_rate: int | None = None,
         load_audio_segments: bool = True,
         mono_method: str | None = None,

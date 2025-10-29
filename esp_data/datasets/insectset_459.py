@@ -58,7 +58,7 @@ class InsectSet459(Dataset):
     def __init__(
         self,
         split: str = "train",
-        output_take_and_give: dict[str, str] = None,
+        output_take_and_give: dict[str, str] | None = None,
         sample_rate: int | None = None,
         data_root: str | AnyPathT | None = None,
     ) -> None:
@@ -71,7 +71,7 @@ class InsectSet459(Dataset):
         output_take_and_give : dict[str, str]
             A dictionary mapping the original column names to the new column names.
             It acts as a filter as well.
-        sample_rate : int
+        sample_rate : int | None
             The sample rate to which audio files should be resampled.
         data_root : str | AnyPathT, optional
             The root directory for the dataset. This is optionally appended to the
