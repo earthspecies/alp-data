@@ -189,7 +189,7 @@ class XenoCantoAnnotatedJeantet23(Dataset):
             return ds, meta
         return ds, {}
 
-    def get_available_labels(self, anno_column: str) -> List[str]:
+    def get_available_labels(self, anno_column: str = "Species") -> List[str]:
         """
         Return all possible labels for a given annotation column
 
