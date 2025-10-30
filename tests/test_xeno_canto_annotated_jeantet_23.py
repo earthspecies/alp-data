@@ -7,6 +7,7 @@ Run with:
 
 from __future__ import annotations
 
+import hashlib
 import random
 from typing import List
 
@@ -15,6 +16,29 @@ import pandas as pd
 import pytest
 
 from esp_data.datasets import XenoCantoAnnotatedJeantet23
+
+
+# --- Dataset snapshot ---
+
+# # Code to generate snapshot:
+# import hashlib
+# from esp_data.datasets import XenoCantoAnnotatedJeantet23
+# ds = XenoCantoAnnotatedJeantet23(split="all", sample_rate=16000)
+
+# print("len(ds) =", len(ds))
+
+# audio0 = ds[0]["audio"]
+# print("dtype:", audio0.dtype, "shape:", audio0.shape)
+
+# h = hashlib.sha256(audio0.tobytes()).hexdigest()
+# print("sha256:", h)
+
+
+EXPECTED_LEN_ALL = 967  #
+EXPECTED_FIRST_ITEM_AUDIO_SHA256 = (
+    "65fc1372fa64983d4998cf1be43d4469c7770e2f3485c860c654688ea3a3c30b"
+)
+# ---------------------------------------------------------------------------
 
 
 @pytest.fixture(scope="module")
@@ -49,6 +73,60 @@ def test_check_audio(ds: XenoCantoAnnotatedJeantet23, sample_indices: List[int])
         assert not np.any(np.isnan(audio)), f"[{idx}] audio contains NaN values"
         assert not np.all(audio == 0), f"[{idx}] audio is all zeros"
 
+def test_dataset_length_matches_expected(ds: XenoCantoAnnotatedJeantet23):
+    """
+    The dataset length should match the known, version-controlled expectation.
+
+    This will fail loudly if:
+    - the CSV split changed
+    - files went missing
+    - we accidentally filtered/augmented items differently
+
+    If this fails intentionally (e.g. dataset grew), update EXPECTED_LEN_ALL.
+    """
+    assert len(ds) == EXPECTED_LEN_ALL, (
+        f"Dataset length mismatch: got {len(ds)}, expected {EXPECTED_LEN_ALL}. "
+        "If this change is intentional (new data / new filtering), update EXPECTED_LEN_ALL "
+        "in the test."
+    )
+
+def test_reference_item_stability(ds: XenoCantoAnnotatedJeantet23):
+    """
+    Check that a canonical item (index 0) is bitwise-stable.
+
+    We hash the raw float32 audio buffer. This catches:
+    - sample rate changes (resampling -> different samples)
+    - channel handling changes (stereo->mono logic changed)
+    - dtype changes
+    - ordering changes in the split (if a different recording moved to idx 0)
+
+    If this fails for a legitimate/intentional reason, recompute the hash below
+    and update EXPECTED_FIRST_ITEM_AUDIO_SHA256.
+    """
+    # choose deterministic index
+    idx = 0
+    item = ds[idx]
+
+    # audio presence/type checks (defensive, so the hash failure message is clearer)
+    assert "audio" in item, "[0] missing 'audio' key"
+    audio = item["audio"]
+    assert isinstance(audio, np.ndarray), "[0] audio is not a numpy array"
+    assert audio.dtype == np.float32, (
+        f"[0] audio dtype is {audio.dtype}, expected float32"
+    )
+
+    # compute sha256 over raw bytes of the float32 array
+    h = hashlib.sha256(audio.tobytes()).hexdigest()
+
+    assert (
+        h == EXPECTED_FIRST_ITEM_AUDIO_SHA256
+    ), (
+        "First item's audio hash changed.\n"
+        f"Got    {h}\n"
+        f"Expect {EXPECTED_FIRST_ITEM_AUDIO_SHA256}\n\n"
+        "If this is an intentional dataset/content update, "
+        "replace EXPECTED_FIRST_ITEM_AUDIO_SHA256 with the new hash."
+    )
 
 def test_check_selection_table(ds: XenoCantoAnnotatedJeantet23, sample_indices: List[int]):
     """Selection table should be a DataFrame with required columns and sane times."""
