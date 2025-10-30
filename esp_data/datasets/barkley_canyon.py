@@ -57,7 +57,7 @@ class BarkleyCanyon(Dataset):
     def __init__(
         self,
         split: str = "train",
-        output_take_and_give: dict[str, str] = None,
+        output_take_and_give: dict[str, str] | None = None,
         sample_rate: int | None = None,
         data_root: str | AnyPathT | None = None,
     ) -> None:
@@ -307,7 +307,7 @@ class BarkleyCanyonDetection(Dataset):
     def __init__(
         self,
         split: str = "train",
-        output_take_and_give: dict[str, str] = None,
+        output_take_and_give: dict[str, str] | None = None,
         sample_rate: int | None = None,
         data_root: str | AnyPathT | None = None,
     ) -> None:
