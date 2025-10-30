@@ -197,9 +197,11 @@ class Powdermill(Dataset):
             return ds, meta
         return ds, {}
 
-    def get_available_labels(self, anno_column: str) -> List[str]:
+    def get_available_labels(self, anno_column: str = "Species") -> List[str]:
         """
         Return all possible labels for a given annotation column
+        anno_column is included as an optional argument for consistency
+        with other detection datasets.
 
         Returns
         ---------
