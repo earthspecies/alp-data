@@ -68,7 +68,7 @@ class Powdermill(Dataset):
         name="powdermill",
         owner="benjamin",
         split_paths={
-            "all": "gs://fewshot/evaluation/raw/Powdermill/all_gbif.csv",
+            "all": "gs://esp-ml-datasets/powdermill/all_gbif.csv",
         },
         version="0.1.0",
         description="[MISSING]",
