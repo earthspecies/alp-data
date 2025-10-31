@@ -71,7 +71,7 @@ class AnuraSetStrong(Dataset):
         version="0.1.0",
         description="[MISSING]",
         sources="Zenodo",
-        license="Public Domain",
+        license="CC BY 1.0",
     )
 
     def __init__(
