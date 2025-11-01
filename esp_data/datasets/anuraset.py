@@ -198,10 +198,56 @@ class AnuraSetStrong(Dataset):
         ---------
         A list of all the available labels for anno_column
         """
-        available_labels = set()
-        for _, row in self._data.iterrows():
-            st = pd.read_csv(StringIO(row["selection_table"]), sep="\t")
-            available_labels.update(st[anno_column].astype(str).tolist())
+        # available_labels = set()
+        # for _, row in self._data.iterrows():
+        #     st = pd.read_csv(StringIO(row["selection_table"]), sep="\t")
+        #     available_labels.update(st[anno_column].astype(str).tolist())
+
+        available_labels = [
+            "Adenomera diptyx",
+            "Adenomera marmorata",
+            "Ameerega picta",
+            "Boana albomarginata",
+            "Boana albopunctata",
+            "Boana bischoffi",
+            "Boana faber",
+            "Boana leptolineata",
+            "Boana lundii",
+            "Boana prasina",
+            "Boana raniceps",
+            "Dendropsophus cruzi",
+            "Dendropsophus elegans",
+            "Dendropsophus minutus",
+            "Dendropsophus nahdereri",
+            "Dendropsophus nanus",
+            "Elachistocleis bicolor",
+            "Elachistocleis matogrosso",
+            "Leptodactylus elenae",
+            "Leptodactylus flavopictus",
+            "Leptodactylus fuscus",
+            "Leptodactylus labyrinthicus",
+            "Leptodactylus latrans",
+            "Leptodactylus notoaktites",
+            "Leptodactylus podicipinus",
+            "Ololygon rizibilis",
+            "Phyllomedusa distincta",
+            "Phyllomedusa sauvagii",
+            "Physalaemus albonotatus",
+            "Physalaemus cuvieri",
+            "Physalaemus marmoratus",
+            "Physalaemus nattereri",
+            "Pithecopus azureus",
+            "Rhinella icterica",
+            "Rhinella ornata",
+            "Rhinella scitula",
+            "Scinax alter",
+            "Scinax fuscomarginatus",
+            "Scinax fuscovarius",
+            "Scinax nasicus",
+            "Scinax perereca",
+            "Sphaenorhynchus surdus",
+        ]
+
         return sorted(available_labels)
 
     def __str__(self) -> str:

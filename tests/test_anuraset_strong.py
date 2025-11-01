@@ -33,13 +33,21 @@ from esp_data.datasets import AnuraSetStrong
 # h = hashlib.sha256(audio0.tobytes()).hexdigest()
 # print("sha256:", h)
 
+# csv_bytes = ds._data.sort_index(axis=0).sort_index(axis=1).to_csv(index=True).encode("utf-8")
+# h = hashlib.sha256(csv_bytes).hexdigest()
+
+# print("annotations sha256:", h)
+
 # quit()
-# #
+# # #
 
 EXPECTED_LEN_ALL = 1612  #
 EXPECTED_FIRST_ITEM_AUDIO_SHA256 = (
     "6e98829b2da865344782fd378ae3e325d74a76cd534d81bcda9786f68c2d044d"
 )
+ANNOTATIONS_SHA256 = (
+    "8ec012bcb1143c05c7fba44a539618a4f4fd031f2581653ffad983a6e63203eb"
+    )
 # ---------------------------------------------------------------------------
 
 
@@ -104,6 +112,8 @@ def test_reference_item_stability(ds: AnuraSetStrong):
 
     If this fails for a legitimate/intentional reason, recompute the hash below
     and update EXPECTED_FIRST_ITEM_AUDIO_SHA256.
+
+    We do the same for the annotations csv.
     """
     # choose deterministic index
     idx = 0
@@ -129,6 +139,22 @@ def test_reference_item_stability(ds: AnuraSetStrong):
         "If this is an intentional dataset/content update, "
         "replace EXPECTED_FIRST_ITEM_AUDIO_SHA256 with the new hash."
     )
+
+    # compute sha256 over raw bytes of the float32 array of annotations
+    csv_bytes = ds._data.sort_index(axis=0).sort_index(axis=1).to_csv(index=True).encode("utf-8")
+    h = hashlib.sha256(csv_bytes).hexdigest()
+
+    assert (
+        h == ANNOTATIONS_SHA256
+    ), (
+        "Annotation's hash changed.\n"
+        f"Got    {h}\n"
+        f"Expect {ANNOTATIONS_SHA256}\n\n"
+        "If this is an intentional dataset/content update, "
+        "replace EXPECTED_FIRST_ITEM_AUDIO_SHA256 with the new hash."
+    )
+
+
 
 def test_check_selection_table(ds: AnuraSetStrong, sample_indices: List[int]):
     """Selection table should be a DataFrame with required columns and sane times."""
