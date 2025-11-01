@@ -3,6 +3,7 @@ from .audioset import AudioSet
 from .barkley_canyon import BarkleyCanyon, BarkleyCanyonDetection
 from .beans import Beans
 from .bengalese_finch_calls import BengaleseFinchCalls
+from .birdeep import Birdeep
 from .birdset import BirdSet
 from .chiffchaff_id import ChiffchaffId
 from .esp_raincoast import ESPRaincoast
@@ -36,4 +37,5 @@ __all__ = [
     "ESPRaincoast",
     "WABAD",
     "Powdermill",
+    "Birdeep",
 ]
