@@ -33,6 +33,11 @@ from esp_data.datasets import HawaiianBirds
 # h = hashlib.sha256(audio0.tobytes()).hexdigest()
 # print("sha256:", h)
 
+# csv_bytes = ds._data.sort_index(axis=0).sort_index(axis=1).to_csv(index=True).encode("utf-8")
+# h = hashlib.sha256(csv_bytes).hexdigest()
+
+# print("annotations sha256:", h)
+
 # quit()
 # # #
 
@@ -40,6 +45,9 @@ EXPECTED_LEN_ALL = 635  #
 EXPECTED_FIRST_ITEM_AUDIO_SHA256 = (
     "43c7ab6d988a5d329c82b24fe6cfc8642159e3e9809d38db88eff24632d539a3"
 )
+ANNOTATIONS_SHA256 = (
+    "f84030805f8c3987110397d0a82174fdbd88ef5d93a17962dd1c817d65284f3e"
+    )
 # ---------------------------------------------------------------------------
 
 
@@ -126,6 +134,20 @@ def test_reference_item_stability(ds: HawaiianBirds):
         "First item's audio hash changed.\n"
         f"Got    {h}\n"
         f"Expect {EXPECTED_FIRST_ITEM_AUDIO_SHA256}\n\n"
+        "If this is an intentional dataset/content update, "
+        "replace EXPECTED_FIRST_ITEM_AUDIO_SHA256 with the new hash."
+    )
+
+    # compute sha256 over raw bytes of the float32 array of annotations
+    csv_bytes = ds._data.sort_index(axis=0).sort_index(axis=1).to_csv(index=True).encode("utf-8")
+    h = hashlib.sha256(csv_bytes).hexdigest()
+
+    assert (
+        h == ANNOTATIONS_SHA256
+    ), (
+        "Annotation's hash changed.\n"
+        f"Got    {h}\n"
+        f"Expect {ANNOTATIONS_SHA256}\n\n"
         "If this is an intentional dataset/content update, "
         "replace EXPECTED_FIRST_ITEM_AUDIO_SHA256 with the new hash."
     )
