@@ -13,9 +13,42 @@ from typing import List
 import numpy as np
 import pandas as pd
 import pytest
+import hashlib
 
 from esp_data.datasets import Powdermill
 
+
+# --- Dataset snapshot ---
+
+# # Code to generate snapshot:
+# import hashlib
+# from esp_data.datasets import Powdermill
+# ds = Powdermill(split="all", sample_rate=16000)
+
+# print("len(ds) =", len(ds))
+
+# audio0 = ds[0]["audio"]
+# print("dtype:", audio0.dtype, "shape:", audio0.shape)
+
+# h = hashlib.sha256(audio0.tobytes()).hexdigest()
+# print("sha256:", h)
+
+# csv_bytes = ds._data.sort_index(axis=0).sort_index(axis=1).to_csv(index=True).encode("utf-8")
+# h = hashlib.sha256(csv_bytes).hexdigest()
+
+# print("annotations sha256:", h)
+
+# quit()
+# # #
+
+EXPECTED_LEN_ALL = 77  #
+EXPECTED_FIRST_ITEM_AUDIO_SHA256 = (
+    "49a930bce8d86bd4afbfa8d8afbc3ee79429147ef0837cb9cc5778924fb7b2d8"
+)
+ANNOTATIONS_SHA256 = (
+    "80a0f93f01c68d9c042d8757154aa02985129519b3822f8e69435a2bbeb94310"
+    )
+# ---------------------------------------------------------------------------
 
 @pytest.fixture(scope="module")
 def ds() -> Powdermill:
@@ -49,6 +82,60 @@ def test_check_audio(ds: Powdermill, sample_indices: List[int]):
         assert not np.any(np.isnan(audio)), f"[{idx}] audio contains NaN values"
         assert not np.all(audio == 0), f"[{idx}] audio is all zeros"
 
+
+def test_reference_item_stability(ds: Powdermill):
+    """
+    Check that a canonical item (index 0) is bitwise-stable.
+
+    We hash the raw float32 audio buffer. This catches:
+    - sample rate changes (resampling -> different samples)
+    - channel handling changes (stereo->mono logic changed)
+    - dtype changes
+    - ordering changes in the split (if a different recording moved to idx 0)
+
+    If this fails for a legitimate/intentional reason, recompute the hash below
+    and update EXPECTED_FIRST_ITEM_AUDIO_SHA256.
+
+    We do the same for the annotations csv.
+    """
+    # choose deterministic index
+    idx = 0
+    item = ds[idx]
+
+    # audio presence/type checks (defensive, so the hash failure message is clearer)
+    assert "audio" in item, "[0] missing 'audio' key"
+    audio = item["audio"]
+    assert isinstance(audio, np.ndarray), "[0] audio is not a numpy array"
+    assert audio.dtype == np.float32, (
+        f"[0] audio dtype is {audio.dtype}, expected float32"
+    )
+
+    # compute sha256 over raw bytes of the float32 array
+    h = hashlib.sha256(audio.tobytes()).hexdigest()
+
+    assert (
+        h == EXPECTED_FIRST_ITEM_AUDIO_SHA256
+    ), (
+        "First item's audio hash changed.\n"
+        f"Got    {h}\n"
+        f"Expect {EXPECTED_FIRST_ITEM_AUDIO_SHA256}\n\n"
+        "If this is an intentional dataset/content update, "
+        "replace EXPECTED_FIRST_ITEM_AUDIO_SHA256 with the new hash."
+    )
+
+    # compute sha256 over raw bytes of the float32 array of annotations
+    csv_bytes = ds._data.sort_index(axis=0).sort_index(axis=1).to_csv(index=True).encode("utf-8")
+    h = hashlib.sha256(csv_bytes).hexdigest()
+
+    assert (
+        h == ANNOTATIONS_SHA256
+    ), (
+        "Annotation's hash changed.\n"
+        f"Got    {h}\n"
+        f"Expect {ANNOTATIONS_SHA256}\n\n"
+        "If this is an intentional dataset/content update, "
+        "replace EXPECTED_FIRST_ITEM_AUDIO_SHA256 with the new hash."
+    )
 
 def test_check_selection_table(ds: Powdermill, sample_indices: List[int]):
     """Selection table should be a DataFrame with required columns and sane times."""
