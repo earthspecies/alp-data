@@ -67,7 +67,7 @@ class XenoCantoAnnotatedJeantet23(Dataset):
         },
         version="0.1.0",
         description="[MISSING]",
-        sources="Zenodo",
+        sources="XenoCanto",
         license="CC-BY-4.0",
     )
 
