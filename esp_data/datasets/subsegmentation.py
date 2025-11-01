@@ -85,7 +85,6 @@ class Subsegmentation(Dataset):
         """
         super().__init__(output_take_and_give)
         self.split = split
-        self._data: pd.DataFrame | None = None
         self.annotation_columns = ["Species", "Genus", "Family", "Order", "Annotation"]
 
         self.sample_rate = sample_rate
@@ -100,7 +99,7 @@ class Subsegmentation(Dataset):
 
     @property
     def columns(self) -> list[str]:
-        return list(self._data.columns) if self._data is not None else []
+        return list(self._data.columns)
 
     @property
     def available_splits(self) -> list[str]:
@@ -115,13 +114,9 @@ class Subsegmentation(Dataset):
         self._data = pd.read_csv(location, keep_default_na=False, na_values=[""])
 
     def __len__(self) -> int:
-        if self._data is None:
-            raise RuntimeError("No split loaded.")
         return len(self._data)
 
     def __getitem__(self, idx: int) -> dict[str, Any]:
-        if self._data is None:
-            raise RuntimeError("No split loaded.")
         if idx < 0 or idx >= len(self._data):
             raise IndexError(f"Index {idx} out of bounds for dataset length {len(self._data)}")
 
@@ -193,8 +188,6 @@ class Subsegmentation(Dataset):
         ---------
         A list of all the available labels for anno_column
         """
-        if self._data is None:
-            return []
         available_labels = set()
         for _, row in self._data.iterrows():
             st = pd.read_csv(StringIO(row["selection_table_str"]), sep="\t")
