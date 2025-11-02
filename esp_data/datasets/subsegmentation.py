@@ -61,7 +61,7 @@ class Subsegmentation(Dataset):
         version="0.1.0",
         description="[MISSING]",
         sources="Logan James",
-        license="Internal (currently)",
+        license="private",
     )
 
     def __init__(
