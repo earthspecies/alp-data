@@ -11,8 +11,10 @@ from .insectset_459 import InsectSet459
 from .littleowl_id import LittleOwlId
 from .macaques_coo_calls import MacaquesCooCalls
 from .pipit_id import PipitId
+from .powdermill import Powdermill
 from .subsegmentation import Subsegmentation
 from .voxaboxen import Voxaboxen, VoxaboxenEvents
+from .wabad import WABAD
 from .zebra_finch_julie_elie import ZebraFinchJulieElie
 
 __all__ = [
@@ -34,4 +36,6 @@ __all__ = [
     "VoxaboxenEvents",
     "ESPRaincoast",
     "Subsegmentation",
+    "WABAD",
+    "Powdermill",
 ]
