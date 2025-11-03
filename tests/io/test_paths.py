@@ -4,6 +4,7 @@ This module tests the integration between path objects (from paths.py) and
 filesystem operations (from filesystem.py).
 """
 
+import uuid
 from pathlib import Path
 
 import pytest
@@ -23,8 +24,8 @@ def test_anypath_local_path_with_file_operations():
 @pytest.mark.parametrize(
     "cloud_path",
     [
-        "gs://esp-ci-cd-tests/esp-data-tests/file1.txt",
-        "r2://esp-ci-cd-tests/esp-data-tests/file1.txt",
+        f"gs://esp-ci-cd-tests/esp-data-tests/test-{uuid.uuid4()}.txt",
+        f"r2://esp-ci-cd-tests/esp-data-tests/test-{uuid.uuid4()}.txt",
     ],
 )
 def test_cloud_filesystem_operations(cloud_path):
