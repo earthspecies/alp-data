@@ -362,13 +362,52 @@ class TestPureGSPath:
         joined = base / "/absolute/path"
         assert str(joined) == "gs://my-bucket/absolute/path"
 
+    def test_gs_parents_property(self):
+        """Test parents property returns correct hierarchy and tests _ParentsSequence."""
+        # Test with deep path structure
+        path = PureGSPath("gs://my-bucket/a/b/c/file.txt")
+        parents = path.parents
+
+        # Check length via __len__
+        assert len(parents) == 4
+
+        # Check each parent in sequence via __getitem__
+        assert str(parents[0]) == "gs://my-bucket/a/b/c"
+        assert str(parents[1]) == "gs://my-bucket/a/b"
+        assert str(parents[2]) == "gs://my-bucket/a"
+        assert str(parents[3]) == "gs://my-bucket/"
+
+        # Test iteration over parents (uses __iter__)
+        parent_list = list(parents)
+        assert len(parent_list) == 4
+        assert str(parent_list[0]) == "gs://my-bucket/a/b/c"
+        assert str(parent_list[-1]) == "gs://my-bucket/"
+
+        # Test out of bounds index
+        with pytest.raises(IndexError, match="index out of range"):
+            _ = parents[4]
+
+        # Test with shallow path
+        shallow_path = PureGSPath("gs://my-bucket/file.txt")
+        shallow_parents = shallow_path.parents
+        assert len(shallow_parents) == 1
+        assert str(shallow_parents[0]) == "gs://my-bucket/"
+
+        # Test with bucket root - should have no parents
+        root_path = PureGSPath("gs://my-bucket/")
+        root_parents = root_path.parents
+        assert len(root_parents) == 0
+
+        # Test __repr__
+        assert "PureGSPath.parents" in repr(parents)
+
 
 class TestEdgeCases:
     """Test edge cases and error conditions."""
 
     def test_cloud_path_with_empty_string(self):
         """Test cloud path creation with empty string raises ValueError."""
-        with pytest.raises(ValueError, match="Path must start with 'gs://': "):
+        with pytest.raises(ValueError, match="Path is empty"):
             PureGSPath("")
 
     def test_cloud_path_with_none(self):
