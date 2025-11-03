@@ -377,7 +377,7 @@ class TestEdgeCases:
 
     def test_cloud_path_with_empty_string(self):
         """Test cloud path creation with empty string raises ValueError."""
-        with pytest.raises(ValueError, match="Path must start with 'gs://': "):
+        with pytest.raises(ValueError, match="Path is empty"):
             PureGSPath("")
 
     def test_cloud_path_with_none(self):
