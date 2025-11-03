@@ -97,7 +97,7 @@ class PureCloudPath:
             ValueError: If the path is invalid for this cloud type.
         """
         if not path:
-            raise ValueError(f"Path must start with '{self.cloud_prefix}': ")
+            raise ValueError("Path is empty")
 
         is_pattern = any(c in path for c in ["*", "?", "["])
         if is_pattern:
