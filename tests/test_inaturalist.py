@@ -1,10 +1,23 @@
 """Test suite for the iNaturalist dataset."""
 
+import hashlib
+
+import numpy as np
 import pytest
 
 from esp_data.datasets import INaturalist
 from esp_data import Dataset, DatasetConfig
 from esp_data.io import anypath
+
+# Expected SHA256 hash of the first item's audio (index 0) at default (variable) sample rate
+# This ensures bitwise stability of the dataset over time.
+# If this hash changes unexpectedly, it indicates a change in:
+# - The audio file itself
+# - Sample rate handling
+# - Channel mixing logic (stereo->mono)
+# - Data type conversion
+# - Dataset ordering
+EXPECTED_FIRST_ITEM_AUDIO_SHA256 = "804d45aafc783c3e08d25c716d299c338ced073245dd07a92d62b2797c105303"
 
 
 @pytest.fixture
@@ -403,3 +416,40 @@ def test_on_the_fly_resampling() -> None:
     assert len(sample["audio"].shape) == 1  # Should be 1D for mono
 
     print(f"✓ Successfully loaded and resampled audio on-the-fly to 22050 Hz")
+
+
+def test_reference_item_stability() -> None:
+    """Check that a canonical item (index 0) is bitwise-stable.
+
+    We hash the raw float32 audio buffer. This catches:
+    - sample rate changes (resampling -> different samples)
+    - channel handling changes (stereo->mono logic changed)
+    - dtype changes
+    - ordering changes in the split (if a different recording moved to idx 0)
+
+    If this fails for a legitimate/intentional reason, recompute the hash below
+    and update EXPECTED_FIRST_ITEM_AUDIO_SHA256.
+    """
+    # Load dataset at default (variable) sample rate - no resampling
+    ds = INaturalist(split="train")
+
+    # Choose deterministic index
+    idx = 0
+    item = ds[idx]
+
+    # Audio presence/type checks (defensive, so the hash failure message is clearer)
+    assert "audio" in item, "[0] missing 'audio' key"
+    audio = item["audio"]
+    assert isinstance(audio, np.ndarray), "[0] audio is not a numpy array"
+    assert audio.dtype == np.float32, f"[0] audio dtype is {audio.dtype}, expected float32"
+
+    # Compute sha256 over raw bytes of the float32 array
+    h = hashlib.sha256(audio.tobytes()).hexdigest()
+
+    assert h == EXPECTED_FIRST_ITEM_AUDIO_SHA256, (
+        "First item's audio hash changed.\n"
+        f"Got    {h}\n"
+        f"Expect {EXPECTED_FIRST_ITEM_AUDIO_SHA256}\n\n"
+        "If this is an intentional dataset/content update, "
+        "replace EXPECTED_FIRST_ITEM_AUDIO_SHA256 with the new hash."
+    )
