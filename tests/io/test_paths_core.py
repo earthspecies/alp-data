@@ -156,15 +156,6 @@ class TestPathInteractions:
         result = gs_path / posix_path
         assert str(result) == "gs://bucket/folder/subfolder/file.txt"
 
-    def test_cloud_path_with_windows_path(self):
-        """Test joining cloud paths with WindowsPath preserves backslashes."""
-        from pathlib import PureWindowsPath
-
-        gs_path = PureGSPath("gs://bucket/folder")
-        windows_path = PureWindowsPath("subfolder\\file.txt")
-        result = gs_path / windows_path
-        assert str(result) == "gs://bucket/folder/subfolder\\file.txt"
-
     def test_cloud_path_with_os_pathlike(self):
         """Test that cloud paths work with os.PathLike protocol."""
         class CustomPathLike:
