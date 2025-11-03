@@ -5,7 +5,6 @@ on:
   push:
     branches:
       - main
-      - dev
     tags:
       - v[0-9]+.[0-9]+*
       - latest
@@ -44,7 +43,7 @@ jobs:
           git config --local user.email "${{ github.actor }}@users.noreply.github.com"
 
       - name: Deploy main branch
-        if: github.ref == 'refs/heads/dev'
+        if: github.ref == 'refs/heads/main'
         run: uv run mike deploy -b docs-site --push --update-aliases dev
 
       - name: Deploy version from tag
