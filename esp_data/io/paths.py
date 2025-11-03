@@ -127,44 +127,28 @@ class PureCloudPath:
         ends_with_slash = path.endswith("/") and len(path) > 1
 
         # Split into scheme+bucket and path components
-        if path.startswith(self.cloud_prefix):
-            prefix_len = len(self.cloud_prefix)
-            remainder = path[prefix_len:]
+        prefix_len = len(self.cloud_prefix)
+        remainder = path[prefix_len:]
 
-            if "/" in remainder:
-                bucket, _, rest = remainder.partition("/")
-                # Normalize the path part
-                parts = [p for p in rest.split("/") if p and p != "."]
-                if parts:
-                    result = f"{self.cloud_prefix}{bucket}/{'/'.join(parts)}"
-                else:
-                    # Path was like gs://bucket/ with no other parts
-                    result = f"{self.cloud_prefix}{bucket}/"
-                # Preserve trailing slash for directories
-                if ends_with_slash and not result.endswith("/"):
-                    result += "/"
-                return result
+        if "/" in remainder:
+            bucket, _, rest = remainder.partition("/")
+            # Normalize the path part
+            parts = [p for p in rest.split("/") if p and p != "."]
+            if parts:
+                result = f"{self.cloud_prefix}{bucket}/{'/'.join(parts)}"
             else:
-                # Just bucket (with or without trailing /)
-                bucket = remainder.rstrip("/")
-                if ends_with_slash:
-                    return f"{self.cloud_prefix}{bucket}/"
-                return f"{self.cloud_prefix}{bucket}"
-
-        elif path.startswith("/"):
-            # Absolute path without scheme - used internally for path joining operations
-            parts = [p for p in path.split("/") if p and p != "."]
-            result = "/" + "/".join(parts) if parts else "/"
-            if ends_with_slash and not result.endswith("/") and result != "/":
+                # Path was like gs://bucket/ with no other parts
+                result = f"{self.cloud_prefix}{bucket}/"
+            # Preserve trailing slash for directories
+            if ends_with_slash and not result.endswith("/"):
                 result += "/"
             return result
         else:
-            # Relative path
-            parts = [p for p in path.split("/") if p and p != "."]
-            result = "/".join(parts) if parts else ""
-            if ends_with_slash and result and not result.endswith("/"):
-                result += "/"
-            return result
+            # Just bucket (with or without trailing /)
+            bucket = remainder.rstrip("/")
+            if ends_with_slash:
+                return f"{self.cloud_prefix}{bucket}/"
+            return f"{self.cloud_prefix}{bucket}"
 
     def _join_paths(self, base: str, other: str) -> str:
         """Join two path strings.
@@ -186,17 +170,14 @@ class PureCloudPath:
         # The bucket is preserved but everything after it is replaced.
         if other.startswith("/"):
             # Replace path after bucket with the new absolute path
-            if base.startswith(self.cloud_prefix):
-                prefix_len = len(self.cloud_prefix)
-                remainder = base[prefix_len:]
-                if "/" in remainder:
-                    bucket = remainder.split("/")[0]
-                else:
-                    bucket = remainder
-                # Remove leading slash from other and append
-                return f"{self.cloud_prefix}{bucket}{other}"
+            prefix_len = len(self.cloud_prefix)
+            remainder = base[prefix_len:]
+            if "/" in remainder:
+                bucket = remainder.split("/")[0]
             else:
-                return other
+                bucket = remainder
+            # Remove leading slash from other and append
+            return f"{self.cloud_prefix}{bucket}{other}"
 
         # If other looks like a URI (contains ://), return it as absolute replacement
         if "://" in other:
@@ -359,7 +340,7 @@ class PureCloudPath:
         """Extract the bucket name from the cloud path.
 
         Returns:
-            The bucket name, or empty string if not a valid cloud path.
+            The bucket name.
 
         Examples:
             >>> PureGSPath("gs://my-bucket/file.txt").bucket
@@ -367,9 +348,6 @@ class PureCloudPath:
             >>> PureGSPath("gs://another-bucket").bucket
             'another-bucket'
         """
-        if not self._path.startswith(self.cloud_prefix):
-            return ""
-
         remainder = self._path[len(self.cloud_prefix) :]
         if "/" in remainder:
             return remainder.split("/")[0]
@@ -380,11 +358,8 @@ class PureCloudPath:
         """The drive component (scheme://bucket).
 
         Returns:
-            The drive string (e.g., "gs://bucket"), or empty string.
+            The drive string (e.g., "gs://bucket").
         """
-        if not self._path.startswith(self.cloud_prefix):
-            return ""
-
         return f"{self.cloud_prefix}{self.bucket}"
 
     @property
@@ -394,9 +369,6 @@ class PureCloudPath:
         Returns:
             "/" if path has components after bucket, "" otherwise.
         """
-        if not self._path.startswith(self.cloud_prefix):
-            return "/" if self._path.startswith("/") else ""
-
         remainder = self._path[len(self.cloud_prefix) :]
         return "/" if "/" in remainder else ""
 
@@ -422,15 +394,6 @@ class PureCloudPath:
             >>> PureGSPath("gs://bucket").parts
             ('gs://bucket',)
         """
-        if not self._path.startswith(self.cloud_prefix):
-            # Handle relative paths
-            if self._path.startswith("/"):
-                parts = [p for p in self._path.split("/") if p]
-                return ("/",) + tuple(parts)
-            parts = [p for p in self._path.split("/") if p]
-            return tuple(parts)
-
-        # Cloud path
         remainder = self._path[len(self.cloud_prefix) :]
         if "/" in remainder:
             bucket, _, rest = remainder.partition("/")
@@ -516,30 +479,20 @@ class PureCloudPath:
             # Can't go higher than bucket
             return self
 
-        # Remove the last component
-        if self._path.startswith(self.cloud_prefix):
-            # Reconstruct from parts
-            anchor = parts[0]  # Keep the trailing / if it's there
-            if len(parts) == 2:
-                # Parent is the bucket with root (ensure it has /)
-                bucket_name = self.bucket
-                result = object.__new__(self.__class__)
-                result._path = f"{self.cloud_prefix}{bucket_name}/"
-                return result
-            else:
-                # Join anchor with middle parts
-                parent_parts = list(parts[1:-1])
-                parent_path = anchor.rstrip("/") + "/" + "/".join(parent_parts)
-                result = object.__new__(self.__class__)
-                result._path = parent_path
-                return result
-        else:
-            # Relative or absolute POSIX path
-            parent_parts = parts[:-1]
-            if not parent_parts:
-                return self
+        # Reconstruct from parts
+        anchor = parts[0]  # Keep the trailing / if it's there
+        if len(parts) == 2:
+            # Parent is the bucket with root (ensure it has /)
+            bucket_name = self.bucket
             result = object.__new__(self.__class__)
-            result._path = "/".join(parent_parts)
+            result._path = f"{self.cloud_prefix}{bucket_name}/"
+            return result
+        else:
+            # Join anchor with middle parts
+            parent_parts = list(parts[1:-1])
+            parent_path = anchor.rstrip("/") + "/" + "/".join(parent_parts)
+            result = object.__new__(self.__class__)
+            result._path = parent_path
             return result
 
     @property
@@ -663,75 +616,6 @@ class PureCloudPath:
             A new path with the stem replaced.
         """
         return self.with_name(stem + self.suffix)
-
-    def relative_to(self, *other: str | PureCloudPath) -> PureCloudPath:
-        """Return a relative path version of this path from another path.
-
-        Args:
-            *other: The base path to compute relative to.
-
-        Returns:
-            A relative path.
-
-        Raises:
-            TypeError: If no arguments are provided.
-            ValueError: If this path is not relative to the other path.
-        """
-        if not other:
-            raise TypeError("need at least one argument")
-
-        # Convert other to a path string
-        if len(other) == 1 and isinstance(other[0], (PureCloudPath, str)):
-            other_str = str(other[0])
-        else:
-            other_path = self.__class__(*other)
-            other_str = str(other_path)
-
-        # Normalize both paths for comparison
-        self_str = self._path
-
-        # Ensure other_str ends with / for prefix matching (unless it's bucket-only)
-        if other_str.startswith(self.cloud_prefix):
-            remainder = other_str[len(self.cloud_prefix) :]
-            if "/" in remainder and not other_str.endswith("/"):
-                other_str = other_str + "/"
-            elif "/" not in remainder:
-                # Bucket only - add /
-                other_str = other_str + "/"
-        elif not other_str.endswith("/") and other_str != "/":
-            other_str = other_str + "/"
-
-        if not self_str.startswith(other_str):
-            raise ValueError(
-                f"{self_str!r} is not in the subpath of {other_str!r}"
-                " OR one path is relative and the other is absolute."
-            )
-
-        # Get the relative part
-        rel_part = self_str[len(other_str) :]
-
-        # Create a relative path (without the cloud prefix)
-        if not rel_part:
-            rel_part = "."
-
-        result = object.__new__(self.__class__)
-        result._path = rel_part
-        return result
-
-    def is_relative_to(self, *other: str | PureCloudPath) -> bool:
-        """Check if this path is relative to another path.
-
-        Args:
-            *other: The base path to check against.
-
-        Returns:
-            True if this path is relative to other, False otherwise.
-        """
-        try:
-            self.relative_to(*other)
-            return True
-        except ValueError:
-            return False
 
     def match(self, pattern: str) -> bool:
         """Match this path against a glob pattern.

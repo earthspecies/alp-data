@@ -432,18 +432,6 @@ class TestEdgeCases:
         with pytest.raises(ValueError, match="Glob patterns are not supported"):
             PureGSPath("gs://bucket/folder/*.txt")
 
-    def test_cloud_path_relative_to_invalid_base(self):
-        """Test relative_to with invalid base path."""
-        path = PureGSPath("gs://bucket/folder/file.txt")
-        with pytest.raises(ValueError, match="is not in the subpath of"):
-            path.relative_to("gs://other-bucket/")
-
-    def test_cloud_path_relative_to_valid_base(self):
-        """Test relative_to with valid base path."""
-        path = PureGSPath("gs://bucket/folder/file.txt")
-        rel = path.relative_to("gs://bucket/folder/")
-        assert str(rel) == "file.txt"
-
     def test_cloud_path_with_name_invalid(self):
         """Test with_name with invalid name."""
         path = PureGSPath("gs://bucket/folder/file.txt")
@@ -481,13 +469,6 @@ class TestEdgeCases:
         path = PureGSPath("gs://bucket/folder/file.txt")
         with pytest.raises(ValueError, match="empty pattern"):
             path.match("")
-
-    def test_cloud_path_is_relative_to(self):
-        """Test is_relative_to method."""
-        path = PureGSPath("gs://bucket/folder/file.txt")
-        assert path.is_relative_to("gs://bucket/")
-        assert path.is_relative_to("gs://bucket/folder")
-        assert not path.is_relative_to("gs://other/")
 
     def test_cloud_path_as_uri_not_absolute(self):
         """Test as_uri raises ValueError for non-absolute paths (bucket-only)."""
