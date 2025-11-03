@@ -125,7 +125,7 @@ def all_split() -> None:
             continue
         annots = [x for x in str(mat["labels"][0])]
         offsets = [float(mat["offsets"][i][0]) for i in range(len(mat["offsets"]))]
-        onsets = [float(mat["offsets"][i][0]) for i in range(len(mat["onsets"]))]
+        onsets = [float(mat["onsets"][i][0]) for i in range(len(mat["onsets"]))]
 
         species = " ".join(fn.split("_")[3].split("-")[:2])
         if species in taxonomy_cache:
@@ -222,6 +222,11 @@ def train_val_test_split() -> None:
     data_val.to_csv("val.csv", index=False)
     data_test.to_csv("test.csv", index=False)
 
+    os.system("gsutil -m cp -r train.csv gs://subsegmentation/xeno_canto_annotations")
+    os.system("gsutil -m cp -r val.csv gs://subsegmentation/xeno_canto_annotations")
+    os.system("gsutil -m cp -r test.csv gs://subsegmentation/xeno_canto_annotations")
+    os.system("gsutil -m cp -r all.csv gs://subsegmentation/xeno_canto_annotations")
+
 
 def iterate_qc(
     df: pd.DataFrame,
@@ -291,6 +296,11 @@ def iterate_qc(
             problems.append(
                 {"idx": i, "audio_path": row.get("audio_path", ""), "issue": "events_after_audio"}
             )
+        durs = st["End Time (s)"] - st["Begin Time (s)"]
+        if durs.min() <= 0:
+            problems.append(
+                {"idx": i, "audio_path": row.get("audio_path", ""), "issue": "events of dur <= 0"}
+            )
 
     return pd.DataFrame(problems)
 
@@ -298,7 +308,7 @@ def iterate_qc(
 def quality_check() -> None:
     """Run QC for dataset"""
 
-    info = pd.read_csv("all.csv")
+    info = pd.read_csv("gs://subsegmentation/xeno_canto_annotations/all.csv")
     assert len(info) == len(pd.read_csv("train.csv")) + len(pd.read_csv("val.csv")) + len(
         pd.read_csv("test.csv")
     )
