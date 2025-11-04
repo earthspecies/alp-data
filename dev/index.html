@@ -14,7 +14,7 @@
       
       
       
-        <link rel="next" href="io/">
+        <link rel="next" href="datasets/">
       
       
       <link rel="icon" href="assets/favicon.png">
@@ -201,6 +201,25 @@
   
   
     <li class="md-tabs__item">
+      <a href="datasets/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Datasets
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
       <a href="io/" class="md-tabs__link">
         
   
@@ -208,6 +227,44 @@
     
   
   io
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="transforms/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Transforms
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="concatenate/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Concatenate datasets
 
       </a>
     </li>
@@ -370,18 +427,27 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#2-configure-your-project-to-use-the-private-index" class="md-nav__link">
+  <a href="#2-set-up-google-cloud-to-access-esp-data-package" class="md-nav__link">
     <span class="md-ellipsis">
-      2. Configure your project to use the private index
+      2. Set up Google Cloud to access esp-data package
     </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#3-add-esp-data-as-a-dependency" class="md-nav__link">
+  <a href="#3-configure-your-project-to-use-the-private-index" class="md-nav__link">
     <span class="md-ellipsis">
-      3. Add esp-data as a dependency
+      3. Configure your project to use the private index
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-add-esp-data-as-a-dependency" class="md-nav__link">
+    <span class="md-ellipsis">
+      4. Add esp-data as a dependency
     </span>
   </a>
   
@@ -407,12 +473,78 @@
   
   
     <li class="md-nav__item">
+      <a href="datasets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Datasets
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="io/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     io
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="transforms/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Transforms
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="concatenate/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Concatenate datasets
     
   </span>
   
@@ -474,33 +606,77 @@
 <p>To authenticate and interact with Python repositories hosted on Artifact Registry, you'll need to install the <code>keyring</code> library system-wide (not inside a virtual environment), along with the Google Artifact Registry backend. This step is required only once per system, typically when setting up your VM or laptop (not needed on Slurm compute nodes):</p>
 <div class="language-sh highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>uv<span class="w"> </span>tool<span class="w"> </span>install<span class="w"> </span>keyring<span class="w"> </span>--with<span class="w"> </span>keyrings.google-artifactregistry-auth
 </span></code></pre></div>
+<div class="admonition success">
+<p class="admonition-title">Slurm</p>
+<p>This step is <strong>NOT</strong> required for Slurm jobs. All nodes on the cluster already have this package installed.</p>
+</div>
 <div class="admonition info">
 <p class="admonition-title">Info</p>
-<p>You only need to perform this installation once on your system.</p>
+<p>You only need to do this step once on your system.</p>
 </div>
 <div class="admonition tip">
 <p class="admonition-title">Tip</p>
 <p><code>uv tool</code> allows you to install Python packages that provide command-line interfaces for system-wide use. The dependencies are installed in an isolated virtual environment, separate from your current project.</p>
 </div>
-<h3 id="2-configure-your-project-to-use-the-private-index">2. Configure your project to use the private index</h3>
-<p>Next, add the following to your <code>pyproject.toml</code> to configure your project to use the private package index:</p>
-<div class="language-toml highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="k">[[tool.uv.index]]</span>
-</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;esp-pypi&quot;</span>
-</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="n">url</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;https://oauth2accesstoken@us-central1-python.pkg.dev/okapi-274503/esp-pypi/simple/&quot;</span>
-</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="n">explicit</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
-</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>
-</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="k">[tool.uv.sources]</span>
-</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="n">esp-data</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">index</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s2">&quot;esp-pypi&quot;</span><span class="w"> </span><span class="p">}</span>
-</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>
-</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="k">[tool.uv]</span>
-</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="n">keyring-provider</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;subprocess&quot;</span>
+<h3 id="2-set-up-google-cloud-to-access-esp-data-package">2. Set up Google Cloud to access <code>esp-data</code> package</h3>
+<p>This step is required if you haven't set up Google Cloud on your device yet. If Google Cloud isn't properly set up the following steps will fail.</p>
+<ul>
+<li>
+<p>Install the Google Cloud SDK by following the steps on https://cloud.google.com/sdk/docs/install</p>
+</li>
+<li>
+<p>Initialize Google Cloud :
+    <div class="language-sh highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>gcloud<span class="w"> </span>init
+</span></code></pre></div></p>
+<p>You will be prompted to sign in. Type <code>Y</code> to open a browser window for authentication and log in with your account.</p>
+<p>Select the project to use; follow the instructions to choose project <code>okapi-274503</code>.</p>
+<p>Configure a default Compute region and zone. It is recommended to use the same region and zone as your VM.</p>
+<p>Then run :
+<div class="language-sh highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>gcloud<span class="w"> </span>auth<span class="w"> </span>application-default<span class="w"> </span>login
 </span></code></pre></div>
-<h3 id="3-add-esp-data-as-a-dependency">3. Add <code>esp-data</code> as a dependency</h3>
+This will open a browser for authentication again.</p>
+</li>
+<li>
+<p>Verify your active account :
+    <div class="language-sh highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>gcloud<span class="w"> </span>auth<span class="w"> </span>list
+</span></code></pre></div></p>
+<p>Example output :
+<div class="language-sh highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="w">        </span>Credentialed<span class="w"> </span>Accounts
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>ACTIVE<span class="w">  </span>ACCOUNT
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>*<span class="w">       </span>youremailaddress@example.com
+</span></code></pre></div></p>
+</li>
+<li>
+<p>Confirm your active project :
+    <div class="language-sh highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>gcloud<span class="w"> </span>config<span class="w"> </span>list
+</span></code></pre></div>
+    Example output :
+    <div class="language-sh highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="w">    </span><span class="o">[</span>core<span class="o">]</span>
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="nv">account</span><span class="w"> </span><span class="o">=</span><span class="w"> </span>youremailaddress@example.com
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="nv">disable_usage_reporting</span><span class="w"> </span><span class="o">=</span><span class="w"> </span>True
+</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="nv">project</span><span class="w"> </span><span class="o">=</span><span class="w"> </span>okapi274503
+</span></code></pre></div></p>
+</li>
+</ul>
+<h3 id="3-configure-your-project-to-use-the-private-index">3. Configure your project to use the private index</h3>
+<p>Next, add the following to your <code>pyproject.toml</code> to configure your project to use the private package index:</p>
+<div class="language-toml highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="k">[[tool.uv.index]]</span>
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;esp-pypi&quot;</span>
+</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="n">url</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;https://oauth2accesstoken@us-central1-python.pkg.dev/okapi-274503/esp-pypi/simple/&quot;</span>
+</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="n">explicit</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
+</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>
+</span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a><span class="k">[tool.uv.sources]</span>
+</span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a><span class="n">esp-data</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">index</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s2">&quot;esp-pypi&quot;</span><span class="w"> </span><span class="p">}</span>
+</span><span id="__span-7-8"><a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a>
+</span><span id="__span-7-9"><a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a><span class="k">[tool.uv]</span>
+</span><span id="__span-7-10"><a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a><span class="n">keyring-provider</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;subprocess&quot;</span>
+</span></code></pre></div>
+<h3 id="4-add-esp-data-as-a-dependency">4. Add <code>esp-data</code> as a dependency</h3>
 <p>You can now add <code>esp-data</code> to your project by running:</p>
-<div class="language-sh highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>uv<span class="w"> </span>add<span class="w"> </span>esp-data
+<div class="language-sh highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>uv<span class="w"> </span>add<span class="w"> </span>esp-data
 </span></code></pre></div>
 <p>Alternatively, you can manually update the <code>dependencies</code> section of your <code>pyproject.toml</code> and then run:</p>
-<div class="language-sh highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>uv<span class="w"> </span>sync
+<div class="language-sh highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>uv<span class="w"> </span>sync
 </span></code></pre></div>
 
 
