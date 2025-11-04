@@ -145,7 +145,7 @@ The list of available dataset will grow over time. Please refer to the next sect
     options:
         show_root_toc_entry: false
         heading_level: 3
-        order: alphabetical
+        members_order: alphabetical
         filters:
             - "!^[a-z_]"  # Exclude attributes and methods (start with lowercase or underscore)
             - "!^__"      # Exclude private methods (start with double underscore)
