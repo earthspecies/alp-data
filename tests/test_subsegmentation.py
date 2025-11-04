@@ -19,7 +19,7 @@ from esp_data.datasets import Subsegmentation
 
 
 
-# --- Dataset snapshot ---
+# # --- Dataset snapshot ---
 
 # # Code to generate snapshot:
 # import hashlib
@@ -47,7 +47,7 @@ EXPECTED_FIRST_ITEM_AUDIO_SHA256 = (
     "4cef10c4acacce969ca48fd1e698bf9ad1971bdd44102bc4030b6193979f6977"
 )
 ANNOTATIONS_SHA256 = (
-    "c509a4282b057b7c0f3711ba68a17ae4ab650f7f696601942c23772b7be4af05"
+    "92ab0d4b3c83788f60bd0734359dd9041a16c933545295bd824526d1ebeb252f"
     )
 # ---------------------------------------------------------------------------
 
