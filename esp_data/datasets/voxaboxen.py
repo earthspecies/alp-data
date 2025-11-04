@@ -253,7 +253,7 @@ class Voxaboxen(Dataset):
     def __init__(
         self,
         split: str = "train",
-        output_take_and_give: dict[str, str] = None,
+        output_take_and_give: dict[str, str] | None = None,
         sample_rate: int | None = None,
         data_root: str | AnyPathT | None = None,
         mono_method: str | None = "average",
@@ -626,7 +626,7 @@ class VoxaboxenEvents(Dataset):
     def __init__(
         self,
         split: str = "train",
-        output_take_and_give: dict[str, str] = None,
+        output_take_and_give: dict[str, str] | None = None,
         sample_rate: int = 16000,
         data_root: str | AnyPathT | None = None,
         stereo_or_mono: Literal["stereo", "mono"] = "stereo",
