@@ -1,4 +1,5 @@
 from .animalspeak import AnimalSpeak
+from .anuraset import AnuraSetStrong
 from .audioset import AudioSet
 from .barkley_canyon import BarkleyCanyon, BarkleyCanyonDetection
 from .beans import Beans
@@ -37,5 +38,6 @@ __all__ = [
     "ESPRaincoast",
     "Subsegmentation",
     "WABAD",
+    "AnuraSetStrong",
     "Powdermill",
 ]
