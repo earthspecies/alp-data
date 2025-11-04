@@ -18,11 +18,9 @@ import pytest
 from esp_data.datasets import XenoCantoAnnotatedJeantet23
 
 
-# --- Dataset snapshot ---
+# # --- Dataset snapshot ---
 
 # # Code to generate snapshot:
-# import hashlib
-# from esp_data.datasets import XenoCantoAnnotatedJeantet23
 # ds = XenoCantoAnnotatedJeantet23(split="all", sample_rate=16000)
 
 # print("len(ds) =", len(ds))
@@ -33,11 +31,22 @@ from esp_data.datasets import XenoCantoAnnotatedJeantet23
 # h = hashlib.sha256(audio0.tobytes()).hexdigest()
 # print("sha256:", h)
 
+# csv_bytes = ds._data.sort_index(axis=0).sort_index(axis=1).to_csv(index=True).encode("utf-8")
+# h = hashlib.sha256(csv_bytes).hexdigest()
+
+# print("annotations sha256:", h)
+
+# quit()
+# # # #
+
 
 EXPECTED_LEN_ALL = 967  #
 EXPECTED_FIRST_ITEM_AUDIO_SHA256 = (
     "65fc1372fa64983d4998cf1be43d4469c7770e2f3485c860c654688ea3a3c30b"
 )
+ANNOTATIONS_SHA256 = (
+    "c576e979a50c37b62c6d0d5c65f4b206ea1102547ece03b1a14767f7c1ca0ddb"
+    )
 # ---------------------------------------------------------------------------
 
 
@@ -124,6 +133,20 @@ def test_reference_item_stability(ds: XenoCantoAnnotatedJeantet23):
         "First item's audio hash changed.\n"
         f"Got    {h}\n"
         f"Expect {EXPECTED_FIRST_ITEM_AUDIO_SHA256}\n\n"
+        "If this is an intentional dataset/content update, "
+        "replace EXPECTED_FIRST_ITEM_AUDIO_SHA256 with the new hash."
+    )
+
+    # compute sha256 over raw bytes of the float32 array of annotations
+    csv_bytes = ds._data.sort_index(axis=0).sort_index(axis=1).to_csv(index=True).encode("utf-8")
+    h = hashlib.sha256(csv_bytes).hexdigest()
+
+    assert (
+        h == ANNOTATIONS_SHA256
+    ), (
+        "Annotation's hash changed.\n"
+        f"Got    {h}\n"
+        f"Expect {ANNOTATIONS_SHA256}\n\n"
         "If this is an intentional dataset/content update, "
         "replace EXPECTED_FIRST_ITEM_AUDIO_SHA256 with the new hash."
     )
