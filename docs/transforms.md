@@ -127,7 +127,6 @@ The `MultiLabelFromFeatures` transform extends the functionality of `LabelFromFe
     options:
         show_root_heading: true
         show_source: true
-        allow_missing_labels: true
 
 ### Subsample Transform
 The `Subsample` transform reduces the size of your dataset by sampling a subset of the data.  Example use case: Creating a 10% random sample of a large dataset for initial testing.
