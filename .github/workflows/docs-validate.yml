@@ -1,0 +1,30 @@
+name: Validate docs
+
+on:
+  pull_request:
+
+jobs:
+  validate-docs:
+    runs-on: ubuntu-latest
+    concurrency:
+      group: docs-validate-${{ github.ref }}
+      cancel-in-progress: true
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+
+      - name: "Set up Python"
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: ".python-version"
+
+      - name: Install the project
+        run: uv sync --all-extras --dev
+
+      - name: Build docs (dry run)
+        run: uv run mkdocs build --strict

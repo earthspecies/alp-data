@@ -1,8 +1,8 @@
 """
-Unit tests for subsegmentation dataset.
+Unit tests for xeno_canto_annotated_jeantet_23 dataset.
 
 Run with:
-    pytest -q test_subsegmentation.py
+    pytest -q test_xeno_canto_annotated_jeantet_23.py
 """
 
 from __future__ import annotations
@@ -15,16 +15,13 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from esp_data.datasets import Subsegmentation
-
+from esp_data.datasets import XenoCantoAnnotatedJeantet23
 
 
 # # --- Dataset snapshot ---
 
 # # Code to generate snapshot:
-# import hashlib
-# from esp_data.datasets import Subsegmentation
-# ds = Subsegmentation(split="all", sample_rate=16000)
+# ds = XenoCantoAnnotatedJeantet23(split="all", sample_rate=16000)
 
 # print("len(ds) =", len(ds))
 
@@ -40,37 +37,39 @@ from esp_data.datasets import Subsegmentation
 # print("annotations sha256:", h)
 
 # quit()
-# # #
+# # # #
 
-EXPECTED_LEN_ALL = 11617  #
+
+EXPECTED_LEN_ALL = 967  #
 EXPECTED_FIRST_ITEM_AUDIO_SHA256 = (
-    "4cef10c4acacce969ca48fd1e698bf9ad1971bdd44102bc4030b6193979f6977"
+    "65fc1372fa64983d4998cf1be43d4469c7770e2f3485c860c654688ea3a3c30b"
 )
 ANNOTATIONS_SHA256 = (
-    "92ab0d4b3c83788f60bd0734359dd9041a16c933545295bd824526d1ebeb252f"
+    "c576e979a50c37b62c6d0d5c65f4b206ea1102547ece03b1a14767f7c1ca0ddb"
     )
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture(scope="module")
-def ds() -> Subsegmentation:
-    """Load Subsegmentation dataset for testing."""
-    return Subsegmentation(split="all", sample_rate=16000)
+def ds() -> XenoCantoAnnotatedJeantet23:
+    """Load XenoCantoAnnotatedJeantet23 dataset for testing."""
+    return XenoCantoAnnotatedJeantet23(split="all", sample_rate=16000)
 
 
 @pytest.fixture(scope="module")
-def sample_indices(ds: Subsegmentation) -> List[int]:
+def sample_indices(ds: XenoCantoAnnotatedJeantet23) -> List[int]:
     """Deterministically choose up to 5 random indices for quick spot checks."""
     n = len(ds)
     rng = random.Random(23)
     return [rng.randrange(n) for _ in range(min(5, n))]
 
 
-def test_ds_not_empty(ds: Subsegmentation):
+def test_ds_not_empty(ds: XenoCantoAnnotatedJeantet23):
     """Dataset should have at least one example."""
     assert len(ds) > 0, "Dataset appears empty"
 
 
-def test_check_audio(ds: Subsegmentation, sample_indices: List[int]):
+def test_check_audio(ds: XenoCantoAnnotatedJeantet23, sample_indices: List[int]):
     """Basic audio integrity checks on a few random items."""
     for idx in sample_indices:
         item = ds[idx]
@@ -83,8 +82,24 @@ def test_check_audio(ds: Subsegmentation, sample_indices: List[int]):
         assert not np.any(np.isnan(audio)), f"[{idx}] audio contains NaN values"
         assert not np.all(audio == 0), f"[{idx}] audio is all zeros"
 
+def test_dataset_length_matches_expected(ds: XenoCantoAnnotatedJeantet23):
+    """
+    The dataset length should match the known, version-controlled expectation.
 
-def test_reference_item_stability(ds: Subsegmentation):
+    This will fail loudly if:
+    - the CSV split changed
+    - files went missing
+    - we accidentally filtered/augmented items differently
+
+    If this fails intentionally (e.g. dataset grew), update EXPECTED_LEN_ALL.
+    """
+    assert len(ds) == EXPECTED_LEN_ALL, (
+        f"Dataset length mismatch: got {len(ds)}, expected {EXPECTED_LEN_ALL}. "
+        "If this change is intentional (new data / new filtering), update EXPECTED_LEN_ALL "
+        "in the test."
+    )
+
+def test_reference_item_stability(ds: XenoCantoAnnotatedJeantet23):
     """
     Check that a canonical item (index 0) is bitwise-stable.
 
@@ -96,8 +111,6 @@ def test_reference_item_stability(ds: Subsegmentation):
 
     If this fails for a legitimate/intentional reason, recompute the hash below
     and update EXPECTED_FIRST_ITEM_AUDIO_SHA256.
-
-    We do the same for the annotations csv.
     """
     # choose deterministic index
     idx = 0
@@ -138,17 +151,12 @@ def test_reference_item_stability(ds: Subsegmentation):
         "replace EXPECTED_FIRST_ITEM_AUDIO_SHA256 with the new hash."
     )
 
-
-def test_check_selection_table(ds: Subsegmentation, sample_indices: List[int]):
+def test_check_selection_table(ds: XenoCantoAnnotatedJeantet23, sample_indices: List[int]):
     """Selection table should be a DataFrame with required columns and sane times."""
     required = {
         "Begin Time (s)",
         "End Time (s)",
         "Species",
-        "Annotation",
-        "Genus",
-        "Family",
-        "Order",
     }
 
     for idx in sample_indices:
@@ -162,15 +170,3 @@ def test_check_selection_table(ds: Subsegmentation, sample_indices: List[int]):
 
         if len(st) > 0:
             assert not (st["Begin Time (s)"] < 0).any(), f"[{idx}] negative begin times present"
-
-
-def test_qc_flag_consistent(ds: Subsegmentation, sample_indices: List[int]):
-    """QC flag should reflect whether there are any rows in the selection table."""
-    for idx in sample_indices:
-        item = ds[idx]
-        assert "pass_qc" in item, f"[{idx}] missing 'pass_qc' key"
-        st = item["selection_table"]
-        expected_pass_qc = len(st) > 0
-        assert item["pass_qc"] == expected_pass_qc, (
-            f"[{idx}] qc inconsistent: pass_qc={item['pass_qc']} but len(st)={len(st)}"
-        )

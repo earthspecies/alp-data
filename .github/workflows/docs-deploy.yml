@@ -1,4 +1,4 @@
-name: Build the docs
+name: Deploy docs
 
 on:
   workflow_dispatch:
@@ -10,11 +10,11 @@ on:
       - latest
 
 concurrency:
-  group: docs-build
+  group: docs-deploy
   cancel-in-progress: false
 
 jobs:
-  build-docs:
+  deploy-docs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
