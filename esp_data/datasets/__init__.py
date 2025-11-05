@@ -9,6 +9,7 @@ from .chiffchaff_id import ChiffchaffId
 from .esp_raincoast import ESPRaincoast
 from .giant_otters import GiantOtters
 from .hawaiian_birds import HawaiianBirds
+from .inaturalist import INaturalist
 from .insectset_459 import InsectSet459
 from .littleowl_id import LittleOwlId
 from .macaques_coo_calls import MacaquesCooCalls
@@ -25,6 +26,7 @@ __all__ = [
     "BarkleyCanyon",
     "BarkleyCanyonDetection",
     "GiantOtters",
+    "INaturalist",
     "InsectSet459",
     "Beans",
     "ZebraFinchJulieElie",
