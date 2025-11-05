@@ -28,6 +28,7 @@ from .datasets import (
     PipitId,
     Voxaboxen,
     VoxaboxenEvents,
+    XenoCanto,
     ZebraFinchJulieElie,
 )
 
@@ -60,4 +61,5 @@ __all__ = [
     "VoxaboxenEvents",
     "ESPRaincoast",
     "INaturalist",
+    "XenoCanto",
 ]
