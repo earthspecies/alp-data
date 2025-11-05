@@ -359,20 +359,6 @@ class ConcatenatedDataset(Dataset):
     This dataset maintains references to the original datasets to enable
     proper audio loading and other dataset-specific functionality.
 
-    Parameters
-    ----------
-    data : pd.DataFrame
-        The concatenated data as a DataFrame.
-    dataset_info : DatasetInfo
-        Metadata about the concatenated dataset.
-    source_datasets : list[Dataset]
-        List of original datasets that were concatenated.
-    sample_rate : int, optional
-        Sample rate for audio data, if applicable.
-    output_take_and_give : dict[str, str], optional
-        Mapping of output keys to original dataset keys.
-        This allows for renaming or filtering of columns in the output.
-
     Examples
     --------
     >>> from esp_data.datasets import InsectSet459, BirdSet
@@ -400,6 +386,23 @@ class ConcatenatedDataset(Dataset):
         datasets: list[Dataset] | None = None,
         merge_level: Literal["hard", "overlap", "soft"] = "soft",
     ) -> None:
+        """Initialize the ConcatenatedDataset.
+
+        Parameters
+        ----------
+        datasets : list[Dataset] | None, optional
+            List of datasets to concatenate. If None, an empty dataset will be created.
+        merge_level : {"hard", "overlap", "soft"}, default="soft"
+            Strategy for handling different columns:
+            - "hard": All columns must match exactly across all datasets
+            - "overlap": Keep only common columns across all datasets
+            - "soft": Keep all columns from all datasets (fill missing with NaN)
+
+        Raises
+        ------
+        ValueError
+            If the concatenated dataset is empty after merging.
+        """
         (
             self._data,
             self.info,
