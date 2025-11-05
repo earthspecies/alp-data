@@ -14,6 +14,7 @@ from .inaturalist import INaturalist
 from .insectset_459 import InsectSet459
 from .littleowl_id import LittleOwlId
 from .macaques_coo_calls import MacaquesCooCalls
+from .nocturnal_bird_migration import NocturnalBirdMigration
 from .pipit_id import PipitId
 from .powdermill import Powdermill
 from .subsegmentation import Subsegmentation
@@ -47,5 +48,6 @@ __all__ = [
     "HawaiianBirds",
     "AnuraSetStrong",
     "Powdermill",
+    "NocturnalBirdMigration",
     "Birdeep",
 ]
