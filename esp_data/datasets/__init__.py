@@ -1,5 +1,6 @@
 from .animalspeak import AnimalSpeak
 from .anuraset import AnuraSetStrong
+from .arctic_bird_sounds import ArcticBirdSounds
 from .audioset import AudioSet
 from .barkley_canyon import BarkleyCanyon, BarkleyCanyonDetection
 from .beans import Beans
@@ -48,6 +49,7 @@ __all__ = [
     "HawaiianBirds",
     "AnuraSetStrong",
     "Powdermill",
+    "ArcticBirdSounds",
     "NocturnalBirdMigration",
     "Birdeep",
 ]
