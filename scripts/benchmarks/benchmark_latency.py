@@ -82,11 +82,12 @@ def benchmark_loader(
             batch_size = batch.shape[0]
             n_samples += batch_size
 
-            if sleep > 0:
-                time.sleep(sleep)
-
             if n_batches == 1:
                 shard_download_time = t0.elapsed()
+                t0.start = time.perf_counter()  # Reset start time after first batch
+
+            if sleep > 0:
+                time.sleep(sleep)
 
             with Timer("batch_time", store=None) as t1:
                 # Log stats every log_interval batches
@@ -291,6 +292,13 @@ def benchmark_raw_dataset(
     show_default=True,
     help="Batch size for DataLoader (default: 128)",
 )
+@click.option(
+    "--prefetch-factor",
+    type=int,
+    default=None,
+    show_default=True,
+    help="Prefetch factor for DataLoader (default: None)",
+)
 def main(
     config_path: Path,
     data_location: str,
@@ -300,6 +308,7 @@ def main(
     max_iterations: int,
     num_workers: int,
     batch_size: int,
+    prefetch_factor: int,
 ) -> None:
     time_stored = {}
     with Timer("loading_time", store=time_stored):
@@ -337,7 +346,11 @@ def main(
         all_results = pandas.concat([all_results, result_df], ignore_index=True)
 
     else:
-        logger.info(f"Running benchmark with num_workers={num_workers}, batch_size={batch_size}")
+        prefetch_factor = None if num_workers == 0 else prefetch_factor
+        logger.info(
+            f"Running benchmark with num_workers={num_workers}, batch_size={batch_size}, "
+            f"prefetch_factor={prefetch_factor}"
+        )
         config_info = {
             "data_location": data_location,
             **raw_config,
@@ -345,7 +358,7 @@ def main(
             "raw_dataset": False,
             "num_workers": num_workers,
             "batch_size": batch_size,
-            "prefetch_factor": None if num_workers == 0 else 2,
+            "prefetch_factor": prefetch_factor,
             "machine_location": machine_location if data_location == "bucket" else None,
             "bucket_location": bucket_location if data_location == "bucket" else None,
         }
@@ -354,7 +367,7 @@ def main(
             train_ds,
             num_workers=num_workers,
             batch_size=batch_size,
-            prefetch_factor=None if num_workers == 0 else 2,
+            prefetch_factor=prefetch_factor,
         )
 
         # Run benchmark and collect results

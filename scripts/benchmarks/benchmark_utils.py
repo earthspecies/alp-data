@@ -74,7 +74,7 @@ def build_raw_dataset(config_path: Path, data_location: str) -> Dataset:
 
     dataset, _ = dataset_from_config(config_path, key=data_location)
 
-    return dataset, raw[data_location]
+    return dataset, raw[data_location]["dataset"]
 
 
 def collate_fn(batch: list[dict]) -> dict:
