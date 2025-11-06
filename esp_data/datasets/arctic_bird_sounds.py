@@ -1,4 +1,4 @@
-"""NBM dataset"""
+"""ArcticBirdSounds dataset"""
 
 from __future__ import annotations
 
