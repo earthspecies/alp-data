@@ -21,7 +21,7 @@ In v1 of this approach, we have are three [merge strategies](#merge-strategies).
 3. **Hard Merge**: Requires all datasets to have identical columns, raising an error if they differ.
 
 !!! warning
-    When the merge strategy is "soft", be aware that if a column with the same name appears in the multiple datasets being concatenated, and the data type **dtype** of the column is not the same across datasets, the resulting column in the concatenated dataset will be of type `object`, which may lead to unexpected behavior in downstream processing because this can be a mixed data type!
+    When the merging, be aware that if a column with the same name appears in multiple datasets being concatenated, and the data type **dtype** of the column is not the same across datasets, the resulting column in the concatenated dataset will be of type `object` in pandas, which may lead to unexpected behavior in downstream processing because this can be a mixed data type!
 
 ## How can I concatenate datasets?
 

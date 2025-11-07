@@ -49,7 +49,7 @@ dataset, _ = AnimalSpeak.from_config(config)
 3. From a config yaml file:
 
 Your yaml config file should look like this for a single dataset (see [Concatenate](concatenate.md) for multiple datasets):
-Note the `dataset` key at the top level.
+Note the `dataset` key at the top level is **required**.
 
 ```yaml
 dataset:
