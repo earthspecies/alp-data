@@ -30,7 +30,7 @@ uv run pytest
 To preview the documentation site locally, use the following command:
 
 ```sh
-make serve-docs
+make serve-local-docs
 ```
 
 This will start a local server using [mike](https://github.com/jimporter/mike) and serve the docs at the default address (usually http://localhost:8000). The docs will be built from the `docs-site` branch.
