@@ -27,9 +27,9 @@ class XenoCanto(Dataset):
     Available Metadata Fields
     -------------------------
     **Taxonomic Information:**
-        - ``scientificName``: Scientific species name
-        - ``scientific_name_unified``: Unified scientific name
-        - ``species``: Common/vernacular species name
+        - ``canonical_name``: Canonical species name (primary identifier)
+        - ``species_common``: Common/vernacular species name
+        - ``scientificName``: Scientific species name (legacy field)
         - ``vernacularName``: Vernacular name (if available)
         - ``genus``, ``family``, ``order``, ``class``, ``phylum``, ``kingdom``: Taxonomic hierarchy
         - ``gbifID``: GBIF (Global Biodiversity Information Facility) identifier
@@ -69,15 +69,17 @@ class XenoCanto(Dataset):
     >>> from esp_data.datasets import XenoCanto
     >>> dataset = XenoCanto(
     ...     split="train",
-    ...     output_take_and_give={"scientificName": "species"}
+    ...     output_take_and_give={"canonical_name": "species"}
     ... )
     >>> print(dataset.info.name)
     xeno-canto
     >>> print(dataset.available_sample_rates)
     []
-    >>> # Load with pre-resampled 32kHz audio (when available)
+
+    # Load with pre-resampled 32kHz audio (when available)
     >>> dataset_32k = XenoCanto(split="train", sample_rate=32000)
-    >>> # Load with on-the-fly resampling to 16kHz from original (variable rate) files
+
+    # Load with on-the-fly resampling to 16kHz from original (variable rate) files
     >>> dataset_16k = XenoCanto(split="train", sample_rate=16000)
     """
 
@@ -90,9 +92,10 @@ class XenoCanto(Dataset):
         version="0.1.0",
         description="Xeno-canto audio dataset with taxonomic metadata. "
         "Available at original (variable) sample rates and 32kHz (pre-resampled). "
-        "Pre-resampled audio uses librosa's kaiser_best resampling method.",
+        "Pre-resampled audio uses librosa's kaiser_best resampling method. "
+        "Xeno-canto dump as of Oct 2025.",
         sources=["Xeno-canto"],
-        license="CC BY",
+        license="multiple",
     )
 
     # Mapping of sample rates to their corresponding path columns
@@ -253,7 +256,7 @@ class XenoCanto(Dataset):
             A dictionary containing the audio data and metadata. The audio data
             is stored under the 'audio' key as a 1D numpy array of float32 values.
             Other keys contain metadata from the CSV file (e.g., 'canonical_name',
-            'species_scientific', 'family', 'genus', 'order', etc.).
+            'species_common', 'family', 'genus', 'order', etc.).
 
             If `output_take_and_give` was specified, only the mapped columns will
             be present in the output dictionary.
