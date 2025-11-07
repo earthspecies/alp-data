@@ -12,7 +12,7 @@ import pandas
 import torch
 import yaml
 
-from esp_data import Dataset, dataset_from_config
+from esp_data import Dataset, dataset_from_config, get_class_from_name
 
 
 def set_logging_config() -> None:
@@ -32,11 +32,11 @@ class Timer:
         self.start = None
 
     def __enter__(self) -> "Timer":
-        self.start = time.perf_counter()
+        self.start = (time.perf_counter(), time.process_time())
         return self
 
     def __exit__(self, exc_type: type, exc_value: Exception, traceback: TracebackType) -> None:
-        duration = time.perf_counter() - self.start
+        duration = (time.perf_counter() - self.start[0], time.process_time() - self.start[1])
         if self.store is not None and self.name:
             self.store[self.name] = duration
 
@@ -53,10 +53,10 @@ class Timer:
         """
         if self.start is None:
             raise ValueError("Timer has not been started. Use 'with Timer(...) as t:' to start it.")
-        return time.perf_counter() - self.start
+        return (time.perf_counter() - self.start[0], time.process_time() - self.start[1])
 
 
-def build_raw_dataset(config_path: Path, data_location: str) -> Dataset:
+def build_raw_dataset(config_path: Path, data_location: str, dataset_name: str) -> Dataset:
     """Build raw datasets without DataLoaders for direct iteration.
 
     Parameters
@@ -69,12 +69,35 @@ def build_raw_dataset(config_path: Path, data_location: str) -> Dataset:
     Dataset
         The raw dataset.
     """
-    with config_path.open("r", encoding="utf-8") as fh:
-        raw = yaml.safe_load(fh)
+    logger = logging.getLogger("dataset_builder")
+    if config_path is not None:
+        logger.info(f"Loading dataset config from {config_path}")
+        with config_path.open("r", encoding="utf-8") as fh:
+            raw = yaml.safe_load(fh)
 
-    dataset, _ = dataset_from_config(config_path, key=data_location)
+        logger.info(
+            f"Building dataset '{raw[data_location]['dataset']['dataset_name']}' from config'"
+        )
+        dataset, _ = dataset_from_config(config_path, key=data_location)
+        raw = raw[data_location]["dataset"]
+    else:
+        logger.info("No config path provided, building dataset with default parameters")
+        dataset = get_class_from_name(dataset_name)()
+        # Get corresponding raw information with following format:
+        # dataset_name:
+        # split:
+        # sample_rate:
+        # data_root:
+        raw = {}
+        raw["dataset_name"] = dataset_name
+        if hasattr(dataset, "split"):
+            raw["split"] = dataset.split
+        if hasattr(dataset, "sample_rate"):
+            raw["sample_rate"] = dataset.sample_rate
+        if hasattr(dataset, "data_root"):
+            raw["data_root"] = dataset.data_root
 
-    return dataset, raw[data_location]["dataset"]
+    return dataset, raw
 
 
 def collate_fn(batch: list[dict]) -> dict:
@@ -137,7 +160,7 @@ def build_dataloader(
         num_workers=num_workers,
         collate_fn=collate_fn,
         prefetch_factor=prefetch_factor,
-        persistent_workers=(num_workers > 0),
+        persistent_workers=False,
     )
 
     return loader
@@ -188,6 +211,7 @@ def get_bucket_location(gcs_path: str) -> str:
     """
     from google.cloud import storage
 
+    gcs_path = str(gcs_path)
     if not gcs_path.startswith("gs://"):
         raise ValueError("GCS path must start with 'gs://'")
 
