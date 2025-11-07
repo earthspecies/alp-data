@@ -85,7 +85,7 @@ def dataset_with_output_mapping() -> Dataset:
     """
     dataset_config = DatasetConfig(
         dataset_name="xeno-canto",
-        output_take_and_give={"scientificName": "species"},
+        output_take_and_give={"species_common": "species"},
     )
     ds = XenoCanto(
         split="train",
@@ -243,7 +243,7 @@ def test_output_take_and_give(dataset_with_output_mapping: Dataset) -> None:
 
     # Check that only mapped columns are present
     assert "species" in sample
-    assert "scientificName" not in sample  # Original column should be filtered out
+    assert "species_common" not in sample  # Original column should be filtered out
 
 
 def test_sample_rate_resampling(dataset_with_sample_rate: Dataset) -> None:
@@ -334,7 +334,7 @@ def test_output_take_and_give_filtering() -> None:
     """Test if output_take_and_give filtering works correctly."""
     dataset = XenoCanto(
         split="train",
-        output_take_and_give={"scientificName": "species", "relative_path": "path", "audio": "audio"},
+        output_take_and_give={"species_common": "species", "relative_path": "path", "audio": "audio"},
     )
 
     sample = dataset[0]
@@ -345,7 +345,7 @@ def test_output_take_and_give_filtering() -> None:
     assert "audio" in sample
 
     # Original column names should not be in output
-    assert "scientificName" not in sample
+    assert "species_common" not in sample
     assert "relative_path" not in sample
 
 

@@ -93,7 +93,8 @@ class XenoCanto(Dataset):
         description="Xeno-canto audio dataset with taxonomic metadata. "
         "Available at original (variable) sample rates and 32kHz (pre-resampled). "
         "Pre-resampled audio uses librosa's kaiser_best resampling method. "
-        "The current version 0.1.0 includes Xeno-canto data up to July 2025.",
+        "Xeno-canto dump as of Oct 2025.",
+        sources=["Xeno-canto"],
         license="multiple",
     )
 
