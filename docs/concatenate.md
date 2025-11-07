@@ -20,6 +20,9 @@ In v1 of this approach, we have are three [merge strategies](#merge-strategies).
 2. **Overlap Merge**: Keeps only columns that exist in all datasets.
 3. **Hard Merge**: Requires all datasets to have identical columns, raising an error if they differ.
 
+!!! warning
+    When the merge strategy is "soft", be aware that if a column with the same name appears in the multiple datasets being concatenated, and the data type **dtype** of the column is not the same across datasets, the resulting column in the concatenated dataset will be of type `object`, which may lead to unexpected behavior in downstream processing because this can be a mixed data type!
+
 ## How can I concatenate datasets?
 
 Datasets can be concatenated using the `ConcatenatedDataset` class with different merge strategies:
@@ -57,6 +60,7 @@ print(f"Last sample: {combined_dataset[-1].keys()}")
 
 #### Create a combined dataset from a yaml config
 You can also create a concatenated dataset from a YAML configuration file. Here is an example of how to do this:
+Note the `concat` keyword at the top level of the config, and `datasets` list inside it (required).
 
 ```yaml
 concat:
