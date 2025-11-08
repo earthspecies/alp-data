@@ -95,7 +95,16 @@ class XenoCanto(Dataset):
         "Pre-resampled audio uses librosa's kaiser_best resampling method. "
         "Xeno-canto dump as of Oct 2025.",
         sources=["Xeno-canto"],
-        license="multiple",
+        license=[
+            "CC BY-NC-SA 4.0",
+            "CC_BY_NC_4_0",
+            "CC BY-NC-SA 3.0",
+            "CC BY-SA 4.0",
+            "CC0",
+            "CC BY-SA 3.0",
+            "CC BY 4.0",
+            "CC BY-NC 4.0",
+        ],
     )
 
     # Mapping of sample rates to their corresponding path columns
