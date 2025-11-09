@@ -87,24 +87,18 @@ class XenoCanto(Dataset):
         name="xeno-canto",
         owner="david; gagan",
         split_paths={
-            "train": "gs://esp-ml-datasets/xeno-canto/v0.1.0/raw/metadata.csv",
+            "train": "gs://esp-ml-datasets/xeno-canto/v0.1.0/raw/train.csv",
+            "validation": "gs://esp-ml-datasets/xeno-canto/v0.1.0/raw/val.csv",
+            "all": "gs://esp-ml-datasets/xeno-canto/v0.1.0/raw/metadata.csv",
         },
         version="0.1.0",
         description="Xeno-canto audio dataset with taxonomic metadata. "
         "Available at original (variable) sample rates and 32kHz (pre-resampled). "
         "Pre-resampled audio uses librosa's kaiser_best resampling method. "
-        "Xeno-canto dump as of Oct 2025.",
+        "Xeno-canto dump as of Oct 2025. "
+        "Train/val split is 99%/1% with random seed 42.",
         sources=["Xeno-canto"],
-        license=[
-            "CC BY-NC-SA 4.0",
-            "CC_BY_NC_4_0",
-            "CC BY-NC-SA 3.0",
-            "CC BY-SA 4.0",
-            "CC0",
-            "CC BY-SA 3.0",
-            "CC BY 4.0",
-            "CC BY-NC 4.0",
-        ],
+        license="multiple (mostly CC BY-NC-SA 4.0, CC BY-NC 4.0, CC BY-SA, CC0)",
     )
 
     # Mapping of sample rates to their corresponding path columns
@@ -149,9 +143,11 @@ class XenoCanto(Dataset):
         self.sample_rate = sample_rate
 
         if data_root is None:
-            self.data_root = anypath("gs://esp-ml-datasets/xeno-canto/v0.1.0/raw/audio/")
+            self.data_root = anypath("gs://esp-ml-datasets/xeno-canto/v0.1.0/raw/")
+            self._data_root_32k = anypath("gs://esp-ml-datasets/xeno-canto/v0.1.0/raw/audio_32k/")
         else:
-            self.data_root = data_root
+            self.data_root = anypath(data_root)
+            self._data_root_32k = anypath(data_root)
 
     @property
     def columns(self) -> list[str]:
@@ -286,9 +282,9 @@ class XenoCanto(Dataset):
         if self.sample_rate is not None and self.sample_rate in self._sample_rate_paths:
             path_column = self._sample_rate_paths[self.sample_rate]
             # Check if the pre-resampled path column exists in the data
-            if path_column in row and pd.notna(row[path_column]):
-                # Use pre-resampled audio
-                audio_path = anypath(self.data_root) / row[path_column]
+            if path_column in row and pd.notna(row[path_column]) and row[path_column] != "":
+                # Use pre-resampled audio with appropriate data root
+                audio_path = self._data_root_32k / row[path_column]
                 use_presampled = True
 
         if use_presampled:
@@ -298,7 +294,12 @@ class XenoCanto(Dataset):
             # Audio is already at the correct sample rate, no resampling needed
         else:
             # Use original variable-rate files and resample on-the-fly if needed
-            audio_path = anypath(self.data_root) / row[self._originals_path_column]
+            # For original files, relative_path needs audio/ prefix if not already present
+            rel_path = row[self._originals_path_column]
+            if not rel_path.startswith("audio/"):
+                audio_path = anypath(self.data_root) / "audio" / rel_path
+            else:
+                audio_path = anypath(self.data_root) / rel_path
             audio, sr = read_audio(audio_path)
             audio = audio.astype(np.float32)
             audio = audio_stereo_to_mono(audio, mono_method="average")
