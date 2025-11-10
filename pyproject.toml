@@ -97,7 +97,7 @@ url = "https://oauth2accesstoken@us-central1-python.pkg.dev/okapi-274503/esp-pyp
 publish-url = "https://oauth2accesstoken@us-central1-python.pkg.dev/okapi-274503/esp-pypi/"
 
 [tool.deptry]
-exclude = ["conftest.py", ".venv", "tests", "scripts"]
+exclude = ["conftest.py", ".venv", "tests", "scripts", "docs/hooks/.*"]
 ignore = ["DEP003"]
 
 [tool.deptry.per_rule_ignores]
