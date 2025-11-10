@@ -7,7 +7,6 @@ documentation by intercepting the HTML generation process.
 
 import logging
 import re
-from typing import Any
 
 from mkdocs.config.defaults import MkDocsConfig
 from mkdocs.structure.files import Files
@@ -18,15 +17,13 @@ from esp_data.dataset import DatasetInfo
 log = logging.getLogger("mkdocs.plugins.dataset_info_hook")
 
 
-def format_dataset_info_html(info: "DatasetInfo", class_name: str) -> str:
+def format_dataset_info_html(info: "DatasetInfo") -> str:
     """Format a dataset's DatasetInfo as HTML.
 
     Parameters
     ----------
     info : DatasetInfo
         The dataset info object
-    class_name : str
-        The name of the dataset class
 
     Returns
     -------
@@ -116,7 +113,7 @@ def on_page_content(html: str, page: "Page", config: "MkDocsConfig", files: "Fil
         dataset_info_map = {}
         for dataset_class in _dataset_registry.values():
             class_name = dataset_class.__name__
-            info_html = format_dataset_info_html(dataset_class.info, class_name)
+            info_html = format_dataset_info_html(dataset_class.info)
             dataset_info_map[class_name] = info_html
 
         # Pattern to find dataset class sections
@@ -146,20 +143,3 @@ def on_page_content(html: str, page: "Page", config: "MkDocsConfig", files: "Fil
     except Exception as e:
         log.error(f"Failed to inject dataset info: {e}", exc_info=True)
         return html
-
-
-def on_config(config: dict[str, Any]) -> dict[str, Any]:
-    """Hook called when config is loaded.
-
-    Parameters
-    ----------
-    config : dict[str, Any]
-        The MkDocs configuration
-
-    Returns
-    -------
-    dict[str, Any]
-        The unchanged configuration
-    """
-    log.info("Dataset info hook loaded")
-    return config
