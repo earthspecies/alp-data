@@ -58,6 +58,9 @@ exclude = [
   "tests",
 ]
 
+[tool.ruff.flake8-annotations]
+allow-star-arg-any = true # suppress ANN401 for *args and **kwargs arguments
+
 [tool.ruff.lint]
 # Enable Pyflakes (`F`) and a subset of the pycodestyle (`E`)  codes by default.
 # Unlike Flake8, Ruff doesn't enable pycodestyle warnings (`W`) or
