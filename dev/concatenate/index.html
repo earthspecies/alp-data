@@ -866,6 +866,10 @@
 <li><strong>Overlap Merge</strong>: Keeps only columns that exist in all datasets.</li>
 <li><strong>Hard Merge</strong>: Requires all datasets to have identical columns, raising an error if they differ.</li>
 </ol>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>When merging two datasets, be aware that if a column with the same name appears in multiple datasets being concatenated, and the data type <strong>dtype</strong> of the column is not the same across datasets, the resulting column in the concatenated dataset will be of type <code>object</code> in pandas, which may lead to unexpected behavior in downstream processing because this can be a mixed data type!</p>
+</div>
 <h2 id="how-can-i-concatenate-datasets">How can I concatenate datasets?</h2>
 <p>Datasets can be concatenated using the <code>ConcatenatedDataset</code> class with different merge strategies:</p>
 <h3 id="basic-usage">Basic Usage</h3>
@@ -897,7 +901,8 @@
 </span><span id="__span-0-26"><a id="__codelineno-0-26" name="__codelineno-0-26" href="#__codelineno-0-26"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Last sample: </span><span class="si">{</span><span class="n">combined_dataset</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 </span></code></pre></div>
 <h4 id="create-a-combined-dataset-from-a-yaml-config">Create a combined dataset from a yaml config</h4>
-<p>You can also create a concatenated dataset from a YAML configuration file. Here is an example of how to do this:</p>
+<p>You can also create a concatenated dataset from a YAML configuration file. Here is an example of how to do this:
+Note the <code>concat</code> keyword at the top level of the config, and <code>datasets</code> list inside it (required).</p>
 <p><div class="language-yaml highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nt">concat</span><span class="p">:</span>
 </span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">  </span><span class="nt">datasets</span><span class="p">:</span>
 </span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">dataset_name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">beans</span>
