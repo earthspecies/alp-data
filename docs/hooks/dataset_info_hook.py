@@ -51,18 +51,12 @@ def format_dataset_info_html(info: "DatasetInfo") -> str:
     html.append('<div class="dataset-info-content">')
     html.append("<table>")
     html.append("<tbody>")
-    html.append(
-        f"<tr><td><strong>Name</strong></td><td><code>{info.name}</code></td></tr>"
-    )
-    html.append(
-        f"<tr><td><strong>Version</strong></td><td><code>{info.version}</code></td></tr>"
-    )
+    html.append(f"<tr><td><strong>Name</strong></td><td><code>{info.name}</code></td></tr>")
+    html.append(f"<tr><td><strong>Version</strong></td><td><code>{info.version}</code></td></tr>")
     html.append(f"<tr><td><strong>Owner</strong></td><td>{info.owner}</td></tr>")
     html.append(f"<tr><td><strong>License</strong></td><td>{info.license}</td></tr>")
     html.append(f"<tr><td><strong>Sources</strong></td><td>{sources_str}</td></tr>")
-    html.append(
-        f"<tr><td><strong>Available Splits</strong></td><td>{splits_display}</td></tr>"
-    )
+    html.append(f"<tr><td><strong>Available Splits</strong></td><td>{splits_display}</td></tr>")
     html.append("</tbody>")
     html.append("</table>")
 
@@ -84,9 +78,7 @@ def format_dataset_info_html(info: "DatasetInfo") -> str:
     return "\n".join(html)
 
 
-def on_page_content(
-    html: str, page: "Page", config: "MkDocsConfig", files: "Files"
-) -> str:
+def on_page_content(html: str, page: "Page", config: "MkDocsConfig", files: "Files") -> str:
     """Hook to modify HTML after it's generated.
 
     This function is called by MkDocs for each page after the HTML is generated.
