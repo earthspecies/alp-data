@@ -46,6 +46,36 @@ config = DatasetConfig(
 dataset, _ = AnimalSpeak.from_config(config)
 ```
 
+3. From a config yaml file:
+
+Your yaml config file should look like this for a single dataset (see [Concatenate](concatenate.md) for multiple datasets):
+Note the `dataset` key at the top level is **required**.
+
+```yaml
+dataset:
+  dataset_name: AnimalSpeak
+  split: validation
+  output_take_and_give:
+    labels: label
+  data_root: null
+  transformations:
+    - type: deduplicate
+      subset: null
+
+    - type: label_from_feature
+      feature: species_common
+      output_feature: label
+      override: true
+```
+
+```python
+from esp_data import dataset_from_config
+
+ds, transform_metadata = dataset_from_config("path/to/config.yaml")
+
+print(len(ds))
+```
+
 ### Dataset Configuration
 
 Deeper levels of configurations can be achieved by using specific parameters which are either common to all datasets or sometimes specific.
