@@ -7,7 +7,7 @@
 cd ~/esp-data
 uv sync
 
-srun uv run --with torch python scripts/benchmarks/generate_list.py
+uv run python scripts/benchmarks/generate_list.py
 
 # Read dataset list from text file line per line (one dataset name per line)
 if [[ -f scripts/benchmarks/dataset_list.txt ]]; then
