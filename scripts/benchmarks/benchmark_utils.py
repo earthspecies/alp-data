@@ -63,15 +63,29 @@ def build_raw_dataset(config_path: Path, data_location: str, dataset_name: str) 
     ----------
     config_path : Path
         The run configuration containing dataset and model specifications.
+    data_location : str
+        The data location key in the config file (e.g., 'nfs' or 'bucket').
+    dataset_name : str
+        The name of the dataset to build if no config path is provided.
 
     Returns
     -------
     Dataset
         The raw dataset.
+
+    Raises
+    -------
+    ValueError
+        If both config_path and dataset_name are provided.
+
     """
     logger = logging.getLogger("dataset_builder")
+
+    if config_path is not None and dataset_name is not None:
+        raise ValueError("Cannot provide both config_path and dataset_name.")
+
     if config_path is not None:
-        logger.info(f"Loading dataset config from {config_path}")
+        logger.info(f"Building dataset config from {config_path}")
         with config_path.open("r", encoding="utf-8") as fh:
             raw = yaml.safe_load(fh)
 
@@ -81,7 +95,7 @@ def build_raw_dataset(config_path: Path, data_location: str, dataset_name: str) 
         dataset, _ = dataset_from_config(config_path, key=data_location)
         raw = raw[data_location]["dataset"]
     else:
-        logger.info("No config path provided, building dataset with default parameters")
+        logger.info(f"Building dataset '{dataset_name}' with default parameters")
         dataset = get_class_from_name(dataset_name)()
         # Get corresponding raw information with following format:
         # dataset_name:

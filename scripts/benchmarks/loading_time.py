@@ -32,7 +32,7 @@ set_logging_config()
     "--config_path",
     "-c",
     type=click.Path(exists=True, dir_okay=False, path_type=Path),
-    default="scripts/benchmarks/benchmark_config.yaml",
+    default=None,
     show_default=True,
     help="Path to the config file",
 )
@@ -46,15 +46,8 @@ set_logging_config()
 @click.option(
     "--dataset-name",
     type=str,
-    default="beans",
+    default=None,
     help="Name of the dataset to benchmark",
-    show_default=True,
-)
-@click.option(
-    "--from-config",
-    is_flag=True,
-    default=False,
-    help="Whether to read dataset name and data location from the config file.",
     show_default=True,
 )
 @click.option(
@@ -68,7 +61,6 @@ def main(
     data_location: str,
     config_path: Path,
     dataset_name: str,
-    from_config: bool,
     save: bool,
 ) -> None:
     times_stored = {}
@@ -76,7 +68,7 @@ def main(
         mem_profile, (ds, raw_config) = memory_usage(
             (
                 build_raw_dataset,
-                (config_path if from_config else None, data_location, dataset_name),
+                (config_path, data_location, dataset_name),
             ),
             max_iterations=1,
             retval=True,
@@ -116,6 +108,7 @@ def main(
     )
 
     # Shape of a sample
+    # To be refined based on sample rate
     sample = ds[0]
     if "audio" in sample:
         shape_audio = sample["audio"].shape[0]

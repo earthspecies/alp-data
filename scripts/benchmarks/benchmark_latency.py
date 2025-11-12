@@ -241,7 +241,7 @@ def benchmark_raw_dataset(
     "--config_path",
     "-c",
     type=click.Path(exists=True, dir_okay=False, path_type=Path),
-    default="scripts/benchmarks/benchmark_config.yaml",
+    default=None,
     show_default=True,
     help="Path to the config file",
 )
@@ -293,14 +293,9 @@ def benchmark_raw_dataset(
     help="Batch size for DataLoader (default: 128)",
 )
 @click.option(
-    "--from-config",
-    is_flag=True,
-    help="Use configuration from file instead of command line options",
-)
-@click.option(
     "--dataset-name",
     type=str,
-    default="beans",
+    default=None,
     help="Name of the dataset to benchmark (used if --from-config is not set)",
     show_default=True,
 )
@@ -325,7 +320,6 @@ def main(
     max_iterations: int,
     num_workers: int,
     batch_size: int,
-    from_config: bool,
     dataset_name: str,
     prefetch_factor: int,
     save: bool,
@@ -333,7 +327,7 @@ def main(
     time_stored = {}
     with Timer("loading_time", store=time_stored):
         train_ds, raw_config = build_raw_dataset(
-            config_path if from_config else None, data_location, dataset_name=dataset_name
+            config_path, data_location, dataset_name=dataset_name
         )
     logger.info(f"Loaded dataset in {time_stored['loading_time'][0]:.2f} seconds")
 
