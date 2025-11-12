@@ -86,7 +86,7 @@ def benchmark_loader(
                 time.sleep(sleep)
 
             if n_batches == 1:
-                shard_download_time = t0.elapsed()[0]
+                first_batch_time = t0.elapsed()[0]
 
             with Timer("batch_time", store=None) as t1:
                 # Log stats every log_interval batches
@@ -122,7 +122,7 @@ def benchmark_loader(
     logger.info(
         f"{name} FINAL: {n_batches} batches, {n_samples} samples in {elapsed:.2f}s "
         f"({samples_per_sec:.2f} samples/s, {batches_per_sec:.2f} batches/s)"
-        f" (shard download time for first batch: {shard_download_time:.2f}s)"
+        f" (Time for first batch: {first_batch_time:.2f}s)"
     )
 
     # Create or append to DataFrame with results
@@ -137,6 +137,7 @@ def benchmark_loader(
         "max_iterations": max_iterations,
         "n_samples": n_samples,
         "elapsed_time": elapsed,
+        "first_download_time": first_batch_time,
         "samples_per_sec": samples_per_sec,
     }
 
@@ -179,7 +180,7 @@ def benchmark_raw_dataset(
                 time.sleep(sleep)
 
             if n_samples == 1:
-                shard_download_time = t0.elapsed()
+                first_download_time = t0.elapsed()
                 t0.start = time.perf_counter()  # Reset start time after first sample
 
             with Timer("sample_time", store=None) as t1:
@@ -210,7 +211,7 @@ def benchmark_raw_dataset(
     logger.info(
         f"{name} FINAL: {n_samples} samples in {elapsed:.2f}s "
         f"({n_samples / elapsed:.2f} samples/s)\n"
-        f"(shard (or first sample) download time: {shard_download_time:.2f}s)"
+        f"(shard (or first sample) download time: {first_download_time:.2f}s)"
     )
 
     # Create or append to DataFrame with results
@@ -226,7 +227,7 @@ def benchmark_raw_dataset(
         "n_samples": n_samples,
         "elapsed_time": elapsed,
         "samples_per_sec": samples_per_sec,
-        "shard_download_time": shard_download_time,
+        "first_download_time": first_download_time,
     }
 
     # Use pandas.concat
