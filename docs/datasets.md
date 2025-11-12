@@ -124,7 +124,7 @@ filter_config = FilterConfig(
 label_from_feature_config = LabelFromFeatureConfig(
     type="label_from_feature",
     feature="canonical_name",
-    output_column="label"
+    output_feature="label"
 )
 
 dataset.apply_transformations([filter_config, label_from_feature_config])
@@ -148,7 +148,7 @@ filter_config = FilterConfig(
 label_config = LabelFromFeatureConfig(
     type="label_from_feature",
     feature="canonical_name",
-    output_column="label"
+    output_feature="label"
 )
 
 # Create dataset configuration with transforms
