@@ -25,7 +25,7 @@ class MacaquesCooCalls(Dataset):
     https://archive.org/details/macaque_coo_calls
 
     Examples
-    -------
+    --------
     >>> from esp_data.datasets import MacaquesCooCalls
     >>> dataset = MacaquesCooCalls(
     ...     split="test",

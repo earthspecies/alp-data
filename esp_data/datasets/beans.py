@@ -31,7 +31,7 @@ class Beans(Dataset):
     https://github.com/earthspecies/beans
 
     Examples
-    -------
+    --------
     >>> from esp_data.datasets import Beans
     >>> dataset = Beans(
     ...     split="validation",

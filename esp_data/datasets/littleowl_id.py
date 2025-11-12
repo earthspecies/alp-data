@@ -29,8 +29,9 @@ class LittleOwlId(Dataset):
     ----------
     https://royalsocietypublishing.org/doi/10.1098/rsif.2018.0940
     Zenodo: https://zenodo.org/records/1413495
+
     Examples
-    -------
+    --------
     >>> from esp_data.datasets import LittleOwlId
     >>> dataset = LittleOwlId(
     ...     split="test_across_year",

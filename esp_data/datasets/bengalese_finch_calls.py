@@ -11,9 +11,9 @@ The data is hosted in the `esp-ml-datasets` GCS bucket in folder bengalese_finch
 - Extracted call audio snippets in `wav/BirdX/` subdirectories
 
 The CSVs have the following columns:
-* ``local_path``     – relative path to the extracted call audio snippet
-* ``call_type``      – call-type ID (string)
-* ``individual_id``  – identifier of the individual bird
+* ``local_path``     - relative path to the extracted call audio snippet
+* ``call_type``      - call-type ID (string)
+* ``individual_id``  - identifier of the individual bird
 
 **Available Split Types:**
 - ``{BirdX}_train``: Full training set (~70% of data)
@@ -23,24 +23,24 @@ The CSVs have the following columns:
 
 Examples
 --------
+# Individual bird
 >>> from esp_data.datasets import BengaleseFinchCalls
->>> # Individual bird
 >>> ds = BengaleseFinchCalls(split="Bird0", sample_rate=16000)
 >>> first = ds[0]
 >>> first.keys()
 dict_keys(['local_path', 'call_type', 'individual_id', 'audio'])
 
->>> # Bird2 training split
+# Bird2 training split
 >>> train_ds = BengaleseFinchCalls(split="Bird2_train", sample_rate=16000)
 >>> print(f"Training samples: {len(train_ds)}")
 Training samples: 18303
 
->>> # Learning with limited data
+# Learning with limited data
 >>> small_train_ds = BengaleseFinchCalls(split="Bird2_train_small", sample_rate=16000)
 >>> print(f"Small training samples: {len(small_train_ds)}")
 Small training samples: 1360
 
->>> # Any bird's splits are available
+# Any bird's splits are available
 >>> bird1_train = BengaleseFinchCalls(split="Bird1_train", sample_rate=16000)
 >>> bird8_valid = BengaleseFinchCalls(split="Bird8_valid", sample_rate=16000)
 >>> print(f"Bird1 training: {len(bird1_train)} samples")
@@ -144,10 +144,6 @@ class BengaleseFinchCalls(Dataset):
         license="CC-BY-4.0, CC0",
     )
 
-    # ---------------------------------------------------------------------
-    # Construction helpers
-    # ---------------------------------------------------------------------
-
     def __init__(
         self,
         split: str = "Bird2_train",
@@ -196,10 +192,6 @@ class BengaleseFinchCalls(Dataset):
         self._data: pd.DataFrame | None = None
         self._load()
 
-    # ------------------------------------------------------------------
-    # Properties
-    # ------------------------------------------------------------------
-
     @property
     def columns(self) -> list[str]:
         """Return the DataFrame column names."""
@@ -210,20 +202,12 @@ class BengaleseFinchCalls(Dataset):
         """Return the names of available splits."""
         return list(self.info.split_paths)
 
-    # ------------------------------------------------------------------
-    # Internal helpers
-    # ------------------------------------------------------------------
-
     def _load(self) -> None:
         """Load the CSV for the chosen split into :pyattr:`_data`."""
         csv_path = self.info.split_paths[self.split]
 
         # Read as DataFrame (avoid NA coercion so that strings stay strings)
         self._data = pd.read_csv(csv_path, keep_default_na=False, na_values=[""])
-
-    # ------------------------------------------------------------------
-    # Dataset API
-    # ------------------------------------------------------------------
 
     def __len__(self) -> int:  # noqa: D401 – consistent with Dataset interface
         if self._data is None:
@@ -268,10 +252,6 @@ class BengaleseFinchCalls(Dataset):
 
         return row
 
-    # ------------------------------------------------------------------
-    # Convenience constructors
-    # ------------------------------------------------------------------
-
     @classmethod
     def from_config(
         cls, dataset_config: DatasetConfig
@@ -302,10 +282,6 @@ class BengaleseFinchCalls(Dataset):
             transform_metadata = ds.apply_transformations(dataset_config.transformations)
             return ds, transform_metadata
         return ds, {}
-
-    # ------------------------------------------------------------------
-    # Representation helpers
-    # ------------------------------------------------------------------
 
     def __iter__(self) -> Iterator[Dict[str, Any]]:
         for i in range(len(self)):

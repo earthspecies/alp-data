@@ -28,7 +28,7 @@ class HawaiianBirds(Dataset):
     who provided 59,583 bounding box labels for 27 different bird species
     from the Hawaiian Islands, including 6 threatened or endangered native
     birds. The data were recorded between 2016 and 2022 at four sites across
-    Hawai‘i Island. This collection has partially been featured as test data
+    Hawaii Island. This collection has partially been featured as test data
     in the 2022 BirdCLEF competition and can primarily be used for training
     and evaluation of machine learning algorithms.
 
@@ -36,7 +36,7 @@ class HawaiianBirds(Dataset):
 
     Soundscapes for this collection were recorded for various research projects
     by the Listening Observatory for Hawaiian Ecosystems (LOHE) at the
-    University of Hawai‘i at Hilo. The recordings were collected using Wildlife
+    University of Hawaii at Hilo. The recordings were collected using Wildlife
     Acoustics Inc. Song Meters (models 2, 4, or Mini), as 16-bit wav files at a
     sampling rate of 44.1 kHz, using the default gain settings of each model.
     Further specifics for each recording, such as recording location and habitat

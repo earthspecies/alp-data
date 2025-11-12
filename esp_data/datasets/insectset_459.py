@@ -32,7 +32,7 @@ class InsectSet459(Dataset):
     https://zenodo.org/records/8252141
 
     Examples
-    -------
+    --------
     >>> from esp_data.datasets import InsectSet459
     >>> dataset = InsectSet459(
     ...     split="validation",
