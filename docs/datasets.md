@@ -105,7 +105,7 @@ Transforms can be used in a sequential way, as in first get the original dataset
 
 ```python
 from esp_data.datasets import AnimalSpeak
-from esp_data.transforms import Filter, LabelFromFeatureConfig
+from esp_data.transforms import FilterConfig, LabelFromFeatureConfig
 
 # Create a dataset
 aspeak_output_map = {
