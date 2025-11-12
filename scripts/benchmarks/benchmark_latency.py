@@ -368,7 +368,8 @@ def main(
 
     else:
         prefetch_factor = None if num_workers == 0 else prefetch_factor
-        if prefetch_factor == 0:
+        if prefetch_factor <= 0:
+            logger.warning(f"Invalid prefetch_factor={prefetch_factor}, setting to None")
             prefetch_factor = None
         logger.info(
             f"Running benchmark with num_workers={num_workers}, batch_size={batch_size}, "
