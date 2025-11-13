@@ -107,16 +107,6 @@ def main(
         f"{times_stored['time_for_10_samples'][1] / 10:.2f} seconds/sample"
     )
 
-    # Shape of a sample
-    # To be refined based on sample rate
-    sample = ds[0]
-    if "audio" in sample:
-        shape_audio = sample["audio"].shape[0]
-        logger.info(f"Shape of a sample audio: {sample['audio'].shape}")
-    else:
-        logger.info("No audio found in the sample.")
-        shape_audio = None
-
     if data_location == "bucket":
         bucket_location = get_bucket_location(raw_config["data_root"])
         logger.info(f"Bucket location for {raw_config['data_root']}: zone{bucket_location}")
@@ -135,7 +125,6 @@ def main(
                     "bucket_location": bucket_location if data_location == "bucket" else None,
                     "machine_location": machine_location if data_location == "bucket" else None,
                     "dataset_length": data_length,
-                    "shape_of_sample_audio": shape_audio,
                     "loading_time_seconds": times_stored["loading_time"][0],
                     "time_to_first_sample_seconds": times_stored["time_to_first_sample"][0],
                     "time_for_10_samples_seconds": times_stored["time_for_10_samples"][0],
