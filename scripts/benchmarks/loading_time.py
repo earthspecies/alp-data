@@ -16,6 +16,7 @@ from benchmark_utils import (
     set_logging_config,
 )
 from memory_profiler import memory_usage
+from plot_loading_bench import plot_results
 
 warnings.filterwarnings(
     "ignore",
@@ -57,11 +58,19 @@ set_logging_config()
     help="Whether to save the benchmark results to a CSV file.",
     show_default=True,
 )
+@click.option(
+    "--plot",
+    is_flag=True,
+    default=False,
+    help="Whether to plot the benchmark results.",
+    show_default=True,
+)
 def main(
     data_location: str,
     config_path: Path,
     dataset_name: str,
     save: bool,
+    plot: bool,
 ) -> None:
     times_stored = {}
     with Timer("loading_time", store=times_stored):
@@ -139,6 +148,9 @@ def main(
         )
 
         save_results(all_results, csv_path)
+
+        if plot:
+            plot_results(all_results)
 
 
 if __name__ == "__main__":

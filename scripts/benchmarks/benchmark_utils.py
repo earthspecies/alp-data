@@ -56,6 +56,10 @@ class Timer:
             raise ValueError("Timer has not been started. Use 'with Timer(...) as t:' to start it.")
         return (time.perf_counter() - self.start[0], time.process_time() - self.start[1])
 
+    def reset(self) -> None:
+        """Reset the timer to the current time."""
+        self.start = (time.perf_counter(), time.process_time())
+
 
 def build_raw_dataset(config_path: Path, data_location: str, dataset_name: str) -> Dataset:
     """Build raw datasets without DataLoaders for direct iteration.
