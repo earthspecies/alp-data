@@ -4,6 +4,7 @@ from .dataset import (
     Dataset,
     DatasetConfig,
     DatasetInfo,
+    dataset_class_from_name,
     dataset_from_config,
     list_registered_datasets,
     print_registered_datasets,
@@ -59,5 +60,6 @@ __all__ = [
     "Voxaboxen",
     "VoxaboxenEvents",
     "ESPRaincoast",
+    "dataset_class_from_name",
     "INaturalist",
 ]
