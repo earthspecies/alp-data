@@ -13,6 +13,7 @@ import torch
 import yaml
 
 from esp_data import Dataset, dataset_from_config, get_class_from_name
+from esp_data.io.paths import PureGSPath, anypath
 
 
 def set_logging_config() -> None:
@@ -225,17 +226,15 @@ def get_bucket_location(gcs_path: str) -> str:
     """
     from google.cloud import storage
 
-    gcs_path = str(gcs_path)
-    if not gcs_path.startswith("gs://"):
+    p = anypath(str(gcs_path))
+    if not isinstance(p, PureGSPath):
         raise ValueError("GCS path must start with 'gs://'")
 
-    # Extract bucket name from GCS path
-    bucket_name = gcs_path[5:].split("/")[0]
+    # Extract bucket name using PureGSPath.bucket
+    bucket_name = p.bucket
 
-    # Initialize GCS client
+    # Initialize GCS client and get bucket metadata
     client = storage.Client()
-
-    # Get bucket metadata
     bucket = client.bucket(bucket_name)
     bucket.reload()  # Ensure we have the latest metadata
 
