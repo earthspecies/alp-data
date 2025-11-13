@@ -12,7 +12,7 @@ import pandas
 import torch
 import yaml
 
-from esp_data import Dataset, dataset_from_config, get_class_from_name
+from esp_data import Dataset, dataset_class_from_name, dataset_from_config
 from esp_data.io.paths import PureGSPath, anypath
 
 
@@ -97,7 +97,7 @@ def build_raw_dataset(config_path: Path, data_location: str, dataset_name: str) 
         raw = raw[data_location]["dataset"]
     else:
         logger.info(f"Building dataset '{dataset_name}' with default parameters")
-        dataset = get_class_from_name(dataset_name)()
+        dataset = dataset_class_from_name(dataset_name)()
         # Get corresponding raw information with following format:
         # dataset_name:
         # split:
@@ -105,12 +105,9 @@ def build_raw_dataset(config_path: Path, data_location: str, dataset_name: str) 
         # data_root:
         raw = {}
         raw["dataset_name"] = dataset_name
-        if hasattr(dataset, "split"):
-            raw["split"] = dataset.split
-        if hasattr(dataset, "sample_rate"):
-            raw["sample_rate"] = dataset.sample_rate
-        if hasattr(dataset, "data_root"):
-            raw["data_root"] = dataset.data_root
+        raw["split"] = dataset.split
+        raw["sample_rate"] = dataset.sample_rate
+        raw["data_root"] = dataset.data_root
 
     return dataset, raw
 

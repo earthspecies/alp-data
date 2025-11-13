@@ -521,7 +521,7 @@ def list_registered_datasets() -> list[str]:
     return list(_dataset_registry.keys())
 
 
-def get_class_from_name(dataset_name: str) -> type[Dataset]:
+def dataset_class_from_name(dataset_name: str) -> type[Dataset]:
     """Get the dataset class from its name.
 
     Parameters
