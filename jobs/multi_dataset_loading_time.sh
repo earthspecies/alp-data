@@ -5,7 +5,7 @@
 #SBATCH --mail-type=FAIL
 
 cd ~/esp-data
-uv sync
+uv sync --group benchmark
 
 uv run python scripts/benchmarks/generate_list.py
 
@@ -31,5 +31,7 @@ for DATASET in "${DATASETS[@]}"; do
     sbatch jobs/loading_time.sh --dataset "$DATASET"
     sleep 10 # wait 10 seconds between submissions
 done
+
+uv run python scripts/benchmarks/plot_loading_bench.py
 
 echo "=== Finished job at $(date) ==="

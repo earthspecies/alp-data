@@ -29,9 +29,10 @@ SCRIPT=scripts/benchmarks/loading_time.py
 echo "=== Starting job at $(date) ==="
 
 cd "$WORKDIR"
-uv sync
-srun uv run --with torch python $SCRIPT \
-        --data-location 'bucket' \
-        --dataset-name "$DATASET"
+uv sync --group benchmark
+srun uv run python $SCRIPT \
+        --dataset-name "$DATASET" \
+        --save \
+        --plot \
 
 echo "=== Finished job at $(date) ==="
