@@ -12,7 +12,8 @@ import pandas
 import torch
 import yaml
 
-from esp_data import Dataset, dataset_from_config
+from esp_data import Dataset, dataset_class_from_name, dataset_from_config
+from esp_data.io.paths import PureGSPath, anypath
 
 
 def set_logging_config() -> None:
@@ -32,11 +33,11 @@ class Timer:
         self.start = None
 
     def __enter__(self) -> "Timer":
-        self.start = time.perf_counter()
+        self.start = (time.perf_counter(), time.process_time())
         return self
 
     def __exit__(self, exc_type: type, exc_value: Exception, traceback: TracebackType) -> None:
-        duration = time.perf_counter() - self.start
+        duration = (time.perf_counter() - self.start[0], time.process_time() - self.start[1])
         if self.store is not None and self.name:
             self.store[self.name] = duration
 
@@ -53,28 +54,66 @@ class Timer:
         """
         if self.start is None:
             raise ValueError("Timer has not been started. Use 'with Timer(...) as t:' to start it.")
-        return time.perf_counter() - self.start
+        return (time.perf_counter() - self.start[0], time.process_time() - self.start[1])
+
+    def reset(self) -> None:
+        """Reset the timer to the current time."""
+        self.start = (time.perf_counter(), time.process_time())
 
 
-def build_raw_dataset(config_path: Path, data_location: str) -> Dataset:
+def build_raw_dataset(config_path: Path, data_location: str, dataset_name: str) -> Dataset:
     """Build raw datasets without DataLoaders for direct iteration.
 
     Parameters
     ----------
     config_path : Path
         The run configuration containing dataset and model specifications.
+    data_location : str
+        The data location key in the config file (e.g., 'nfs' or 'bucket').
+    dataset_name : str
+        The name of the dataset to build if no config path is provided.
 
     Returns
     -------
     Dataset
         The raw dataset.
+
+    Raises
+    -------
+    ValueError
+        If both config_path and dataset_name are provided.
+
     """
-    with config_path.open("r", encoding="utf-8") as fh:
-        raw = yaml.safe_load(fh)
+    logger = logging.getLogger("dataset_builder")
 
-    dataset, _ = dataset_from_config(config_path, key=data_location)
+    if config_path is not None and dataset_name is not None:
+        raise ValueError("Cannot provide both config_path and dataset_name.")
 
-    return dataset, raw[data_location]["dataset"]
+    if config_path is not None:
+        logger.info(f"Building dataset config from {config_path}")
+        with config_path.open("r", encoding="utf-8") as fh:
+            raw = yaml.safe_load(fh)
+
+        logger.info(
+            f"Building dataset '{raw[data_location]['dataset']['dataset_name']}' from config'"
+        )
+        dataset, _ = dataset_from_config(config_path, key=data_location)
+        raw = raw[data_location]["dataset"]
+    else:
+        logger.info(f"Building dataset '{dataset_name}' with default parameters")
+        dataset = dataset_class_from_name(dataset_name)()
+        # Get corresponding raw information with following format:
+        # dataset_name:
+        # split:
+        # sample_rate:
+        # data_root:
+        raw = {}
+        raw["dataset_name"] = dataset_name
+        raw["split"] = dataset.split
+        raw["sample_rate"] = dataset.sample_rate
+        raw["data_root"] = dataset.data_root
+
+    return dataset, raw
 
 
 def collate_fn(batch: list[dict]) -> dict:
@@ -137,7 +176,7 @@ def build_dataloader(
         num_workers=num_workers,
         collate_fn=collate_fn,
         prefetch_factor=prefetch_factor,
-        persistent_workers=(num_workers > 0),
+        persistent_workers=False,
     )
 
     return loader
@@ -188,16 +227,15 @@ def get_bucket_location(gcs_path: str) -> str:
     """
     from google.cloud import storage
 
-    if not gcs_path.startswith("gs://"):
+    p = anypath(str(gcs_path))
+    if not isinstance(p, PureGSPath):
         raise ValueError("GCS path must start with 'gs://'")
 
-    # Extract bucket name from GCS path
-    bucket_name = gcs_path[5:].split("/")[0]
+    # Extract bucket name using PureGSPath.bucket
+    bucket_name = p.bucket
 
-    # Initialize GCS client
+    # Initialize GCS client and get bucket metadata
     client = storage.Client()
-
-    # Get bucket metadata
     bucket = client.bucket(bucket_name)
     bucket.reload()  # Ensure we have the latest metadata
 
