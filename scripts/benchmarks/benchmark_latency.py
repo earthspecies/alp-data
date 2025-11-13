@@ -76,27 +76,28 @@ def benchmark_loader(
     n_samples = 0
 
     with Timer("total_time", store=time_stored) as t0:
-        last_log_time = t0.start
+        last_log_time = t0.start[0]
         for batch in loader:
             n_batches += 1
             batch_size = batch.shape[0]
             n_samples += batch_size
 
-            if n_batches == 1:
-                shard_download_time = t0.elapsed()
-                t0.start = time.perf_counter()  # Reset start time after first batch
-
             if sleep > 0:
                 time.sleep(sleep)
+
+            if n_batches == 1:
+                first_batch_time = t0.elapsed()[0]
+                t0.reset()
+                last_log_time = t0.start[0]  # Reset start time after first batch
 
             with Timer("batch_time", store=None) as t1:
                 # Log stats every log_interval batches
                 if n_batches > 1 and n_batches % log_interval == 0:
-                    elapsed_since_start = t0.elapsed()
-                    elapsed_since_last = t1.start - last_log_time
+                    elapsed_since_first = t0.elapsed()[0]
+                    elapsed_since_last = t1.start[0] - last_log_time
 
-                    samples_per_sec = n_samples / elapsed_since_start
-                    batches_per_sec = n_batches / elapsed_since_start
+                    samples_per_sec = (n_samples - batch_size) / elapsed_since_first
+                    batches_per_sec = (n_batches - 1) / elapsed_since_first
                     recent_samples_per_sec = (
                         (log_interval * batch_size) / elapsed_since_last
                         if elapsed_since_last > 0
@@ -105,25 +106,29 @@ def benchmark_loader(
 
                     logger.info(
                         f"{name} batch {n_batches}/{len(loader)}: "
-                        f"{n_samples} samples in {elapsed_since_start:.2f}s "
+                        f"{n_samples} samples in {elapsed_since_first + first_batch_time:.2f}s "
                         f"({samples_per_sec:.2f} samples/s, {batches_per_sec:.2f} batches/s) "
                         f"[recent: {recent_samples_per_sec:.2f} samples/s]"
                     )
-                    last_log_time = t1.start
+                    last_log_time = t1.start[0]
 
             if max_iterations > 0 and n_batches >= max_iterations:
                 logger.info(f"Reached max_iterations={max_iterations}, stopping early.")
+                closing_time = time.perf_counter()
                 break
 
     # Final stats
-    elapsed = time_stored["total_time"]
-    samples_per_sec = n_samples / elapsed if elapsed > 0 else 0
-    batches_per_sec = n_batches / elapsed if elapsed > 0 else 0
+    closing_time = time.perf_counter() - closing_time
+    elapsed = time_stored["total_time"][0] - closing_time
+    samples_per_sec = (n_samples - batch_size) / elapsed if elapsed > 0 else 0
+    batches_per_sec = (n_batches - 1) / elapsed if elapsed > 0 else 0
 
     logger.info(
-        f"{name} FINAL: {n_batches} batches, {n_samples} samples in {elapsed:.2f}s "
-        f"({samples_per_sec:.2f} samples/s, {batches_per_sec:.2f} batches/s)"
-        f" (shard download time for first batch: {shard_download_time:.2f}s)"
+        f"{name} FINAL: {n_batches} batches, {n_samples} samples in "
+        f"{elapsed + first_batch_time + closing_time:.2f}s "
+        f"(NOMINAL SPEED : {samples_per_sec:.2f} samples/s, {batches_per_sec:.2f} batches/s)"
+        f" (Time for first batch: {first_batch_time:.2f}s)"
+        f" (Time to stop workers: {closing_time:.2f}s)"
     )
 
     # Create or append to DataFrame with results
@@ -137,8 +142,9 @@ def benchmark_loader(
         "dataset_name": name,
         "max_iterations": max_iterations,
         "n_samples": n_samples,
-        "elapsed_time": elapsed,
-        "samples_per_sec": samples_per_sec,
+        "total_time": elapsed + first_batch_time + closing_time,
+        "first_download_time": first_batch_time,
+        "nominal_speed": samples_per_sec,
     }
 
     # Use pandas.concat
@@ -180,7 +186,7 @@ def benchmark_raw_dataset(
                 time.sleep(sleep)
 
             if n_samples == 1:
-                shard_download_time = t0.elapsed()
+                first_download_time = t0.elapsed()
                 t0.start = time.perf_counter()  # Reset start time after first sample
 
             with Timer("sample_time", store=None) as t1:
@@ -211,7 +217,7 @@ def benchmark_raw_dataset(
     logger.info(
         f"{name} FINAL: {n_samples} samples in {elapsed:.2f}s "
         f"({n_samples / elapsed:.2f} samples/s)\n"
-        f"(shard (or first sample) download time: {shard_download_time:.2f}s)"
+        f"(shard (or first sample) download time: {first_download_time:.2f}s)"
     )
 
     # Create or append to DataFrame with results
@@ -227,7 +233,7 @@ def benchmark_raw_dataset(
         "n_samples": n_samples,
         "elapsed_time": elapsed,
         "samples_per_sec": samples_per_sec,
-        "shard_download_time": shard_download_time,
+        "first_download_time": first_download_time,
     }
 
     # Use pandas.concat
@@ -241,7 +247,7 @@ def benchmark_raw_dataset(
     "--config_path",
     "-c",
     type=click.Path(exists=True, dir_okay=False, path_type=Path),
-    default="scripts/benchmarks/benchmark_config.yaml",
+    default=None,
     show_default=True,
     help="Path to the config file",
 )
@@ -293,11 +299,23 @@ def benchmark_raw_dataset(
     help="Batch size for DataLoader (default: 128)",
 )
 @click.option(
+    "--dataset-name",
+    type=str,
+    default=None,
+    help="Name of the dataset to benchmark (used if --from-config is not set)",
+    show_default=True,
+)
+@click.option(
     "--prefetch-factor",
     type=int,
     default=None,
     show_default=True,
     help="Prefetch factor for DataLoader (default: None)",
+)
+@click.option(
+    "--save",
+    is_flag=True,
+    help="Save results to CSV in GCS bucket after benchmarking",
 )
 def main(
     config_path: Path,
@@ -308,12 +326,16 @@ def main(
     max_iterations: int,
     num_workers: int,
     batch_size: int,
+    dataset_name: str,
     prefetch_factor: int,
+    save: bool,
 ) -> None:
     time_stored = {}
     with Timer("loading_time", store=time_stored):
-        train_ds, raw_config = build_raw_dataset(config_path, data_location)
-    logger.info(f"Loaded dataset in {time_stored['loading_time']:.2f} seconds")
+        train_ds, raw_config = build_raw_dataset(
+            config_path, data_location, dataset_name=dataset_name
+        )
+    logger.info(f"Loaded dataset in {time_stored['loading_time'][0]:.2f} seconds")
 
     # Initialize empty DataFrame to collect all results
     all_results = pandas.DataFrame()
@@ -328,7 +350,7 @@ def main(
         config_info = {
             "data_location": data_location,
             **raw_config,
-            "loading_time": time_stored["loading_time"],
+            "loading_time": time_stored["loading_time"][0],
             "raw_dataset": True,
             "machine_location": machine_location if data_location == "bucket" else None,
             "bucket_location": bucket_location if data_location == "bucket" else None,
@@ -346,6 +368,9 @@ def main(
         all_results = pandas.concat([all_results, result_df], ignore_index=True)
 
     else:
+        if prefetch_factor <= 0:
+            logger.warning(f"Invalid prefetch_factor={prefetch_factor}, setting to None")
+            prefetch_factor = None
         prefetch_factor = None if num_workers == 0 else prefetch_factor
         logger.info(
             f"Running benchmark with num_workers={num_workers}, batch_size={batch_size}, "
@@ -383,11 +408,12 @@ def main(
         # Add to our collection of all results
         all_results = pandas.concat([all_results, result_df], ignore_index=True)
 
-    # Define the CSV file path in the bucket
-    csv_path = "gs://esp-ci-cd-tests/esp-data-tests/benchmark_dataset/benchmark_dataset.csv"
+    if save:
+        # Define the CSV file path in the bucket
+        csv_path = "gs://esp-ci-cd-tests/esp-data-tests/benchmark_dataset/benchmark_latency.csv"
 
-    # Save all results to the single CSV file in the bucket
-    save_results(all_results, csv_path)
+        # Save all results to the single CSV file in the bucket
+        save_results(all_results, csv_path)
 
 
 if __name__ == "__main__":
