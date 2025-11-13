@@ -76,9 +76,11 @@ class INaturalist(Dataset):
     inaturalist
     >>> print(dataset.available_sample_rates)
     [32000]
-    >>> # Load with pre-resampled 32kHz audio (no on-the-fly resampling needed)
+
+    Load with pre-resampled 32kHz audio (no on-the-fly resampling needed)
     >>> dataset_32k = INaturalist(split="train", sample_rate=32000)
-    >>> # Load with on-the-fly resampling to 16kHz from original (variable rate) files
+
+    Load with on-the-fly resampling to 16kHz from original (variable rate) files
     >>> dataset_16k = INaturalist(split="train", sample_rate=16000)
     """
 
