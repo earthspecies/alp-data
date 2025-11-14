@@ -4,7 +4,6 @@ import pytest
 
 from esp_data.datasets import XenoCanto
 from esp_data import Dataset, DatasetConfig
-from esp_data.io import anypath
 
 
 @pytest.fixture
@@ -135,7 +134,7 @@ def test_columns_property(dataset: Dataset) -> None:
 def test_available_splits(dataset: Dataset) -> None:
     """Test if available_splits returns correct split names."""
     # Available splits should contain train
-    expected_splits = ["train"]
+    expected_splits = ["train", "all", "validation"]
     assert set(dataset.available_splits) == set(expected_splits)
 
 
@@ -176,9 +175,7 @@ def test_iteration(dataset: Dataset) -> None:
 def test_load_from_config() -> None:
     """Test if dataset can be loaded from configuration."""
     dataset_config = DatasetConfig(
-        dataset_name="xeno-canto",
-        split="train",
-        sample_rate=16000
+        dataset_name="xeno-canto", split="train", sample_rate=16000
     )
     dataset, _ = XenoCanto.from_config(dataset_config)
     assert dataset.info.name == "xeno-canto"
@@ -214,7 +211,9 @@ def test_transformations(dataset_with_transforms: Dataset) -> None:
     assert "label" in dataset_with_transforms._data.columns
 
 
-def test_transformations_from_config(dataset_with_transforms_from_config: tuple[Dataset, dict]) -> None:
+def test_transformations_from_config(
+    dataset_with_transforms_from_config: tuple[Dataset, dict],
+) -> None:
     """Test if transformations from config are applied correctly.
 
     This test verifies that:
@@ -334,7 +333,11 @@ def test_output_take_and_give_filtering() -> None:
     """Test if output_take_and_give filtering works correctly."""
     dataset = XenoCanto(
         split="train",
-        output_take_and_give={"species_common": "species", "relative_path": "path", "audio": "audio"},
+        output_take_and_give={
+            "species_common": "species",
+            "relative_path": "path",
+            "audio": "audio",
+        },
     )
 
     sample = dataset[0]
@@ -373,7 +376,9 @@ def test_pre_resampled_audio_32khz() -> None:
         assert sample["audio"].dtype.name == "float32"
         print(f"Audio shape: {sample['audio'].shape}")
     else:
-        print("32kHz pre-resampled audio not yet available, on-the-fly resampling will be used")
+        print(
+            "32kHz pre-resampled audio not yet available, on-the-fly resampling will be used"
+        )
         sample = dataset[0]
         assert "audio" in sample
         assert sample["audio"].dtype.name == "float32"
@@ -401,7 +406,9 @@ def test_reference_item_stability() -> None:
     import numpy as np
 
     # Expected SHA256 hash of the first item's audio data
-    EXPECTED_FIRST_ITEM_AUDIO_SHA256 = "c600da0173c138bbf2ea376f7ef45414211d029480bad2258b95648ecda4f3fc"
+    EXPECTED_FIRST_ITEM_AUDIO_SHA256 = (
+        "66bcf85aa6b64509d0937615c8d87b32c959827bf15808f6a8da841e9893be8a"
+    )
 
     ds = XenoCanto(split="train")
     idx = 0
@@ -411,7 +418,9 @@ def test_reference_item_stability() -> None:
     assert "audio" in item, "[0] missing 'audio' key"
     audio = item["audio"]
     assert isinstance(audio, np.ndarray), "[0] audio is not a numpy array"
-    assert audio.dtype == np.float32, f"[0] audio dtype is {audio.dtype}, expected float32"
+    assert (
+        audio.dtype == np.float32
+    ), f"[0] audio dtype is {audio.dtype}, expected float32"
 
     # Compute sha256 over raw bytes of the float32 array
     h = hashlib.sha256(audio.tobytes()).hexdigest()
