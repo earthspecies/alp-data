@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
-from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio, read_text
+from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
 
 
 @register_dataset
@@ -26,7 +26,7 @@ class GiantOtters(Dataset):
     https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0112562#s5
 
     Examples
-    -------
+    --------
     >>> from esp_data.datasets import GiantOtters
     >>> dataset = GiantOtters(
     ...     split="test",
@@ -111,10 +111,7 @@ class GiantOtters(Dataset):
             # For JSONL files, read them directly into a DataFrame
             self._data = pd.read_json(location, lines=True, orient="records")
         else:
-            from io import StringIO
-
-            csv_text = read_text(location, encoding="utf-8")
-            self._data = pd.read_csv(StringIO(csv_text))
+            self._data = pd.read_csv(location, keep_default_na=False, na_values=[""])
 
     @classmethod
     def from_config(cls, dataset_config: DatasetConfig) -> tuple["GiantOtters", dict[str, Any]]:

@@ -52,7 +52,6 @@ def dataset_with_output_mapping() -> Dataset:
     ds = AudioSet(
         split="validation",
         output_take_and_give=dataset_config.output_take_and_give,
-
     )
     return ds
 
@@ -105,9 +104,13 @@ def test_available_splits(dataset: Dataset) -> None:
     """Test if available_splits returns correct split names."""
     # Available splits should contain these
     expected_splits = [
-        "train", "train-balanced", "validation",
-        "train-animal", "validation-animal",
-        "train-noise", "validation-noise"
+        "train",
+        "train-balanced",
+        "validation",
+        "train-animal",
+        "validation-animal",
+        "train-noise",
+        "validation-noise",
     ]
     assert all(split in dataset.available_splits for split in expected_splits)
 
@@ -159,9 +162,7 @@ def test_iteration(dataset: Dataset) -> None:
 def test_load_from_config() -> None:
     """Test if dataset can be loaded from configuration."""
     dataset_config = DatasetConfig(
-        dataset_name="audioset",
-        split="validation",
-        sample_rate=16000
+        dataset_name="audioset", split="validation", sample_rate=16000
     )
     dataset, _ = AudioSet.from_config(dataset_config)
     assert dataset.info.name == "audioset"
@@ -279,7 +280,7 @@ def test_from_config_with_transformations() -> None:
     # This test now just verifies from_config works without transformations
     dataset_config = DatasetConfig(
         dataset_name="audioset",
-        split="validation",
+        split="train",
     )
     dataset, metadata = AudioSet.from_config(dataset_config)
 
@@ -342,8 +343,11 @@ def test_output_take_and_give_filtering() -> None:
     """Test if output_take_and_give filtering works correctly."""
     dataset = AudioSet(
         split="validation",
-        output_take_and_give={"labels": "audio_label", "local_path": "path", "audio": "audio"},
-
+        output_take_and_give={
+            "labels": "audio_label",
+            "local_path": "path",
+            "audio": "audio",
+        },
     )
 
     sample = dataset[0]

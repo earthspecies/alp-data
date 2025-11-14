@@ -17,48 +17,48 @@ from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
 class AnuraSetStrong(Dataset):
     """AnuraSetStrong Dataset
 
-        Description
-        -----------
-        This is the strongly labeled portion of AnuraSet, i.e. the portion with
-        start- and stop-times annotated.
+    Description
+    -----------
+    This is the strongly labeled portion of AnuraSet, i.e. the portion with
+    start- and stop-times annotated.
 
-        Description from "AnuraSet: A dataset for benchmarking Neotropical anuran
+    Description from "AnuraSet: A dataset for benchmarking Neotropical anuran
     calls identification in passive acoustic monitoring" by Canas et al. (2023)
 
-        "We introduce a large-scale multi-species dataset of anuran amphibians
-        calls recorded by PAM, that comprises 27 hours of expert annotations
-        for 42 different species from two Brazilian biomes.
+    "We introduce a large-scale multi-species dataset of anuran amphibians
+    calls recorded by PAM, that comprises 27 hours of expert annotations
+    for 42 different species from two Brazilian biomes.
 
-        To provide precise annotations, we identified bouts of advertisement
-        calls within each audio file and generated strong labels for them (step 1).
-        Using Audacity 3.2 software, we conducted a detailed visual and aural
-        inspection of the spectrogram to identify temporal limits (beginning and end)
-        of audio segments containing species-specific calls with an inter-call interval
-        of less than 1 second. These annotations ensured fine-scale specificity (Figure 3).
-        For longer intervals, we split the calls into different time boxes and labeled
-        them independently. Detailed labels assigned to time boxes were composed of (i)
-        the species ID, tagged with a unique 6-letter code built from the scientific
-        name of each identified species (Table 2), and (ii) the perceived quality of the
-        recorded signal, included as a single letter indicating a Low (’L’), Medium (’M’),
-        or High (’H’) quality (Figure 4). To ensure consistency among the perceptual quality
-        labels, we set up the following criteria: A high-quality call has a high signal-to-noise
-        ratio, no overlap with other sounds, has a well-identifiable structure on the spectrogram,
-        and can be easily visualized on the oscillogram. A medium-quality call can be
-        visually identified on the spectrogram but may overlap with other sounds that can be
-        difficult to identify in the oscillogram. A low-quality call shows a low signal-to-noise
-        ratio, is partially masked by other sounds, appears with low intensity on the spectrogram,
-        and cannot be easily identified on the oscillogram. This information was used to increase
-        the usability of the data and improve the error analysis of the learning model."
+    To provide precise annotations, we identified bouts of advertisement
+    calls within each audio file and generated strong labels for them (step 1).
+    Using Audacity 3.2 software, we conducted a detailed visual and aural
+    inspection of the spectrogram to identify temporal limits (beginning and end)
+    of audio segments containing species-specific calls with an inter-call interval
+    of less than 1 second. These annotations ensured fine-scale specificity (Figure 3).
+    For longer intervals, we split the calls into different time boxes and labeled
+    them independently. Detailed labels assigned to time boxes were composed of (i)
+    the species ID, tagged with a unique 6-letter code built from the scientific
+    name of each identified species (Table 2), and (ii) the perceived quality of the
+    recorded signal, included as a single letter indicating a Low ('L'), Medium ('M'),
+    or High ('H') quality (Figure 4). To ensure consistency among the perceptual quality
+    labels, we set up the following criteria: A high-quality call has a high signal-to-noise
+    ratio, no overlap with other sounds, has a well-identifiable structure on the spectrogram,
+    and can be easily visualized on the oscillogram. A medium-quality call can be
+    visually identified on the spectrogram but may overlap with other sounds that can be
+    difficult to identify in the oscillogram. A low-quality call shows a low signal-to-noise
+    ratio, is partially masked by other sounds, appears with low intensity on the spectrogram,
+    and cannot be easily identified on the oscillogram. This information was used to increase
+    the usability of the data and improve the error analysis of the learning model."
 
-        Note that we omitted the quality assessments.
+    Note that we omitted the quality assessments.
 
-        Each entry consists of:
-        - an audio recording
-        - a selection table (Raven format), with Species labels
+    Each entry consists of:
+    - an audio recording
+    - a selection table (Raven format), with Species labels
 
-        References
-        ----------
-        https://arxiv.org/pdf/2307.06860
+    References
+    ----------
+    https://arxiv.org/pdf/2307.06860
 
     """
 

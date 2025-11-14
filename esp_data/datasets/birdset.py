@@ -31,7 +31,7 @@ class BirdSet(Dataset):
     https://arxiv.org/abs/2403.10380
 
     Examples
-    -------
+    --------
     >>> from esp_data.datasets import BirdSet
     >>> dataset = BirdSet(
     ...     split="HSN-test",

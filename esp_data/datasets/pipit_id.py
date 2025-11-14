@@ -34,7 +34,7 @@ class PipitId(Dataset):
     Zenodo: https://zenodo.org/records/1413495
 
     Examples
-    -------
+    --------
     >>> from esp_data.datasets import PipitId
     >>> dataset = PipitId(
     ...     split="test_within_year",

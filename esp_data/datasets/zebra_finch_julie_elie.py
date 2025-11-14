@@ -30,7 +30,7 @@ class ZebraFinchJulieElie(Dataset):
     https://figshare.com/articles/dataset/Vocal_repertoires_from_adult_and_chick_male_and_female_zebra_finches_Taeniopygia_guttata_/11905533/1
 
     Examples
-    -------
+    --------
     >>> from esp_data.datasets import ZebraFinchJulieElie
     >>> dataset = ZebraFinchJulieElie(
     ...     split="test",
