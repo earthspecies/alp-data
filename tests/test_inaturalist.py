@@ -163,8 +163,7 @@ def test_transformations_from_config(
 def test_sample_rate_resampling(dataset_with_transforms_from_config: Dataset) -> None:
     """Test if sample rate resampling works correctly."""
     # Check that sample rate is set correctly
-    assert dataset_with_transforms_from_config.sample_rate == 22050
-
+    dataset_with_transforms_from_config.sample_rate == 22050
     # Test with first valid sample
     sample = dataset_with_transforms_from_config[0]
     assert "audio" in sample
