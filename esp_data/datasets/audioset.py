@@ -39,9 +39,21 @@ class AudioSet(Dataset):
     AudioSetCaps Dataset: https://huggingface.co/datasets/baijs/AudioSetCaps
     Note these are empty with the exception of the unbalanced_train split.
 
+    Pre-resampled Audio
+    -------------------
+    Version 0.2.0 includes pre-resampled 32kHz audio that can be loaded directly
+    without on-the-fly resampling for faster data loading:
+    
+    >>> # Load with pre-resampled 32kHz audio (v0.2.0, no resampling needed)
+    >>> dataset_32k = AudioSet(split="validation", version="0.2.0", sample_rate=32000)
+    >>> print(dataset_32k.available_sample_rates)
+    [32000]
+    
+    >>> # Load with on-the-fly resampling to 16kHz
+    >>> dataset_16k = AudioSet(split="validation", version="0.2.0", sample_rate=16000)
 
     Examples
-    -------
+    --------
     >>> from esp_data.datasets import AudioSet
     >>> dataset = AudioSet(
     ...     split="train",
@@ -49,29 +61,63 @@ class AudioSet(Dataset):
     ... )
     >>> print(dataset.info.name)
     audioset
+    >>> # Use a specific version
+    >>> dataset_v2 = AudioSet(split="train", version="0.2.0")
     """
+
+    # Version registry with version-specific configurations
+    VERSIONS = {
+        "0.1.0": {
+            "split_paths": {
+                "train": "gs://esp-ml-datasets/audioset/v0.1.0/raw/csv-data/unbalanced_train_segments_processed.csv",
+                "train-balanced": "gs://esp-ml-datasets/audioset/v0.1.0/raw/csv-data/balanced_train_segments_processed.csv",
+                "validation": "gs://esp-ml-datasets/audioset/v0.1.0/raw/csv-data/eval_segments_processed.csv",
+                "train-animal": "gs://esp-ml-datasets/audioset/v0.1.0/raw/csv-data/unbalanced_train_segments_processed_animal.csv",
+                "validation-animal": "gs://esp-ml-datasets/audioset/v0.1.0/raw/csv-data/eval_segments_processed_animal.csv",
+                "train-noise": "gs://esp-ml-datasets/audioset/v0.1.0/raw/csv-data/unbalanced_train_segments_processed_noise.csv",
+                "validation-noise": "gs://esp-ml-datasets/audioset/v0.1.0/raw/csv-data/eval_segments_processed_noise.csv",
+            },
+            "data_root": "gs://esp-ml-datasets/audioset/v0.1.0/raw/",
+        },
+        "0.2.0": {
+            "split_paths": {
+                "train": "gs://esp-ml-datasets/audioset/v0.2.0/raw/csv-data/unbalanced_train_segments_processed.csv",
+                "validation": "gs://esp-ml-datasets/audioset/v0.2.0/raw/csv-data/eval_segments_processed.csv",
+                "train-strong": "gs://esp-ml-datasets/audioset/v0.2.0/raw/csv-data/audioset_train_strong_processed.csv",
+                "train-environmental": "gs://esp-ml-datasets/audioset/v0.2.0/raw/csv-data/unbalanced_train_environmental_sounds.csv",
+            },
+            "data_root": "gs://esp-ml-datasets/audioset/v0.2.0/raw/",
+        },
+    }
+    
+    # Default version (keep 0.1.0 for backward compatibility as it has more splits)
+    # v0.2.0 has updated metadata but fewer splits (no train-balanced, animal, noise splits)
+    # Users can explicitly request v0.2.0 when needed
+    DEFAULT_VERSION = "0.2.0"
 
     info = DatasetInfo(
         name="audioset",
         owner="david; marius; masato",
-        split_paths={
-            "train": "gs://esp-ml-datasets/audioset/v0.1.0/raw/csv-data/unbalanced_train_segments_processed.csv",
-            "train-balanced": "gs://esp-ml-datasets/audioset/v0.1.0/raw/csv-data/balanced_train_segments_processed.csv",
-            "validation": "gs://esp-ml-datasets/audioset/v0.1.0/raw/csv-data/eval_segments_processed.csv",
-            "train-animal": "gs://esp-ml-datasets/audioset/v0.1.0/raw/csv-data/unbalanced_train_segments_processed_animal.csv",
-            "validation-animal": "gs://esp-ml-datasets/audioset/v0.1.0/raw/csv-data/eval_segments_processed_animal.csv",
-            "train-noise": "gs://esp-ml-datasets/audioset/v0.1.0/raw/csv-data/unbalanced_train_segments_processed_noise.csv",
-            "validation-noise": "gs://esp-ml-datasets/audioset/v0.1.0/raw/csv-data/eval_segments_processed_noise.csv",
-        },
-        version="0.1.0",
+        split_paths={},  # Will be populated based on version
+        version="0.1.0",  # Default version
         description="AudioSet dataset",
         sources=["YouTube"],
         license="Mixed",
     )
 
+    # Mapping of sample rates to their corresponding path columns
+    # Pre-resampled audio is available for v0.2.0 only
+    _sample_rate_paths = {
+        32000: "32khz_path",  # Pre-resampled to 32kHz (v0.2.0 only)
+    }
+
+    # Column name for original variable-rate audio files
+    _originals_path_column = "local_path"
+
     def __init__(
         self,
         split: str = "train",
+        version: str | None = None,
         output_take_and_give: dict[str, str] | None = None,
         sample_rate: int | None = None,
         data_root: str | AnyPathT | None = None,
@@ -82,24 +128,49 @@ class AudioSet(Dataset):
         ----------
         split : str
             The split to load. One of info.split_paths keys.
+        version : str, optional
+            The version of the dataset to use. If None, uses DEFAULT_VERSION.
+            Available versions: "0.1.0", "0.2.0"
         output_take_and_give : dict[str, str]
             A dictionary mapping the original column names to the new column names.
             It acts as a filter as well.
-        sample_rate : int
-            The sample rate to which audio files should be resampled.
+        sample_rate : int, optional
+            The sample rate to which audio files should be resampled. For v0.2.0, if
+            sample_rate=32000, pre-resampled audio will be loaded directly (faster).
+            Otherwise, audio will be resampled on-the-fly from the original files using
+            librosa's kaiser_best method. If None, audio is returned at its original
+            sample rate.
         data_root : str | AnyPathT, optional
             The root directory for the dataset. This is optionally appended to the
             path item of a sample in the dataset.
-            If None, the default is the parent directory of the split path.
+            If None, uses the default data_root for the specified version.
         """
         super().__init__(output_take_and_give)  # Initialize the parent Dataset class
+        
+        # Handle version selection
+        if version is None:
+            version = self.DEFAULT_VERSION
+        
+        if version not in self.VERSIONS:
+            raise ValueError(
+                f"Version '{version}' is not available. "
+                f"Available versions: {list(self.VERSIONS.keys())}"
+            )
+        
+        self.version = version
+        self.version_config = self.VERSIONS[version]
+        
+        # Update info with version-specific split paths
+        self.info.split_paths = self.version_config["split_paths"]
+        self.info.version = version
+        
         self.split = split
         self._data: pd.DataFrame = None
         self._load()  # Load the dataset (fills self._data)
         self.sample_rate = sample_rate
 
         if data_root is None:
-            self.data_root = anypath("gs://esp-ml-datasets/audioset/v0.1.0/raw/")
+            self.data_root = anypath(self.version_config["data_root"])
         else:
             self.data_root = data_root
 
@@ -112,6 +183,25 @@ class AudioSet(Dataset):
     def available_splits(self) -> list[str]:
         """Return the available splits of the dataset."""
         return list(self.info.split_paths.keys())
+
+    @property
+    def available_sample_rates(self) -> list[int]:
+        """Return the available pre-resampled sample rates.
+
+        Returns
+        -------
+        list[int]
+            List of sample rates (in Hz) for which pre-resampled audio is available.
+            Audio at these sample rates can be loaded directly without on-the-fly resampling.
+            This checks which path columns actually exist in the loaded data.
+            Note: Pre-resampled audio is only available for v0.2.0.
+        """
+        available = []
+        for sr, path_column in self._sample_rate_paths.items():
+            # Check if the path column exists in the loaded data
+            if path_column in self._data.columns:
+                available.append(sr)
+        return available
 
     def _load(self) -> None:
         """Load the dataset.
@@ -158,6 +248,7 @@ class AudioSet(Dataset):
 
         ds = cls(
             split=cfg["split"],
+            version=cfg.get("version"),  # Use get() for backward compatibility
             output_take_and_give=cfg["output_take_and_give"],
             data_root=cfg["data_root"],
             sample_rate=cfg["sample_rate"],
@@ -208,20 +299,37 @@ class AudioSet(Dataset):
 
         row = self._data.iloc[idx].to_dict()
 
-        audio_path = anypath(self.data_root) / row["local_path"]
+        # Determine which path column to use based on requested sample rate
+        # If a pre-resampled version is available, use it; otherwise resample on-the-fly
+        use_presampled = False
+        if self.sample_rate is not None and self.sample_rate in self._sample_rate_paths:
+            path_column = self._sample_rate_paths[self.sample_rate]
+            # Check if the pre-resampled path column exists in the data
+            if path_column in row and pd.notna(row[path_column]):
+                # Use pre-resampled audio
+                audio_path = anypath(self.data_root) / row[path_column]
+                use_presampled = True
 
-        audio, sr = read_audio(audio_path)
-        audio = audio.astype(np.float32)
-        audio = audio_stereo_to_mono(audio, mono_method="average")
+        if use_presampled:
+            audio, sr = read_audio(audio_path)
+            audio = audio.astype(np.float32)
+            audio = audio_stereo_to_mono(audio, mono_method="average")
+            # Audio is already at the correct sample rate, no resampling needed
+        else:
+        # Use original variable-rate files and resample on-the-fly if needed
+            audio_path = anypath(self.data_root) / row[self._originals_path_column]
+            audio, sr = read_audio(audio_path)
+            audio = audio.astype(np.float32)
+            audio = audio_stereo_to_mono(audio, mono_method="average")
 
-        if self.sample_rate is not None and sr != self.sample_rate:
-            audio = librosa.resample(
-                y=audio,
-                orig_sr=sr,
-                target_sr=self.sample_rate,
-                scale=True,
-                res_type="kaiser_best",
-            )
+            if self.sample_rate is not None and sr != self.sample_rate:
+                audio = librosa.resample(
+                    y=audio,
+                    orig_sr=sr,
+                    target_sr=self.sample_rate,
+                    scale=True,
+                    res_type="kaiser_best",
+                )
 
         # AudioSet likes to call this 'raw_wav'
         row["audio"] = audio
@@ -255,12 +363,13 @@ class AudioSet(Dataset):
             A string representation of the dataset including its name, version,
             and basic statistics if data is loaded.
         """
-        base_info = f"{self.info.name} (v{self.info.version})"
+        base_info = f"{self.info.name} (v{self.version})"
 
         return (
             f"{base_info}\n"
             f"Description: {self.info.description}\n"
             f"Sources: {', '.join(self.info.sources)}\n"
             f"License: {self.info.license}\n"
+            f"Available versions: {', '.join(self.VERSIONS.keys())}\n"
             f"Available splits: {', '.join(self.info.split_paths.keys())}"
         )
