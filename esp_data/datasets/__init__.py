@@ -21,6 +21,7 @@ from .powdermill import Powdermill
 from .subsegmentation import Subsegmentation
 from .voxaboxen import Voxaboxen, VoxaboxenEvents
 from .wabad import WABAD
+from .xeno_canto import XenoCanto
 from .xeno_canto_annotated_jeantet_23 import XenoCantoAnnotatedJeantet23
 from .zebra_finch_julie_elie import ZebraFinchJulieElie
 
@@ -45,6 +46,7 @@ __all__ = [
     "ESPRaincoast",
     "Subsegmentation",
     "WABAD",
+    "XenoCanto",
     "XenoCantoAnnotatedJeantet23",
     "HawaiianBirds",
     "AnuraSetStrong",
