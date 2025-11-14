@@ -521,6 +521,30 @@ def list_registered_datasets() -> list[str]:
     return list(_dataset_registry.keys())
 
 
+def dataset_class_from_name(dataset_name: str) -> type[Dataset]:
+    """Get the dataset class from its name.
+
+    Parameters
+    ----------
+    dataset_name : str
+        Name of the dataset
+
+    Returns
+    -------
+    Type[Dataset]
+        The dataset class
+
+    Raises
+    -------
+    KeyError
+        If the dataset name is not registered
+    """
+    dataset_class = _dataset_registry.get(dataset_name, None)
+    if dataset_class is None:
+        raise KeyError(f"Dataset '{dataset_name}' is not registered.")
+    return dataset_class
+
+
 def print_registered_datasets() -> None:
     """Print all registered datasets."""
     for dataset_class in _dataset_registry.values():

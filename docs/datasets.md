@@ -46,6 +46,36 @@ config = DatasetConfig(
 dataset, _ = AnimalSpeak.from_config(config)
 ```
 
+3. From a config yaml file:
+
+Your yaml config file should look like this for a single dataset (see [Concatenate](concatenate.md) for multiple datasets):
+Note the `dataset` key at the top level is **required**.
+
+```yaml
+dataset:
+  dataset_name: AnimalSpeak
+  split: validation
+  output_take_and_give:
+    labels: label
+  data_root: null
+  transformations:
+    - type: deduplicate
+      subset: null
+
+    - type: label_from_feature
+      feature: species_common
+      output_feature: label
+      override: true
+```
+
+```python
+from esp_data import dataset_from_config
+
+ds, transform_metadata = dataset_from_config("path/to/config.yaml")
+
+print(len(ds))
+```
+
 ### Dataset Configuration
 
 Deeper levels of configurations can be achieved by using specific parameters which are either common to all datasets or sometimes specific.
@@ -75,7 +105,7 @@ Transforms can be used in a sequential way, as in first get the original dataset
 
 ```python
 from esp_data.datasets import AnimalSpeak
-from esp_data.transforms import Filter, LabelFromFeatureConfig
+from esp_data.transforms import FilterConfig, LabelFromFeatureConfig
 
 # Create a dataset
 aspeak_output_map = {
@@ -94,7 +124,7 @@ filter_config = FilterConfig(
 label_from_feature_config = LabelFromFeatureConfig(
     type="label_from_feature",
     feature="canonical_name",
-    output_column="label"
+    output_feature="label"
 )
 
 dataset.apply_transformations([filter_config, label_from_feature_config])
@@ -118,7 +148,7 @@ filter_config = FilterConfig(
 label_config = LabelFromFeatureConfig(
     type="label_from_feature",
     feature="canonical_name",
-    output_column="label"
+    output_feature="label"
 )
 
 # Create dataset configuration with transforms
@@ -145,7 +175,7 @@ The list of available dataset will grow over time. Please refer to the next sect
     options:
         show_root_toc_entry: false
         heading_level: 3
-        order: alphabetical
+        members_order: alphabetical
         filters:
             - "!^[a-z_]"  # Exclude attributes and methods (start with lowercase or underscore)
             - "!^__"      # Exclude private methods (start with double underscore)

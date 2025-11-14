@@ -178,3 +178,7 @@ cython_debug/
 # PyPI configuration file
 .pypirc
 .aider*
+
+# Benchmark needs
+scripts/benchmarks/fig/
+scripts/benchmarks/dataset_list.txt

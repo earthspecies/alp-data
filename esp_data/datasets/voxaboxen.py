@@ -151,7 +151,7 @@ class VoxaboxenConfig(DatasetConfig):
     """
 
     dataset_name: str = "voxaboxen"
-    split: str = "train"
+    split: str = "Anuraset_train"
     output_take_and_give: dict[str, str] = None
     sample_rate: int | None = None
     data_root: str | AnyPathT | None = None
@@ -252,7 +252,7 @@ class Voxaboxen(Dataset):
 
     def __init__(
         self,
-        split: str = "train",
+        split: str = "Anuraset_train",
         output_take_and_give: dict[str, str] | None = None,
         sample_rate: int | None = None,
         data_root: str | AnyPathT | None = None,
@@ -494,7 +494,7 @@ class VoxaboxenEventsConfig(DatasetConfig):
     """
 
     dataset_name: str = "voxaboxen_events"
-    split: str = "train"
+    split: str = "Anuraset_train"
     output_take_and_give: dict[str, str] = None
     sample_rate: int | None = None
     data_root: str | AnyPathT | None = None
@@ -625,7 +625,7 @@ class VoxaboxenEvents(Dataset):
 
     def __init__(
         self,
-        split: str = "train",
+        split: str = "Anuraset_train",
         output_take_and_give: dict[str, str] | None = None,
         sample_rate: int = 16000,
         data_root: str | AnyPathT | None = None,

@@ -60,6 +60,9 @@ plugins:
             show_bases: false
             show_source: true
 
+hooks:
+  - docs/hooks/dataset_info_hook.py
+
 markdown_extensions:
   - admonition
   - pymdownx.details
@@ -70,6 +73,9 @@ markdown_extensions:
   - pymdownx.inlinehilite
   - pymdownx.snippets
   - pymdownx.superfences
+
+extra_css:
+  - stylesheets/extra.css
 
 extra:
   version:
