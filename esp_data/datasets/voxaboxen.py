@@ -13,7 +13,7 @@ from pydantic import Field
 
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from esp_data.dataset import register_config
-from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio, read_text
+from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
 
 LABEL_SETS = {
     "Anuraset_train": [
@@ -181,7 +181,7 @@ class Voxaboxen(Dataset):
     https://arxiv.org/abs/2503.02389
 
     Examples
-    -------
+    --------
     >>> from esp_data.datasets import Voxaboxen
     >>> dataset = Voxaboxen(
     ...     split="BV_val",
@@ -312,9 +312,7 @@ class Voxaboxen(Dataset):
             )
 
         location = self.info.split_paths[self.split]
-        # Read CSV content
-        csv_text = read_text(location, encoding="utf-8")
-        self._data = pd.read_csv(StringIO(csv_text))
+        self._data = pd.read_csv(location, keep_default_na=False, na_values=[""])
 
     @classmethod
     def from_config(cls, dataset_config: VoxaboxenConfig) -> tuple["Voxaboxen", dict[str, Any]]:
@@ -554,7 +552,7 @@ class VoxaboxenEvents(Dataset):
     https://arxiv.org/abs/2503.02389
 
     Examples
-    -------
+    --------
     >>> from esp_data.datasets import VoxaboxenEvents
     >>> dataset = VoxaboxenEvents(
     ...     split="BV_val",
@@ -737,9 +735,7 @@ class VoxaboxenEvents(Dataset):
             )
 
         location = self.info.split_paths[self.split]
-        # Read CSV content
-        csv_text = read_text(location, encoding="utf-8")
-        self._data = pd.read_csv(StringIO(csv_text))
+        self._data = pd.read_csv(location, keep_default_na=False, na_values=[""])
 
     @classmethod
     def from_config(cls, dataset_config: DatasetConfig) -> tuple["VoxaboxenEvents", dict[str, Any]]:

@@ -8,7 +8,13 @@ import pandas as pd
 import soundfile as sf
 
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
-from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, filesystem_from_path, read_audio
+from esp_data.io import (
+    AnyPathT,
+    anypath,
+    audio_stereo_to_mono,
+    filesystem_from_path,
+    read_audio,
+)
 
 
 @register_dataset
@@ -35,7 +41,7 @@ class BarkleyCanyon(Dataset):
     The Journal of the Acoustical Society of America, vol. 148,
 
     Examples
-    -------
+    --------
     >>> from esp_data.datasets import BarkleyCanyon
     >>> dataset = BarkleyCanyon(split="train")
     >>> print(dataset.info.name)

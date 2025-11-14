@@ -12,7 +12,6 @@ from esp_data.io import (
     anypath,
     audio_stereo_to_mono,
     read_audio,
-    read_text,
 )
 
 
@@ -20,7 +19,6 @@ from esp_data.io import (
 class ESPRaincoast(Dataset):
     """ESP Raincoast.org dataset
     Recorded by Dylan Smyth, Valeria Vergara lab.
-
     """
 
     info = DatasetInfo(
@@ -110,10 +108,7 @@ class ESPRaincoast(Dataset):
             # For JSONL files, read them directly into a DataFrame
             self._data = pd.read_json(location, lines=True, orient="records")
         else:
-            from io import StringIO
-
-            csv_text = read_text(location, encoding="utf-8")
-            self._data = pd.read_csv(StringIO(csv_text))
+            self._data = pd.read_csv(location, keep_default_na=False, na_values=[""])
 
     @classmethod
     def from_config(cls, dataset_config: DatasetConfig) -> tuple["ESPRaincoast", dict[str, Any]]:

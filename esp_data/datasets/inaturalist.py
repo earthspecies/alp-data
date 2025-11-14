@@ -67,6 +67,7 @@ class INaturalist(Dataset):
     iNaturalist: https://www.inaturalist.org/
 
     Examples
+    --------
     >>> from esp_data.datasets import INaturalist
     >>> dataset = INaturalist(
     ...     split="train",
