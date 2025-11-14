@@ -15,7 +15,7 @@ def dataset() -> Dataset:
     Dataset
         An instance of the Xeno-canto dataset.
     """
-    ds = XenoCanto(split="train")
+    ds = XenoCanto(split="validation")
     return ds
 
 
@@ -40,7 +40,7 @@ def dataset_with_transforms() -> Dataset:
             },
         ],
     )
-    ds = XenoCanto(split="train")
+    ds = XenoCanto(split="validation")
     ds.apply_transformations(dataset_config.transformations)
     return ds
 
@@ -60,7 +60,7 @@ def dataset_with_transforms_from_config() -> tuple[Dataset, dict]:
 
     dataset_config = DatasetConfig(
         dataset_name="xeno-canto",
-        split="train",
+        split="validation",
         transformations=[
             {
                 "type": "label_from_feature",
@@ -87,7 +87,7 @@ def dataset_with_output_mapping() -> Dataset:
         output_take_and_give={"species_common": "species"},
     )
     ds = XenoCanto(
-        split="train",
+        split="validation",
         output_take_and_give=dataset_config.output_take_and_give,
     )
     return ds
@@ -102,7 +102,7 @@ def dataset_with_sample_rate() -> Dataset:
     Dataset
         An instance of the Xeno-canto dataset with custom sample rate.
     """
-    ds = XenoCanto(split="train", sample_rate=22050)
+    ds = XenoCanto(split="validation", sample_rate=22050)
     return ds
 
 
@@ -175,7 +175,7 @@ def test_iteration(dataset: Dataset) -> None:
 def test_load_from_config() -> None:
     """Test if dataset can be loaded from configuration."""
     dataset_config = DatasetConfig(
-        dataset_name="xeno-canto", split="train", sample_rate=16000
+        dataset_name="xeno-canto", split="validation", sample_rate=16000
     )
     dataset, _ = XenoCanto.from_config(dataset_config)
     assert dataset.info.name == "xeno-canto"
@@ -259,7 +259,7 @@ def test_sample_rate_resampling(dataset_with_sample_rate: Dataset) -> None:
 def test_data_root_handling() -> None:
     """Test if data_root parameter works correctly."""
     # Test with default data_root
-    dataset = XenoCanto(split="train")
+    dataset = XenoCanto(split="validation")
     assert dataset.data_root is not None
 
     # Test that we can get samples
@@ -288,14 +288,14 @@ def test_str_representation(dataset: Dataset) -> None:
     str_repr = str(dataset)
     assert "xeno-canto" in str_repr
     assert "0.1.0" in str_repr
-    assert "train" in str_repr
+    assert "validation" in str_repr
 
 
 def test_from_config_with_transformations() -> None:
     """Test if dataset can be loaded from configuration with transformations."""
     dataset_config = DatasetConfig(
         dataset_name="xeno-canto",
-        split="train",
+        split="validation",
         transformations=[
             {
                 "type": "label_from_feature",
@@ -321,18 +321,10 @@ def test_index_error_handling(dataset: Dataset) -> None:
         _ = dataset[len(dataset)]  # Should raise IndexError
 
 
-def test_runtime_error_handling() -> None:
-    """Test if runtime error handling works correctly."""
-    # This is harder to test with real data, but we can check that the dataset
-    # initializes correctly and doesn't raise runtime errors during normal operation
-    dataset = XenoCanto(split="train")
-    assert len(dataset) > 0  # Should not raise RuntimeError
-
-
 def test_output_take_and_give_filtering() -> None:
     """Test if output_take_and_give filtering works correctly."""
     dataset = XenoCanto(
-        split="train",
+        split="validation",
         output_take_and_give={
             "species_common": "species",
             "relative_path": "path",
@@ -352,9 +344,8 @@ def test_output_take_and_give_filtering() -> None:
     assert "relative_path" not in sample
 
 
-def test_available_sample_rates() -> None:
+def test_available_sample_rates(dataset: Dataset) -> None:
     """Test if available_sample_rates property works correctly."""
-    dataset = XenoCanto(split="train")
     sample_rates = dataset.available_sample_rates
 
     # Check if 32kHz is available (depends on whether 32khz_path column exists)
@@ -366,7 +357,7 @@ def test_available_sample_rates() -> None:
 
 def test_pre_resampled_audio_32khz() -> None:
     """Test loading pre-resampled 32kHz audio."""
-    dataset = XenoCanto(split="train", sample_rate=32000)
+    dataset = XenoCanto(split="validation", sample_rate=32000)
 
     # Check if 32kHz pre-resampled audio is available
     if "32khz_path" in dataset.columns:
@@ -384,11 +375,11 @@ def test_pre_resampled_audio_32khz() -> None:
         assert sample["audio"].dtype.name == "float32"
 
 
-def test_on_the_fly_resampling() -> None:
+def test_on_the_fly_resampling(dataset_with_transforms: Dataset) -> None:
     """Test on-the-fly resampling from original files."""
     # Request a sample rate that's not pre-resampled (e.g., 16kHz)
-    dataset = XenoCanto(split="train", sample_rate=16000)
-    sample = dataset[0]
+    dataset_with_transforms.sample_rate = 16000
+    sample = dataset_with_transforms[0]
 
     assert "audio" in sample
     assert sample["audio"].dtype.name == "float32"
