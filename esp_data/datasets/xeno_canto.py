@@ -74,7 +74,7 @@ class XenoCanto(Dataset):
     >>> print(dataset.info.name)
     xeno-canto
     >>> print(dataset.available_sample_rates)
-    []
+    [32000]
 
     # Load with pre-resampled 32kHz audio (when available)
     >>> dataset_32k = XenoCanto(split="train", sample_rate=32000)
