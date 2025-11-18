@@ -2,12 +2,17 @@
 
 from typing import Any, Dict, Iterator
 
-import librosa
 import numpy as np
 import pandas as pd
 
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
-from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
+from esp_data.io import (
+    AnyPathT,
+    anypath,
+    audio_stereo_to_mono,
+    read_audio,
+    resample_audio,
+)
 
 
 @register_dataset
@@ -250,13 +255,7 @@ class Beans(Dataset):
         audio = audio_stereo_to_mono(audio, mono_method="average")
 
         if self.sample_rate is not None and sr != self.sample_rate:
-            audio = librosa.resample(
-                y=audio,
-                orig_sr=sr,
-                target_sr=self.sample_rate,
-                scale=True,
-                res_type="kaiser_best",
-            )
+            audio = resample_audio(audio, sr, self.sample_rate, method="torchaudio")
 
         row["audio"] = audio
 

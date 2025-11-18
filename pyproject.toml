@@ -17,6 +17,7 @@ dependencies = [
     "s3fs>=2024.9.0",
     "semver",
     "soundfile>=0.13.1",
+    "torchaudio>=2.9.1",
 ]
 
 [dependency-groups]
