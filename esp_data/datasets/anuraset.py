@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 from io import StringIO
-from typing import Any, Dict, Iterator, List
+from typing import Any, Iterator, List
 
 import librosa
 import numpy as np
 import pandas as pd
 
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
+from esp_data.backends import BackendType
 from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
 
 
@@ -77,9 +78,11 @@ class AnuraSetStrong(Dataset):
     def __init__(
         self,
         split: str = "all",
-        output_take_and_give: Dict[str, str] | None = None,
-        sample_rate: int | None = 16000,
+        output_take_and_give: dict[str, str] | None = None,
+        sample_rate: int | None = None,
         data_root: str | AnyPathT | None = None,
+        backend: BackendType = "polars",
+        streaming: bool = False,
     ) -> None:
         """
         Parameters
@@ -92,13 +95,18 @@ class AnuraSetStrong(Dataset):
             If set, audio is resampled to this rate.
         data_root : str | AnyPathT | None
             Optional root directory to prepend to each row['audio_path'].
+        backend : BackendType, optional
+            The backend to use ("pandas" or "polars"), by default "polars"
+        streaming : bool, optional
+            Whether to use streaming mode, by default False
         """
-        super().__init__(output_take_and_give)
+        super().__init__(output_take_and_give, backend=backend, streaming=streaming)
         self.split = split
         self.annotation_columns = ["Species"]
 
         self.sample_rate = sample_rate
         self.data_root = anypath(data_root) if data_root is not None else None
+        self._data = None
 
         # Load split CSV
         self._load()
@@ -109,7 +117,7 @@ class AnuraSetStrong(Dataset):
 
     @property
     def columns(self) -> list[str]:
-        return list(self._data.columns)
+        return self._data.columns
 
     @property
     def available_splits(self) -> list[str]:
@@ -121,21 +129,34 @@ class AnuraSetStrong(Dataset):
                 f"Invalid split: {self.split}. Expected one of {list(self.info.split_paths.keys())}"
             )
         location = self.info.split_paths[self.split]
-        self._data = pd.read_csv(location, keep_default_na=False, na_values=[""])
+        self._data = self._backend_class.from_csv(
+            location, streaming=self._streaming, keep_default_na=False, na_values=[""]
+        )
 
     def __len__(self) -> int:
+        if self._data is None:
+            raise RuntimeError("No split has been loaded yet. Call _load() first.")
+        if self._streaming:
+            raise NotImplementedError(
+                "Length is not available in streaming mode. Iterate over the dataset instead."
+            )
         return len(self._data)
 
-    def __getitem__(self, idx: int) -> dict[str, Any]:
-        if idx < 0 or idx >= len(self._data):
-            raise IndexError(f"Index {idx} out of bounds for dataset length {len(self._data)}")
+    def _process(self, row: dict[str, Any]) -> dict[str, Any]:
+        """Process a single row of the dataset.
 
-        row = self._data.iloc[idx].to_dict()
+        Parameters
+        ----------
+        row : dict[str, Any]
+            A dictionary representing a single row of the dataset.
 
+        Returns
+        -------
+        dict[str, Any]
+            The processed row.
+        """
         # Resolve audio path
-        audio_path = (
-            (self.data_root / row["audio_path"]) if self.data_root else anypath(row["audio_path"])
-        )
+        audio_path = self.data_root / row["audio_path"]
 
         # Read audio
         audio, sr = read_audio(audio_path)
@@ -172,9 +193,32 @@ class AnuraSetStrong(Dataset):
 
         return row
 
+    def __getitem__(self, idx: int) -> dict[str, Any]:
+        """Get a specific sample from the dataset.
+
+        Parameters
+        ----------
+        idx : int
+            Index of the sample to get.
+
+        Returns
+        -------
+        dict[str, Any]
+            A dictionary containing the processed data.
+        """
+        row = self._data[idx]
+        return self._process(row)
+
     def __iter__(self) -> Iterator[dict[str, Any]]:
-        for i in range(len(self)):
-            yield self[i]
+        """Iterate over samples in the dataset.
+
+        Yields
+        -------
+        dict[str, Any]
+            Each sample in the dataset.
+        """
+        for row in self._data:
+            yield self._process(row)
 
     @classmethod
     def from_config(cls, dataset_config: DatasetConfig) -> tuple["AnuraSetStrong", dict[str, Any]]:
@@ -184,6 +228,8 @@ class AnuraSetStrong(Dataset):
             output_take_and_give=cfg["output_take_and_give"],
             data_root=cfg["data_root"],
             sample_rate=cfg["sample_rate"],
+            backend=cfg["backend"],
+            streaming=cfg["streaming"],
         )
         if dataset_config.transformations:
             meta = ds.apply_transformations(dataset_config.transformations)

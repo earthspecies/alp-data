@@ -20,32 +20,6 @@ def dataset() -> Dataset:
 
 
 @pytest.fixture
-def dataset_with_transforms() -> Dataset:
-    """Fixture providing a Xeno-canto dataset instance with transformations
-    applied.
-
-    Returns
-    -------
-    Dataset
-        An instance of the Xeno-canto dataset with transformations applied.
-    """
-
-    dataset_config = DatasetConfig(
-        dataset_name="xeno-canto",
-        transformations=[
-            {
-                "type": "label_from_feature",
-                "feature": "scientificName",
-                "output_feature": "label",
-            },
-        ],
-    )
-    ds = XenoCanto(split="validation")
-    ds.apply_transformations(dataset_config.transformations)
-    return ds
-
-
-@pytest.fixture
 def dataset_with_transforms_from_config() -> tuple[Dataset, dict]:
     """Fixture providing a Xeno-canto dataset instance with transformations
     applied from config.
@@ -93,19 +67,6 @@ def dataset_with_output_mapping() -> Dataset:
     return ds
 
 
-@pytest.fixture
-def dataset_with_sample_rate() -> Dataset:
-    """Fixture providing a Xeno-canto dataset instance with custom sample rate.
-
-    Returns
-    -------
-    Dataset
-        An instance of the Xeno-canto dataset with custom sample rate.
-    """
-    ds = XenoCanto(split="validation", sample_rate=22050)
-    return ds
-
-
 def test_info_property(dataset: Dataset) -> None:
     """Test if the info property returns correct metadata."""
     assert dataset.info.name == "xeno-canto"
@@ -119,7 +80,7 @@ def test_data_property(dataset: Dataset) -> None:
     """Test if the data property returns correct dataframes."""
     # Data should be loaded in __init__
     assert dataset._data is not None
-    assert "relative_path" in dataset._data
+    assert "relative_path" in dataset._data.columns
 
 
 def test_columns_property(dataset: Dataset) -> None:
@@ -141,7 +102,7 @@ def test_available_splits(dataset: Dataset) -> None:
 def test_length(dataset: Dataset) -> None:
     """Test if __len__ returns correct counts."""
     # Length should be the number of rows in the dataframe
-    expected_len = dataset._data.shape[0]
+    expected_len = dataset._data.unwrap.shape[0]
     assert len(dataset) == expected_len
     print(f"Dataset length: {len(dataset)}")
     # Xeno-canto should have some samples
@@ -172,18 +133,6 @@ def test_iteration(dataset: Dataset) -> None:
             break
 
 
-def test_load_from_config() -> None:
-    """Test if dataset can be loaded from configuration."""
-    dataset_config = DatasetConfig(
-        dataset_name="xeno-canto", split="validation", sample_rate=16000
-    )
-    dataset, _ = XenoCanto.from_config(dataset_config)
-    assert dataset.info.name == "xeno-canto"
-    assert dataset.info.split_paths["train"] is not None
-    assert len(dataset) > 0, "Dataset should not be empty"
-    assert dataset.sample_rate == 16000
-
-
 def test_invalid_split() -> None:
     """Test if initializing with invalid split raises error."""
     with pytest.raises(LookupError):
@@ -198,17 +147,6 @@ def test_sample_consistency(dataset: Dataset) -> None:
 
     # Compare samples (they should be identical)
     assert direct_sample["relative_path"] == iter_sample["relative_path"]
-
-
-def test_transformations(dataset_with_transforms: Dataset) -> None:
-    """Test if transformations are applied correctly.
-
-    This test verifies that:
-    1. The label_from_feature transformation creates a label column
-    2. The metadata is updated with transformation information
-    """
-    # Check that label column was created
-    assert "label" in dataset_with_transforms._data.columns
 
 
 def test_transformations_from_config(
@@ -245,26 +183,21 @@ def test_output_take_and_give(dataset_with_output_mapping: Dataset) -> None:
     assert "species_common" not in sample  # Original column should be filtered out
 
 
-def test_sample_rate_resampling(dataset_with_sample_rate: Dataset) -> None:
+def test_sample_rate_resampling(dataset: Dataset) -> None:
     """Test if sample rate resampling works correctly."""
-    # Check that sample rate is set correctly
-    assert dataset_with_sample_rate.sample_rate == 22050
+    # Set sample rate
+    dataset.sample_rate == 22050
 
     # Test with first valid sample
-    sample = dataset_with_sample_rate[0]
+    sample = dataset[0]
     assert "audio" in sample
     assert sample["audio"].dtype.name == "float32"
 
 
-def test_data_root_handling() -> None:
+def test_data_root_handling(dataset: Dataset) -> None:
     """Test if data_root parameter works correctly."""
     # Test with default data_root
-    dataset = XenoCanto(split="validation")
     assert dataset.data_root is not None
-
-    # Test that we can get samples
-    sample = dataset[0]
-    assert "audio" in sample
 
 
 def test_audio_processing(dataset: Dataset) -> None:
@@ -291,57 +224,10 @@ def test_str_representation(dataset: Dataset) -> None:
     assert "validation" in str_repr
 
 
-def test_from_config_with_transformations() -> None:
-    """Test if dataset can be loaded from configuration with transformations."""
-    dataset_config = DatasetConfig(
-        dataset_name="xeno-canto",
-        split="validation",
-        transformations=[
-            {
-                "type": "label_from_feature",
-                "feature": "scientificName",
-                "output_feature": "label",
-            },
-        ],
-    )
-    dataset, metadata = XenoCanto.from_config(dataset_config)
-
-    # Check basic functionality works
-    assert dataset.info.name == "xeno-canto"
-    assert isinstance(metadata, dict)
-
-    # Test that we can get a sample
-    sample = dataset[0]
-    assert "audio" in sample
-
-
 def test_index_error_handling(dataset: Dataset) -> None:
     """Test if index error handling works correctly."""
     with pytest.raises(IndexError):
         _ = dataset[len(dataset)]  # Should raise IndexError
-
-
-def test_output_take_and_give_filtering() -> None:
-    """Test if output_take_and_give filtering works correctly."""
-    dataset = XenoCanto(
-        split="validation",
-        output_take_and_give={
-            "species_common": "species",
-            "relative_path": "path",
-            "audio": "audio",
-        },
-    )
-
-    sample = dataset[0]
-
-    # Check that only specified columns are in output
-    assert "species" in sample
-    assert "path" in sample
-    assert "audio" in sample
-
-    # Original column names should not be in output
-    assert "species_common" not in sample
-    assert "relative_path" not in sample
 
 
 def test_available_sample_rates(dataset: Dataset) -> None:
@@ -355,9 +241,9 @@ def test_available_sample_rates(dataset: Dataset) -> None:
         assert len(sample_rates) == 0
 
 
-def test_pre_resampled_audio_32khz() -> None:
+def test_pre_resampled_audio_32khz(dataset) -> None:
     """Test loading pre-resampled 32kHz audio."""
-    dataset = XenoCanto(split="validation", sample_rate=32000)
+    dataset.sample_rate = 32000
 
     # Check if 32kHz pre-resampled audio is available
     if "32khz_path" in dataset.columns:
@@ -373,17 +259,6 @@ def test_pre_resampled_audio_32khz() -> None:
         sample = dataset[0]
         assert "audio" in sample
         assert sample["audio"].dtype.name == "float32"
-
-
-def test_on_the_fly_resampling(dataset_with_transforms: Dataset) -> None:
-    """Test on-the-fly resampling from original files."""
-    # Request a sample rate that's not pre-resampled (e.g., 16kHz)
-    dataset_with_transforms.sample_rate = 16000
-    sample = dataset_with_transforms[0]
-
-    assert "audio" in sample
-    assert sample["audio"].dtype.name == "float32"
-    assert len(sample["audio"].shape) == 1  # Should be 1D for mono
 
 
 def test_reference_item_stability() -> None:

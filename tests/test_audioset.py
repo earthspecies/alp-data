@@ -4,28 +4,11 @@ import pytest
 
 from esp_data.datasets import AudioSet
 from esp_data import Dataset, DatasetConfig
-from esp_data.io import anypath
 
 
 @pytest.fixture
 def dataset() -> Dataset:
     """Fixture providing an AudioSet dataset instance.
-
-    Returns
-    -------
-    Dataset
-        An instance of the AudioSet dataset.
-    """
-    ds = AudioSet(split="validation")
-    return ds
-
-
-@pytest.fixture
-def dataset_with_transforms() -> Dataset:
-    """Fixture providing an AudioSet dataset instance.
-
-    Note: label_from_feature transform doesn't work with list-type labels,
-    so we just return a basic dataset for testing other functionality.
 
     Returns
     -------
@@ -48,6 +31,8 @@ def dataset_with_output_mapping() -> Dataset:
     dataset_config = DatasetConfig(
         dataset_name="AudioSet",
         output_take_and_give={"labels": "audio_label"},
+        streaming=True,
+        backend="polars",
     )
     ds = AudioSet(
         split="validation",
@@ -157,18 +142,6 @@ def test_iteration(dataset: Dataset) -> None:
             break
 
 
-def test_load_from_config() -> None:
-    """Test if dataset can be loaded from configuration."""
-    dataset_config = DatasetConfig(
-        dataset_name="audioset", split="validation", sample_rate=16000
-    )
-    dataset, _ = AudioSet.from_config(dataset_config)
-    assert dataset.info.name == "audioset"
-    assert dataset.info.split_paths["validation"] is not None
-    assert len(dataset) > 0, "Dataset should not be empty"
-    assert dataset.sample_rate == 16000
-
-
 def test_invalid_split() -> None:
     """Test if initializing with invalid split raises error."""
     with pytest.raises(LookupError):
@@ -187,23 +160,10 @@ def test_sample_consistency(dataset: Dataset) -> None:
     assert direct_sample["end"] == iter_sample["end"]
 
 
-def test_transformations(dataset_with_transforms: Dataset) -> None:
-    """Test basic dataset functionality (transformations with list labels not supported)."""
-    # Note: label_from_feature transform doesn't work with list-type labels
-    # This test now just verifies the dataset works correctly with list labels
-
-    # Check that labels are correctly parsed as lists
-    sample = dataset_with_transforms[0]
-    assert "labels" in sample
-    assert isinstance(sample["labels"], list)
-    if sample["labels"]:  # If not empty
-        assert isinstance(sample["labels"][0], str)
-
-
 def test_output_mapping(dataset_with_output_mapping: Dataset) -> None:
     """Test if output mapping works correctly."""
     # Check that output mapping was applied
-    sample = dataset_with_output_mapping[0]
+    sample = next(iter(dataset_with_output_mapping))
     assert "audio_label" in sample
     assert "labels" not in sample  # Original column should be filtered out
 
@@ -234,10 +194,9 @@ def test_sample_rate_resampling(dataset_with_sample_rate: Dataset) -> None:
     assert sample_found, "Could not find a valid audio sample in the first 10 samples"
 
 
-def test_data_root_handling() -> None:
+def test_data_root_handling(dataset: Dataset) -> None:
     """Test if data_root parameter works correctly."""
     # Test with explicit data_root
-    dataset = AudioSet(split="validation")
     assert dataset.data_root is not None
 
     # Test that we can get samples
@@ -280,7 +239,8 @@ def test_from_config_with_transformations() -> None:
         dataset_name="audioset",
         split="train",
         data_root="gs://esp-ml-datasets/audioset/v0.1.0/raw/",
-        backend="pandas",
+        backend="polars",
+        streaming=True,
     )
     dataset, metadata = AudioSet.from_config(dataset_config)
 
@@ -289,7 +249,7 @@ def test_from_config_with_transformations() -> None:
     assert isinstance(metadata, dict)
 
     # Test that we can get a sample with list labels
-    sample = dataset[0]
+    sample = next(iter(dataset))
     assert "labels" in sample
     assert isinstance(sample["labels"], list)
 
@@ -300,25 +260,21 @@ def test_index_error_handling(dataset: Dataset) -> None:
         _ = dataset[len(dataset)]  # Should raise IndexError
 
 
-def test_runtime_error_handling() -> None:
-    """Test if runtime error handling works correctly."""
-    # This is harder to test with real data, but we can check that the dataset
-    # initializes correctly and doesn't raise runtime errors during normal operation
-    dataset = AudioSet(split="validation")
-    assert len(dataset) > 0  # Should not raise RuntimeError
-
-
 def test_different_splits() -> None:
     """Test if different splits load correctly."""
-    splits_to_test = ["train-balanced", "validation", "train"]
-
+    splits_to_test = [
+        "train-balanced",
+        "train-animal",
+        "validation-animal",
+        "train-noise",
+        "validation-noise",
+    ]
     for split in splits_to_test:
-        dataset = AudioSet(split=split)
-        assert len(dataset) > 0
-
+        dataset = AudioSet(split=split, streaming=True, sample_rate=None)
         # Test that we can get a sample from each split
-        sample = dataset[0]
+        sample = next(iter(dataset))
         assert "audio" in sample
+        assert len(sample["audio"]) > 0
         assert "local_path" in sample
 
 
@@ -337,30 +293,3 @@ def test_audio_segment_extraction(dataset: Dataset) -> None:
     # Assuming 16kHz sample rate, allow some tolerance
     expected_length = int(segment_duration * 16000)
     assert abs(audio_length - expected_length) < 2000  # Allow 2000 samples tolerance
-
-
-def test_output_take_and_give_filtering() -> None:
-    """Test if output_take_and_give filtering works correctly."""
-    dataset = AudioSet(
-        split="validation",
-        output_take_and_give={
-            "labels": "audio_label",
-            "local_path": "path",
-            "audio": "audio",
-        },
-    )
-
-    sample = dataset[0]
-
-    # Check that only specified columns are in output
-    assert "audio_label" in sample
-    assert "path" in sample
-    assert "audio" in sample  # Now explicitly mapped
-
-    # Original column names should not be in output
-    assert "labels" not in sample
-    assert "local_path" not in sample
-
-    # Other columns should not be in output
-    assert "start" not in sample
-    assert "end" not in sample

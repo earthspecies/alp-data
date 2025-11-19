@@ -63,7 +63,7 @@ def test_data_property(dataset_with_transforms_from_config: Dataset) -> None:
     """Test if the data property returns correct dataframes."""
     # Data should be loaded in __init__
     assert dataset_with_transforms_from_config._data is not None
-    assert "originals_path" in dataset_with_transforms_from_config._data
+    assert "originals_path" in dataset_with_transforms_from_config._data.columns
 
 
 def test_columns_property(dataset_with_transforms_from_config: Dataset) -> None:
@@ -89,7 +89,7 @@ def test_available_splits(dataset_with_transforms_from_config: Dataset) -> None:
 def test_length(dataset_with_transforms_from_config: Dataset) -> None:
     """Test if __len__ returns correct counts."""
     # Length should be the number of rows in the dataframe
-    expected_len = dataset_with_transforms_from_config._data.shape[0]
+    expected_len = dataset_with_transforms_from_config._data.unwrap.shape[0]
     assert len(dataset_with_transforms_from_config) == expected_len
     print(f"Dataset length: {len(dataset_with_transforms_from_config)}")
     # iNaturalist should have some samples

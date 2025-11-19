@@ -169,7 +169,7 @@ class ESPRaincoast(Dataset):
         else:
             from io import StringIO
 
-            csv_text = read_text(str(anypath(location).no_prefix), encoding="utf-8")
+            csv_text = read_text(location, encoding="utf-8")
             # TODO: Polars picked up some inconsistencies in the data!
             # Column "Call Quality" has a mix of f64 and string types
             self._data = self._backend_class.from_csv(
@@ -208,9 +208,7 @@ class ESPRaincoast(Dataset):
         )
 
         if dataset_config.transformations:
-            transform_metadata = ds.apply_transformations(
-                dataset_config.transformations
-            )
+            transform_metadata = ds.apply_transformations(dataset_config.transformations)
             return ds, transform_metadata
 
         return ds, {}

@@ -44,15 +44,20 @@ EXPECTED_LEN_ALL = 291  #
 EXPECTED_FIRST_ITEM_AUDIO_SHA256 = (
     "dd81518532b80282b5d9c27b371398a3eb6469bb50da1717ed4113a51023396d"
 )
-ANNOTATIONS_SHA256 = (
-    "b5e46c0ec0442bdc6363f43f2d0a5a2072b64066252c01cb0e25e0d4ca96a2e7"
-    )
+ANNOTATIONS_SHA256 = "b5e46c0ec0442bdc6363f43f2d0a5a2072b64066252c01cb0e25e0d4ca96a2e7"
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture(scope="module")
 def ds() -> Birdeep:
     """Load Birdeep dataset for testing."""
     return Birdeep(split="all", sample_rate=16000)
+
+
+@pytest.fixture(scope="module")
+def ds_pandas() -> Birdeep:
+    """Load Birdeep dataset for testing with pandas backend."""
+    return Birdeep(split="all", sample_rate=16000, backend="pandas")
 
 
 @pytest.fixture(scope="module")
@@ -76,10 +81,13 @@ def test_check_audio(ds: Birdeep, sample_indices: List[int]):
         audio = item["audio"]
 
         assert isinstance(audio, np.ndarray), f"[{idx}] audio is not a numpy array"
-        assert audio.dtype == np.float32, f"[{idx}] audio dtype is {audio.dtype}, expected float32"
+        assert (
+            audio.dtype == np.float32
+        ), f"[{idx}] audio dtype is {audio.dtype}, expected float32"
         assert audio.size >= 10, f"[{idx}] audio too short (size={audio.size})"
         assert not np.any(np.isnan(audio)), f"[{idx}] audio contains NaN values"
         assert not np.all(audio == 0), f"[{idx}] audio is all zeros"
+
 
 def test_available_splits(ds: Birdeep) -> None:
     """Test if available_splits returns correct split names."""
@@ -87,7 +95,8 @@ def test_available_splits(ds: Birdeep) -> None:
     expected_splits = ["train", "val", "test", "all"]
     assert all(split in ds.available_splits for split in expected_splits)
 
-def test_reference_item_stability(ds: Birdeep):
+
+def test_reference_item_stability(ds_pandas: Birdeep):
     """
     Check that a canonical item (index 0) is bitwise-stable.
 
@@ -104,22 +113,20 @@ def test_reference_item_stability(ds: Birdeep):
     """
     # choose deterministic index
     idx = 0
-    item = ds[idx]
+    item = ds_pandas[idx]
 
     # audio presence/type checks (defensive, so the hash failure message is clearer)
     assert "audio" in item, "[0] missing 'audio' key"
     audio = item["audio"]
     assert isinstance(audio, np.ndarray), "[0] audio is not a numpy array"
-    assert audio.dtype == np.float32, (
-        f"[0] audio dtype is {audio.dtype}, expected float32"
-    )
+    assert (
+        audio.dtype == np.float32
+    ), f"[0] audio dtype is {audio.dtype}, expected float32"
 
     # compute sha256 over raw bytes of the float32 array
     h = hashlib.sha256(audio.tobytes()).hexdigest()
 
-    assert (
-        h == EXPECTED_FIRST_ITEM_AUDIO_SHA256
-    ), (
+    assert h == EXPECTED_FIRST_ITEM_AUDIO_SHA256, (
         "First item's audio hash changed.\n"
         f"Got    {h}\n"
         f"Expect {EXPECTED_FIRST_ITEM_AUDIO_SHA256}\n\n"
@@ -128,18 +135,22 @@ def test_reference_item_stability(ds: Birdeep):
     )
 
     # compute sha256 over raw bytes of the float32 array of annotations
-    csv_bytes = ds._data.sort_index(axis=0).sort_index(axis=1).to_csv(index=True).encode("utf-8")
+    csv_bytes = (
+        ds_pandas._data.unwrap.sort_index(axis=0)
+        .sort_index(axis=1)
+        .to_csv(index=True)
+        .encode("utf-8")
+    )
     h = hashlib.sha256(csv_bytes).hexdigest()
 
-    assert (
-        h == ANNOTATIONS_SHA256
-    ), (
+    assert h == ANNOTATIONS_SHA256, (
         "Annotation's hash changed.\n"
         f"Got    {h}\n"
         f"Expect {ANNOTATIONS_SHA256}\n\n"
         "If this is an intentional dataset/content update, "
         "replace EXPECTED_FIRST_ITEM_AUDIO_SHA256 with the new hash."
     )
+
 
 def test_check_selection_table(ds: Birdeep, sample_indices: List[int]):
     """Selection table should be a DataFrame with required columns and sane times."""
@@ -154,9 +165,15 @@ def test_check_selection_table(ds: Birdeep, sample_indices: List[int]):
         assert "selection_table" in item, f"[{idx}] missing 'selection_table' key"
         st = item["selection_table"]
 
-        assert isinstance(st, pd.DataFrame), f"[{idx}] selection_table is not a DataFrame"
+        assert isinstance(
+            st, pd.DataFrame
+        ), f"[{idx}] selection_table is not a DataFrame"
         missing = required - set(st.columns)
-        assert not missing, f"[{idx}] selection_table missing columns: {sorted(missing)}"
+        assert (
+            not missing
+        ), f"[{idx}] selection_table missing columns: {sorted(missing)}"
 
         if len(st) > 0:
-            assert not (st["Begin Time (s)"] < 0).any(), f"[{idx}] negative begin times present"
+            assert not (
+                st["Begin Time (s)"] < 0
+            ).any(), f"[{idx}] negative begin times present"

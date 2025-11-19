@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 from io import StringIO
-from typing import Any, Dict, Iterator, List
+from typing import Any, Iterator
 
 import librosa
 import numpy as np
 import pandas as pd
 
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
+from esp_data.backends import BackendType
 from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
 
 
@@ -78,9 +79,11 @@ class ArcticBirdSounds(Dataset):
     def __init__(
         self,
         split: str = "all",
-        output_take_and_give: Dict[str, str] | None = None,
+        output_take_and_give: dict[str, str] | None = None,
         sample_rate: int | None = 16000,
         data_root: str | AnyPathT | None = None,
+        backend: BackendType = "pandas",
+        streaming: bool = False,
     ) -> None:
         """
         Parameters
@@ -93,22 +96,25 @@ class ArcticBirdSounds(Dataset):
             If set, audio is resampled to this rate.
         data_root : str | AnyPathT | None
             Optional root directory to prepend to each row['audio_path'].
+        backend : BackendType, optional
+            The backend to use ("pandas" or "polars"), by default "polars"
+        streaming : bool, optional
+            Whether to use streaming mode, by default False
         """
-        super().__init__(output_take_and_give)
+        super().__init__(output_take_and_give, backend=backend, streaming=streaming)
         self.split = split
         self._data: pd.DataFrame | None = None
         self.annotation_columns = ["Species"]
         self.unknown_label = "Unknown"
-
         self.sample_rate = sample_rate
-        self.data_root = anypath(data_root) if data_root is not None else None
 
         # Load split CSV
         self._load()
 
-        # If no explicit data_root, assume parent dir of the split path
-        if self.data_root is None:
+        if data_root is None:
             self.data_root = anypath(self.info.split_paths[self.split]).parent
+        else:
+            self.data_root = data_root
 
     @property
     def columns(self) -> list[str]:
@@ -124,21 +130,37 @@ class ArcticBirdSounds(Dataset):
                 f"Invalid split: {self.split}. Expected one of {list(self.info.split_paths.keys())}"
             )
         location = self.info.split_paths[self.split]
-        self._data = pd.read_csv(location, keep_default_na=False, na_values=[""])
+        self._data = self._backend_class.from_csv(
+            location,
+            streaming=self._streaming,
+            keep_default_na=False,
+            na_values=[""],
+        )
 
     def __len__(self) -> int:
+        """Return the number of samples in the dataset.
+
+        Returns
+        -------
+        int
+            Number of samples in the current split.
+
+        Raises
+        ------
+        RuntimeError
+            If no split has been loaded yet.
+        """
+        if self._data is None:
+            raise RuntimeError("No split has been loaded yet. Call _load() first.")
+        if self._streaming:
+            raise NotImplementedError(
+                "Length is not available in streaming mode.Iterate over the dataset instead."
+            )
         return len(self._data)
 
-    def __getitem__(self, idx: int) -> dict[str, Any]:
-        if idx < 0 or idx >= len(self._data):
-            raise IndexError(f"Index {idx} out of bounds for dataset length {len(self._data)}")
-
-        row = self._data.iloc[idx].to_dict()
-
+    def _process(self, row: dict[str, Any]) -> dict[str, Any]:
         # Resolve audio path
-        audio_path = (
-            (self.data_root / row["audio_path"]) if self.data_root else anypath(row["audio_path"])
-        )
+        audio_path = self.data_root / row["audio_path"]
 
         # Read audio
         audio, sr = read_audio(audio_path)
@@ -175,14 +197,50 @@ class ArcticBirdSounds(Dataset):
 
         return row
 
+    def __getitem__(self, idx: int) -> dict[str, Any]:
+        """Get a specific sample from the dataset.
+        Parameters
+        ----------
+        idx : int
+            Index of the sample to get.
+
+        Returns
+        -------
+        dict[str, Any]
+            A dictionary containing the audio data, text label, label, and path.
+        """
+        row = self._data[idx]
+        return self._process(row)
+
     def __iter__(self) -> Iterator[dict[str, Any]]:
-        for i in range(len(self)):
-            yield self[i]
+        """Iterate over samples in the dataset.
+
+        Yields
+        -------
+        Dict[str, Any]
+            Each sample in the dataset.
+        """
+        for row in self._data:
+            yield self._process(row)
 
     @classmethod
     def from_config(
         cls, dataset_config: DatasetConfig
     ) -> tuple["ArcticBirdSounds", dict[str, Any]]:
+        """Create a Dataset instance from a configuration dictionary.
+
+        Parameters
+        ----------
+        dataset_config : DatasetConfig
+            Configuration dictionary containing dataset parameters.
+
+        Returns
+        -------
+        tuple[Dataset, dict[str, Any]]
+            A tuple containing the dataset instance and metadata.
+            If the dataset_config contains transformations, they will be applied
+            and the metadata will be returned as dict, otherwise an empty dict.
+        """
         cfg = dataset_config.model_dump(exclude={"dataset_name", "transformations"})
         ds = cls(
             split=cfg["split"],
@@ -190,12 +248,14 @@ class ArcticBirdSounds(Dataset):
             data_root=cfg["data_root"],
             sample_rate=cfg["sample_rate"],
         )
+
         if dataset_config.transformations:
             meta = ds.apply_transformations(dataset_config.transformations)
             return ds, meta
+
         return ds, {}
 
-    def get_available_labels(self, anno_column: str = "Species") -> List[str]:
+    def get_available_labels(self) -> list[str]:
         """
         Return all possible labels for a given annotation column
         anno_column is included as an optional argument for consistency
