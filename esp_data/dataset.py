@@ -633,23 +633,17 @@ def dataset_from_config(
 
     if key is not None:
         if key not in data:
-            raise KeyError(
-                f"Required key '{key}' not found in the provided configuration data."
-            )
+            raise KeyError(f"Required key '{key}' not found in the provided configuration data.")
         data = data[key]
 
     if isinstance(data, dict):
         if len(data) == 1 and ("dataset" in data or "concat" in data):
             if "concat" in data and "dataset" in data:
-                raise ValueError(
-                    "Configuration cannot contain both 'concat' and 'dataset' keys."
-                )
+                raise ValueError("Configuration cannot contain both 'concat' and 'dataset' keys.")
 
             if "dataset" in data:
                 cfg = data["dataset"]
-                cfg_class = _custom_config_registry.get(
-                    cfg["dataset_name"], DatasetConfig
-                )
+                cfg_class = _custom_config_registry.get(cfg["dataset_name"], DatasetConfig)
                 return _make_dataset_from_config(cfg_class.model_validate(cfg))
 
             elif "concat" in data:
@@ -657,9 +651,7 @@ def dataset_from_config(
                 return _make_dataset_from_config(ConcatConfig.model_validate(cfg))
 
             else:
-                raise ValueError(
-                    "Configuration must contain either 'dataset' or 'concat' key."
-                )
+                raise ValueError("Configuration must contain either 'dataset' or 'concat' key.")
         else:
             raise ValueError(
                 "Multiple / Invalid dataset configurations found. "

@@ -1,6 +1,5 @@
 """InsectSet459 dataset"""
 
-from io import StringIO
 from typing import Any, Dict, Iterator
 
 import librosa
@@ -9,7 +8,7 @@ import pandas as pd
 
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from esp_data.backends import BackendType
-from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio, read_text
+from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
 
 
 @register_dataset
@@ -125,9 +124,7 @@ class InsectSet459(Dataset):
         )
 
     @classmethod
-    def from_config(
-        cls, dataset_config: DatasetConfig
-    ) -> tuple["InsectSet459", dict[str, Any]]:
+    def from_config(cls, dataset_config: DatasetConfig) -> tuple["InsectSet459", dict[str, Any]]:
         """Create a Dataset instance from a configuration dictionary.
 
         Parameters
@@ -154,9 +151,7 @@ class InsectSet459(Dataset):
         )
 
         if dataset_config.transformations:
-            transform_metadata = ds.apply_transformations(
-                dataset_config.transformations
-            )
+            transform_metadata = ds.apply_transformations(dataset_config.transformations)
             return ds, transform_metadata
 
         return ds, {}
@@ -177,9 +172,7 @@ class InsectSet459(Dataset):
         if self._data is None:
             raise RuntimeError("No split has been loaded yet. Call load() first.")
         if self._streaming:
-            raise NotImplementedError(
-                "Length is not available in streaming mode for InsectSet459."
-            )
+            raise NotImplementedError("Length is not available in streaming mode for InsectSet459.")
         return len(self._data)
 
     def _process(self, row: dict[str, Any]) -> dict[str, Any]:

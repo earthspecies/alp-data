@@ -325,14 +325,10 @@ class Voxaboxen(Dataset):
         location = self.info.split_paths[self.split]
         # Read CSV content
         csv_text = read_text(location, encoding="utf-8")
-        self._data = self._backend_class.from_csv(
-            StringIO(csv_text), streaming=self._streaming
-        )
+        self._data = self._backend_class.from_csv(StringIO(csv_text), streaming=self._streaming)
 
     @classmethod
-    def from_config(
-        cls, dataset_config: VoxaboxenConfig
-    ) -> tuple["Voxaboxen", dict[str, Any]]:
+    def from_config(cls, dataset_config: VoxaboxenConfig) -> tuple["Voxaboxen", dict[str, Any]]:
         """Create a Dataset instance from a configuration dictionary.
 
         Parameters
@@ -360,9 +356,7 @@ class Voxaboxen(Dataset):
         )
 
         if dataset_config.transformations:
-            transform_metadata = ds.apply_transformations(
-                dataset_config.transformations
-            )
+            transform_metadata = ds.apply_transformations(dataset_config.transformations)
             return ds, transform_metadata
 
         return ds, {}
@@ -407,9 +401,7 @@ class Voxaboxen(Dataset):
         row["audio"] = audio
 
         # read selection table
-        row["selection_table"] = pd.read_csv(
-            StringIO(row["selection_table_str"]), sep="\t"
-        )
+        row["selection_table"] = pd.read_csv(StringIO(row["selection_table_str"]), sep="\t")
 
         if self.output_take_and_give:
             item = {}
@@ -764,14 +756,10 @@ class VoxaboxenEvents(Dataset):
         location = self.info.split_paths[self.split]
         # Read CSV content
         csv_text = read_text(location, encoding="utf-8")
-        self._data = self._backend_class.from_csv(
-            StringIO(csv_text), streaming=self._streaming
-        )
+        self._data = self._backend_class.from_csv(StringIO(csv_text), streaming=self._streaming)
 
     @classmethod
-    def from_config(
-        cls, dataset_config: DatasetConfig
-    ) -> tuple["VoxaboxenEvents", dict[str, Any]]:
+    def from_config(cls, dataset_config: DatasetConfig) -> tuple["VoxaboxenEvents", dict[str, Any]]:
         """Create a Dataset instance from a configuration dictionary.
 
         Parameters
@@ -818,9 +806,7 @@ class VoxaboxenEvents(Dataset):
         )
 
         if dataset_config.transformations:
-            transform_metadata = ds.apply_transformations(
-                dataset_config.transformations
-            )
+            transform_metadata = ds.apply_transformations(dataset_config.transformations)
             return ds, transform_metadata
 
         return ds, {}
@@ -847,9 +833,7 @@ class VoxaboxenEvents(Dataset):
         if not self.label_set:
             self.label_set = set()
             for row in self._data.itertuples():
-                selection_table = pd.read_csv(
-                    StringIO(row.selection_table_str), sep="\t"
-                )
+                selection_table = pd.read_csv(StringIO(row.selection_table_str), sep="\t")
 
                 labels = selection_table["Annotation"].unique().tolist()
                 if not hasattr(self, "label_set"):
@@ -923,8 +907,7 @@ class VoxaboxenEvents(Dataset):
                 0,
                 int(
                     np.floor(
-                        (duration - self.clip_duration - self.clip_start_offset)
-                        // self.clip_hop
+                        (duration - self.clip_duration - self.clip_start_offset) // self.clip_hop
                     )
                 ),
             )
@@ -969,8 +952,7 @@ class VoxaboxenEvents(Dataset):
 
         intervals = tree[start:end]
         intervals = [
-            (max(iv.begin, start) - start, min(iv.end, end) - start, iv.data)
-            for iv in intervals
+            (max(iv.begin, start) - start, min(iv.end, end) - start, iv.data) for iv in intervals
         ]
 
         return intervals
@@ -1121,9 +1103,7 @@ class VoxaboxenEvents(Dataset):
             If the index is out of bounds.
         """
         if idx >= len(self._data):
-            raise IndexError(
-                f"Index {idx} out of bounds for dataset of length {len(self._data)}."
-            )
+            raise IndexError(f"Index {idx} out of bounds for dataset of length {len(self._data)}.")
 
         fn, audio_fp, start, end = self._metadata[idx]
 

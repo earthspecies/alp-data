@@ -130,9 +130,7 @@ class BarkleyCanyon(Dataset):
         )
 
     @classmethod
-    def from_config(
-        cls, dataset_config: DatasetConfig
-    ) -> tuple["BarkleyCanyon", dict[str, Any]]:
+    def from_config(cls, dataset_config: DatasetConfig) -> tuple["BarkleyCanyon", dict[str, Any]]:
         """Create a Dataset instance from a configuration dictionary.
 
         Parameters
@@ -159,9 +157,7 @@ class BarkleyCanyon(Dataset):
         )
 
         if dataset_config.transformations:
-            transform_metadata = ds.apply_transformations(
-                dataset_config.transformations
-            )
+            transform_metadata = ds.apply_transformations(dataset_config.transformations)
             return ds, transform_metadata
 
         return ds, {}
@@ -208,9 +204,7 @@ class BarkleyCanyon(Dataset):
             info = sf.info(f)
             sr = info.samplerate
             start_frame = (
-                int(row["start_times(sec)"] * sr)
-                if row["start_times(sec)"] is not None
-                else 0
+                int(row["start_times(sec)"] * sr) if row["start_times(sec)"] is not None else 0
             )
             end_frame = (
                 int(row["end_times(sec)"] * sr)
@@ -437,9 +431,7 @@ class BarkleyCanyonDetection(Dataset):
         )
 
         if dataset_config.transformations:
-            transform_metadata = ds.apply_transformations(
-                dataset_config.transformations
-            )
+            transform_metadata = ds.apply_transformations(dataset_config.transformations)
             return ds, transform_metadata
 
         return ds, {}

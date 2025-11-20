@@ -125,9 +125,7 @@ class PipitId(Dataset):
         )
 
     @classmethod
-    def from_config(
-        cls, dataset_config: DatasetConfig
-    ) -> tuple["PipitId", dict[str, Any]]:
+    def from_config(cls, dataset_config: DatasetConfig) -> tuple["PipitId", dict[str, Any]]:
         """Create a Dataset instance from a configuration dictionary.
 
         Parameters
@@ -166,9 +164,7 @@ class PipitId(Dataset):
         if self._data is None:
             raise RuntimeError("Dataset not loaded.")
         if self._streaming:
-            raise NotImplementedError(
-                "Length is not available in streaming mode for this dataset."
-            )
+            raise NotImplementedError("Length is not available in streaming mode for this dataset.")
         return len(self._data)
 
     def _process(self, row: dict[str, Any]) -> dict[str, Any]:

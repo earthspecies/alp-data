@@ -137,9 +137,7 @@ class ChiffchaffId(Dataset):
             )
 
     @classmethod
-    def from_config(
-        cls, dataset_config: DatasetConfig
-    ) -> tuple["ChiffchaffId", dict[str, Any]]:
+    def from_config(cls, dataset_config: DatasetConfig) -> tuple["ChiffchaffId", dict[str, Any]]:
         """Create a Dataset instance from a configuration dictionary.
 
         Parameters
@@ -166,9 +164,7 @@ class ChiffchaffId(Dataset):
         )
 
         if dataset_config.transformations:
-            transform_metadata = ds.apply_transformations(
-                dataset_config.transformations
-            )
+            transform_metadata = ds.apply_transformations(dataset_config.transformations)
             return ds, transform_metadata
 
         return ds, {}

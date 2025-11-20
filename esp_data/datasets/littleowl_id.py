@@ -122,9 +122,7 @@ class LittleOwlId(Dataset):
         )
 
     @classmethod
-    def from_config(
-        cls, dataset_config: DatasetConfig
-    ) -> tuple["LittleOwlId", dict[str, Any]]:
+    def from_config(cls, dataset_config: DatasetConfig) -> tuple["LittleOwlId", dict[str, Any]]:
         """Create a Dataset instance from a configuration dictionary.
 
         Parameters
@@ -155,9 +153,7 @@ class LittleOwlId(Dataset):
         ds = cls(**kwargs)
 
         if dataset_config.transformations:
-            transform_metadata = ds.apply_transformations(
-                dataset_config.transformations
-            )
+            transform_metadata = ds.apply_transformations(dataset_config.transformations)
             return ds, transform_metadata
 
         return ds, {}
@@ -166,9 +162,7 @@ class LittleOwlId(Dataset):
         if self._data is None:
             raise RuntimeError("Dataset not loaded.")
         if self._streaming:
-            raise NotImplementedError(
-                "Length is not available in streaming mode for this dataset."
-            )
+            raise NotImplementedError("Length is not available in streaming mode for this dataset.")
         return len(self._data)
 
     def _process(self, row: dict[str, Any]) -> dict[str, Any]:

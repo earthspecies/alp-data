@@ -172,9 +172,7 @@ class Beans(Dataset):
         location = self.info.split_paths[self.split]
         if anypath(location).suffix == ".jsonl":
             # For JSONL files, read them directly into a DataFrame
-            self._data = self._backend_class.from_json(
-                location, lines=True, orient="records"
-            )
+            self._data = self._backend_class.from_json(location, lines=True, orient="records")
         else:
             # Read CSV content
             self._data = self._backend_class.from_csv(
@@ -182,9 +180,7 @@ class Beans(Dataset):
             )  # This setting avoids setting 'None' to a pd.NA type
 
     @classmethod
-    def from_config(
-        cls, dataset_config: DatasetConfig
-    ) -> tuple["Beans", dict[str, Any]]:
+    def from_config(cls, dataset_config: DatasetConfig) -> tuple["Beans", dict[str, Any]]:
         """Create a Dataset instance from a configuration dictionary.
 
         Parameters
@@ -211,9 +207,7 @@ class Beans(Dataset):
         )
 
         if dataset_config.transformations:
-            transform_metadata = ds.apply_transformations(
-                dataset_config.transformations
-            )
+            transform_metadata = ds.apply_transformations(dataset_config.transformations)
             return ds, transform_metadata
 
         return ds, {}

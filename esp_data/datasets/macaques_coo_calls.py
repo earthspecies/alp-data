@@ -148,9 +148,7 @@ class MacaquesCooCalls(Dataset):
         )
 
         if dataset_config.transformations:
-            transform_metadata = ds.apply_transformations(
-                dataset_config.transformations
-            )
+            transform_metadata = ds.apply_transformations(dataset_config.transformations)
             return ds, transform_metadata
 
         return ds, {}
@@ -171,9 +169,7 @@ class MacaquesCooCalls(Dataset):
         if self._data is None:
             raise RuntimeError("No split has been loaded yet. Call load() first.")
         if self._streaming:
-            raise RuntimeError(
-                "Length is not available in streaming mode for this dataset."
-            )
+            raise RuntimeError("Length is not available in streaming mode for this dataset.")
         return len(self._data)
 
     def _process(self, row: dict[str, Any]) -> dict[str, Any]:

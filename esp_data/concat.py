@@ -5,6 +5,7 @@ from typing import Any, Dict, Iterator, Literal
 
 import semver
 
+from esp_data.backends.protocol import DataBackend
 from esp_data.dataset import (
     ConcatConfig,
     Dataset,
@@ -12,7 +13,6 @@ from esp_data.dataset import (
     dataset_from_config,
     register_dataset,
 )
-from esp_data.backends.protocol import DataBackend
 
 logger = logging.getLogger("esp_data")
 
@@ -81,13 +81,9 @@ def _merge_backends(
             raise MergeException("No common columns found for overlap merge")
 
         # Preserve column order from first backend
-        ordered_common_columns = [
-            col for col in backends[0].columns if col in common_columns
-        ]
+        ordered_common_columns = [col for col in backends[0].columns if col in common_columns]
         ordered_common_columns += ["_source_dataset", "_source_index"]
-        selected_backends = [
-            backend.select_columns(ordered_common_columns) for backend in backends
-        ]
+        selected_backends = [backend.select_columns(ordered_common_columns) for backend in backends]
         return backend_class.concat(selected_backends, ignore_index=True)
 
     elif merge_level == "soft":
@@ -210,9 +206,7 @@ def _merge_dataset_info(dataset_infos: list[DatasetInfo]) -> DatasetInfo:
     # Merge owners - combine and deduplicate
     all_owners = []
     for info in dataset_infos:
-        owner_list = (
-            info.owner.split(";") if isinstance(info.owner, str) else [info.owner]
-        )
+        owner_list = info.owner.split(";") if isinstance(info.owner, str) else [info.owner]
         all_owners.extend([o.strip() for o in owner_list])
     merged_owners = list(dict.fromkeys(all_owners))  # Preserve order, remove duplicates
     merged_owner = "; ".join(merged_owners)
@@ -235,9 +229,7 @@ def _merge_dataset_info(dataset_infos: list[DatasetInfo]) -> DatasetInfo:
         merged_version = max(info.version for info in dataset_infos)
 
     # Merge descriptions
-    desc_lines = [
-        f"{i + 1}. {info.description}" for i, info in enumerate(dataset_infos)
-    ]
+    desc_lines = [f"{i + 1}. {info.description}" for i, info in enumerate(dataset_infos)]
     merged_description = "Concatenated dataset from:\n" + "\n".join(desc_lines)
 
     # Merge sources
@@ -252,9 +244,7 @@ def _merge_dataset_info(dataset_infos: list[DatasetInfo]) -> DatasetInfo:
     merged_license = "; ".join(unique_licenses)
 
     # Merge changelogs
-    changelog_lines = [
-        f"{i + 1}. {info.changelog}" for i, info in enumerate(dataset_infos)
-    ]
+    changelog_lines = [f"{i + 1}. {info.changelog}" for i, info in enumerate(dataset_infos)]
     merged_changelog = "Concatenated from:\n" + "\n".join(changelog_lines)
 
     return DatasetInfo(
@@ -316,8 +306,8 @@ def concatenate_datasets(
             ds._data.copy(),
             ds.info,
             datasets,
-            getattr(ds, "sample_rate"),
-            getattr(ds, "output_take_and_give"),
+            ds.sample_rate,
+            ds.output_take_and_give,
         )
 
     for i, dataset in enumerate(datasets):
@@ -340,9 +330,7 @@ def concatenate_datasets(
             backend_with_tracking = backend_copy.add_column("_source_dataset", i)
             # Add source index tracking (original row indices)
             indices = list(range(len(backend_copy)))
-            backend_enhanced = backend_with_tracking.add_column(
-                "_source_index", indices
-            )
+            backend_enhanced = backend_with_tracking.add_column("_source_index", indices)
             enhanced_backends.append(backend_enhanced)
 
         # Merge backends
@@ -421,9 +409,7 @@ class ConcatenatedDataset(Dataset):
         if not all(isinstance(ds, Dataset) for ds in datasets):
             raise MergeException("All objects must be Dataset instances")
 
-        backend_type = (
-            getattr(datasets[0], "_backend_class", None) if datasets else None
-        )
+        backend_type = getattr(datasets[0], "_backend_class", None) if datasets else None
         # Make sure all backend types are the same
         if not backend_type or not all(
             getattr(ds, "_backend_class", None) == backend_type for ds in datasets
@@ -446,9 +432,7 @@ class ConcatenatedDataset(Dataset):
         self.output_take_and_give = output_take_and_give
         self.split = "concatenated"
         if len(self._data) == 0:
-            raise ValueError(
-                "Concatenated dataset is empty. Check input datasets or merge level."
-            )
+            raise ValueError("Concatenated dataset is empty. Check input datasets or merge level.")
 
     @property
     def columns(self) -> list[str]:
@@ -495,9 +479,7 @@ class ConcatenatedDataset(Dataset):
 
     def __getitem__(self, idx: int) -> Dict[str, Any]:
         if idx >= len(self._data):
-            raise IndexError(
-                f"Index {idx} out of bounds for dataset of length {len(self._data)}"
-            )
+            raise IndexError(f"Index {idx} out of bounds for dataset of length {len(self._data)}")
 
         # Get row as dict from backend
         row = self._data[idx]

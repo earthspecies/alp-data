@@ -162,9 +162,7 @@ class BirdSet(Dataset):
             )
 
     @classmethod
-    def from_config(
-        cls, dataset_config: DatasetConfig
-    ) -> tuple["BirdSet", dict[str, Any]]:
+    def from_config(cls, dataset_config: DatasetConfig) -> tuple["BirdSet", dict[str, Any]]:
         """Create a Dataset instance from a configuration dictionary.
 
         Parameters
@@ -191,9 +189,7 @@ class BirdSet(Dataset):
         )
 
         if dataset_config.transformations:
-            transform_metadata = ds.apply_transformations(
-                dataset_config.transformations
-            )
+            transform_metadata = ds.apply_transformations(dataset_config.transformations)
             return ds, transform_metadata
 
         return ds, {}

@@ -444,8 +444,6 @@ class PandasBackend:
             Dictionary mapping source values to output values
         output_column : str
             Name of the new column to create
-        default : Any, optional
-            Value to use for unmapped keys, by default -1
 
         Returns
         -------
