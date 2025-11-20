@@ -40,10 +40,16 @@ def main(number_of_samples: int, parameter: str) -> None:
     param2 = other_params[1]
     value2 = df[param2].iloc[0]
 
+    # replace Nan with -1 to be able to sort, but label should show "None"
+    df.replace({float("nan"): -1}, inplace=True)
+    print(df[parameter])
+    labels = [x if x != -1 else "None" for x in df.sort_values(parameter)[parameter]]
     fig, axs = plt.subplots(1, 2, figsize=(10, 6))
 
     axs[0].set_title("Nominal Speed")
     axs[0].set_xlabel(parameter)
+    axs[0].set_xticks(df.sort_values(parameter)[parameter])
+    axs[0].set_xticklabels(labels)
     axs[0].set_ylabel("Nominal Speed (samples/second)")
     axs[0].plot(
         df.sort_values(parameter)[parameter], df.sort_values(parameter)["nominal_speed"], marker="o"
@@ -52,6 +58,8 @@ def main(number_of_samples: int, parameter: str) -> None:
 
     axs[1].set_title("Total Time")
     axs[1].set_xlabel(parameter)
+    axs[1].set_xticks(df.sort_values(parameter)[parameter])
+    axs[1].set_xticklabels(labels)
     axs[1].set_ylabel("Total Time (seconds)")
     axs[1].plot(
         df.sort_values(parameter)[parameter], df.sort_values(parameter)["total_time"], marker="o"

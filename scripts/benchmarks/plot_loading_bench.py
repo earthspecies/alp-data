@@ -30,7 +30,9 @@ def plot_results(results: pd.DataFrame) -> None:
 
     df = get_results()
     name = results["dataset_name"].iloc[0]
+    split = results["split"].iloc[0]
     df = df[df["dataset_name"] == name]
+    df = df[df["split"] == split]
     df.fillna({"sample_rate": "default"}, inplace=True)
     sr = results["sample_rate"].iloc[0]
     if sr is None:
@@ -71,14 +73,14 @@ def plot_results(results: pd.DataFrame) -> None:
             ax.set_title(f"Boxplot of {col}")
             ax.set_ylabel("Values")
             ax.grid(axis="y")
-            col_name = col.replace(" ", "_").replace("/", "_")
         plt.suptitle(
             f"Boxplots of {name} - Data Location: {location} "
             f"-- Bucket: {bucket_location} -- Machine: {machine_location}"
+            f"\n Sample Rate: {sr}, Split: {split}"
         )
         plt.tight_layout()
-        plt.savefig(f"scripts/benchmarks/fig/boxplot_{name}_{location}_{col_name}.png")
-        logger.info(f"Saved plot: scripts/benchmarks/fig/boxplot_{name}_{location}_{col_name}.png")
+        plt.savefig(f"scripts/benchmarks/fig/boxplot_{name}_{location}.png")
+        logger.info(f"Saved plot: scripts/benchmarks/fig/boxplot_{name}_{location}.png")
         plt.close()
 
 
@@ -95,8 +97,8 @@ def plot_feature(
     datalocations = df["data_location"].unique()
     for location in datalocations:
         subset = df[df["data_location"] == location]
-        subset = subset[subset["sample_rate"] == "default"]
-        fig, axs = plt.subplots(2, 3, figsize=(15, 10))
+        # subset = subset[subset["sample_rate"] == "default"]
+        fig, axs = plt.subplots(6, 1, figsize=(10, 35))
         for i, col in enumerate(
             subset[
                 [
@@ -109,14 +111,14 @@ def plot_feature(
                 ]
             ].columns
         ):
-            ax = axs[i // 3, i % 3]
+            ax = axs[i]
             subset.boxplot(column=col, by="dataset_name", vert=True, patch_artist=True, ax=ax)
             ax.set_title(f"{col}")
             ax.set_xlabel("Dataset Name")
             ax.set_ylabel(col)
             ax.grid(axis="y")
-            ax.tick_params(axis="x", rotation=45)
-        plt.suptitle(f"Boxplots of all features - Data Location: {location}")
+            ax.tick_params(axis="x", labelsize=8, rotation=90)
+        plt.suptitle(f"Boxplots of all features - Data Location: {location}", y=1.02)
         plt.tight_layout()
         plt.savefig(f"scripts/benchmarks/fig/boxplot_all_features_{location}.png")
         logger.info(f"Saved plot: scripts/benchmarks/fig/boxplot_all_features_{location}.png")

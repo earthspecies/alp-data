@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #SBATCH --partition=cpu
-#SBATCH --job-name=loading_time_benchmark
+#SBATCH --job-name=multi_loading_time_benchmark
 #SBATCH --output=/home/%u/outputs/loading_time/%A.log
 #SBATCH --mail-type=FAIL
 
@@ -23,13 +23,8 @@ echo "Datasets to benchmark: ${DATASETS[*]}"
 echo "=== Starting job at $(date) ==="
 
 for DATASET in "${DATASETS[@]}"; do
-    # # trim whitespace and ignore empty lines or comments
-    # DATASET="$(echo "$DATASET" | xargs)"
-    # [[ -z "$DATASET" || "${DATASET:0:1}" == "#" ]] && continue
-
     echo "Running benchmark for dataset: $DATASET"
-    sbatch jobs/loading_time.sh --dataset "$DATASET"
-    sleep 10 # wait 10 seconds between submissions
+    sbatch --dependency=singleton jobs/benchmark_loading_time.sh --dataset "$DATASET"
 done
 
 uv run python scripts/benchmarks/plot_loading_bench.py

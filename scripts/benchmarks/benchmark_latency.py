@@ -244,7 +244,7 @@ def benchmark_raw_dataset(
 
 @click.command()
 @click.option(
-    "--config_path",
+    "--config-path",
     "-c",
     type=click.Path(exists=True, dir_okay=False, path_type=Path),
     default=None,
