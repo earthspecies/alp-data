@@ -31,12 +31,12 @@ uv sync --group benchmark
 nw_values=(0 2 4 8)
 
 for nw in "${nw_values[@]}"; do
-    echo "Running benchmark_latency with num_workers=$nw and batch_size=64"
+    echo "Running benchmark_latency with num_workers=$nw and batch_size=128"
     srun uv run python scripts/benchmarks/benchmark_latency.py \
         --log-interval 5 \
         --max-iterations 1000 \
         --num-workers $nw \
-        --batch-size 64 \
+        --batch-size 128 \
         --prefetch-factor 0 \
         --sleep 0.5 \
         --dataset-name "$DATASET" \
@@ -46,15 +46,15 @@ done
 num_values=${#nw_values[@]}
 uv run python scripts/benchmarks/plot_latency_bench.py --number-of-samples $num_values --parameter "num_workers"
 
-pf_values=(0 1 2)
+pf_values=(0 1 2 4)
 
 for pf in "${pf_values[@]}"; do
-    echo "Running benchmark_latency with prefetch_factor=$pf"
+    echo "Running benchmark_latency with prefetch_factor=$pf and batch_size=128"
     srun uv run python scripts/benchmarks/benchmark_latency.py \
         --log-interval 5 \
         --max-iterations 1000 \
         --num-workers 4 \
-        --batch-size 64 \
+        --batch-size 128 \
         --prefetch-factor $pf \
         --sleep 0.5 \
         --dataset-name "$DATASET" \

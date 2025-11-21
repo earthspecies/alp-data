@@ -99,6 +99,8 @@ def build_raw_dataset(config_path: Path, data_location: str, dataset_name: str) 
         )
         dataset, _ = dataset_from_config(config_path, key=data_location)
         raw = raw[data_location]["dataset"]
+        raw["split_name"] = raw["split"]
+        raw["split"] = "config"
     else:
         logger.info(f"Building dataset '{dataset_name}' with default parameters")
         dataset = dataset_class_from_name(dataset_name)()
@@ -109,8 +111,10 @@ def build_raw_dataset(config_path: Path, data_location: str, dataset_name: str) 
         # data_root:
         raw = {}
         raw["dataset_name"] = dataset_name
-        raw["split"] = dataset.split
-        raw["sample_rate"] = dataset.sample_rate
+        raw["split"] = "default"
+        raw["split_name"] = dataset.split
+        # sample_rate column in benchmark results should be default if there is no resampling
+        raw["sample_rate"] = "default"
         raw["data_root"] = dataset.data_root
 
     return dataset, raw

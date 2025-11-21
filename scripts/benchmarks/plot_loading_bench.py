@@ -1,4 +1,5 @@
 import logging
+import os
 
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -30,9 +31,9 @@ def plot_results(results: pd.DataFrame) -> None:
 
     df = get_results()
     name = results["dataset_name"].iloc[0]
-    split = results["split"].iloc[0]
+    split = results["split_name"].iloc[0]
     df = df[df["dataset_name"] == name]
-    df = df[df["split"] == split]
+    df = df[df["split_name"] == split]
     df.fillna({"sample_rate": "default"}, inplace=True)
     sr = results["sample_rate"].iloc[0]
     if sr is None:
@@ -79,6 +80,9 @@ def plot_results(results: pd.DataFrame) -> None:
             f"\n Sample Rate: {sr}, Split: {split}"
         )
         plt.tight_layout()
+        # Ensure the fig directory exists
+        os.makedirs("scripts/benchmarks/fig", exist_ok=True)
+
         plt.savefig(f"scripts/benchmarks/fig/boxplot_{name}_{location}.png")
         logger.info(f"Saved plot: scripts/benchmarks/fig/boxplot_{name}_{location}.png")
         plt.close()
@@ -97,7 +101,8 @@ def plot_feature(
     datalocations = df["data_location"].unique()
     for location in datalocations:
         subset = df[df["data_location"] == location]
-        # subset = subset[subset["sample_rate"] == "default"]
+        subset = subset[subset["sample_rate"] == "default"]
+        subset = subset[subset["split"] == "default"]
         fig, axs = plt.subplots(6, 1, figsize=(10, 35))
         for i, col in enumerate(
             subset[
@@ -114,12 +119,18 @@ def plot_feature(
             ax = axs[i]
             subset.boxplot(column=col, by="dataset_name", vert=True, patch_artist=True, ax=ax)
             ax.set_title(f"{col}")
-            ax.set_xlabel("Dataset Name")
+            ax.set_xlabel(None)
             ax.set_ylabel(col)
             ax.grid(axis="y")
             ax.tick_params(axis="x", labelsize=8, rotation=90)
-        plt.suptitle(f"Boxplots of all features - Data Location: {location}", y=1.02)
+        plt.suptitle(
+            f"Boxplots of all features - Data Location: {location} -- Sample Rate: default "
+            f"-- Split: default"
+        )
         plt.tight_layout()
+        plt.subplots_adjust(top=0.95)
+        # Ensure the fig directory exists
+        os.makedirs("scripts/benchmarks/fig", exist_ok=True)
         plt.savefig(f"scripts/benchmarks/fig/boxplot_all_features_{location}.png")
         logger.info(f"Saved plot: scripts/benchmarks/fig/boxplot_all_features_{location}.png")
         plt.close()

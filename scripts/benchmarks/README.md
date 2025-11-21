@@ -18,7 +18,9 @@ Contents
 Quick overview
 --------------
 - Benchmarks are run on a SLURM cluster.
-- Results are saved as CSV files in a GCS bucket.
+- Results are saved as CSV files in a GCS bucket : <gs://esp-ci-cd-tests/esp-data-tests/benchmark_dataset>
+    - benchmark_latency.csv
+    - benchmark_loading_time.csv
 - Plots are saved locally to `scripts/benchmarks/fig/`.
 
 You can specify a dataset configuration via a YAML file or use the default configuration.
