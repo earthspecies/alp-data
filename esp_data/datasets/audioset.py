@@ -142,8 +142,6 @@ class AudioSet(Dataset):
             )
 
         location = self.info.split_paths[self.split]
-        # TODO: does this handle large files well?
-        # csv_text = read_text(location, encoding="utf-8")
 
         # Converter to parse JSON-encoded labels into Python lists
         def parse_label(value: str) -> list:
