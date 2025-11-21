@@ -62,7 +62,12 @@ Job scripts are located in `jobs/` and are designed to be submitted with `sbatch
 
 Examples:
 
-- With default configuration.
+- Simple way to launch a global default benchmark (might take some time)
+```
+sbatch jobs/run_benchmark.sh
+```
+
+- Specific benchmarks with default configuration.
 ```
 # dataloader latency over different parameters for a single dataset
 sbatch jobs/benchmark_latency_default.sh --dataset beans
@@ -74,7 +79,7 @@ sbatch jobs/benchmark_loading_time_default.sh --dataset beans
 sbatch jobs/multi_dataset_loading_time.sh
 ```
 
-- With a provided config file.
+- Specific benchmark with a provided config file.
 ```
 # dataloader latency over different parameters for a single dataset
 sbatch jobs/benchmark_latency_config.sh --config your/path/to/config --data-location nfs
