@@ -1,7 +1,6 @@
 """AudioSet dataset"""
 
 import json
-from io import StringIO
 from typing import Any, Dict, Iterator
 
 import librosa
@@ -10,7 +9,7 @@ import pandas as pd
 
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from esp_data.backends import BackendType
-from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio, read_text
+from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
 
 
 @register_dataset
@@ -76,7 +75,7 @@ class AudioSet(Dataset):
         output_take_and_give: dict[str, str] | None = None,
         sample_rate: int | None = None,
         data_root: str | AnyPathT | None = None,
-        backend: BackendType = "polars",
+        backend: BackendType = "pandas",
         streaming: bool = False,
     ) -> None:
         """Initialize the AudioSet dataset.
@@ -98,7 +97,15 @@ class AudioSet(Dataset):
             The backend to use ("pandas", "polars"), by default "polars"
         streaming : bool, optional
             Whether to use streaming mode, by default False
+
+        Raises
+        ------
+        ValueError
+            If the backend is not "pandas".
         """
+        if backend != "pandas":
+            raise ValueError("AudioSet dataset only supports 'pandas' backend.")
+
         super().__init__(output_take_and_give, backend=backend, streaming=streaming)
         self.split = split
         self._data: pd.DataFrame = None
@@ -136,7 +143,7 @@ class AudioSet(Dataset):
 
         location = self.info.split_paths[self.split]
         # TODO: does this handle large files well?
-        csv_text = read_text(location, encoding="utf-8")
+        # csv_text = read_text(location, encoding="utf-8")
 
         # Converter to parse JSON-encoded labels into Python lists
         def parse_label(value: str) -> list:
@@ -145,7 +152,7 @@ class AudioSet(Dataset):
             return json.loads(value)
 
         self._data = self._backend_class.from_csv(
-            StringIO(csv_text),
+            location,  # StringIO(csv_text),
             streaming=self._streaming,
             converters={"labels": parse_label},
         )

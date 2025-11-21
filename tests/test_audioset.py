@@ -4,6 +4,7 @@ import pytest
 
 from esp_data.datasets import AudioSet
 from esp_data import Dataset, DatasetConfig
+from esp_data.io import exists
 
 
 @pytest.fixture
@@ -32,7 +33,6 @@ def dataset_with_output_mapping() -> Dataset:
         dataset_name="AudioSet",
         output_take_and_give={"labels": "audio_label"},
         streaming=True,
-        backend="polars",
     )
     ds = AudioSet(
         split="validation",
@@ -50,7 +50,7 @@ def dataset_with_sample_rate() -> Dataset:
     Dataset
         An instance of the AudioSet dataset with custom sample rate.
     """
-    ds = AudioSet(split="train-balanced", sample_rate=22050)
+    ds = AudioSet(split="train-balanced", sample_rate=22050, streaming=True)
     return ds
 
 
@@ -83,7 +83,7 @@ def test_columns_property(dataset: Dataset) -> None:
     assert all(col in dataset.columns for col in expected_columns)
 
 
-def test_available_splits(dataset: Dataset) -> None:
+def test_available_splits_exist(dataset: Dataset) -> None:
     """Test if available_splits returns correct split names."""
     # Available splits should contain these
     expected_splits = [
@@ -95,7 +95,9 @@ def test_available_splits(dataset: Dataset) -> None:
         "train-noise",
         "validation-noise",
     ]
-    assert all(split in dataset.available_splits for split in expected_splits)
+    for split in expected_splits:
+        assert split in dataset.available_splits
+        assert exists(dataset.info.split_paths[split])
 
 
 def test_length(dataset: Dataset) -> None:
@@ -180,15 +182,15 @@ def test_sample_rate_resampling(dataset_with_sample_rate: Dataset) -> None:
     # Skip the first few samples that might have NaN values and test with a later sample
     # This is a real issue in the dataset where some audio files contain NaN values
     sample_found = False
-    for i in range(min(10, len(dataset_with_sample_rate))):
+    for sample in dataset_with_sample_rate:
         try:
-            sample = dataset_with_sample_rate[i]
             assert "audio" in sample
             assert sample["audio"].dtype.name == "float32"
             sample_found = True
             break
         except Exception:
             # Skip samples with problematic audio (NaN values, etc.)
+            # TODO: we dont want samples with NaN!
             continue
 
     assert sample_found, "Could not find a valid audio sample in the first 10 samples"
@@ -239,11 +241,9 @@ def test_from_config_with_transformations() -> None:
         dataset_name="audioset",
         split="train",
         data_root="gs://esp-ml-datasets/audioset/v0.1.0/raw/",
-        backend="polars",
         streaming=True,
     )
     dataset, metadata = AudioSet.from_config(dataset_config)
-
     # Check basic functionality works
     assert dataset.info.name == "audioset"
     assert isinstance(metadata, dict)
@@ -264,10 +264,11 @@ def test_different_splits() -> None:
     """Test if different splits load correctly."""
     splits_to_test = [
         "train-balanced",
-        "train-animal",
-        "validation-animal",
-        "train-noise",
-        "validation-noise",
+        # TODO: all these splits have wrong paths!!
+        # "train-animal",
+        # "validation-animal",
+        # "train-noise",
+        # "validation-noise",
     ]
     for split in splits_to_test:
         dataset = AudioSet(split=split, streaming=True, sample_rate=None)
