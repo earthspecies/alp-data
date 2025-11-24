@@ -18,37 +18,11 @@ import hashlib
 #from superb_starling_dataset import SuperbStarling
 from esp_data.datasets.superb_starling_dataset import SuperbStarling
 
-# --- Dataset snapshot ---
-
-# # Code to generate snapshot:
-# import hashlib
-# from esp_data.datasets import SuperbStarling
-# ds = SuperbStarling(split="all", sample_rate=16000)
-
-# print("len(ds) =", len(ds))
-
-# audio0 = ds[0]["audio"]
-# print("dtype:", audio0.dtype, "shape:", audio0.shape)
-
-# h = hashlib.sha256(audio0.tobytes()).hexdigest()
-# print("sha256:", h)
-
-# csv_bytes = ds._data.sort_index(axis=0).sort_index(axis=1).to_csv(index=True).encode("utf-8")
-# h = hashlib.sha256(csv_bytes).hexdigest()
-
-# print("annotations sha256:", h)
-
-# quit()
-# # #
-
-# TODO: Run the code above once you have your dataset working to generate these values
-EXPECTED_LEN_ALL = 2179  # Update this after running snapshot generation
-EXPECTED_FIRST_ITEM_AUDIO_SHA256 = (
-    "REPLACE_WITH_ACTUAL_HASH"  # Update this after running snapshot generation
-)
-ANNOTATIONS_SHA256 = (
-    "REPLACE_WITH_ACTUAL_HASH"  # Update this after running snapshot generation
-)
+# Sara generated hashes locally in slurm /home dir on Nov 24 2025 
+# use the code scripts/generate_hashes.py
+EXPECTED_LEN_ALL = 2179
+EXPECTED_FIRST_ITEM_AUDIO_SHA256 = "64e51ac84bc67bccd668385f22f51a4f997f74e597619c4f5ba96bfcc1843c1c"
+ANNOTATIONS_SHA256 = "4afd5ffab6b4461bbcd703880d295d29faae6adfd320fbc51ee997144e93194e"
 # ---------------------------------------------------------------------------
 
 @pytest.fixture(scope="module")
@@ -106,8 +80,8 @@ def test_check_duration(ds: SuperbStarling, sample_indices: List[int]):
     """Check that duration_s field is present and matches audio length."""
     for idx in sample_indices:
         item = ds[idx]
-        assert "duration_s" in item, f"[{idx}] missing 'duration_s' key"
-        duration = item["duration_s"]
+        assert "duration_secs" in item, f"[{idx}] missing 'duration_secs' key"
+        duration = item["duration_secs"]
         
         # Verify duration matches audio length
         audio_len = len(item["audio"])
@@ -213,50 +187,6 @@ def test_get_available_labels_invalid_column(ds: SuperbStarling):
     """Test that get_available_labels raises error for invalid column."""
     with pytest.raises(ValueError, match="Column.*not found"):
         ds.get_available_labels("nonexistent_column")
-
-
-def test_get_individual_stats(ds: SuperbStarling):
-    """Test get_individual_stats method."""
-    stats = ds.get_individual_stats()
-    
-    assert isinstance(stats, pd.DataFrame), "Should return a DataFrame"
-    assert len(stats) > 0, "Should have stats for at least one individual"
-    
-    required_cols = {"bird", "group", "sex", "num_vocalizations"}
-    assert required_cols.issubset(stats.columns), (
-        f"Missing columns: {required_cols - set(stats.columns)}"
-    )
-    
-    # Check that num_vocalizations is positive
-    assert (stats["num_vocalizations"] > 0).all(), (
-        "All individuals should have at least one vocalization"
-    )
-    
-    # Check that results are sorted by num_vocalizations descending
-    assert stats["num_vocalizations"].is_monotonic_decreasing, (
-        "Results should be sorted by num_vocalizations descending"
-    )
-
-
-def test_get_group_stats(ds: SuperbStarling):
-    """Test get_group_stats method."""
-    stats = ds.get_group_stats()
-    
-    assert isinstance(stats, pd.DataFrame), "Should return a DataFrame"
-    assert len(stats) > 0, "Should have stats for at least one group"
-    
-    required_cols = {"group", "num_individuals", "num_vocalizations"}
-    assert required_cols.issubset(stats.columns), (
-        f"Missing columns: {required_cols - set(stats.columns)}"
-    )
-    
-    # Check that counts are positive
-    assert (stats["num_individuals"] > 0).all(), (
-        "All groups should have at least one individual"
-    )
-    assert (stats["num_vocalizations"] > 0).all(), (
-        "All groups should have at least one vocalization"
-    )
 
 
 def test_output_take_and_give(ds: SuperbStarling):

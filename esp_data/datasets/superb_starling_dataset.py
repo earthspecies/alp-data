@@ -41,16 +41,13 @@ class SuperbStarling(Dataset):
     info = DatasetInfo(
         name="superb_starling",
         owner="Sara",  
-       # split_paths={
-       #     "all": "gs://superb-starlings-keen/organized_data/superb_starlings_flightcalls.txt",   # FIX
-       # },
         split_paths={
-            "all": os.path.expanduser("/home/sara_earthspecies_org/individual_id/data/superb_starlings_flightcalls.txt"),
-            },
+            "all": "gs://esp-ml-datasets/superb-starlings-keen/v0.1.0/organized_data/superb_starlings_flightcalls.txt",   
+        },
         version="0.1.0",
         description="superb starling flight calls with individual ID and group ID annotations",
         sources="Kenya field recordings",  
-        license="CC0 1.0",  #
+        license="CC0 1.0",  #https://datadryad.org/dataset/doi:10.5061/dryad.p1n88
     )
 
     def __init__(
@@ -145,7 +142,7 @@ class SuperbStarling(Dataset):
         row["sample_rate"] = sr
 
         # Calculate duration from audio
-        row["duration_s"] = len(audio) / float(sr)
+        row["duration_secs"] = len(audio) / float(sr)
 
         if self.output_take_and_give:
             item = {}
