@@ -197,50 +197,6 @@ class SuperbStarling(Dataset):
             raise ValueError(f"Column '{anno_column}' not found. Available columns: {self.columns}")
         return sorted(self._data[anno_column].astype(str).unique().tolist())
 
-    def get_individual_stats(self) -> pd.DataFrame:
-        """
-        Get statistics per individual bird.
-
-        Returns
-        -------
-        pd.DataFrame
-            DataFrame with columns: bird, group, sex, ring, num_vocalizations
-        """
-        if self._data is None:
-            return pd.DataFrame()
-
-        stats = (
-            self._data.groupby(["bird", "group", "sex", "ring"])
-            .size()
-            .reset_index(name="num_vocalizations")
-        )
-        return stats.sort_values("num_vocalizations", ascending=False)
-
-    def get_group_stats(self) -> pd.DataFrame:
-        """
-        Get statistics per social group.
-
-        Returns
-        -------
-        pd.DataFrame
-            DataFrame with group-level statistics
-        """
-        if self._data is None:
-            return pd.DataFrame()
-
-        stats = (
-            self._data.groupby("group")
-            .agg(
-                {
-                    "bird": "nunique",
-                    "Selection": "count",
-                }
-            )
-            .rename(columns={"bird": "num_individuals", "Selection": "num_vocalizations"})
-            .reset_index()
-        )
-        return stats.sort_values("num_vocalizations", ascending=False)
-
     def __str__(self) -> str:
         base = f"{self.info.name} (v{self.info.version})"
         return (
