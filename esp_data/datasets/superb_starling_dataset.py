@@ -7,7 +7,6 @@ from typing import Any, Dict, Iterator, List
 import librosa
 import numpy as np
 import pandas as pd
-import os
 
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
@@ -19,35 +18,37 @@ class SuperbStarling(Dataset):
 
     Description
     -----------
-    Dataset of superb starling (Lamprotornis superbus) flight calls with precise time bounds, 
-    individual ID, and social group ID 
+    Dataset of superb starling (Lamprotornis superbus) flight calls with precise time bounds,
+    individual ID, and social group ID
 
     Each entry includes:
     - An audio clip containing one flight call
-    - Annotations for exact start/stop of the call in audio clip 
+    - Annotations for exact start/stop of the call in audio clip
     - Metadata (bird ID, group, sex, ring, timestamp)
 
-    The metadata file is a tab-separated text file that is formatted as a Raven selection table. 
-    This lets you open all sound files in Raven and see the annotations aligned for every selection, which each correspond to a single flight call
-
-    
+    The metadata file is a tab-separated text file that is formatted as a Raven selection table.
+    This lets you open all sound files in Raven and see the annotations aligned for every
+    selection, which each correspond to a single flight call
 
     References
     ----------
-    Keen, S. C., Meliza, C. D., & Rubenstein, D. R. (2013). Flight calls signal group and individual identity but not kinship in a cooperatively breeding bird. Behavioral Ecology, 24(6), 1279-1285.
+    Keen, S. C., Meliza, C. D., & Rubenstein, D. R. (2013). Flight calls signal group and
+    individual identity but not kinship in a cooperatively breeding bird.
+    Behavioral Ecology, 24(6), 1279-1285.
+    https://doi.org/10.5061/dryad.p1n88
 
     """
 
     info = DatasetInfo(
         name="superb_starling",
-        owner="Sara",  
+        owner="Sara",
         split_paths={
-            "all": "gs://esp-ml-datasets/superb-starlings-keen/v0.1.0/organized_data/superb_starlings_flightcalls.txt",   
+            "all": "gs://esp-ml-datasets/superb-starlings-keen/v0.1.0/organized_data/superb_starlings_flightcalls.txt",
         },
         version="0.1.0",
         description="superb starling flight calls with individual ID and group ID annotations",
-        sources="Kenya field recordings",  
-        license="CC0 1.0",  #https://datadryad.org/dataset/doi:10.5061/dryad.p1n88
+        sources="Kenya field recordings",
+        license="CC0 1.0",  # https://datadryad.org/dataset/doi:10.5061/dryad.p1n88
     )
 
     def __init__(
@@ -184,13 +185,16 @@ class SuperbStarling(Dataset):
         -------
         list[str]
             A sorted list of all unique values in the specified column.
+
+        Raises
+        ------
+        ValueError
+            If the specified column is not found in the dataset.
         """
         if self._data is None:
             return []
         if anno_column not in self._data.columns:
-            raise ValueError(
-                f"Column '{anno_column}' not found. Available columns: {self.columns}"
-            )
+            raise ValueError(f"Column '{anno_column}' not found. Available columns: {self.columns}")
         return sorted(self._data[anno_column].astype(str).unique().tolist())
 
     def get_individual_stats(self) -> pd.DataFrame:
@@ -204,7 +208,7 @@ class SuperbStarling(Dataset):
         """
         if self._data is None:
             return pd.DataFrame()
-        
+
         stats = (
             self._data.groupby(["bird", "group", "sex", "ring"])
             .size()
@@ -223,13 +227,15 @@ class SuperbStarling(Dataset):
         """
         if self._data is None:
             return pd.DataFrame()
-        
+
         stats = (
             self._data.groupby("group")
-            .agg({
-                "bird": "nunique",
-                "Selection": "count",
-            })
+            .agg(
+                {
+                    "bird": "nunique",
+                    "Selection": "count",
+                }
+            )
             .rename(columns={"bird": "num_individuals", "Selection": "num_vocalizations"})
             .reset_index()
         )

@@ -18,7 +18,7 @@ import hashlib
 #from superb_starling_dataset import SuperbStarling
 from esp_data.datasets.superb_starling_dataset import SuperbStarling
 
-# Sara generated hashes locally in slurm /home dir on Nov 24 2025 
+# Sara generated hashes locally in slurm /home dir on Nov 24 2025
 # use the code scripts/generate_hashes.py
 EXPECTED_LEN_ALL = 2179
 EXPECTED_FIRST_ITEM_AUDIO_SHA256 = "64e51ac84bc67bccd668385f22f51a4f997f74e597619c4f5ba96bfcc1843c1c"
@@ -82,12 +82,12 @@ def test_check_duration(ds: SuperbStarling, sample_indices: List[int]):
         item = ds[idx]
         assert "duration_secs" in item, f"[{idx}] missing 'duration_secs' key"
         duration = item["duration_secs"]
-        
+
         # Verify duration matches audio length
         audio_len = len(item["audio"])
         sr = item["sample_rate"]
         expected_duration = audio_len / sr
-        
+
         assert abs(duration - expected_duration) < 1e-6, (
             f"[{idx}] duration mismatch: duration_s={duration}, "
             f"audio_len/sr={expected_duration}"
@@ -201,9 +201,9 @@ def test_output_take_and_give(ds: SuperbStarling):
             "bird": "bird_id",
         }
     )
-    
+
     item = ds_filtered[0]
-    
+
     # Should only have the mapped keys
     assert set(item.keys()) == {"audio", "species", "bird_id"}
     assert "Begin Time (s)" not in item
@@ -214,7 +214,7 @@ def test_iteration(ds: SuperbStarling):
     """Test that dataset iteration works correctly."""
     items = list(ds)
     assert len(items) == len(ds), "Iteration should yield all items"
-    
+
     # Check a few items
     for i in range(min(3, len(items))):
         assert "audio" in items[i]
