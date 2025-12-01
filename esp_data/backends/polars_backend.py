@@ -9,10 +9,12 @@ from typing import Any, Callable, Iterator, Literal
 
 import polars as pl
 
+from .protocol import DataBackend
+
 logger = logging.getLogger("esp_data")
 
 
-class PolarsBackend:
+class PolarsBackend(DataBackend):
     """Polars implementation of the DataFrameBackend protocol.
 
     This backend wraps a polars DataFrame or LazyFrame and provides a unified interface

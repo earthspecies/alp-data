@@ -4,14 +4,10 @@ This module provides a protocol-based backend system that allows esp-data to wor
 with multiple DataFrame libraries through a common interface.
 """
 
+from .backends import BackendType, get_backend
 from .pandas_backend import PandasBackend
 from .polars_backend import PolarsBackend
-from .protocol import (
-    BackendType,
-    DataBackend,
-    get_backend,
-    list_backends,
-)
+from .protocol import DataBackend
 
 __all__ = [
     "DataBackend",
@@ -19,5 +15,4 @@ __all__ = [
     "PolarsBackend",
     "BackendType",
     "get_backend",
-    "list_backends",
 ]

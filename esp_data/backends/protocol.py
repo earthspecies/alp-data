@@ -7,13 +7,7 @@ a common abstraction layer.
 
 from __future__ import annotations
 
-from typing import Any, Callable, Iterator, Literal, Protocol, Type, TypeVar, overload
-
-from .pandas_backend import PandasBackend
-from .polars_backend import PolarsBackend
-
-# Type alias for backend return type (allows chaining)
-DataBackendT = TypeVar("DataBackend")
+from typing import Any, Callable, Iterator, Literal, Protocol, overload
 
 
 class DataBackend(Protocol):
@@ -30,8 +24,8 @@ class DataBackend(Protocol):
         path: str,
         *,
         streaming: bool = False,
-        **kwargs: Any,  # noqa ANN401
-    ) -> DataBackendT:
+        **kwargs: object,
+    ) -> "DataBackend":
         """Read a CSV file and return a wrapped data backend.
 
         Parameters
@@ -42,7 +36,7 @@ class DataBackend(Protocol):
             If True, use streaming mode (lazy evaluation). In streaming mode,
             __getitem__ is disabled and data is processed via iteration.
             By default False.
-        **kwargs : Any
+        **kwargs : object
             Additional backend-specific arguments
 
         Returns
@@ -59,8 +53,8 @@ class DataBackend(Protocol):
         *,
         lines: bool = False,
         streaming: bool = False,
-        **kwargs: Any,  # noqa ANN401
-    ) -> DataBackendT:
+        **kwargs: object,
+    ) -> "DataBackend":
         """Read a JSON file and return a wrapped data backend.
 
         Parameters
@@ -71,7 +65,7 @@ class DataBackend(Protocol):
             If True, read file as JSON lines (one JSON object per line), by default False
         streaming : bool, optional
             If True, use streaming mode (lazy evaluation), by default False
-        **kwargs : Any
+        **kwargs : object
             Additional backend-specific arguments
 
         Returns
@@ -82,13 +76,7 @@ class DataBackend(Protocol):
         ...
 
     @classmethod
-    def from_parquet(
-        cls,
-        path: str,
-        *,
-        streaming: bool = False,
-        **kwargs: Any,  # noqa ANN401
-    ) -> DataBackendT:
+    def from_parquet(cls, path: str, *, streaming: bool = False, **kwargs: object) -> "DataBackend":
         """Read a Parquet file and return a wrapped data backend.
 
         Parameters
@@ -97,7 +85,7 @@ class DataBackend(Protocol):
             Path to the Parquet file
         streaming : bool, optional
             If True, use streaming mode (lazy evaluation), by default False
-        **kwargs : Any
+        **kwargs : object
             Additional backend-specific arguments
 
         Returns
@@ -107,12 +95,12 @@ class DataBackend(Protocol):
         """
         ...
 
-    def __init__(self, df: DataBackendT, *, streaming: bool = False) -> None:  # noqa ANN401
+    def __init__(self, df: Any, *, streaming: bool = False) -> None:  # noqa ANN401
         """Wrap an existing data object.
 
         Parameters
         ----------
-        df : DataBackendT
+        df : Any
             The data to wrap (e.g., pd.DataFrame, pl.DataFrame).
 
         streaming : bool, optional
@@ -138,16 +126,16 @@ class DataBackend(Protocol):
         ...
 
     @overload
-    def __getitem__(self, key: list[int]) -> DataBackendT:
+    def __getitem__(self, key: list[int]) -> "DataBackend":
         """Get multiple rows by list of indices."""
         ...
 
     @overload
-    def __getitem__(self, key: slice) -> DataBackendT:
+    def __getitem__(self, key: slice) -> "DataBackend":
         """Get rows by slice."""
         ...
 
-    def __getitem__(self, key: int | list[int] | slice) -> dict[str, Any] | DataBackendT:
+    def __getitem__(self, key):
         """Get row(s) from the dataset using Pythonic indexing.
 
         Parameters
@@ -206,7 +194,7 @@ class DataBackend(Protocol):
         values: list[Any],
         *,
         negate: bool = False,
-    ) -> DataBackendT:
+    ) -> "DataBackend":
         """Filter rows where column values are in (or not in) a list.
 
         Parameters
@@ -230,7 +218,7 @@ class DataBackend(Protocol):
         subset: list[str] | None = None,
         *,
         keep: Literal["first", "last"] = "first",
-    ) -> DataBackendT:
+    ) -> "DataBackend":
         """Remove duplicate rows from the data.
 
         Parameters
@@ -251,7 +239,7 @@ class DataBackend(Protocol):
     def dropna(
         self,
         subset: list[str] | None = None,
-    ) -> DataBackendT:
+    ) -> "DataBackend":
         """Remove rows with missing values.
 
         Parameters
@@ -289,7 +277,7 @@ class DataBackend(Protocol):
         output_column: str,
         *,
         default: Any | None = None,  # noqa ANN401
-    ) -> DataBackendT:
+    ) -> "DataBackend":
         """Create a new column by mapping values from an existing column.
 
         Parameters
@@ -313,7 +301,7 @@ class DataBackend(Protocol):
     def rename_columns(
         self,
         mapping: dict[str, str],
-    ) -> DataBackendT:
+    ) -> "DataBackend":
         """Rename data columns.
 
         Parameters
@@ -332,7 +320,7 @@ class DataBackend(Protocol):
         self,
         column: str,
         values: Any,  # noqa ANN401
-    ) -> DataBackendT:
+    ) -> "DataBackend":
         """Add a new column to the data.
 
         Parameters
@@ -352,7 +340,7 @@ class DataBackend(Protocol):
     def select_columns(
         self,
         columns: list[str],
-    ) -> DataBackendT:
+    ) -> "DataBackend":
         """Select a subset of columns from the data.
 
         Parameters
@@ -370,11 +358,11 @@ class DataBackend(Protocol):
     @classmethod
     def concat(
         cls,
-        backends: list[DataBackendT],
+        backends: list["DataBackend"],
         *,
         ignore_index: bool = True,
         sort: bool = False,
-    ) -> DataBackendT:
+    ) -> "DataBackend":
         """Concatenate multiple backend instances vertically (row-wise).
 
         Parameters
@@ -415,7 +403,7 @@ class DataBackend(Protocol):
         ...
 
     @property
-    def unwrap(self) -> Any:  # noqa: ANN401
+    def unwrap(self) -> Any:  # noqa ANN401
         """Get the underlying data object.
 
         This is useful when you need to access backend-specific functionality
@@ -434,7 +422,7 @@ class DataBackend(Protocol):
         ratios: dict[str, float],
         *,
         seed: int = 42,
-    ) -> DataBackendT:
+    ) -> "DataBackend":
         """Subsample rows by column values with specified ratios.
 
         For each unique value in the column, sample the specified ratio of rows.
@@ -463,7 +451,7 @@ class DataBackend(Protocol):
         *,
         seed: int = 42,
         replace: bool = False,
-    ) -> DataBackendT:
+    ) -> "DataBackend":
         """Randomly sample n rows from the data.
 
         Parameters
@@ -482,7 +470,7 @@ class DataBackend(Protocol):
         """
         ...
 
-    def copy(self) -> DataBackendT:
+    def copy(self) -> "DataBackend":
         """Create a copy of the backend with a copied data.
 
         Returns
@@ -492,7 +480,7 @@ class DataBackend(Protocol):
         """
         ...
 
-    def apply_fn(self, fn: Callable, **fn_kwargs: dict) -> DataBackendT:
+    def apply_fn(self, fn: Callable, **fn_kwargs: dict) -> "DataBackend":
         """Apply a custom function to the underlying data.
 
         Parameters
@@ -510,60 +498,31 @@ class DataBackend(Protocol):
         """
         ...
 
+    def multilabel_from_features(
+        self,
+        input_features: list[str],
+        output_feature: str,
+        label_map: dict[str, Any] | None = None,
+        allow_missing_labels: bool = False,
+    ) -> tuple["DataBackend", dict]:
+        """Create a multilabel column from multiple feature columns.
 
-# Type alias for supported backend names
-BackendType = Literal["pandas", "polars"]
+        Parameters
+        ----------
+        input_features : list[str]
+            List of input feature column names to combine
+        output_feature : str
+            Name of the output multilabel column
+        label_map : dict[str, Any] | None, optional
+            Optional mapping from input feature values to output labels,
+            by default None
+        allow_missing_labels : bool, optional
+            If True, ignore missing labels in input features,
+            by default False
 
-# Registry mapping backend names to their implementation classes
-_BACKEND_REGISTRY: dict[str, Type[DataBackendT]] = {
-    "pandas": PandasBackend,
-    "polars": PolarsBackend,
-}
-
-
-def get_backend(backend: BackendType) -> Type[DataBackend]:
-    """Get the backend class for the specified backend type.
-
-    Parameters
-    ----------
-    backend : BackendType
-        Name of the backend ("pandas" or "polars")
-
-    Returns
-    -------
-    Type[DataBackend]
-        The backend class (not an instance)
-
-    Raises
-    ------
-    ValueError
-        If the backend name is not recognized
-
-    Examples
-    --------
-    >>> backend_cls = get_backend("pandas")
-    >>> assert backend_cls is PandasBackend
-    >>> backend_cls = get_backend("polars")
-    >>> assert backend_cls is PolarsBackend
-    """
-    if backend not in _BACKEND_REGISTRY:
-        raise ValueError(
-            f"Unknown backend: {backend}. Supported backends: {list(_BACKEND_REGISTRY.keys())}"
-        )
-    return _BACKEND_REGISTRY[backend]
-
-
-def list_backends() -> list[str]:
-    """List all registered backend names.
-
-    Returns
-    -------
-    list[str]
-        List of registered backend names
-
-    Examples
-    --------
-    >>> list_backends()
-    ['pandas', 'polars']
-    """
-    return list(_BACKEND_REGISTRY.keys())
+        Returns
+        -------
+        tuple[DataBackend, dict]
+            New backend with multilabel column and metadata dictionary
+        """
+        ...
