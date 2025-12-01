@@ -3,7 +3,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel
 
-from esp_data.backends.protocol import DataBackendT
+from esp_data.backends.protocol import DataBackend
 
 from . import register_transform
 
@@ -23,7 +23,7 @@ class LabelFromFeature:
 
     This transform maps the values of a specified feature to integer labels.
 
-    Works with any backend (pandas, polars) through the DataBackendT protocol.
+    Works with any backend (pandas, polars) through the DataBackend protocol.
 
     Parameters
     ----------
@@ -65,17 +65,17 @@ class LabelFromFeature:
     def from_config(cls, cfg: LabelFromFeatureConfig) -> "LabelFromFeature":
         return cls(**cfg.model_dump(exclude=("type")))
 
-    def __call__(self, backend: DataBackendT) -> tuple[DataBackendT, dict]:
+    def __call__(self, backend: DataBackend) -> tuple[DataBackend, dict]:
         """Apply the transformation to the backend.
 
         Parameters
         ----------
-        backend : DataBackendT
+        backend : DataBackend
             The backend wrapping the DataFrame to transform.
 
         Returns
         -------
-        tuple[DataBackendT, dict]
+        tuple[DataBackend, dict]
             A tuple containing the transformed backend and metadata about the labels.
 
         Raises

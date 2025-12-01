@@ -7,10 +7,10 @@ from typing import Any, Callable, Iterator, Literal
 
 import pandas as pd
 
-from .protocol import DataFrameBackend
+from .protocol import DataBackend
 
 
-class PandasBackend(DataFrameBackend):
+class PandasBackend(DataBackend):
     """Pandas implementation of the DataFrameBackend protocol.
 
     This backend wraps a pandas DataFrame and provides a unified interface

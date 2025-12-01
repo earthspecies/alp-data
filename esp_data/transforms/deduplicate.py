@@ -5,7 +5,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-from esp_data.backends.protocol import DataBackendT
+from esp_data.backends.protocol import DataBackend
 
 from . import register_transform
 
@@ -32,7 +32,7 @@ class Deduplicate:
     This transform removes duplicate rows based on specified columns or all columns if
     none are specified. It can keep either the first or last occurrence of duplicates.
 
-    Works with any backend (pandas, polars) through the DataFrameBackend protocol.
+    Works with any backend (pandas, polars) through the DataBackend protocol.
 
     Parameters
     ----------
@@ -64,7 +64,7 @@ class Deduplicate:
     def from_config(cls, cfg: DeduplicateConfig) -> "Deduplicate":
         return cls(subset=cfg.subset, keep_first=cfg.keep_first)
 
-    def __call__(self, backend: DataBackendT) -> tuple[DataBackendT, dict]:
+    def __call__(self, backend: DataBackend) -> tuple[DataBackend, dict]:
         """Remove duplicate rows from the backend.
 
         Args:
