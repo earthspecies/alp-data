@@ -116,8 +116,8 @@ class AnimalSpeak(Dataset):
             )
         location = self.info.split_paths[self.split]
 
-        # TODO: Polars picked up some inconsistencies in the data!
-        # this is why ignore_errors=True is needed for polars
+        # TODO: Polars needs a lot of rows to figure out types correctly
+        # which is why we set infer_schema_length here to 10,000
         self._data = self._backend_class.from_csv(
             location,
             streaming=self._streaming,
