@@ -80,7 +80,7 @@ class PandasBackend(DataBackend):
         *,
         streaming: bool = False,
         streaming_chunk_size: int = 1000,
-        **kwargs: Any,  # noqa ANN401
+        **kwargs: object,
     ) -> "PandasBackend":
         """Read a CSV file and return a wrapped DataFrame backend.
 
@@ -92,7 +92,7 @@ class PandasBackend(DataBackend):
             If True, use streaming mode with chunked reading, by default False
         streaming_chunk_size : int, optional
             Number of rows per chunk in streaming mode, by default 1000
-        **kwargs : dict
+        **kwargs : object
             Additional pandas-specific arguments
 
         Returns
@@ -123,7 +123,7 @@ class PandasBackend(DataBackend):
         lines: bool = False,
         streaming: bool = False,
         streaming_chunk_size: int = 1000,
-        **kwargs: Any,  # noqa ANN401
+        **kwargs: object,
     ) -> "PandasBackend":
         """Read a JSON file and return a wrapped DataFrame backend.
 
@@ -140,7 +140,7 @@ class PandasBackend(DataBackend):
             If True, use streaming mode with chunked reading, by default False
         streaming_chunk_size : int, optional
             Number of rows per chunk in streaming mode, by default 1000
-        **kwargs : Any
+        **kwargs : object
             Additional pandas-specific arguments
 
         Returns
@@ -166,11 +166,7 @@ class PandasBackend(DataBackend):
 
     @classmethod
     def from_parquet(
-        cls,
-        path: str,
-        *,
-        streaming: bool = False,
-        **kwargs: Any,  # noqa ANN401
+        cls, path: str, *, streaming: bool = False, **kwargs: object
     ) -> "PandasBackend":
         """Read a Parquet file and return a wrapped DataFrame backend.
 
@@ -181,7 +177,7 @@ class PandasBackend(DataBackend):
         streaming : bool, optional
             If True, use streaming mode (not supported for parquet in pandas),
             by default False
-        **kwargs : Any
+        **kwargs : object
             Additional pandas-specific arguments
 
         Returns
