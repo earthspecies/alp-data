@@ -90,6 +90,16 @@ def test_check_audio(ds: Powdermill, sample_indices: List[int]):
         assert not np.all(audio == 0), f"[{idx}] audio is all zeros"
 
 
+def test_get_available_labels(ds: Powdermill):
+    """Test get_available_labels for bird ID column."""
+    labels = ds.get_available_labels(anno_column="Species")
+    assert isinstance(labels, list), "get_available_labels should return a list"
+    assert len(labels) > 0, "Should have at least one bird ID"
+    # Check that all labels can be converted to strings
+    for label in labels:
+        assert isinstance(label, str), f"Species label for {label} should be string"
+
+
 def test_reference_item_stability(ds_pandas: Powdermill):
     """
     Check that a canonical item (index 0) is bitwise-stable.

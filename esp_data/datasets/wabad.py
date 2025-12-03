@@ -283,7 +283,7 @@ class WABAD(Dataset):
         if self._data is None:
             return []
         species = set()
-        for _, row in self._data.iterrows():
+        for row in self._data:
             st = pd.read_csv(StringIO(row["selection_table_str"]), sep="\t")
             species.update(st[self.default_anno_column].astype(str).tolist())
         mapped = {self._label_mapping(x, anno_column) for x in species}

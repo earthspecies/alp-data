@@ -15,20 +15,29 @@ import pandas as pd
 import pytest
 import hashlib
 
-#from superb_starling_dataset import SuperbStarling
+# from superb_starling_dataset import SuperbStarling
 from esp_data.datasets.superb_starling import SuperbStarling
 
 # Sara generated hashes locally in slurm /home dir on Nov 24 2025
 # use the code scripts/generate_hashes.py
 EXPECTED_LEN_ALL = 2179
-EXPECTED_FIRST_ITEM_AUDIO_SHA256 = "64e51ac84bc67bccd668385f22f51a4f997f74e597619c4f5ba96bfcc1843c1c"
+EXPECTED_FIRST_ITEM_AUDIO_SHA256 = (
+    "64e51ac84bc67bccd668385f22f51a4f997f74e597619c4f5ba96bfcc1843c1c"
+)
 ANNOTATIONS_SHA256 = "4afd5ffab6b4461bbcd703880d295d29faae6adfd320fbc51ee997144e93194e"
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture(scope="module")
 def ds() -> SuperbStarling:
     """Load SuperbStarling dataset for testing."""
     return SuperbStarling(split="all", sample_rate=16000)
+
+
+@pytest.fixture(scope="module")
+def ds_pandas() -> SuperbStarling:
+    """Load SuperbStarling dataset for testing with pandas backend."""
+    return SuperbStarling(split="all", sample_rate=16000, backend="pandas")
 
 
 @pytest.fixture(scope="module")
@@ -61,7 +70,9 @@ def test_check_audio(ds: SuperbStarling, sample_indices: List[int]):
         audio = item["audio"]
 
         assert isinstance(audio, np.ndarray), f"[{idx}] audio is not a numpy array"
-        assert audio.dtype == np.float32, f"[{idx}] audio dtype is {audio.dtype}, expected float32"
+        assert (
+            audio.dtype == np.float32
+        ), f"[{idx}] audio dtype is {audio.dtype}, expected float32"
         assert audio.size >= 10, f"[{idx}] audio too short (size={audio.size})"
         assert not np.any(np.isnan(audio)), f"[{idx}] audio contains NaN values"
         assert not np.all(audio == 0), f"[{idx}] audio is all zeros"
@@ -94,7 +105,7 @@ def test_check_duration(ds: SuperbStarling, sample_indices: List[int]):
         )
 
 
-def test_reference_item_stability(ds: SuperbStarling):
+def test_reference_item_stability(ds_pandas: SuperbStarling):
     """
     Check that a canonical item (index 0) is bitwise-stable.
 
@@ -111,23 +122,21 @@ def test_reference_item_stability(ds: SuperbStarling):
     """
     # choose deterministic index
     idx = 0
-    item = ds[idx]
+    item = ds_pandas[idx]
 
     # audio presence/type checks (defensive, so the hash failure message is clearer)
     assert "audio" in item, "[0] missing 'audio' key"
     audio = item["audio"]
     assert isinstance(audio, np.ndarray), "[0] audio is not a numpy array"
-    assert audio.dtype == np.float32, (
-        f"[0] audio dtype is {audio.dtype}, expected float32"
-    )
+    assert (
+        audio.dtype == np.float32
+    ), f"[0] audio dtype is {audio.dtype}, expected float32"
 
     # compute sha256 over raw bytes of the float32 array
     h = hashlib.sha256(audio.tobytes()).hexdigest()
 
     if EXPECTED_FIRST_ITEM_AUDIO_SHA256 != "REPLACE_WITH_ACTUAL_HASH":
-        assert (
-            h == EXPECTED_FIRST_ITEM_AUDIO_SHA256
-        ), (
+        assert h == EXPECTED_FIRST_ITEM_AUDIO_SHA256, (
             "First item's audio hash changed.\n"
             f"Got    {h}\n"
             f"Expect {EXPECTED_FIRST_ITEM_AUDIO_SHA256}\n\n"
@@ -136,13 +145,16 @@ def test_reference_item_stability(ds: SuperbStarling):
         )
 
     # compute sha256 over annotations dataframe
-    csv_bytes = ds._data.sort_index(axis=0).sort_index(axis=1).to_csv(index=True).encode("utf-8")
+    csv_bytes = (
+        ds_pandas._data.unwrap.sort_index(axis=0)
+        .sort_index(axis=1)
+        .to_csv(index=True)
+        .encode("utf-8")
+    )
     h = hashlib.sha256(csv_bytes).hexdigest()
 
     if ANNOTATIONS_SHA256 != "REPLACE_WITH_ACTUAL_HASH":
-        assert (
-            h == ANNOTATIONS_SHA256
-        ), (
+        assert h == ANNOTATIONS_SHA256, (
             "Annotation's hash changed.\n"
             f"Got    {h}\n"
             f"Expect {ANNOTATIONS_SHA256}\n\n"
@@ -172,7 +184,6 @@ def test_check_metadata_fields(ds: SuperbStarling, sample_indices: List[int]):
         assert not missing, f"[{idx}] missing required fields: {sorted(missing)}"
 
 
-
 def test_get_available_labels_bird(ds: SuperbStarling):
     """Test get_available_labels for bird ID column."""
     labels = ds.get_available_labels("bird")
@@ -199,7 +210,7 @@ def test_output_take_and_give(ds: SuperbStarling):
             "audio": "audio",
             "Species": "species",
             "bird": "bird_id",
-        }
+        },
     )
 
     item = ds_filtered[0]

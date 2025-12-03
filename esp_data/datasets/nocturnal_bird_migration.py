@@ -261,7 +261,7 @@ class NocturnalBirdMigration(Dataset):
         if self._data is None:
             return []
         available_labels = set()
-        for _, row in self._data.iterrows():
+        for row in self._data:
             st = pd.read_csv(StringIO(row["selection_table"]), sep="\t")
             available_labels.update(st[anno_column].astype(str).tolist())
         if self.unknown_label in available_labels:
