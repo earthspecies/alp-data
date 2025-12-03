@@ -409,7 +409,7 @@ class PandasBackend(DataBackend):
         return PandasBackend(cleaned_df, streaming=False)
 
     def get_unique(self, column: str) -> list[Any]:
-        """Get unique values from a column.
+        """Get sorted unique values from a column.
 
         Parameters
         ----------
