@@ -81,7 +81,7 @@ class PolarsBackend(DataBackend):
             self._streaming = True
 
     @classmethod
-    def from_csv(cls, path: str, *, streaming: bool = False, **kwargs: object) -> "PolarsBackend":
+    def from_csv(cls, path: str, *, streaming: bool = False, **kwargs: Any) -> "PolarsBackend":
         """Read a CSV file and return a wrapped DataFrame backend.
 
         Parameters
@@ -90,7 +90,7 @@ class PolarsBackend(DataBackend):
             Path to the CSV file (supports local and cloud paths via cloudpathlib)
         streaming : bool, optional
             If True, use streaming mode with LazyFrame, by default False
-        **kwargs : object
+        **kwargs : Any
             Additional polars-specific arguments
 
         Returns
@@ -120,7 +120,7 @@ class PolarsBackend(DataBackend):
         *,
         lines: bool = False,
         streaming: bool = False,
-        **kwargs: object,
+        **kwargs: Any,
     ) -> "PolarsBackend":
         """Read a JSON file and return a wrapped DataFrame backend.
 
@@ -132,7 +132,7 @@ class PolarsBackend(DataBackend):
             If True, read file as JSON lines (one JSON object per line), by default False
         streaming : bool, optional
             If True, use streaming mode with LazyFrame, by default False
-        **kwargs : object
+        **kwargs : Any
             Additional polars-specific arguments
 
         Returns
@@ -168,9 +168,7 @@ class PolarsBackend(DataBackend):
             return cls(df, streaming=False)
 
     @classmethod
-    def from_parquet(
-        cls, path: str, *, streaming: bool = False, **kwargs: object
-    ) -> "PolarsBackend":
+    def from_parquet(cls, path: str, *, streaming: bool = False, **kwargs: Any) -> "PolarsBackend":
         """Read a Parquet file and return a wrapped DataFrame backend.
 
         Parameters
@@ -179,7 +177,7 @@ class PolarsBackend(DataBackend):
             Path to the Parquet file
         streaming : bool, optional
             If True, use streaming mode with LazyFrame, by default False
-        **kwargs : object
+        **kwargs : Any
             Additional polars-specific arguments
 
         Returns

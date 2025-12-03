@@ -24,7 +24,7 @@ class DataBackend(Protocol):
         path: str,
         *,
         streaming: bool = False,
-        **kwargs: object,
+        **kwargs: Any,
     ) -> "DataBackend":
         """Read a CSV file and return a wrapped data backend.
 
@@ -36,7 +36,7 @@ class DataBackend(Protocol):
             If True, use streaming mode (lazy evaluation). In streaming mode,
             __getitem__ is disabled and data is processed via iteration.
             By default False.
-        **kwargs : object
+        **kwargs : Any
             Additional backend-specific arguments
 
         Returns
@@ -53,7 +53,7 @@ class DataBackend(Protocol):
         *,
         lines: bool = False,
         streaming: bool = False,
-        **kwargs: object,
+        **kwargs: Any,
     ) -> "DataBackend":
         """Read a JSON file and return a wrapped data backend.
 
@@ -65,7 +65,7 @@ class DataBackend(Protocol):
             If True, read file as JSON lines (one JSON object per line), by default False
         streaming : bool, optional
             If True, use streaming mode (lazy evaluation), by default False
-        **kwargs : object
+        **kwargs : Any
             Additional backend-specific arguments
 
         Returns
@@ -76,7 +76,7 @@ class DataBackend(Protocol):
         ...
 
     @classmethod
-    def from_parquet(cls, path: str, *, streaming: bool = False, **kwargs: object) -> "DataBackend":
+    def from_parquet(cls, path: str, *, streaming: bool = False, **kwargs: Any) -> "DataBackend":
         """Read a Parquet file and return a wrapped data backend.
 
         Parameters
@@ -85,7 +85,7 @@ class DataBackend(Protocol):
             Path to the Parquet file
         streaming : bool, optional
             If True, use streaming mode (lazy evaluation), by default False
-        **kwargs : object
+        **kwargs : Any
             Additional backend-specific arguments
 
         Returns

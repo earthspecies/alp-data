@@ -80,7 +80,7 @@ class PandasBackend(DataBackend):
         *,
         streaming: bool = False,
         streaming_chunk_size: int = 1000,
-        **kwargs: object,
+        **kwargs: Any,
     ) -> "PandasBackend":
         """Read a CSV file and return a wrapped DataFrame backend.
 
@@ -92,7 +92,7 @@ class PandasBackend(DataBackend):
             If True, use streaming mode with chunked reading, by default False
         streaming_chunk_size : int, optional
             Number of rows per chunk in streaming mode, by default 1000
-        **kwargs : object
+        **kwargs : Any
             Additional pandas-specific arguments
 
         Returns
@@ -123,7 +123,7 @@ class PandasBackend(DataBackend):
         lines: bool = False,
         streaming: bool = False,
         streaming_chunk_size: int = 1000,
-        **kwargs: object,
+        **kwargs: Any,
     ) -> "PandasBackend":
         """Read a JSON file and return a wrapped DataFrame backend.
 
@@ -140,7 +140,7 @@ class PandasBackend(DataBackend):
             If True, use streaming mode with chunked reading, by default False
         streaming_chunk_size : int, optional
             Number of rows per chunk in streaming mode, by default 1000
-        **kwargs : object
+        **kwargs : Any
             Additional pandas-specific arguments
 
         Returns
@@ -165,9 +165,7 @@ class PandasBackend(DataBackend):
             return cls(df, streaming=False)
 
     @classmethod
-    def from_parquet(
-        cls, path: str, *, streaming: bool = False, **kwargs: object
-    ) -> "PandasBackend":
+    def from_parquet(cls, path: str, *, streaming: bool = False, **kwargs: Any) -> "PandasBackend":
         """Read a Parquet file and return a wrapped DataFrame backend.
 
         Parameters
@@ -177,7 +175,7 @@ class PandasBackend(DataBackend):
         streaming : bool, optional
             If True, use streaming mode (not supported for parquet in pandas),
             by default False
-        **kwargs : object
+        **kwargs : Any
             Additional pandas-specific arguments
 
         Returns
