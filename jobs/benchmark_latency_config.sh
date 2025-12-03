@@ -2,17 +2,19 @@
 
 #SBATCH --partition=cpu
 #SBATCH --cpus-per-task=8
-#SBATCH --output="/home/paul_earthspecies_org/outputs/%x_%j.log"
-#SBATCH --job-name="benchmark_latency"
+#SBATCH --output=/home/%u/outputs/latency/%A.log
+#SBATCH --job-name="benchmark_latency_nfs"
 #SBATCH --mail-type=FAIL
 #SBATCH --mail-type=END
 
-export UV_PROJECT_ENVIRONMENT=/scratch/$USER/venvs/benchmarking
-
 while [[ $# -gt 0 ]]; do
     case $1 in
-        --dataset)
-            DATASET="$2"
+        --config)
+            CONFIG="$2"
+            shift 2
+            ;;
+        --data-location)
+            DATA_LOCATION="$2"
             shift 2
             ;;
         *)
@@ -22,15 +24,20 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-if [ -z "$DATASET" ]; then
-    echo "Error: --dataset argument is required"
+if [ -z "$CONFIG" ]; then
+    echo "Error: --config argument is required"
+    exit 1
+fi
+
+if [ -z "$DATA_LOCATION" ]; then
+    echo "Error: --data-location argument is required"
     exit 1
 fi
 
 cd ~/esp-data
 uv sync --group benchmark
 
-nw_values=(0 2 4 8 16)
+nw_values=(0 2 4 8)
 
 for nw in "${nw_values[@]}"; do
     echo "Running benchmark_latency with num_workers=$nw and batch_size=64"
@@ -41,7 +48,9 @@ for nw in "${nw_values[@]}"; do
         --batch-size 64 \
         --prefetch-factor 0 \
         --sleep 0.5 \
-        --dataset-name "$DATASET"
+        --data-location "$DATA_LOCATION" \
+        --config-path "$CONFIG" \
+        --save
 done
 
 num_values=${#nw_values[@]}
@@ -58,7 +67,9 @@ for pf in "${pf_values[@]}"; do
         --batch-size 64 \
         --prefetch-factor $pf \
         --sleep 0.5 \
-        --dataset-name "$DATASET"
+        --data-location "$DATA_LOCATION" \
+        --config "$CONFIG" \
+        --save
 done
 
 num_values=${#pf_values[@]}

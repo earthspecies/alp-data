@@ -244,7 +244,7 @@ def benchmark_raw_dataset(
 
 @click.command()
 @click.option(
-    "--config_path",
+    "--config-path",
     "-c",
     type=click.Path(exists=True, dir_okay=False, path_type=Path),
     default=None,
@@ -287,9 +287,9 @@ def benchmark_raw_dataset(
 @click.option(
     "--num-workers",
     type=int,
-    default=8,
+    default=4,
     show_default=True,
-    help="Number of worker threads for DataLoader (default: 8)",
+    help="Number of worker threads for DataLoader (default: 4)",
 )
 @click.option(
     "--batch-size",
@@ -308,9 +308,9 @@ def benchmark_raw_dataset(
 @click.option(
     "--prefetch-factor",
     type=int,
-    default=None,
+    default=0,
     show_default=True,
-    help="Prefetch factor for DataLoader (default: None)",
+    help="Prefetch factor for DataLoader (default: 0 means None)",
 )
 @click.option(
     "--save",
