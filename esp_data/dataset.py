@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Any, Dict, Iterator, Literal
+from typing import Any, Dict, Iterator, List, Literal
 
 import semver
 import yaml
@@ -232,6 +232,75 @@ class DatasetInfo(BaseModel):
     changelog: str = Field(
         default_factory=lambda: "", description="Changelog from previous version"
     )
+
+    # acoustic_environment: Literal[
+    #     "Terrestrial Forest",
+    #     "Aquatic (Marine)",
+    #     "Urban/Suburban",
+    #     "Lab/Controlled"
+    # ] = Field(
+    #     "Terrestrial Forest", # Default value
+    #     description="The general type of environment the recording was made in."
+    # )
+
+    species: list[str] | str = Field(
+        default_factory=lambda: "",
+        description="list of species included in the dataset, scientific names preferred",
+    )
+
+    # TODO these following fields could be auto-populated from 'species' using ete3:
+
+    genus: list[str] | str = Field(
+        default_factory=lambda: "", description="list of taxonomic genus included in the dataset"
+    )
+
+    family: list[str] | str = Field(
+        default_factory=lambda: "", description="list of taxonomic families included in the dataset"
+    )
+    order: list[str] | str = Field(
+        default_factory=lambda: "", description="list of taxonomic orders included in the dataset"
+    )
+    class_taxonomy: list[str] | str = Field(
+        default_factory=lambda: "", description="list of taxonomic classes included in the dataset"
+    )
+    phylum: list[str] | str = Field(
+        default_factory=lambda: "", description="list of taxonomic phyla included in the dataset"
+    )
+
+    type_labels: List[
+        Literal[
+            "species",
+            "Individual_ID",
+            "strong annotations",
+            "call_type",
+            "song composition",
+            "behavioral observations",
+            "animal groups",
+            "emotional states",
+            "health status",
+            "development stage",
+            "environmental conditions",
+            "localization/distance",
+            "overlapping sounds",
+        ]
+    ] = Field(default_factory=list, description="Type of labels provided in the dataset.")
+
+    additional_notes: str = Field(
+        default_factory=lambda: "", description="Any additional notes about the dataset."
+    )
+
+    # suitable_for_tasks: List[Literal[
+    #     "Species classification",
+    #     "Sound event Detection",
+    #     "individual identification",
+    #     "call type classification",
+    #     "behavior recognition",
+    #     "localization/ distance estimation",
+    #     "other"
+    # ]] = Field(
+    #     default_factory=list,
+    #     description="Machine learning tasks this dataset can be used for"
+    # )
 
     @field_validator("version")
     @classmethod
