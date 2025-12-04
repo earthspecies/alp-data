@@ -16,7 +16,7 @@ from benchmark_utils import (
     set_logging_config,
 )
 from memory_profiler import memory_usage
-from plot_loading_bench import plot_results
+from plot_loading_bench import plot_last_experiment_results_against_all
 
 warnings.filterwarnings(
     "ignore",
@@ -150,7 +150,7 @@ def main(
         save_results(all_results, csv_path)
 
         if plot:
-            plot_results(all_results)
+            plot_last_experiment_results_against_all(all_results)
 
 
 if __name__ == "__main__":

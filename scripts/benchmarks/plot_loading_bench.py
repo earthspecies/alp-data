@@ -8,8 +8,8 @@ from benchmark_utils import set_logging_config
 set_logging_config()
 
 
-def get_results() -> pd.DataFrame:
-    """Retrieve benchmark loading time results from a CSV file in a GCS bucket.
+def get_saved_results_from_cloud() -> pd.DataFrame:
+    """Retrieve all benchmark loading time results from a CSV file saved in a GCS bucket.
     Returns
     -------
     A pandas DataFrame containing the benchmark loading time results.
@@ -20,8 +20,11 @@ def get_results() -> pd.DataFrame:
     return df
 
 
-def plot_results(results: pd.DataFrame) -> None:
-    """Create a complete visualization for a specific dataset.
+def plot_last_experiment_results_against_all(results: pd.DataFrame) -> None:
+    """Plots last experiment results against all saved benchmark results with the same configuration
+    (dataset_name, split_name, sample_rate).
+    Boxplots are created for each measured metric, with the last experiment results overlaid as red
+    dots.
     Parameters
     ----------
     results : pandas.DataFrame
@@ -29,7 +32,7 @@ def plot_results(results: pd.DataFrame) -> None:
     """
     logger = logging.getLogger("results_plotter")
 
-    df = get_results()
+    df = get_saved_results_from_cloud()
     name = results["dataset_name"].iloc[0]
     split = results["split_name"].iloc[0]
     df = df[df["dataset_name"] == name]
@@ -88,10 +91,11 @@ def plot_results(results: pd.DataFrame) -> None:
         plt.close()
 
 
-def plot_feature(
+def plot_datasets_results_comparison(
     df: pd.DataFrame,
 ) -> None:
-    """Plot a specific feature for different datasets.
+    """Plots every measured metric for all available datasets.
+    Boxplots are created for each measured metric, grouped by dataset_name.
     Parameters
     ----------
     df : pandas.DataFrame
@@ -137,14 +141,14 @@ def plot_feature(
 
 
 def main() -> None:
-    results = get_results()
+    results = get_saved_results_from_cloud()
     # Replace rows where sample_rate is NaN
     results["sample_rate"].fillna("default", inplace=True)
 
     logger.info(results.info())
     logger.info(results.describe())
 
-    plot_feature(results)
+    plot_datasets_results_comparison(results)
 
 
 if __name__ == "__main__":
