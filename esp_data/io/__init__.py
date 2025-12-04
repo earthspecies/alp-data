@@ -1,3 +1,4 @@
+from esp_data.io.audio_utils import resample_audio
 from esp_data.io.file_utils import exists, rm
 from esp_data.io.filesystem import filesystem, filesystem_from_path
 from esp_data.io.paths import AnyPathT, PureGSPath, PureR2Path, PureS3Path, anypath
@@ -16,6 +17,7 @@ __all__ = [
     "PureS3Path",
     "read_audio",
     "read_text",
+    "resample_audio",
     "audio_stereo_to_mono",
     "get_audio_info",
     "filesystem",
