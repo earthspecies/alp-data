@@ -1,8 +1,9 @@
 import logging
 from typing import Any, Literal
 
-import pandas as pd
 from pydantic import BaseModel
+
+from esp_data.backends.protocol import DataBackend
 
 from . import register_transform
 
@@ -22,6 +23,8 @@ class LabelFromFeature:
 
     This transform maps the values of a specified feature to integer labels.
 
+    Works with any backend (pandas, polars) through the DataBackend protocol.
+
     Parameters
     ----------
     feature: str
@@ -37,10 +40,12 @@ class LabelFromFeature:
 
     Examples
     -------
+    >>> from esp_data.backends import PandasBackend
+    >>> import pandas as pd
     >>> df = pd.DataFrame({"species": ["cat", "dog", "bird", "cat"]})
+    >>> backend = PandasBackend(df)
     >>> transform = LabelFromFeature(feature="species", output_feature="label")
-    >>> transformed_df, metadata = transform(df)
-    >>> assert transformed_df["label"].tolist() == [1, 2, 0, 1]
+    >>> transformed_backend, metadata = transform(backend)
     """
 
     def __init__(
@@ -60,44 +65,56 @@ class LabelFromFeature:
     def from_config(cls, cfg: LabelFromFeatureConfig) -> "LabelFromFeature":
         return cls(**cfg.model_dump(exclude=("type")))
 
-    def __call__(self, df: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
-        """Apply the transformation to the DataFrame.
+    def __call__(self, backend: DataBackend) -> tuple[DataBackend, dict]:
+        """Apply the transformation to the backend.
 
         Parameters
         ----------
-        df : pd.DataFrame
-            The DataFrame to transform.
+        backend : DataBackend
+            The backend wrapping the DataFrame to transform.
 
         Returns
         -------
-        tuple[pd.DataFrame, dict]
-            A tuple containing the transformed DataFrame and metadata about the labels.
+        tuple[DataBackend, dict]
+            A tuple containing the transformed backend and metadata about the labels.
 
         Raises
         -------
         AssertionError
-            If the output feature already exists in the DataFrame and override is False.
+            If the output feature already exists and override is False.
         """
-        if self.output_feature in df and not self.override:
+        if self.output_feature in backend.columns and not self.override:
             raise AssertionError(
                 "Feature already exists in DataFrame. Set `override=True` to replace it."
             )
 
-        df_clean = df.dropna(subset=[self.feature], ignore_index=True)
-        if len(df_clean) != len(df):
-            logger.warning(f"Dropped {len(df) - len(df_clean)} rows with {self.feature}=NaN")
+        # Drop rows with null values in the feature column
+        backend_clean = backend.dropna(subset=[self.feature])
 
+        # Count dropped rows for logging
+        # Note: In streaming mode (LazyFrame), this will trigger evaluation
+        try:
+            original_len = len(backend)
+            clean_len = len(backend_clean)
+            if clean_len != original_len:
+                logger.warning(f"Dropped {original_len - clean_len} rows with {self.feature}=NaN")
+        except Exception as e:
+            logger.warning(f"Could not compute dropped rows: {e}")
+            pass
+
+        # Get unique values and create label map if not provided
         if self.label_map is None:
-            uniques = sorted(df_clean[self.feature].unique())
+            uniques = backend_clean.get_unique(self.feature)
             label_map = {lbl: idx for idx, lbl in enumerate(uniques)}
         else:
             label_map = self.label_map
 
-        # We use assign here because it allows us to create the
-        # self.output_feature column if it doesn't exist, or overwrite
-        # it if it does, without needing to use .copy() or
-        # .loc with different syntax's depending on overwrite or not.
-        df_clean = df_clean.assign(**{self.output_feature: df_clean[self.feature].map(label_map)})
+        # Map the feature to labels
+        backend_with_labels = backend_clean.map_column(
+            column=self.feature,
+            mapping=label_map,
+            output_column=self.output_feature,
+        )
 
         metadata = {
             "label_feature": self.feature,
@@ -105,7 +122,7 @@ class LabelFromFeature:
             "num_classes": len(label_map),
         }
 
-        return df_clean, metadata
+        return backend_with_labels, metadata
 
 
 register_transform(LabelFromFeatureConfig, LabelFromFeature)

@@ -19,6 +19,7 @@ from esp_data import (
     print_registered_datasets
 )
 from esp_data.transforms import register_transform, transform_from_config
+from esp_data.backends import PandasBackend
 
 
 def test_register_dataset():
@@ -117,13 +118,14 @@ class MyCustomDataset(Dataset):
     def _load(self) -> None:
         """Load the dataset data."""
         # Generate the data
-        self._data = pd.DataFrame(
+        df = pd.DataFrame(
             {
                 "path": [f"data/sample_{i}.csv" for i in range(100)],
                 "label": [str(i % 2) for i in range(100)],
                 "text": [f"Sample text {i}" for i in range(100)],
             },
         )
+        self._data = PandasBackend(df, streaming=False)
 
     def __len__(self) -> int:
         """Return the number of samples in the dataset."""
@@ -145,7 +147,7 @@ class MyCustomDataset(Dataset):
             raise IndexError(f"Index {idx} out of bounds.")
 
         # Implement your sample loading logic here
-        row = self._data.iloc[idx].to_dict()
+        row = self._data[idx]
 
         # Apply output_take_and_give if specified
         if self.output_take_and_give:
@@ -207,9 +209,9 @@ class RenameTransform:
     def from_config(cls, cfg: RenameConfig) -> "RenameTransform":
         return cls(**cfg.model_dump(exclude=("type",)))
 
-    def __call__(self, data: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
+    def __call__(self, data: PandasBackend) -> tuple[pd.DataFrame, dict]:
         # Rename
-        transformed_data = data.rename(columns=self.feature_map)
+        transformed_data = data.rename_columns(self.feature_map)
         return transformed_data, self.feature_map
 
 

@@ -89,7 +89,7 @@ def test_available_splits(voxaboxen_dataset: Dataset) -> None:
 def test_length(voxaboxen_dataset: Dataset) -> None:
     """Test if __len__ returns correct counts."""
     # Length should be sum of all splits
-    expected_len = voxaboxen_dataset._data.shape[0]
+    expected_len = len(voxaboxen_dataset._data)
     assert len(voxaboxen_dataset) == expected_len
     print(f"Dataset length: {len(voxaboxen_dataset)}")
     assert len(voxaboxen_dataset) == 126
@@ -147,8 +147,8 @@ def test_voxaboxen_events_data_property(voxaboxen_events_dataset: Dataset) -> No
     """Test if the data property returns correct dataframes for detection dataset."""
     # Data should be _loaded in __init__
     assert voxaboxen_events_dataset._data is not None
-    assert "audio_duration" in voxaboxen_events_dataset._data
-    assert "audio_fp" in voxaboxen_events_dataset._data
+    assert "audio_duration" in voxaboxen_events_dataset._data.columns
+    assert "audio_fp" in voxaboxen_events_dataset._data.columns
     assert voxaboxen_events_dataset._metadata is not None
     assert isinstance(voxaboxen_events_dataset._selection_table_dict, dict)
     assert len(voxaboxen_events_dataset._selection_table_dict) > 0, "Selection table should not be empty"

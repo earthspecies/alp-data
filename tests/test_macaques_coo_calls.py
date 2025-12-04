@@ -82,10 +82,10 @@ def test_data_property(dataset: Dataset) -> None:
     """Test if the data property returns correct dataframes."""
     # Data should be loaded in __init__
     assert dataset._data is not None
-    assert "local_path" in dataset._data
-    assert "id" in dataset._data
-    assert "sex" in dataset._data
-    assert "weight_kg" in dataset._data
+    assert "local_path" in dataset._data.columns
+    assert "id" in dataset._data.columns
+    assert "sex" in dataset._data.columns
+    assert "weight_kg" in dataset._data.columns
 
 
 def test_columns_property(dataset: Dataset) -> None:
@@ -105,7 +105,7 @@ def test_available_splits(dataset: Dataset) -> None:
 def test_length(dataset: Dataset) -> None:
     """Test if __len__ returns correct counts."""
     # Length should be sum of all splits
-    expected_len = dataset._data.shape[0]
+    expected_len = len(dataset._data)
     assert len(dataset) == expected_len
     # Note: We don't assert a specific length as it may vary
 
@@ -197,7 +197,7 @@ def test_output_take_and_give(dataset_with_output_mapping: Dataset) -> None:
     assert set(sample.keys()) == expected_keys
 
     # Get the original row to compare values
-    original_row = dataset_with_output_mapping._data.iloc[0]
+    original_row = dataset_with_output_mapping._data[0]
 
     # Verify the mapping and values
     assert sample["label"] == original_row["id"]
@@ -263,23 +263,26 @@ def test_macaque_specific_features(dataset: Dataset) -> None:
     assert "weight_kg" in sample
 
     # Test that sex values are valid (should be categorical)
-    sex_values = dataset._data["sex"].unique()
+    sex_values = dataset._data.get_unique("sex")
     assert len(sex_values) > 0, "Sex column should have values"
 
     # Test that weight_kg values are numeric
-    weight_values = dataset._data["weight_kg"]
-    assert weight_values.dtype in ['int64', 'float64'], "Weight should be numeric"
+    # Sample a few values to verify they're numeric
+    for i in range(min(5, len(dataset._data))):
+        row = dataset._data[i]
+        weight = row["weight_kg"]
+        assert isinstance(weight, (int, float)), f"Weight should be numeric, got {type(weight)}"
 
 
 def test_id_uniqueness(dataset: Dataset) -> None:
     """Test that macaque IDs are properly handled."""
     # Test that id column exists and has values
     assert "id" in dataset.columns
-    assert len(dataset._data["id"]) > 0, "ID column should have values"
+    assert len(dataset._data) > 0, "ID column should have values"
 
     # Test that IDs are unique within the test split
-    unique_ids = dataset._data["id"].nunique()
-    total_ids = len(dataset._data["id"])
+    unique_ids = len(dataset._data.get_unique("id"))
+    total_ids = len(dataset._data)
     # IDs might not be unique if same macaque has multiple calls
     assert unique_ids > 0, "Should have at least one unique ID"
 

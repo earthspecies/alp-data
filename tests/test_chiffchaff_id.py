@@ -37,6 +37,27 @@ def dataset_with_transforms() -> Dataset:
 
 
 @pytest.fixture
+def dataset_with_transforms_streaming() -> Dataset:
+    """ChiffchaffID dataset with a label transformation applied in streaming mode."""
+
+    ds = ChiffchaffId(split="train_within_year", streaming=True)
+
+    dataset_config = DatasetConfig(
+        dataset_name="chiffchaff_id",
+        transformations=[
+            {
+                "type": "label_from_feature",
+                "feature": "individual_id",
+                "output_feature": "Label",
+            },
+        ],
+    )
+
+    ds.apply_transformations(dataset_config.transformations)
+    return ds
+
+
+@pytest.fixture
 def dataset_with_output_mapping() -> Dataset:
     """ChiffchaffID dataset with output_take_and_give mapping applied."""
 
@@ -44,10 +65,6 @@ def dataset_with_output_mapping() -> Dataset:
     ds = ChiffchaffId(split="test_within_year", output_take_and_give=mapping)
     return ds
 
-
-# -----------------------------------------------------------------------------
-# Basic dataset property tests
-# -----------------------------------------------------------------------------
 
 def test_info_property(dataset: Dataset) -> None:
     assert dataset.info.name == "chiffchaff_id"
@@ -60,8 +77,8 @@ def test_info_property(dataset: Dataset) -> None:
 
 def test_data_property(dataset: Dataset) -> None:
     assert dataset._data is not None
-    assert "local_path" in dataset._data
-    assert "individual_id" in dataset._data
+    assert "local_path" in dataset._data.columns
+    assert "individual_id" in dataset._data.columns
 
 
 def test_columns_property(dataset: Dataset) -> None:
@@ -129,5 +146,19 @@ def test_output_take_and_give(dataset_with_output_mapping: Dataset) -> None:
     sample = dataset_with_output_mapping[0]
     assert set(sample.keys()) == {"bird_id"}
 
-    original_row = dataset_with_output_mapping._data.iloc[0]
+    original_row = dataset_with_output_mapping._data[0]
     assert sample["bird_id"] == original_row["individual_id"]
+
+
+def test_streaming_mode(dataset_with_transforms_streaming: Dataset) -> None:
+    assert dataset_with_transforms_streaming._streaming is True
+    for _, sample in enumerate(dataset_with_transforms_streaming):
+        assert "Label" in sample
+        break
+
+
+def test_columns_after_transformations(
+    dataset_with_transforms: Dataset,
+) -> None:
+    expected_columns = ["local_path", "individual_id", "Label"]
+    assert all(col in dataset_with_transforms.columns for col in expected_columns)

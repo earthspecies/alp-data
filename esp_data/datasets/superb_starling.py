@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, Iterator, List
+from typing import Any, Iterator, List
 
 import librosa
 import numpy as np
 import pandas as pd
 
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
+from esp_data.backends import BackendType
 from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
 
 
@@ -54,9 +55,11 @@ class SuperbStarling(Dataset):
     def __init__(
         self,
         split: str = "all",
-        output_take_and_give: Dict[str, str] | None = None,
+        output_take_and_give: dict[str, str] | None = None,
         sample_rate: int | None = 16000,
         data_root: str | AnyPathT | None = None,
+        backend: BackendType = "polars",
+        streaming: bool = False,
     ) -> None:
         """
         Parameters
@@ -70,8 +73,12 @@ class SuperbStarling(Dataset):
         data_root : str | AnyPathT | None
             Optional root directory to prepend to each row's audio path.
             If None, will use the parent directory of the split file.
+        backend : BackendType, optional
+            The backend to use ("pandas" or "polars"), by default "pandas"
+        streaming : bool, optional
+            Whether to use streaming mode, by default False
         """
-        super().__init__(output_take_and_give)
+        super().__init__(output_take_and_give, backend=backend, streaming=streaming)
         self.split = split
         self._data: pd.DataFrame | None = None
         self.annotation_columns = ["Species", "bird", "group", "sex", "ring"]
@@ -101,26 +108,24 @@ class SuperbStarling(Dataset):
             )
         location = self.info.split_paths[self.split]
         # Read tab-separated file
-        self._data = pd.read_csv(location, sep="\t", keep_default_na=False, na_values=[""])
+        self._data = self._backend_class.from_csv(
+            location,
+            streaming=self._streaming,
+            sep="\t",
+            separator="\t",
+            keep_default_na=False,
+            na_values=[""],
+        )
 
     def __len__(self) -> int:
         if self._data is None:
             raise RuntimeError("No split loaded.")
         return len(self._data)
 
-    def __getitem__(self, idx: int) -> dict[str, Any]:
-        if self._data is None:
-            raise RuntimeError("No split loaded.")
-        if idx < 0 or idx >= len(self._data):
-            raise IndexError(f"Index {idx} out of bounds for dataset length {len(self._data)}")
-
-        row = self._data.iloc[idx].to_dict()
-
-        # Resolve audio path - use "Begin File" column for the filename
+    def _process(self, row: dict[str, Any]) -> dict[str, Any]:
+        # Get full audio path
         audio_filename = row["Begin Path"]
-        audio_path = (
-            (self.data_root / audio_filename) if self.data_root else anypath(audio_filename)
-        )
+        audio_path = self.data_root / audio_filename
 
         # Read audio
         audio, sr = read_audio(audio_path)
@@ -153,6 +158,22 @@ class SuperbStarling(Dataset):
 
         return row
 
+    def __getitem__(self, idx: int) -> dict[str, Any]:
+        """Get a specific sample from the dataset.
+
+        Parameters
+        ----------
+        idx : int
+            Index of the sample to get.
+
+        Returns
+        -------
+        dict[str, Any]
+            A dictionary containing the processed data.
+        """
+        row = self._data[idx]
+        return self._process(row)
+
     def __iter__(self) -> Iterator[dict[str, Any]]:
         for i in range(len(self)):
             yield self[i]
@@ -165,6 +186,8 @@ class SuperbStarling(Dataset):
             output_take_and_give=cfg["output_take_and_give"],
             data_root=cfg["data_root"],
             sample_rate=cfg["sample_rate"],
+            backend=cfg["backend"],
+            streaming=cfg["streaming"],
         )
         if dataset_config.transformations:
             meta = ds.apply_transformations(dataset_config.transformations)
@@ -195,7 +218,7 @@ class SuperbStarling(Dataset):
             return []
         if anno_column not in self._data.columns:
             raise ValueError(f"Column '{anno_column}' not found. Available columns: {self.columns}")
-        return sorted(self._data[anno_column].astype(str).unique().tolist())
+        return np.array(self._data.get_unique(anno_column)).astype(str).tolist()
 
     def __str__(self) -> str:
         base = f"{self.info.name} (v{self.info.version})"

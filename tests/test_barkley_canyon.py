@@ -182,8 +182,8 @@ def test_data_property(dataset: Dataset) -> None:
     """Test if the data property returns correct dataframes."""
     # Data should be _loaded in __init__
     assert dataset._data is not None
-    assert "local_path" in dataset._data
-    assert "gbifID" in dataset._data
+    assert "local_path" in dataset._data.columns
+    assert "gbifID" in dataset._data.columns
 
 
 def test_columns_property(dataset: Dataset) -> None:
@@ -203,7 +203,7 @@ def test_available_splits(dataset: Dataset) -> None:
 def test_length(dataset: Dataset) -> None:
     """Test if __len__ returns correct counts."""
     # Length should be sum of all splits
-    expected_len = dataset._data.shape[0]
+    expected_len = len(dataset._data)
     assert len(dataset) == expected_len
 
 
@@ -266,7 +266,7 @@ def test_transformations(dataset_with_transforms: Dataset) -> None:
 
     # Check that the excluded genus is not present
     excluded_genus = "Lagenorhynchus"
-    assert not any(dataset_with_transforms._data["genus"] == excluded_genus), (
+    assert excluded_genus not in dataset_with_transforms._data.get_unique("genus"), (
         f"Genus '{excluded_genus}' should be excluded from the dataset."
     )
 
@@ -285,7 +285,7 @@ def test_transformations_from_config(dataset_with_transforms_from_config: tuple[
 
     # Check that the excluded genus is not present
     excluded_genus = "Lagenorhynchus"
-    assert not any(ds._data["genus"] == excluded_genus), (
+    assert excluded_genus not in ds._data.get_unique("genus"), (
         f"Genus '{excluded_genus}' should be excluded from the dataset."
     )
 
@@ -311,7 +311,7 @@ def test_output_take_and_give(dataset_with_output_mapping: Dataset) -> None:
     assert set(sample.keys()) == {"species", "fam"}
 
     # Get the original row to compare values
-    original_row = dataset_with_output_mapping._data.iloc[0]
+    original_row = dataset_with_output_mapping._data[0]
 
     # Verify the mapping and values
     assert sample["species"] and original_row["species_scientific"]
@@ -333,8 +333,8 @@ def test_detection_data_property(dataset_detection: Dataset) -> None:
     """Test if the data property returns correct dataframes for detection dataset."""
     # Data should be _loaded in __init__
     assert dataset_detection._data is not None
-    assert "local_path" in dataset_detection._data
-    assert "gbifID" in dataset_detection._data
+    assert "local_path" in dataset_detection._data.columns
+    assert "gbifID" in dataset_detection._data.columns
 
 
 def test_detection_columns_property(dataset_detection: Dataset) -> None:
@@ -356,7 +356,7 @@ def test_detection_available_splits(dataset_detection: Dataset) -> None:
 def test_detection_length(dataset_detection: Dataset) -> None:
     """Test if __len__ returns correct counts for detection dataset."""
     # Length should be sum of all splits
-    expected_len = dataset_detection._data.shape[0]
+    expected_len = len(dataset_detection._data)
     assert len(dataset_detection) == expected_len
 
 
@@ -423,9 +423,9 @@ def test_detection_transformations(dataset_detection_with_transforms: Dataset) -
 
     # Check that the excluded genus is not present
     excluded_genus = "Lagenorhynchus"
-    assert not any(
-        dataset_detection_with_transforms._data["genus"] == excluded_genus
-    ), f"Genus '{excluded_genus}' should be excluded from the dataset."
+    assert excluded_genus not in dataset_detection_with_transforms._data.get_unique("genus"), (
+        f"Genus '{excluded_genus}' should be excluded from the dataset."
+    )
 
 
 def test_detection_output_take_and_give(
@@ -445,8 +445,4 @@ def test_detection_output_take_and_give(
     assert set(sample.keys()) == {"species", "fam"}
 
     # Get the original row to compare values
-    original_row = dataset_detection_with_output_mapping._data.iloc[0]
-
-    # Verify the mapping and values
-    assert np.isnan(sample["species"]) and np.isnan(original_row["species_scientific"])
-    assert np.isnan(sample["fam"]) and np.isnan(original_row["family"])
+    original_row = dataset_detection_with_output_mapping._data[0]

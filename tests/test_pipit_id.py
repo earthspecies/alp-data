@@ -53,7 +53,7 @@ def test_available_splits(dataset: Dataset) -> None:
 
 
 def test_length(dataset: Dataset) -> None:
-    assert len(dataset) == dataset._data.shape[0]
+    assert len(dataset) == len(dataset._data)
 
 
 def test_getitem(dataset: Dataset) -> None:

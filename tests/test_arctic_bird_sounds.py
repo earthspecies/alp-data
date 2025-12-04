@@ -44,21 +44,26 @@ EXPECTED_LEN_ALL = 2280  #
 EXPECTED_FIRST_ITEM_AUDIO_SHA256 = (
     "e670d0cced070346383af55fc271688540eaf0d6ef829661006fe22487e566bb"
 )
-ANNOTATIONS_SHA256 = (
-    "bcb96f257b423332aabead7cb507a907809ca1562c770445270a8cb017324faf"
-    )
+ANNOTATIONS_SHA256 = "bcb96f257b423332aabead7cb507a907809ca1562c770445270a8cb017324faf"
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture(scope="module")
 def ds() -> ArcticBirdSounds:
     """Load ArcticBirdSounds dataset for testing."""
-    return ArcticBirdSounds(split="all", sample_rate=16000)
+    return ArcticBirdSounds(split="all", sample_rate=16000, backend="pandas")
+
+
+@pytest.fixture(scope="module", autouse=True)
+def ds_polars() -> ArcticBirdSounds:
+    """Load ArcticBirdSounds dataset for testing."""
+    return ArcticBirdSounds(split="all", sample_rate=16000, backend="polars")
 
 
 @pytest.fixture(scope="module")
-def sample_indices(ds: ArcticBirdSounds) -> List[int]:
+def sample_indices(ds_polars: ArcticBirdSounds) -> List[int]:
     """Deterministically choose up to 5 random indices for quick spot checks."""
-    n = len(ds)
+    n = len(ds_polars)
     rng = random.Random(23)
     return [rng.randrange(n) for _ in range(min(5, n))]
 
@@ -68,24 +73,28 @@ def test_ds_not_empty(ds: ArcticBirdSounds):
     assert len(ds) > 0, "Dataset appears empty"
 
 
-def test_check_audio(ds: ArcticBirdSounds, sample_indices: List[int]):
+def test_check_audio(ds_polars: ArcticBirdSounds, sample_indices: List[int]):
     """Basic audio integrity checks on a few random items."""
     for idx in sample_indices:
-        item = ds[idx]
+        item = ds_polars[idx]
         assert "audio" in item, f"[{idx}] missing 'audio' key"
         audio = item["audio"]
 
         assert isinstance(audio, np.ndarray), f"[{idx}] audio is not a numpy array"
-        assert audio.dtype == np.float32, f"[{idx}] audio dtype is {audio.dtype}, expected float32"
+        assert (
+            audio.dtype == np.float32
+        ), f"[{idx}] audio dtype is {audio.dtype}, expected float32"
         assert audio.size >= 10, f"[{idx}] audio too short (size={audio.size})"
         assert not np.any(np.isnan(audio)), f"[{idx}] audio contains NaN values"
         assert not np.all(audio == 0), f"[{idx}] audio is all zeros"
 
+
 def test_available_splits(ds: ArcticBirdSounds) -> None:
     """Test if available_splits returns correct split names."""
     # Available splits should contain these
-    expected_splits = ['all']
+    expected_splits = ["all"]
     assert all(split in ds.available_splits for split in expected_splits)
+
 
 def test_reference_item_stability(ds: ArcticBirdSounds):
     """
@@ -110,16 +119,14 @@ def test_reference_item_stability(ds: ArcticBirdSounds):
     assert "audio" in item, "[0] missing 'audio' key"
     audio = item["audio"]
     assert isinstance(audio, np.ndarray), "[0] audio is not a numpy array"
-    assert audio.dtype == np.float32, (
-        f"[0] audio dtype is {audio.dtype}, expected float32"
-    )
+    assert (
+        audio.dtype == np.float32
+    ), f"[0] audio dtype is {audio.dtype}, expected float32"
 
     # compute sha256 over raw bytes of the float32 array
     h = hashlib.sha256(audio.tobytes()).hexdigest()
 
-    assert (
-        h == EXPECTED_FIRST_ITEM_AUDIO_SHA256
-    ), (
+    assert h == EXPECTED_FIRST_ITEM_AUDIO_SHA256, (
         "First item's audio hash changed.\n"
         f"Got    {h}\n"
         f"Expect {EXPECTED_FIRST_ITEM_AUDIO_SHA256}\n\n"
@@ -128,18 +135,22 @@ def test_reference_item_stability(ds: ArcticBirdSounds):
     )
 
     # compute sha256 over raw bytes of the float32 array of annotations
-    csv_bytes = ds._data.sort_index(axis=0).sort_index(axis=1).to_csv(index=True).encode("utf-8")
+    csv_bytes = (
+        ds._data.unwrap.sort_index(axis=0)
+        .sort_index(axis=1)
+        .to_csv(index=True)
+        .encode("utf-8")
+    )
     h = hashlib.sha256(csv_bytes).hexdigest()
 
-    assert (
-        h == ANNOTATIONS_SHA256
-    ), (
+    assert h == ANNOTATIONS_SHA256, (
         "Annotation's hash changed.\n"
         f"Got    {h}\n"
         f"Expect {ANNOTATIONS_SHA256}\n\n"
         "If this is an intentional dataset/content update, "
         "replace EXPECTED_FIRST_ITEM_AUDIO_SHA256 with the new hash."
     )
+
 
 def test_check_selection_table(ds: ArcticBirdSounds, sample_indices: List[int]):
     """Selection table should be a DataFrame with required columns and sane times."""
@@ -154,11 +165,17 @@ def test_check_selection_table(ds: ArcticBirdSounds, sample_indices: List[int]):
         assert "selection_table" in item, f"[{idx}] missing 'selection_table' key"
         st = item["selection_table"]
 
-        assert isinstance(st, pd.DataFrame), f"[{idx}] selection_table is not a DataFrame"
+        assert isinstance(
+            st, pd.DataFrame
+        ), f"[{idx}] selection_table is not a DataFrame"
         missing = required - set(st.columns)
-        assert not missing, f"[{idx}] selection_table missing columns: {sorted(missing)}"
+        assert (
+            not missing
+        ), f"[{idx}] selection_table missing columns: {sorted(missing)}"
 
         if len(st) > 0:
-            assert not (st["Begin Time (s)"] < 0).any(), f"[{idx}] negative begin times present"
+            assert not (
+                st["Begin Time (s)"] < 0
+            ).any(), f"[{idx}] negative begin times present"
             durs = st["End Time (s)"] - st["Begin Time (s)"]
             assert not durs.min() <= 0, f"[{idx}] events of dur <= 0"

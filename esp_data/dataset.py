@@ -7,6 +7,7 @@ import semver
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, field_validator
 
+from esp_data.backends import BackendType, get_backend
 from esp_data.io import AnyPathT, anypath
 from esp_data.transforms import transform_from_config
 from esp_data.transforms.registry import RegisteredTransformConfigs
@@ -70,6 +71,8 @@ class DatasetConfig(BaseModel):
     output_take_and_give: dict[str, str] | None = None
     split: str = "train"
     data_root: str | None = None
+    streaming: bool = False
+    backend: BackendType = "polars"
 
     @field_validator("transformations", mode="before")
     @classmethod
@@ -288,7 +291,12 @@ class Dataset(ABC):
 
     info: DatasetInfo
 
-    def __init__(self, output_take_and_give: dict[str, str] = None) -> None:
+    def __init__(
+        self,
+        output_take_and_give: dict[str, str] = None,
+        backend: BackendType = "polars",
+        streaming: bool = False,
+    ) -> None:
         """A DatasetConfig can be passed to the constructor to, for instance,
         apply transformations to the dataset during instantiation or modify its
         fields of output.
@@ -297,9 +305,15 @@ class Dataset(ABC):
         ----------
         output_take_and_give : dict[str, str], optional
             A dictionary mapping output fields to their corresponding input fields.
+        backend : BackendType, optional
+            The backend to use for DataFrame operations ("pandas" or "polars"), by default "polars"
+        streaming : bool, optional
+            Whether to use streaming mode for dataset processing, by default False
 
         """
         self.output_take_and_give = output_take_and_give
+        self._streaming = streaming
+        self._backend_class = get_backend(backend)
 
     @property
     @abstractmethod
@@ -439,6 +453,7 @@ class Dataset(ABC):
         -------
         RuntimeError
             If the dataset's data is not loaded yet.
+            If using pandas backend in streaming mode (not supported).
         """
         if self._data is None:
             raise RuntimeError("No data loaded. Call load() first.")
@@ -446,6 +461,7 @@ class Dataset(ABC):
         transform_metadata = {}
         for cfg in transformations:
             transform = transform_from_config(cfg)
+            # Transform operates on the backend directly
             self._data, metadata = transform(self._data)
             transform_metadata[cfg.type] = metadata
 

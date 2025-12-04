@@ -89,7 +89,7 @@ def test_available_splits(dataset: Dataset) -> None:
 
 
 def test_length(dataset: Dataset) -> None:
-    expected_len = dataset._data.shape[0]
+    expected_len = len(dataset._data)
     assert len(dataset) == expected_len
     # Bird2_train should have 18,303 samples based on processing output
     assert len(dataset) == 18303
@@ -171,7 +171,7 @@ def test_output_take_and_give(dataset_with_output_mapping: Dataset) -> None:
     sample = dataset_with_output_mapping[0]
     expected_keys = {"call_label", "bird_id", "audio_path", "audio"}
     assert set(sample.keys()) == expected_keys
-    original = dataset_with_output_mapping._data.iloc[0]
+    original = dataset_with_output_mapping._data[0]
     assert sample["call_label"] == original["call_type"]
     assert sample["bird_id"] == original["individual_id"]
     assert sample["audio_path"] == original["local_path"]
@@ -194,7 +194,7 @@ def test_class_registration() -> None:
 def test_call_types_are_preserved() -> None:
     """Test that call types are preserved as strings and cover expected range."""
     ds = BengaleseFinchCalls()  # Uses Bird2_train split
-    call_types = set(ds._data["call_type"].astype(str))
+    call_types = set(str(ct) for ct in ds._data.get_unique("call_type"))
 
     # Bird2 should have 17 call types (highest diversity)
     assert len(call_types) == 17
@@ -225,33 +225,35 @@ def test_train_small_splits() -> None:
     assert len(ds_small) == 1360  # 80 samples × 17 call types
 
     # Check that each call type has at most 80 samples
-    call_type_counts = ds_small._data["call_type"].value_counts()
-    for call_type, count in call_type_counts.items():
+    call_types = ds_small._data.get_unique("call_type")
+    for call_type in call_types:
+        # Count occurrences by iterating through the data
+        count = sum(1 for row in ds_small._data if row["call_type"] == call_type)
         assert count <= 80, f"Call type {call_type} has {count} samples, expected ≤80"
 
     # Should have all 17 call types
-    assert len(call_type_counts) == 17
+    assert len(call_types) == 17
 
     # Test smaller birds' train_small splits
     ds_bird8_small = BengaleseFinchCalls(split="Bird8_train_small")
     assert len(ds_bird8_small) == 320  # 80 samples × 4 call types
-    assert len(ds_bird8_small._data["call_type"].unique()) == 4
+    assert len(ds_bird8_small._data.get_unique("call_type")) == 4
 
 
 def test_call_type_preservation_across_splits() -> None:
     """Test that all call types are preserved in training splits."""
     # Get original Bird2 call types
     ds_original = BengaleseFinchCalls(split="Bird2")
-    original_call_types = set(ds_original._data["call_type"].unique())
+    original_call_types = set(ds_original._data.get_unique("call_type"))
 
     # Check that train split has all call types
     ds_train = BengaleseFinchCalls(split="Bird2_train")
-    train_call_types = set(ds_train._data["call_type"].unique())
+    train_call_types = set(ds_train._data.get_unique("call_type"))
     assert train_call_types == original_call_types, "Train split missing call types"
 
     # Check that train_small has all call types
     ds_train_small = BengaleseFinchCalls(split="Bird2_train_small")
-    train_small_call_types = set(ds_train_small._data["call_type"].unique())
+    train_small_call_types = set(ds_train_small._data.get_unique("call_type"))
     assert train_small_call_types == original_call_types, "Train_small split missing call types"
 
 
@@ -263,9 +265,9 @@ def test_split_consistency() -> None:
     test_ds = BengaleseFinchCalls(split="Bird2_test")
 
     # Get sample identifiers (local_path should be unique)
-    train_paths = set(train_ds._data["local_path"])
-    valid_paths = set(valid_ds._data["local_path"])
-    test_paths = set(test_ds._data["local_path"])
+    train_paths = set(row["local_path"] for row in train_ds._data)
+    valid_paths = set(row["local_path"] for row in valid_ds._data)
+    test_paths = set(row["local_path"] for row in test_ds._data)
 
     # Check no overlap between splits
     assert len(train_paths & valid_paths) == 0, "Train and valid splits overlap"

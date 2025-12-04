@@ -4,9 +4,9 @@ from typing import Any, Dict, Iterator
 
 import librosa
 import numpy as np
-import pandas as pd
 
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
+from esp_data.backends import BackendType
 from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
 
 
@@ -56,6 +56,8 @@ class AnimalSpeak(Dataset):
         output_take_and_give: dict[str, str] | None = None,
         sample_rate: int | None = None,
         data_root: str | AnyPathT | None = None,
+        backend: BackendType = "polars",
+        streaming: bool = False,
     ) -> None:
         """Initialize the AnimalSpeak dataset.
 
@@ -72,10 +74,14 @@ class AnimalSpeak(Dataset):
             The root directory for the dataset. This is optionally appended to the
             path item of a sample in the dataset.
             If None, the default is the parent directory of the split path.
+        backend : BackendType, optional
+            The backend to use ("pandas" or "polars"), by default "polars"
+        streaming : bool, optional
+            Whether to use streaming mode, by default False
         """
-        super().__init__(output_take_and_give)  # Initialize the parent Dataset class
+        super().__init__(output_take_and_give, backend=backend, streaming=streaming)
         self.split = split
-        self._data: pd.DataFrame = None
+        self._data = None
         self._load()  # Load the dataset (fills self._data)
         self.sample_rate = sample_rate
 
@@ -88,7 +94,7 @@ class AnimalSpeak(Dataset):
     @property
     def columns(self) -> list[str]:
         """Return the columns of the dataset."""
-        return list(self._data.columns)
+        return self._data.columns
 
     @property
     def available_splits(self) -> list[str]:
@@ -108,9 +114,17 @@ class AnimalSpeak(Dataset):
                 f"Invalid split: {self.split}."
                 "Expected one of {list(self.info.split_paths.keys())}"
             )
-
         location = self.info.split_paths[self.split]
-        self._data = pd.read_csv(location, keep_default_na=False, na_values=[""])
+
+        # TODO: Polars needs a lot of rows to figure out types correctly
+        # which is why we set infer_schema_length here to 10,000
+        self._data = self._backend_class.from_csv(
+            location,
+            streaming=self._streaming,
+            infer_schema_length=10_000,
+            keep_default_na=False,
+            na_values=[""],
+        )
 
     @classmethod
     def from_config(cls, dataset_config: DatasetConfig) -> tuple["AnimalSpeak", dict[str, Any]]:
@@ -158,30 +172,25 @@ class AnimalSpeak(Dataset):
         """
         if self._data is None:
             raise RuntimeError("No split has been loaded yet. Call _load() first.")
+        if self._streaming:
+            raise NotImplementedError(
+                "Length is not available in streaming mode.Iterate over the dataset instead."
+            )
         return len(self._data)
 
-    def __getitem__(self, idx: int) -> dict[str, Any]:
-        """Get a specific sample from the dataset.
+    def _process(self, row: dict[str, Any]) -> dict[str, Any]:
+        """Process a single row of the dataset.
+
         Parameters
         ----------
-        idx : int
-            Index of the sample to get.
+        row : dict[str, Any]
+            A dictionary representing a single row of the dataset.
 
         Returns
         -------
         dict[str, Any]
-            A dictionary containing the audio data, text label, label, and path.
-
-        Raises
-        ------
-        IndexError
-            If the index is out of bounds.
+            The processed row.
         """
-        if idx >= len(self._data):
-            raise IndexError(f"Index {idx} out of bounds for dataset of length {len(self._data)}.")
-
-        row = self._data.iloc[idx].to_dict()
-
         # TODO (milad) this column shouldn't start with the bucket name because that is
         # essentially the root. We only need the relative paths there. Removing so that
         # audio_path assignment works with or without root
@@ -215,6 +224,21 @@ class AnimalSpeak(Dataset):
 
         return item
 
+    def __getitem__(self, idx: int) -> dict[str, Any]:
+        """Get a specific sample from the dataset.
+        Parameters
+        ----------
+        idx : int
+            Index of the sample to get.
+
+        Returns
+        -------
+        dict[str, Any]
+            A dictionary containing the audio data, text label, label, and path.
+        """
+        row = self._data[idx]
+        return self._process(row)
+
     def __iter__(self) -> Iterator[Dict[str, Any]]:
         """Iterate over samples in the dataset.
 
@@ -223,8 +247,8 @@ class AnimalSpeak(Dataset):
         Dict[str, Any]
             Each sample in the dataset.
         """
-        for idx in range(len(self)):
-            yield self[idx]
+        for row in self._data:
+            yield self._process(row)
 
     def __str__(self) -> str:
         """Return a string representation of the dataset.
@@ -235,7 +259,7 @@ class AnimalSpeak(Dataset):
             A string representation of the dataset including its name, version,
             and basic statistics if data is loaded.
         """
-        base_info = f"{self.info.name} (v{self.info.version})"
+        base_info = f"{self.info.name} (v{self.info.version}), split: {self.split}"
 
         return (
             f"{base_info}\n"

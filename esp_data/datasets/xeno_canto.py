@@ -4,9 +4,9 @@ from typing import Any, Dict, Iterator
 
 import librosa
 import numpy as np
-import pandas as pd
 
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
+from esp_data.backends import BackendType
 from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
 
 
@@ -115,6 +115,8 @@ class XenoCanto(Dataset):
         output_take_and_give: dict[str, str] = None,
         sample_rate: int | None = None,
         data_root: str | AnyPathT | None = None,
+        backend: BackendType = "polars",
+        streaming: bool = False,
     ) -> None:
         """Initialize the Xeno-canto dataset.
 
@@ -135,10 +137,14 @@ class XenoCanto(Dataset):
             The root directory for the dataset. This is prepended to the path
             column value to construct the full path to audio files. If None, defaults
             to the GCS bucket path for this dataset.
+        backend : BackendType, optional
+            The backend to use ("pandas" or "polars"), by default "polars"
+        streaming : bool, optional
+            Whether to use streaming mode, by default False
         """
-        super().__init__(output_take_and_give)
+        super().__init__(output_take_and_give, backend=backend, streaming=streaming)
         self.split = split
-        self._data: pd.DataFrame = None
+        self._data = None
         self._load()
         self.sample_rate = sample_rate
 
@@ -193,7 +199,7 @@ class XenoCanto(Dataset):
 
         location = self.info.split_paths[self.split]
         # Read CSV directly from GCS path to avoid memory issues
-        self._data = pd.read_csv(location, low_memory=False)
+        self._data = self._backend_class.from_csv(location, streaming=self._streaming)
 
     @classmethod
     def from_config(cls, dataset_config: DatasetConfig) -> tuple["XenoCanto", dict[str, Any]]:
@@ -218,6 +224,8 @@ class XenoCanto(Dataset):
             output_take_and_give=cfg["output_take_and_give"],
             data_root=cfg["data_root"],
             sample_rate=cfg["sample_rate"],
+            backend=cfg["backend"],
+            streaming=cfg["streaming"],
         )
 
         if dataset_config.transformations:
@@ -241,48 +249,32 @@ class XenoCanto(Dataset):
         """
         if self._data is None:
             raise RuntimeError("No split has been loaded yet. Call _load() first.")
+        if self._streaming:
+            raise NotImplementedError(
+                "Length is not available in streaming mode. Iterate over the dataset instead."
+            )
         return len(self._data)
 
-    def __getitem__(self, idx: int) -> dict[str, Any]:
-        """Get a specific sample from the dataset.
-
-        This method loads the audio file for the given index, processes it
-        (converting to mono, resampling if needed), and returns it along with
-        the metadata from the CSV file.
+    def _process(self, row: dict[str, Any]) -> dict[str, Any]:
+        """Process a single row of the dataset.
 
         Parameters
         ----------
-        idx : int
-            Index of the sample to get.
+        row : dict[str, Any]
+            A dictionary representing a single row of the dataset.
 
         Returns
         -------
         dict[str, Any]
-            A dictionary containing the audio data and metadata. The audio data
-            is stored under the 'audio' key as a 1D numpy array of float32 values.
-            Other keys contain metadata from the CSV file (e.g., 'canonical_name',
-            'species_common', 'family', 'genus', 'order', etc.).
-
-            If `output_take_and_give` was specified, only the mapped columns will
-            be present in the output dictionary.
-
-        Raises
-        ------
-        IndexError
-            If the index is out of bounds.
+            The processed row.
         """
-        if idx >= len(self._data):
-            raise IndexError(f"Index {idx} out of bounds for dataset of length {len(self._data)}.")
-
-        row = self._data.iloc[idx].to_dict()
-
         # Determine which path column to use based on requested sample rate
         # If a pre-resampled version is available, use it; otherwise resample on-the-fly
         use_presampled = False
         if self.sample_rate is not None and self.sample_rate in self._sample_rate_paths:
             path_column = self._sample_rate_paths[self.sample_rate]
             # Check if the pre-resampled path column exists in the data
-            if path_column in row and pd.notna(row[path_column]) and row[path_column] != "":
+            if path_column in row and row[path_column] is not None and row[path_column] != "":
                 # Use pre-resampled audio with appropriate data root
                 audio_path = self._data_root_32k / row[path_column]
                 use_presampled = True
@@ -324,6 +316,22 @@ class XenoCanto(Dataset):
 
         return item
 
+    def __getitem__(self, idx: int) -> dict[str, Any]:
+        """Get a specific sample from the dataset.
+
+        Parameters
+        ----------
+        idx : int
+            Index of the sample to get.
+
+        Returns
+        -------
+        dict[str, Any]
+            A dictionary containing the processed data.
+        """
+        row = self._data[idx]
+        return self._process(row)
+
     def __iter__(self) -> Iterator[Dict[str, Any]]:
         """Iterate over samples in the dataset.
 
@@ -332,8 +340,8 @@ class XenoCanto(Dataset):
         Dict[str, Any]
             Each sample in the dataset.
         """
-        for idx in range(len(self)):
-            yield self[idx]
+        for row in self._data:
+            yield self._process(row)
 
     def __str__(self) -> str:
         """Return a string representation of the dataset.
