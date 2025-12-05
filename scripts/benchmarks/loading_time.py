@@ -118,6 +118,9 @@ def main(
         f"{times_stored['time_for_10_samples'][1] / 10:.2f} seconds/sample"
     )
 
+    bucket_location = None
+    machine_location = None
+
     if data_location == "bucket":
         bucket_location = get_bucket_location(raw_config["data_root"])
         logger.info(f"Bucket location for {raw_config['data_root']}: zone{bucket_location}")
@@ -128,8 +131,8 @@ def main(
         [
             {
                 "data_location": data_location,
-                "bucket_location": bucket_location if data_location == "bucket" else None,
-                "machine_location": machine_location if data_location == "bucket" else None,
+                "bucket_location": bucket_location,
+                "machine_location": machine_location,
                 "dataset_length": data_length,
                 "loading_time": times_stored["loading_time"][0],
                 "time_for_first_sample": times_stored["time_for_first_sample"][0],

@@ -30,7 +30,7 @@ def plot_last_experiment_results_against_all(results: pd.DataFrame) -> None:
     results : pandas.DataFrame
         DataFrame containing benchmark results for a specific dataset.
     """
-    logger = logging.getLogger("results_plotter")
+    logger = logging.getLogger("last_results_plotter")
 
     df = get_saved_results_from_cloud()
     name = results["dataset_name"].iloc[0]
@@ -111,7 +111,7 @@ def plot_datasets_results_comparison(
     df : pandas.DataFrame
         DataFrame containing benchmark results.
     """
-    logger = logging.getLogger("feature_plotter")
+    logger = logging.getLogger("datasets_comparison_plotter")
     datalocations = df["data_location"].unique()
     for location in datalocations:
         subset = df[df["data_location"] == location]
@@ -134,7 +134,16 @@ def plot_datasets_results_comparison(
             subset.boxplot(column=col, by="dataset_name", vert=True, patch_artist=True, ax=ax)
             ax.set_title(f"{col}")
             ax.set_xlabel(None)
-            ax.set_ylabel(col)
+            ax.set_ylabel(
+                [
+                    "Loading Time (s)",
+                    "Time for First Sample (s)",
+                    "Time for 10 Samples (s)",
+                    "Nominal Speed (samples/s)",
+                    "Data Memory Usage (MiB)",
+                    "Dataset Length (samples)",
+                ][i]
+            )
             ax.grid(axis="y")
             ax.tick_params(axis="x", labelsize=8, rotation=90)
         plt.suptitle(
@@ -157,8 +166,9 @@ def main() -> None:
     # Replace rows where sample_rate is NaN
     results["sample_rate"].fillna("default", inplace=True)
 
-    logger.info(results.info())
-    logger.info(results.describe())
+    logger.info(f"\n{results.info()}")
+
+    logger.info(f"\n{results.describe()}")
 
     plot_datasets_results_comparison(results)
 
