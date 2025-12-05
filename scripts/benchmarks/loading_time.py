@@ -85,24 +85,26 @@ def main(
         )
 
     logger.info(
-        f"Loaded dataset in {times_stored['loading_time'][0]:.2f} seconds from {data_location}\n"
+        f"Loaded dataset in {times_stored['loading_time'][0]:.2f} seconds from {data_location} "
         f"CPU time: {times_stored['loading_time'][1]:.2f} seconds"
     )
     mem_profile = np.array(mem_profile)
     peak_mem = max(mem_profile) - min(mem_profile)
-    logger.info(f"Peak memory usage during loading (dataset memory usage): {peak_mem:.2f} MiB")
-    logger.info(f"Imports memory usage: {mem_profile[0]:.2f} MiB")
+    logger.info(
+        f"Peak memory usage during loading (dataset memory usage): {peak_mem:.2f} MiB "
+        f"Imports memory usage: {mem_profile[0]:.2f} MiB"
+    )
 
     # Dataset length
     data_length = len(ds)
     logger.info(f"Dataset length: {data_length} samples")
 
     # Measure time to first sample
-    with Timer("time_to_first_sample", store=times_stored):
+    with Timer("time_for_first_sample", store=times_stored):
         next(iter(ds))
     logger.info(
-        f"Time to first sample: {times_stored['time_to_first_sample'][0]:.2f} seconds\n"
-        f" CPU time: {times_stored['time_to_first_sample'][1]:.2f} seconds"
+        f"Time to first sample: {times_stored['time_for_first_sample'][0]:.2f} seconds "
+        f" CPU time: {times_stored['time_for_first_sample'][1]:.2f} seconds"
     )
 
     # Measure time for 10 following samples
@@ -112,7 +114,7 @@ def main(
     logger.info(
         f"Time for 10 following samples: {times_stored['time_for_10_samples'][0]:.2f} seconds "
         f"{times_stored['time_for_10_samples'][0] / 10:.2f} seconds/sample\n"
-        f" CPU time: {times_stored['time_for_10_samples'][1]:.2f} seconds "
+        f"CPU time: {times_stored['time_for_10_samples'][1]:.2f} seconds "
         f"{times_stored['time_for_10_samples'][1] / 10:.2f} seconds/sample"
     )
 
@@ -134,13 +136,12 @@ def main(
                     "bucket_location": bucket_location if data_location == "bucket" else None,
                     "machine_location": machine_location if data_location == "bucket" else None,
                     "dataset_length": data_length,
-                    "loading_time_seconds": times_stored["loading_time"][0],
-                    "time_to_first_sample_seconds": times_stored["time_to_first_sample"][0],
-                    "time_for_10_samples_seconds": times_stored["time_for_10_samples"][0],
-                    "nominal_speed (samples/second)": 10.0
-                    / (times_stored["time_for_10_samples"][0]),
-                    "peak_memory_usage_mib": peak_mem,
-                    "imports_memory_usage_mib": mem_profile[0],
+                    "loading_time": times_stored["loading_time"][0],
+                    "time_for_first_sample": times_stored["time_for_first_sample"][0],
+                    "time_for_10_samples": times_stored["time_for_10_samples"][0],
+                    "nominal_speed": 10.0 / (times_stored["time_for_10_samples"][0]),
+                    "data_memory_usage": peak_mem,
+                    "imports_memory_usage": mem_profile[0],
                     "timestamp": pandas.Timestamp.now(),
                     **raw_config,
                 }

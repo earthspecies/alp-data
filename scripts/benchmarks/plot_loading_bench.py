@@ -54,11 +54,11 @@ def plot_last_experiment_results_against_all(results: pd.DataFrame) -> None:
         for i, col in enumerate(
             subset[
                 [
-                    "loading_time_seconds",
-                    "time_to_first_sample_seconds",
-                    "time_for_10_samples_seconds",
-                    "nominal_speed (samples/second)",
-                    "peak_memory_usage_mib",
+                    "loading_time",
+                    "time_for_first_sample",
+                    "time_for_10_samples",
+                    "nominal_speed",
+                    "data_memory_usage",
                 ]
             ].columns
         ):
@@ -75,7 +75,15 @@ def plot_last_experiment_results_against_all(results: pd.DataFrame) -> None:
                 zorder=5,
             )
             ax.set_title(f"Boxplot of {col}")
-            ax.set_ylabel("Values")
+            ax.set_ylabel(
+                [
+                    "Loading Time (s)",
+                    "Time for First Sample (s)",
+                    "Time for 10 Samples (s)",
+                    "Nominal Speed (samples/s)",
+                    "Data Memory Usage (MiB)",
+                ][i]
+            )
             ax.grid(axis="y")
         plt.suptitle(
             f"Boxplots of {name} - Data Location: {location} "
@@ -84,10 +92,12 @@ def plot_last_experiment_results_against_all(results: pd.DataFrame) -> None:
         )
         plt.tight_layout()
         # Ensure the fig directory exists
-        os.makedirs("scripts/benchmarks/fig", exist_ok=True)
+        os.makedirs("scripts/benchmarks/fig/loading_time/", exist_ok=True)
 
-        plt.savefig(f"scripts/benchmarks/fig/boxplot_{name}_{location}.png")
-        logger.info(f"Saved plot: scripts/benchmarks/fig/boxplot_{name}_{location}.png")
+        plt.savefig(f"scripts/benchmarks/fig/loading_time/boxplot_{name}_{location}.png")
+        logger.info(
+            f"Saved plot: scripts/benchmarks/fig/loading_time/boxplot_{name}_{location}.png"
+        )
         plt.close()
 
 
@@ -111,11 +121,11 @@ def plot_datasets_results_comparison(
         for i, col in enumerate(
             subset[
                 [
-                    "loading_time_seconds",
-                    "time_to_first_sample_seconds",
-                    "time_for_10_samples_seconds",
-                    "nominal_speed (samples/second)",
-                    "peak_memory_usage_mib",
+                    "loading_time",
+                    "time_for_first_sample",
+                    "time_for_10_samples",
+                    "nominal_speed",
+                    "data_memory_usage",
                     "dataset_length",
                 ]
             ].columns
@@ -134,9 +144,11 @@ def plot_datasets_results_comparison(
         plt.tight_layout()
         plt.subplots_adjust(top=0.95)
         # Ensure the fig directory exists
-        os.makedirs("scripts/benchmarks/fig", exist_ok=True)
-        plt.savefig(f"scripts/benchmarks/fig/boxplot_all_features_{location}.png")
-        logger.info(f"Saved plot: scripts/benchmarks/fig/boxplot_all_features_{location}.png")
+        os.makedirs("scripts/benchmarks/fig/loading_time/", exist_ok=True)
+        plt.savefig(f"scripts/benchmarks/fig/loading_time/boxplot_all_features_{location}.png")
+        logger.info(
+            f"Saved plot: scripts/benchmarks/fig/loading_time/boxplot_all_features_{location}.png"
+        )
         plt.close()
 
 
