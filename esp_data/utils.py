@@ -422,3 +422,7 @@ def cached_class_property(method: Callable) -> Callable:
 
     """
     return CachedClassProperty(method)
+
+
+# def print_dataset_preview(dataset) -> None:
+#     """Print a preview of the dataset.

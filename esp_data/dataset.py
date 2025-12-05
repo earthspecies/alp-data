@@ -3,6 +3,7 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import Any, Dict, Iterator, List, Literal
 
+import ete3
 import semver
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, field_validator
@@ -10,6 +11,14 @@ from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, field_validator
 from esp_data.io import AnyPathT, anypath
 from esp_data.transforms import transform_from_config
 from esp_data.transforms.registry import RegisteredTransformConfigs
+
+try:
+    # Attempt to load the NCBITaxa object once
+    TAXON_DB = ete3.NCBITaxa()
+except Exception:
+    # TODO if taxonomic database cannot be loaded, set to None and skip validation :/?
+    TAXON_DB = None
+    print("Warning: Could not initialize ete3.NCBITaxa. All taxonomic validation will be skipped.")
 
 
 class DatasetConfig(BaseModel):
@@ -150,6 +159,56 @@ class ConcatConfig(BaseModel):
             return None
 
 
+class TaxonomicInfo(BaseModel):
+    """Container for all taxonomic ranks in the dataset."""
+
+    # Map Pydantic field names to their corresponding NCBI rank names
+    RANK_MAP = {
+        "species": "species",
+        "genus": "genus",
+        "family": "family",
+        "order": "order",
+        "class_taxonomy": "class",
+        "phylum": "phylum",
+    }
+    # All fields default to an empty list.
+
+    species: list[str] | str = Field(
+        default_factory=lambda: "",
+        description="list of species included in the dataset, scientific names preferred",
+    )
+
+    genus: list[str] | str = Field(
+        default_factory=lambda: "", description="list of taxonomic genus included in the dataset"
+    )
+
+    family: list[str] | str = Field(
+        default_factory=lambda: "", description="list of taxonomic families included in the dataset"
+    )
+
+    order: list[str] | str = Field(
+        default_factory=lambda: "", description="list of taxonomic orders included in the dataset"
+    )
+
+    class_taxonomy: list[str] | str = Field(
+        default_factory=lambda: "", description="list of taxonomic classes included in the dataset"
+    )
+
+    phylum: list[str] | str = Field(
+        default_factory=lambda: "", description="list of taxonomic phyla included in the dataset"
+    )
+
+    # --- VALIDATOR ---
+    # TODO
+    #  validate that the name provided exists in the NCBI taxonomy database for the given rank
+    # if not suggest possible name due to typo, different rank or raise error.
+
+    # ---- AutoFill ---
+    # TODO
+    # check what is the lowest ranks provided (e.g., species) and auto-fill the higher ranks
+    # using ete3 NCBITaxa methods.
+
+
 class DatasetInfo(BaseModel):
     """A Pydantic base model for the info (cfg) of a dataset.
 
@@ -233,74 +292,58 @@ class DatasetInfo(BaseModel):
         default_factory=lambda: "", description="Changelog from previous version"
     )
 
-    # acoustic_environment: Literal[
-    #     "Terrestrial Forest",
-    #     "Aquatic (Marine)",
-    #     "Urban/Suburban",
-    #     "Lab/Controlled"
-    # ] = Field(
-    #     "Terrestrial Forest", # Default value
-    #     description="The general type of environment the recording was made in."
-    # )
-
-    species: list[str] | str = Field(
-        default_factory=lambda: "",
-        description="list of species included in the dataset, scientific names preferred",
-    )
-
-    # TODO these following fields could be auto-populated from 'species' using ete3:
-
-    genus: list[str] | str = Field(
-        default_factory=lambda: "", description="list of taxonomic genus included in the dataset"
-    )
-
-    family: list[str] | str = Field(
-        default_factory=lambda: "", description="list of taxonomic families included in the dataset"
-    )
-    order: list[str] | str = Field(
-        default_factory=lambda: "", description="list of taxonomic orders included in the dataset"
-    )
-    class_taxonomy: list[str] | str = Field(
-        default_factory=lambda: "", description="list of taxonomic classes included in the dataset"
-    )
-    phylum: list[str] | str = Field(
-        default_factory=lambda: "", description="list of taxonomic phyla included in the dataset"
+    taxonomic_info: TaxonomicInfo = Field(
+        default_factory=TaxonomicInfo,
+        description="Structured taxonomic information about the dataset content.",
     )
 
     type_labels: List[
         Literal[
-            "species",
-            "Individual_ID",
-            "strong annotations",
-            "call_type",
-            "song composition",
-            "behavioral observations",
-            "animal groups",
-            "emotional states",
-            "health status",
-            "development stage",
-            "environmental conditions",
-            "localization/distance",
-            "overlapping sounds",
+            "temporal annotations",
+            "single label for whole audio clip",
+            "multiple labels for whole audio clip",
         ]
     ] = Field(default_factory=list, description="Type of labels provided in the dataset.")
 
-    additional_notes: str = Field(
-        default_factory=lambda: "", description="Any additional notes about the dataset."
+    label_content: List[
+        Literal[
+            "species",
+            "individual identification",
+            "onset-offset of events",
+            "onset and duration of events",
+            "call type",
+            "song content",
+            "group belonging",
+            "behavioural observations",
+            "position/distance",
+            "age",
+            "health state",
+            "emotional state",
+            "distractor classes / background animals",
+            "recording conditions",  # weather, habitat, time of day or year, season
+            "number of animals",
+        ]
+    ] = Field(default_factory=list, description="Content of the labels provided in the dataset.")
+
+    tasks_supported: List[
+        Literal[
+            "species classification",
+            "sound event detection",
+            "sound event detection with overlapping events",
+            "individual identification",
+            "call type classification",
+            "song content analysis (e.g., syntax, repertoire)",
+            "behavior recognition",
+            "localization/ distance estimation",
+        ]
+    ] = Field(
+        default_factory=list,
+        description="Machine learning tasks this dataset can be used for",
     )
 
-    # suitable_for_tasks: List[Literal[
-    #     "Species classification",
-    #     "Sound event Detection",
-    #     "individual identification",
-    #     "call type classification",
-    #     "behavior recognition",
-    #     "localization/ distance estimation",
-    #     "other"
-    # ]] = Field(
-    #     default_factory=list,
-    #     description="Machine learning tasks this dataset can be used for"
-    # )
+    usage_notes: str = Field(
+        default_factory=lambda: "", description="Any additional notes about the dataset."
+    )
 
     @field_validator("version")
     @classmethod

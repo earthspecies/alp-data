@@ -22,8 +22,11 @@ def generate_dataset_table_with_attributes() -> None:
         attributes = dataset_class.info.model_dump()
         attributes_list.append(attributes)
     table = pd.DataFrame(attributes_list, index=registry)
-    table.to_csv("scripts/benchmarks/dataset_attributes_table_test.csv")
+    table.to_csv("./dataset_attributes_table_test.csv")
 
 
 if __name__ == "__main__":
     generate_dataset_table_with_attributes()
+
+    #  TODO
+    # make it a command line call and create a url to access the generated file and search on it.
