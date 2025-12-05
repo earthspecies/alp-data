@@ -123,35 +123,34 @@ def main(
         logger.info(f"Bucket location for {raw_config['data_root']}: zone{bucket_location}")
         machine_location = get_GCP_instance_location()
 
+    # Create a DataFrame for the new results it should contain config info
+    all_results = pandas.DataFrame(
+        [
+            {
+                "data_location": data_location,
+                "bucket_location": bucket_location if data_location == "bucket" else None,
+                "machine_location": machine_location if data_location == "bucket" else None,
+                "dataset_length": data_length,
+                "loading_time": times_stored["loading_time"][0],
+                "time_for_first_sample": times_stored["time_for_first_sample"][0],
+                "time_for_10_samples": times_stored["time_for_10_samples"][0],
+                "nominal_speed": 10.0 / (times_stored["time_for_10_samples"][0]),
+                "data_memory_usage": peak_mem,
+                "imports_memory_usage": mem_profile[0],
+                "timestamp": pandas.Timestamp.now(),
+                **raw_config,
+            }
+        ]
+    )
+
     if save:
         csv_path = (
             "gs://esp-ci-cd-tests/esp-data-tests/benchmark_dataset/benchmark_loading_time.csv"
         )
-
-        # Create a DataFrame for the new results it should contain config info
-        all_results = pandas.DataFrame(
-            [
-                {
-                    "data_location": data_location,
-                    "bucket_location": bucket_location if data_location == "bucket" else None,
-                    "machine_location": machine_location if data_location == "bucket" else None,
-                    "dataset_length": data_length,
-                    "loading_time": times_stored["loading_time"][0],
-                    "time_for_first_sample": times_stored["time_for_first_sample"][0],
-                    "time_for_10_samples": times_stored["time_for_10_samples"][0],
-                    "nominal_speed": 10.0 / (times_stored["time_for_10_samples"][0]),
-                    "data_memory_usage": peak_mem,
-                    "imports_memory_usage": mem_profile[0],
-                    "timestamp": pandas.Timestamp.now(),
-                    **raw_config,
-                }
-            ]
-        )
-
         save_results(all_results, csv_path)
 
-        if plot:
-            plot_last_experiment_results_against_all(all_results)
+    if plot:
+        plot_last_experiment_results_against_all(all_results)
 
 
 if __name__ == "__main__":
