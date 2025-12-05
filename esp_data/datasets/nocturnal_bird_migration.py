@@ -83,7 +83,7 @@ class NocturnalBirdMigration(Dataset):
 
     def __init__(
         self,
-        split: str = "all",
+        split: str = "train",
         output_take_and_give: Dict[str, str] | None = None,
         sample_rate: int | None = 16000,
         data_root: str | AnyPathT | None = None,
