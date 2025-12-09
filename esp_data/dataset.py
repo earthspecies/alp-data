@@ -109,11 +109,21 @@ class ConcatConfig(BaseModel):
     ----------
     datasets : list[DatasetConfig]
         List of DatasetConfig objects to concatenate.
+
     merge_level : {"hard", "overlap", "soft"}, default="soft"
         Strategy for handling different columns:
         - "hard": All columns must match exactly across all datasets
         - "overlap": Keep only common columns across all datasets
         - "soft": Keep all columns from all datasets (fill missing with NaN)
+
+    collision_policy : {"raise", "suffix", "source-only", "concat-first"},
+        default="concat-first"
+        Policy for handling column name collisions:
+        - "raise": Raise an error on collision of any column names
+        - "suffix": Append '_concat' to colliding column names in the concatenated Backend
+        - "source-only": Keep only columns from source datasets, this discards any transformations
+        - "concat-first": In case of collision, keep the columns from the concatenated Backend
+
     transformations : list | None, optional
         List of transforms to apply to the concatenated dataset.
     """
@@ -128,6 +138,7 @@ class ConcatConfig(BaseModel):
     dataset_name: str = "concatenated_dataset"
     datasets: list[DatasetConfig]
     merge_level: Literal["hard", "overlap", "soft"] = "soft"
+    collision_policy: Literal["raise", "suffix", "source-only", "concat-first"]
     transformations: list | None = None
 
     @field_validator("transformations", mode="before")

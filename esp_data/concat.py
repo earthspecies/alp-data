@@ -374,6 +374,15 @@ class ConcatenatedDataset(Dataset):
         List of datasets to concatenate
     merge_level : {"hard", "overlap", "soft"}, default="soft"
         Strategy for handling different columns
+        - "hard": All columns must match exactly across all datasets
+        - "overlap": Keep only common columns across all datasets
+        - "soft": Keep all columns from all datasets (fill missing with NaN)
+    collision_policy : {"raise", "suffix", "source-only", "concat-first"}, default="concat-first"
+        Policy for handling column name collisions:
+        - "raise": Raise an error on collision of any column names
+        - "suffix": Append '_concat' to colliding column names in the concatenated Backend
+        - "source-only": Keep only columns from source datasets, this discards any transformations
+        - "concat-first": In case of collision, keep the columns from the concatenated Backend
 
     Examples
     --------
@@ -401,6 +410,9 @@ class ConcatenatedDataset(Dataset):
         self,
         datasets: list[Dataset] | None = None,
         merge_level: Literal["hard", "overlap", "soft"] = "soft",
+        collision_policy: Literal[
+            "raise", "suffix", "source-only", "concat-first"
+        ] = "concat-first",
     ) -> None:
         # Validate inputs
         if not datasets:
@@ -431,6 +443,7 @@ class ConcatenatedDataset(Dataset):
 
         self.output_take_and_give = output_take_and_give
         self.split = "concatenated"
+        self.collision_policy = collision_policy
         if len(self._data) == 0:
             raise ValueError("Concatenated dataset is empty. Check input datasets or merge level.")
 
@@ -466,7 +479,11 @@ class ConcatenatedDataset(Dataset):
             and metadata about transformations applied.
         """
         datasets = [dataset_from_config(cfg)[0] for cfg in concat_config.datasets]
-        ds = cls(datasets, merge_level=concat_config.merge_level)
+        ds = cls(
+            datasets,
+            merge_level=concat_config.merge_level,
+            collision_policy=concat_config.collision_policy,
+        )
 
         if concat_config.transformations:
             transform_metadata = ds.apply_transformations(concat_config.transformations)
@@ -482,6 +499,7 @@ class ConcatenatedDataset(Dataset):
             raise IndexError(f"Index {idx} out of bounds for dataset of length {len(self._data)}")
 
         # Get row as dict from backend
+        # This dict has transforms applied at concat level
         row = self._data[idx]
 
         # Determine which source dataset this row came from
@@ -506,19 +524,58 @@ class ConcatenatedDataset(Dataset):
                 f"from source dataset {source_dataset_idx}: {e}"
             ) from e
 
-        # merge the source_item and row dicts, giving precedence
-        # to 'row' if clash. This ensures that transforms applied
-        # at the level of the concatenated dataset take precedence
-        source_item.update(row)
+        # Use collision policy to determine final item
+        if self.collision_policy == "raise":
+            # Check for collisions
+            for key in row.keys():
+                if key in source_item and not key.startswith("_source_"):
+                    raise MergeException(
+                        f"Column name collision for key '{key}' "
+                        f"in concatenated dataset at index {idx}"
+                    )
+            item = {
+                **source_item,
+                **{k: v for k, v in row.items() if not k.startswith("_source_")},
+            }
+
+        elif self.collision_policy == "suffix":
+            item = source_item.copy()
+            for key, value in row.items():
+                if key.startswith("_source_"):
+                    continue
+                if key in item:
+                    item[f"{key}_concat"] = value
+                else:
+                    item[key] = value
+
+        elif self.collision_policy == "source-only":
+            item = source_item
+
+        elif self.collision_policy == "concat-first":
+            item = {}
+            for key, value in row.items():
+                if key.startswith("_source_"):
+                    continue
+                item[key] = value
+            for key, value in source_item.items():
+                if key not in item:
+                    item[key] = value
+
+        else:
+            raise MergeException(
+                f"Invalid collision_policy:{self.collision_policy}. "
+                f"Must be 'raise', 'suffix', 'source-only', or 'concat-first'."
+            )
 
         # Apply the concatenated dataset's output_take_and_give mapping
         if self.output_take_and_give:
-            item = {}
+            mapped_item = {}
             for key, value in self.output_take_and_give.items():
-                if key in source_item:
-                    item[value] = source_item[key]
-            return item
-        return source_item
+                if key in item:
+                    mapped_item[value] = item[key]
+            return mapped_item
+
+        return item
 
     def __iter__(self) -> Iterator[Dict[str, Any]]:
         for idx in range(len(self)):

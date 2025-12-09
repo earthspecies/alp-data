@@ -9,6 +9,7 @@ from esp_data.dataset import Dataset, DatasetInfo, dataset_from_config
 from esp_data.concat import MergeException, ConcatenatedDataset
 from esp_data.backends import PandasBackend
 from esp_data import AnimalSpeak, BarkleyCanyon
+from esp_data.datasets import HawaiianBirds, NocturnalBirdMigration
 from esp_data.transforms import DeduplicateConfig, FilterConfig
 
 
@@ -619,8 +620,12 @@ def test_concat_from_config() -> None:
 @pytest.mark.parametrize("backend_type", ["pandas", "polars"])
 def test_dtypes_after_concat(backend_type: str) -> None:
     # Load small validation splits (should be smaller than train splits)
-    animalspeak = AnimalSpeak(split="validation", sample_rate=16000, backend=backend_type)
-    barkley_canyon = BarkleyCanyon(split="train", sample_rate=16000, backend=backend_type)
+    animalspeak = AnimalSpeak(
+        split="validation", sample_rate=16000, backend=backend_type
+    )
+    barkley_canyon = BarkleyCanyon(
+        split="train", sample_rate=16000, backend=backend_type
+    )
     # Test soft merge (should work despite different columns)
     result = ConcatenatedDataset([animalspeak, barkley_canyon], merge_level="soft")
 
@@ -656,3 +661,18 @@ def test_dtypes_after_concat(backend_type: str) -> None:
     for col in input_cols2:
         assert col in result_cols
         assert input_dtype_data2[col] == result_dtype_data[col]
+
+
+def test_concat_of_selection_table_datasets() -> None:
+    hb = HawaiianBirds(split="all", backend="pandas", streaming=False)
+    nbm = NocturnalBirdMigration(split="test", backend="pandas", streaming=False)
+
+    result = ConcatenatedDataset(
+        [hb, nbm], merge_level="soft", collision_policy="source-only"
+    )
+    assert len(result) == len(hb) + len(nbm)
+    assert "selection_table" in result.columns
+
+    # Check that we can index into the concatenated dataset
+    sample1 = result[0]
+    assert isinstance(sample1["selection_table"], pd.DataFrame)
