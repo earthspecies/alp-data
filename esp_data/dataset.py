@@ -138,7 +138,7 @@ class ConcatConfig(BaseModel):
     dataset_name: str = "concatenated_dataset"
     datasets: list[DatasetConfig]
     merge_level: Literal["hard", "overlap", "soft"] = "soft"
-    collision_policy: Literal["raise", "suffix", "source-only", "concat-first"]
+    collision_policy: Literal["raise", "suffix", "source-only", "concat-first"] = "concat-first"
     transformations: list | None = None
 
     @field_validator("transformations", mode="before")
