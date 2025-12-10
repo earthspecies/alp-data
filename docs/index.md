@@ -2,11 +2,45 @@
 
 ## What is esp-data?
 
-`esp-data` is an internal Python package that helps with all data-related tasks at ESP. It aims to make working with datasets easier, regardless of where they are stored.
+`esp-data` is an internal Python package that helps with all data-related tasks at ESP. It aims to make working with datasets easier, regardless of where they are stored and in which format.
 
-In the future, it will also become the main interface for accessing and exploring datasets commonly used at ESP (this feature is on the roadmap and not yet implemented).
+Key features:
+- Unified dataset interface: Access datasets stored locally, on cloud storage (e.g., Google Cloud Storage), or in various formats (e.g., CSV, JSON, Parquet) through a consistent API.
+- Iterate or random access: Easily iterate over dataset samples or access them randomly using indexing.
+- Streaming support: Work with large datasets that don't fit into memory by streaming data on-the-fly.
+- On-the-fly data transformations: Apply transformations such as filtering rows / columns, create label
+- (beta) Concatenation and merging of multiple datasets: Combine datasets into a single unified dataset for training or evaluation.
 
-In the first version, the only available module is `esp_data.io`, which makes working with Google Cloud Storage (GCS) and Cloudflare R2 buckets more seamless. It provides utilities for file and bucket level operations. More information is available [here](io.md).
+
+## Getting started
+```python
+from esp_data import Beans
+
+# Load 'train' split of BEANS dataset at 16kHz sample rate
+# Resampling is done on the fly with librosa.resample
+beans = Beans(split="train", sample_rate=16000)
+
+print(len(beans))
+
+# Iterate over all samples
+for sample in beans:
+    print(sample["audio"].shape)
+    break
+
+# Fetch a single sample
+sample = beans[0]
+print(sample["audio"].shape)
+
+# Streaming only
+beans_streaming = Beans(split="train", streaming=True)  # loads faster
+print(len(beans_streaming))  # Throws an error since length is unknown in streaming mode
+
+# Iterate over all samples in streaming mode
+for sample in beans_streaming:
+    print(sample["audio"].shape)
+    break
+```
+Check out the datasets documentation for more details [here](./datasets.md).
 
 ## Installation
 

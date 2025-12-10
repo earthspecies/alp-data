@@ -134,8 +134,6 @@ class PandasBackend(DataBackend):
         lines : bool, optional
             If True, read file as JSON lines (one JSON object per line),
             by default False
-        orient : str, optional
-            Expected JSON format, by default "records"
         streaming : bool, optional
             If True, use streaming mode with chunked reading, by default False
         streaming_chunk_size : int, optional

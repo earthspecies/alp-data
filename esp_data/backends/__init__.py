@@ -1,7 +1,7 @@
-"""Backend system for unified DataFrame operations across pandas, polars, and other libraries.
+"""Backend system for unified data operations across pandas, polars, and other libraries.
 
 This module provides a protocol-based backend system that allows esp-data to work
-with multiple DataFrame libraries through a common interface.
+with multiple data libraries through a common interface.
 """
 
 from .backends import BackendType, get_backend
