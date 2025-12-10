@@ -13,6 +13,8 @@ from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from esp_data.backends import BackendType
 from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
 
+SPECIES_INFO_PATH = "gs://esp-ml-datasets/wabad/v0.1.0/raw/gbif_labels.csv"
+
 
 @register_dataset
 class WABAD(Dataset):
@@ -69,8 +71,7 @@ class WABAD(Dataset):
         name="wabad",
         owner="benjamin",
         split_paths={"all": "gs://esp-ml-datasets/wabad/v0.1.0/raw/all_info_gbif.csv"},
-        species_info_path="gs://esp-ml-datasets/wabad/v0.1.0/raw/gbif_labels.csv",
-        version="0.2.0",
+        version="0.1.0",
         description="[MISSING]",
         sources="zenodo.org",
         license="CC-BY-4.0",
@@ -103,12 +104,12 @@ class WABAD(Dataset):
         """
         super().__init__(output_take_and_give, backend=backend, streaming=streaming)
         self.split = split
-        self._data: pd.DataFrame | None = None
+        self._data = None
         self.annotation_columns = ["Species"]
         self.unknown_label = "Unknown"
         self.sample_rate = sample_rate
 
-        self.available_labels = pd.read_csv(self.info.species_info_path)["Species"].to_list()
+        self.available_labels = pd.read_csv(SPECIES_INFO_PATH)["Species"].to_list()
 
         # Load split CSV
         self._load()
@@ -178,7 +179,7 @@ class WABAD(Dataset):
                 scale=True,
                 res_type="kaiser_best",
             )
-        sr = target_sr
+            sr = target_sr
 
         # Selection table
         st = pd.read_csv(StringIO(row["selection_table"]), sep="\t")
@@ -219,7 +220,7 @@ class WABAD(Dataset):
 
         Yields
         -------
-        Dict[str, Any]
+        dict[str, Any]
             Each sample in the dataset.
         """
         for row in self._data:
@@ -247,6 +248,8 @@ class WABAD(Dataset):
             output_take_and_give=cfg["output_take_and_give"],
             data_root=cfg["data_root"],
             sample_rate=cfg["sample_rate"],
+            backend=cfg["backend"],
+            streaming=cfg["streaming"],
         )
 
         if dataset_config.transformations:
