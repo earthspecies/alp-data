@@ -589,3 +589,63 @@ class ConcatenatedDataset(Dataset):
             f"Columns: {', '.join(self.columns)}\n"
             f"Source datasets: {len(self._source_datasets)}"
         )
+
+
+class SimpleConcat:
+    """Helper class to concatenate multiple datasets for iteration.
+
+    This class allows iterating over multiple datasets as if they were a single dataset.
+    It does not load all data into memory at once, making it suitable for large datasets.
+
+    Parameters
+    ----------
+    datasets : list[Dataset]
+        List of datasets to concatenate for iteration
+
+    Examples
+    --------
+    >>> from esp_data.datasets import InsectSet459, BirdSet
+    >>> from esp_data.concat import SimpleConcat
+    >>> dataset1 = InsectSet459(split="validation")
+    >>> dataset2 = BirdSet(split="HSN-test")
+    >>> concat_iter = SimpleConcat([dataset1, dataset2])
+    >>> total_length = len(dataset1) + len(dataset2)
+    >>> item = next(iter(concat_iter))
+    >>> assert len(concat_iter) == total_length, \
+        "Concatenated iterator length should match sum of source datasets lengths"
+    """
+
+    def __init__(self, datasets: list[Dataset]) -> None:
+        if not datasets:
+            raise ValueError("At least one dataset must be provided")
+
+        if not all(isinstance(ds, Dataset) for ds in datasets):
+            raise ValueError("All objects must be Dataset instances")
+
+        self._datasets = datasets
+        self._lengths = [len(ds) for ds in datasets]
+        self._total_length = sum(self._lengths)
+
+    def __len__(self) -> int:
+        return self._total_length
+
+    def __iter__(self) -> Iterator[Dict[str, Any]]:
+        for dataset in self._datasets:
+            for item in dataset:
+                yield item
+
+    def __getitem__(self, idx: int) -> Dict[str, Any]:
+        if idx < 0 or idx >= self._total_length:
+            raise IndexError(
+                f"Index {idx} out of bounds for concatenated dataset of length {self._total_length}"
+            )
+
+        # Determine which dataset the index falls into
+        cumulative_length = 0
+        for dataset, length in zip(self._datasets, self._lengths, strict=True):
+            if idx < cumulative_length + length:
+                return dataset[idx - cumulative_length]
+            cumulative_length += length
+
+        # This should never be reached
+        raise IndexError(f"Index {idx} could not be resolved to a dataset")
