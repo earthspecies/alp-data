@@ -176,7 +176,7 @@ class ArcticBirdSounds(Dataset):
                 scale=True,
                 res_type="kaiser_best",
             )
-        sr = target_sr
+            sr = target_sr
 
         # Selection table
         st = pd.read_csv(StringIO(row["selection_table"]), sep="\t")
@@ -247,6 +247,8 @@ class ArcticBirdSounds(Dataset):
             output_take_and_give=cfg["output_take_and_give"],
             data_root=cfg["data_root"],
             sample_rate=cfg["sample_rate"],
+            backend=cfg["backend"],
+            streaming=cfg["streaming"],
         )
 
         if dataset_config.transformations:
