@@ -8,8 +8,8 @@ from benchmark_utils import set_logging_config
 set_logging_config()
 
 
-def get_results() -> pd.DataFrame:
-    """Retrieve benchmark loading time results from a CSV file in a GCS bucket.
+def get_saved_results_from_cloud() -> pd.DataFrame:
+    """Retrieve all benchmark loading time results from a CSV file saved in a GCS bucket.
     Returns
     -------
     A pandas DataFrame containing the benchmark loading time results.
@@ -20,16 +20,19 @@ def get_results() -> pd.DataFrame:
     return df
 
 
-def plot_results(results: pd.DataFrame) -> None:
-    """Create a complete visualization for a specific dataset.
+def plot_last_experiment_results_against_all(results: pd.DataFrame) -> None:
+    """Plots last experiment results against all saved benchmark results with the same configuration
+    (dataset_name, split_name, sample_rate).
+    Boxplots are created for each measured metric, with the last experiment results overlaid as red
+    dots.
     Parameters
     ----------
     results : pandas.DataFrame
         DataFrame containing benchmark results for a specific dataset.
     """
-    logger = logging.getLogger("results_plotter")
+    logger = logging.getLogger("last_results_plotter")
 
-    df = get_results()
+    df = get_saved_results_from_cloud()
     name = results["dataset_name"].iloc[0]
     split = results["split_name"].iloc[0]
     df = df[df["dataset_name"] == name]
@@ -51,11 +54,11 @@ def plot_results(results: pd.DataFrame) -> None:
         for i, col in enumerate(
             subset[
                 [
-                    "loading_time_seconds",
-                    "time_to_first_sample_seconds",
-                    "time_for_10_samples_seconds",
-                    "nominal_speed (samples/second)",
-                    "peak_memory_usage_mib",
+                    "loading_time",
+                    "time_for_first_sample",
+                    "time_for_10_samples",
+                    "nominal_speed",
+                    "data_memory_usage",
                 ]
             ].columns
         ):
@@ -72,7 +75,15 @@ def plot_results(results: pd.DataFrame) -> None:
                 zorder=5,
             )
             ax.set_title(f"Boxplot of {col}")
-            ax.set_ylabel("Values")
+            ax.set_ylabel(
+                [
+                    "Loading Time (s)",
+                    "Time for First Sample (s)",
+                    "Time for 10 Samples (s)",
+                    "Nominal Speed (samples/s)",
+                    "Data Memory Usage (MiB)",
+                ][i]
+            )
             ax.grid(axis="y")
         plt.suptitle(
             f"Boxplots of {name} - Data Location: {location} "
@@ -81,23 +92,26 @@ def plot_results(results: pd.DataFrame) -> None:
         )
         plt.tight_layout()
         # Ensure the fig directory exists
-        os.makedirs("scripts/benchmarks/fig", exist_ok=True)
+        os.makedirs("scripts/benchmarks/fig/loading_time/", exist_ok=True)
 
-        plt.savefig(f"scripts/benchmarks/fig/boxplot_{name}_{location}.png")
-        logger.info(f"Saved plot: scripts/benchmarks/fig/boxplot_{name}_{location}.png")
+        plt.savefig(f"scripts/benchmarks/fig/loading_time/boxplot_{name}_{location}.png")
+        logger.info(
+            f"Saved plot: scripts/benchmarks/fig/loading_time/boxplot_{name}_{location}.png"
+        )
         plt.close()
 
 
-def plot_feature(
+def plot_datasets_results_comparison(
     df: pd.DataFrame,
 ) -> None:
-    """Plot a specific feature for different datasets.
+    """Plots every measured metric for all available datasets.
+    Boxplots are created for each measured metric, grouped by dataset_name.
     Parameters
     ----------
     df : pandas.DataFrame
         DataFrame containing benchmark results.
     """
-    logger = logging.getLogger("feature_plotter")
+    logger = logging.getLogger("datasets_comparison_plotter")
     datalocations = df["data_location"].unique()
     for location in datalocations:
         subset = df[df["data_location"] == location]
@@ -107,11 +121,11 @@ def plot_feature(
         for i, col in enumerate(
             subset[
                 [
-                    "loading_time_seconds",
-                    "time_to_first_sample_seconds",
-                    "time_for_10_samples_seconds",
-                    "nominal_speed (samples/second)",
-                    "peak_memory_usage_mib",
+                    "loading_time",
+                    "time_for_first_sample",
+                    "time_for_10_samples",
+                    "nominal_speed",
+                    "data_memory_usage",
                     "dataset_length",
                 ]
             ].columns
@@ -120,7 +134,16 @@ def plot_feature(
             subset.boxplot(column=col, by="dataset_name", vert=True, patch_artist=True, ax=ax)
             ax.set_title(f"{col}")
             ax.set_xlabel(None)
-            ax.set_ylabel(col)
+            ax.set_ylabel(
+                [
+                    "Loading Time (s)",
+                    "Time for First Sample (s)",
+                    "Time for 10 Samples (s)",
+                    "Nominal Speed (samples/s)",
+                    "Data Memory Usage (MiB)",
+                    "Dataset Length (samples)",
+                ][i]
+            )
             ax.grid(axis="y")
             ax.tick_params(axis="x", labelsize=8, rotation=90)
         plt.suptitle(
@@ -130,21 +153,24 @@ def plot_feature(
         plt.tight_layout()
         plt.subplots_adjust(top=0.95)
         # Ensure the fig directory exists
-        os.makedirs("scripts/benchmarks/fig", exist_ok=True)
-        plt.savefig(f"scripts/benchmarks/fig/boxplot_all_features_{location}.png")
-        logger.info(f"Saved plot: scripts/benchmarks/fig/boxplot_all_features_{location}.png")
+        os.makedirs("scripts/benchmarks/fig/loading_time/", exist_ok=True)
+        plt.savefig(f"scripts/benchmarks/fig/loading_time/boxplot_all_features_{location}.png")
+        logger.info(
+            f"Saved plot: scripts/benchmarks/fig/loading_time/boxplot_all_features_{location}.png"
+        )
         plt.close()
 
 
 def main() -> None:
-    results = get_results()
+    results = get_saved_results_from_cloud()
     # Replace rows where sample_rate is NaN
     results["sample_rate"].fillna("default", inplace=True)
 
-    logger.info(results.info())
-    logger.info(results.describe())
+    logger.info(f"\n{results.info()}")
 
-    plot_feature(results)
+    logger.info(f"\n{results.describe()}")
+
+    plot_datasets_results_comparison(results)
 
 
 if __name__ == "__main__":
