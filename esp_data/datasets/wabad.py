@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-from functools import partial
 from io import StringIO
-from typing import Any, Dict, Iterator, List
+from typing import Any, Iterator
 
 import librosa
 import numpy as np
@@ -14,7 +13,7 @@ from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from esp_data.backends import BackendType
 from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
 
-LABEL_MAPPING_PATH = "gs://esp-ml-datasets/wabad/v0.1.0/raw/wabad_label_mapping_15_10_2025.json"
+SPECIES_INFO_PATH = "gs://esp-ml-datasets/wabad/v0.1.0/raw/gbif_labels.csv"
 
 
 @register_dataset
@@ -71,7 +70,7 @@ class WABAD(Dataset):
     info = DatasetInfo(
         name="wabad",
         owner="benjamin",
-        split_paths={"all": "gs://esp-ml-datasets/wabad/v0.1.0/raw/all_info.csv"},
+        split_paths={"all": "gs://esp-ml-datasets/wabad/v0.1.0/raw/all_info_gbif.csv"},
         version="0.1.0",
         description="[MISSING]",
         sources="zenodo.org",
@@ -81,10 +80,10 @@ class WABAD(Dataset):
     def __init__(
         self,
         split: str = "all",
-        output_take_and_give: Dict[str, str] | None = None,
+        output_take_and_give: dict[str, str] | None = None,
         sample_rate: int | None = 16000,
         data_root: str | AnyPathT | None = None,
-        backend: BackendType = "polars",
+        backend: BackendType = "pandas",
         streaming: bool = False,
     ) -> None:
         """
@@ -106,24 +105,19 @@ class WABAD(Dataset):
         super().__init__(output_take_and_give, backend=backend, streaming=streaming)
         self.split = split
         self._data = None
-        self.default_anno_column = "Species"  # This is the annotation column used for label mapping
-        self.unknown_annos: List[str] = []
-        # in the following, default anno column must appear last for label mapping to work properly:
-        self.annotation_columns = ["Genus", "Family", "Order", "Common"] + [
-            self.default_anno_column
-        ]
-
+        self.annotation_columns = ["Species"]
+        self.unknown_label = "Unknown"
         self.sample_rate = sample_rate
-        self.data_root = anypath(data_root) if data_root is not None else None
+
+        self.available_labels = pd.read_csv(SPECIES_INFO_PATH)["Species"].to_list()
 
         # Load split CSV
         self._load()
 
-        self.label_mappings = self._load_label_mappings(LABEL_MAPPING_PATH)
-
-        # If no explicit data_root, assume parent dir of the split path
-        if self.data_root is None:
+        if data_root is None:
             self.data_root = anypath(self.info.split_paths[self.split]).parent
+        else:
+            self.data_root = data_root
 
     @property
     def columns(self) -> list[str]:
@@ -140,59 +134,42 @@ class WABAD(Dataset):
             )
         location = self.info.split_paths[self.split]
         self._data = self._backend_class.from_csv(
-            location, streaming=self._streaming, keep_default_na=False, na_values=[""]
+            location,
+            streaming=self._streaming,
+            keep_default_na=False,
+            na_values=[""],
         )
 
-    @staticmethod
-    def _load_label_mappings(fp: str) -> Dict[str, Dict[str, str]]:
-        lm = pd.read_json(fp).to_dict()
-        # Ensure all expected keys present
-        for k in ["Genus", "Family", "Order", "Common", "Species"]:
-            lm.setdefault(k, {})
-        return lm
-
-    def _label_mapping(self, x: str, anno_column: str) -> str:
-        """Map a Species (default) label to any desired annotation column.
+    def __len__(self) -> int:
+        """Return the number of samples in the dataset.
 
         Returns
-        ----------
-            str The new label
-        """
-        mapping = self.label_mappings.get(anno_column, {})
-        return mapping.get(x, x)
+        -------
+        int
+            Number of samples in the current split.
 
-    def __len__(self) -> int:
+        Raises
+        ------
+        RuntimeError
+            If no split has been loaded yet.
+        """
         if self._data is None:
             raise RuntimeError("No split has been loaded yet. Call _load() first.")
         if self._streaming:
             raise NotImplementedError(
-                "Length is not available in streaming mode. Iterate over the dataset instead."
+                "Length is not available in streaming mode.Iterate over the dataset instead."
             )
         return len(self._data)
 
     def _process(self, row: dict[str, Any]) -> dict[str, Any]:
-        """Process a single row of the dataset.
-
-        Parameters
-        ----------
-        row : dict[str, Any]
-            A dictionary representing a single row of the dataset.
-
-        Returns
-        -------
-        dict[str, Any]
-            The processed row.
-        """
-
         # Resolve audio path
-        audio_path = (
-            (self.data_root / row["audio_fp"]) if self.data_root else anypath(row["audio_fp"])
-        )
+        audio_fp = self.data_root / row["audio_fp"]
 
         # Read audio
-        audio, sr = read_audio(audio_path)
+        audio, sr = read_audio(audio_fp)
         audio = audio_stereo_to_mono(audio, mono_method="average").astype(np.float32)
 
+        # Resample if necessary
         target_sr = self.sample_rate
         if target_sr is not None and sr != target_sr:
             audio = librosa.resample(
@@ -202,19 +179,14 @@ class WABAD(Dataset):
                 scale=True,
                 res_type="kaiser_best",
             )
-        sr = target_sr
+            sr = target_sr
 
         # Selection table
-        st = pd.read_csv(StringIO(row["selection_table_str"]), sep="\t")
+        st = pd.read_csv(StringIO(row["selection_table"]), sep="\t")
 
         # Clip events outside audio (keep only events that begin before audio end)
         audio_dur = len(audio) / float(sr)
         st = st[st["Begin Time (s)"] < audio_dur].copy()
-
-        # Add remapped annotation columns derived from default column
-        for anno_col in self.annotation_columns:
-            f = partial(self._label_mapping, anno_column=anno_col)
-            st[anno_col] = st[self.default_anno_column].map(f)
 
         # Build output
         row["audio"] = audio
@@ -230,7 +202,6 @@ class WABAD(Dataset):
 
     def __getitem__(self, idx: int) -> dict[str, Any]:
         """Get a specific sample from the dataset.
-
         Parameters
         ----------
         idx : int
@@ -239,7 +210,7 @@ class WABAD(Dataset):
         Returns
         -------
         dict[str, Any]
-            A dictionary containing the processed data.
+            A dictionary containing the audio data, text label, label, and path.
         """
         row = self._data[idx]
         return self._process(row)
@@ -257,6 +228,20 @@ class WABAD(Dataset):
 
     @classmethod
     def from_config(cls, dataset_config: DatasetConfig) -> tuple["WABAD", dict[str, Any]]:
+        """Create a Dataset instance from a configuration dictionary.
+
+        Parameters
+        ----------
+        dataset_config : DatasetConfig
+            Configuration dictionary containing dataset parameters.
+
+        Returns
+        -------
+        tuple[Dataset, dict[str, Any]]
+            A tuple containing the dataset instance and metadata.
+            If the dataset_config contains transformations, they will be applied
+            and the metadata will be returned as dict, otherwise an empty dict.
+        """
         cfg = dataset_config.model_dump(exclude={"dataset_name", "transformations"})
         ds = cls(
             split=cfg["split"],
@@ -266,28 +251,25 @@ class WABAD(Dataset):
             backend=cfg["backend"],
             streaming=cfg["streaming"],
         )
+
         if dataset_config.transformations:
             meta = ds.apply_transformations(dataset_config.transformations)
             return ds, meta
+
         return ds, {}
 
-    def get_available_labels(self, anno_column: str) -> List[str]:
+    def get_available_labels(self) -> list[str]:
         """
-        Return all possible labels for a given annotation column,
-        via mapping from the default Species labels found in the split.
+        Return all possible labels for a given annotation column
+        anno_column is included as an optional argument for consistency
+        with other detection datasets.
 
         Returns
         ---------
         A list of all the available labels for anno_column
         """
-        if self._data is None:
-            return []
-        species = set()
-        for row in self._data:
-            st = pd.read_csv(StringIO(row["selection_table_str"]), sep="\t")
-            species.update(st[self.default_anno_column].astype(str).tolist())
-        mapped = {self._label_mapping(x, anno_column) for x in species}
-        return sorted(mapped)
+
+        return self.available_labels
 
     def __str__(self) -> str:
         base = f"{self.info.name} (v{self.info.version})"

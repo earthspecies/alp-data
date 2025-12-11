@@ -172,7 +172,7 @@ class Birdeep(Dataset):
                 scale=True,
                 res_type="kaiser_best",
             )
-        sr = target_sr
+            sr = target_sr
 
         # Selection table
         st = pd.read_csv(StringIO(row["selection_table"]), sep="\t")
