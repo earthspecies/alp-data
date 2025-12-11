@@ -50,7 +50,7 @@ for nw in "${nw_values[@]}"; do
         --sleep 0.5 \
         --data-location "$DATA_LOCATION" \
         --config-path "$CONFIG" \
-        --save
+        --save "cloud"
 done
 
 num_values=${#nw_values[@]}
@@ -69,7 +69,7 @@ for pf in "${pf_values[@]}"; do
         --sleep 0.5 \
         --data-location "$DATA_LOCATION" \
         --config "$CONFIG" \
-        --save
+        --save "cloud"
 done
 
 num_values=${#pf_values[@]}
