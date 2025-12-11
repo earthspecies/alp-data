@@ -16,7 +16,7 @@ from benchmark_utils import (
     set_logging_config,
 )
 from memory_profiler import memory_usage
-from plot_loading_bench import plot_results
+from plot_loading_bench import plot_last_experiment_results_against_all
 
 warnings.filterwarnings(
     "ignore",
@@ -85,24 +85,26 @@ def main(
         )
 
     logger.info(
-        f"Loaded dataset in {times_stored['loading_time'][0]:.2f} seconds from {data_location}\n"
+        f"Loaded dataset in {times_stored['loading_time'][0]:.2f} seconds from {data_location} "
         f"CPU time: {times_stored['loading_time'][1]:.2f} seconds"
     )
     mem_profile = np.array(mem_profile)
     peak_mem = max(mem_profile) - min(mem_profile)
-    logger.info(f"Peak memory usage during loading (dataset memory usage): {peak_mem:.2f} MiB")
-    logger.info(f"Imports memory usage: {mem_profile[0]:.2f} MiB")
+    logger.info(
+        f"Peak memory usage during loading (dataset memory usage): {peak_mem:.2f} MiB "
+        f"Imports memory usage: {mem_profile[0]:.2f} MiB"
+    )
 
     # Dataset length
     data_length = len(ds)
     logger.info(f"Dataset length: {data_length} samples")
 
     # Measure time to first sample
-    with Timer("time_to_first_sample", store=times_stored):
+    with Timer("time_for_first_sample", store=times_stored):
         next(iter(ds))
     logger.info(
-        f"Time to first sample: {times_stored['time_to_first_sample'][0]:.2f} seconds\n"
-        f" CPU time: {times_stored['time_to_first_sample'][1]:.2f} seconds"
+        f"Time to first sample: {times_stored['time_for_first_sample'][0]:.2f} seconds "
+        f" CPU time: {times_stored['time_for_first_sample'][1]:.2f} seconds"
     )
 
     # Measure time for 10 following samples
@@ -112,45 +114,46 @@ def main(
     logger.info(
         f"Time for 10 following samples: {times_stored['time_for_10_samples'][0]:.2f} seconds "
         f"{times_stored['time_for_10_samples'][0] / 10:.2f} seconds/sample\n"
-        f" CPU time: {times_stored['time_for_10_samples'][1]:.2f} seconds "
+        f"CPU time: {times_stored['time_for_10_samples'][1]:.2f} seconds "
         f"{times_stored['time_for_10_samples'][1] / 10:.2f} seconds/sample"
     )
+
+    bucket_location = None
+    machine_location = None
 
     if data_location == "bucket":
         bucket_location = get_bucket_location(raw_config["data_root"])
         logger.info(f"Bucket location for {raw_config['data_root']}: zone{bucket_location}")
         machine_location = get_GCP_instance_location()
 
+    # Create a DataFrame for the new results it should contain config info
+    all_results = pandas.DataFrame(
+        [
+            {
+                "data_location": data_location,
+                "bucket_location": bucket_location,
+                "machine_location": machine_location,
+                "dataset_length": data_length,
+                "loading_time": times_stored["loading_time"][0],
+                "time_for_first_sample": times_stored["time_for_first_sample"][0],
+                "time_for_10_samples": times_stored["time_for_10_samples"][0],
+                "nominal_speed": 10.0 / (times_stored["time_for_10_samples"][0]),
+                "data_memory_usage": peak_mem,
+                "imports_memory_usage": mem_profile[0],
+                "timestamp": pandas.Timestamp.now(),
+                **raw_config,
+            }
+        ]
+    )
+
     if save:
         csv_path = (
             "gs://esp-ci-cd-tests/esp-data-tests/benchmark_dataset/benchmark_loading_time.csv"
         )
-
-        # Create a DataFrame for the new results it should contain config info
-        all_results = pandas.DataFrame(
-            [
-                {
-                    "data_location": data_location,
-                    "bucket_location": bucket_location if data_location == "bucket" else None,
-                    "machine_location": machine_location if data_location == "bucket" else None,
-                    "dataset_length": data_length,
-                    "loading_time_seconds": times_stored["loading_time"][0],
-                    "time_to_first_sample_seconds": times_stored["time_to_first_sample"][0],
-                    "time_for_10_samples_seconds": times_stored["time_for_10_samples"][0],
-                    "nominal_speed (samples/second)": 10.0
-                    / (times_stored["time_for_10_samples"][0]),
-                    "peak_memory_usage_mib": peak_mem,
-                    "imports_memory_usage_mib": mem_profile[0],
-                    "timestamp": pandas.Timestamp.now(),
-                    **raw_config,
-                }
-            ]
-        )
-
         save_results(all_results, csv_path)
 
-        if plot:
-            plot_results(all_results)
+    if plot:
+        plot_last_experiment_results_against_all(all_results)
 
 
 if __name__ == "__main__":

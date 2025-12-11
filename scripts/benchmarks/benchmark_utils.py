@@ -100,7 +100,9 @@ def build_raw_dataset(config_path: Path, data_location: str, dataset_name: str) 
         dataset, _ = dataset_from_config(config_path, key=data_location)
         raw = raw[data_location]["dataset"]
         raw["split_name"] = raw["split"]
-        raw["split"] = "config"
+        raw["split_config"] = "from_config"
+        # delete raw["split"]
+        del raw["split"]
     else:
         logger.info(f"Building dataset '{dataset_name}' with default parameters")
         dataset = dataset_class_from_name(dataset_name)()
@@ -111,7 +113,7 @@ def build_raw_dataset(config_path: Path, data_location: str, dataset_name: str) 
         # data_root:
         raw = {}
         raw["dataset_name"] = dataset_name
-        raw["split"] = "default"
+        raw["split_config"] = "default"
         raw["split_name"] = dataset.split
         # sample_rate column in benchmark results should be default if there is no resampling
         raw["sample_rate"] = "default"
@@ -207,7 +209,7 @@ def save_results(
         logger.info(f"Could not read existing CSV (maybe it doesn't exist): {e}")
 
     results.to_csv(output_path, index=False)
-    logger.info(f"Saved {len(results)} new benchmark results to {output_path}")
+    logger.info(f"Saved {len(results) - len(existing)} new benchmark results to {output_path}")
     logger.info(f"Total records in file: {len(results)}")
 
 
