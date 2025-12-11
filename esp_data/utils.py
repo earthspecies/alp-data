@@ -1,5 +1,6 @@
 """This file contains many utility functions useful for the rest of esp_data."""
 
+import hashlib
 import json
 import logging
 import re
@@ -72,6 +73,32 @@ def utc_now_timestamp() -> int:
     True
     """
     return int(utc_now().timestamp())
+
+
+def create_hash(s: str | bytes) -> str:
+    """Create a SHA-256 hash of the given string.
+
+    Parameters
+    ----------
+    s : str | bytes
+        The input string or bytes array to hash.
+
+    Returns
+    -------
+    str
+        The hexadecimal representation of the SHA-256 hash.
+
+    Example
+    -------
+    >>> create_hash("hello")
+    '2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824'
+    """
+    sha256 = hashlib.sha256()
+    if isinstance(s, bytes):
+        sha256.update(s)
+    else:
+        sha256.update(s.encode("utf-8"))
+    return sha256.hexdigest()
 
 
 def validate_json_str(v: str) -> str:
