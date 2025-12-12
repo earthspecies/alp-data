@@ -82,8 +82,8 @@ def main(number_of_samples: int, parameter: str, array_exp: bool) -> None:
             axs[1 + i * 2].set_title(f"Data Location: {data_location}")
         fig.tight_layout()
         # Ensure the fig directory exists
-        os.makedirs("scripts/benchmarks/fig", exist_ok=True)
-        plt.savefig(f"scripts/benchmarks/fig/{name}_latency_{parameter}_array_exp.png")
+        os.makedirs("scripts/benchmarks/fig/latency", exist_ok=True)
+        plt.savefig(f"scripts/benchmarks/fig/latency/{name}_latency_{parameter}_array_exp.png")
 
     else:
         df = pd.read_csv(
@@ -136,8 +136,10 @@ def main(number_of_samples: int, parameter: str, array_exp: bool) -> None:
         )
         plt.tight_layout()
         # Ensure the fig directory exists
-        os.makedirs("scripts/benchmarks/fig", exist_ok=True)
-        plt.savefig(f"scripts/benchmarks/fig/{name}_latency_{parameter}_{value1}_{value2}.png")
+        os.makedirs("scripts/benchmarks/fig/latency", exist_ok=True)
+        plt.savefig(
+            f"scripts/benchmarks/fig/latency/{name}_latency_{parameter}_{value1}_{value2}.png"
+        )
 
 
 if __name__ == "__main__":
