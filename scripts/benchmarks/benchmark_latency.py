@@ -118,6 +118,9 @@ def benchmark_loader(
                 logger.info(f"Reached max_iterations={max_iterations}, stopping early.")
                 closing_time = time.perf_counter()
                 break
+            # Stop timing when we reach the end of the loader
+            if n_batches == len(loader):
+                closing_time = time.perf_counter()
 
     # Final stats
     closing_time = time.perf_counter() - closing_time
