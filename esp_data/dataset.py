@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Any, Dict, Iterator, List, Literal
+from typing import Any, ClassVar, Dict, Iterator, List, Literal
 
 import ete3
 import semver
@@ -163,6 +163,7 @@ class TaxonomicInfo(BaseModel):
     """Container for all taxonomic ranks in the dataset."""
 
     # Map Pydantic field names to their corresponding NCBI rank names
+    RANK_MAP: ClassVar[dict[str, str]]
     RANK_MAP = {
         "species": "species",
         "genus": "genus",
