@@ -85,6 +85,7 @@ def plot_last_experiment_results_against_all(results: pd.DataFrame) -> None:
                 ][i]
             )
             ax.grid(axis="y")
+
         plt.suptitle(
             f"Boxplots of {name} - Data Location: {location} "
             f"-- Bucket: {bucket_location} -- Machine: {machine_location}"
@@ -97,6 +98,45 @@ def plot_last_experiment_results_against_all(results: pd.DataFrame) -> None:
         plt.savefig(f"scripts/benchmarks/fig/loading_time/boxplot_{name}_{location}.png")
         logger.info(
             f"Saved plot: scripts/benchmarks/fig/loading_time/boxplot_{name}_{location}.png"
+        )
+        plt.close()
+
+        # Plot a evolution of Nominal Speed over time
+        fig2, ax2 = plt.subplots(figsize=(12, 4))
+        # Convert timestamp to datetime (round to day for better visualization)
+        subset["timestamp"] = pd.to_datetime(subset["timestamp"]).dt.floor("d")
+        results_subset["timestamp"] = pd.to_datetime(results_subset["timestamp"]).dt.floor("d")
+        subset_sorted = subset.sort_values(by="timestamp")
+        # if same date -> take the mean of the nominal_speed
+        subset_sorted = subset_sorted.groupby("timestamp")["nominal_speed"].mean().reset_index()
+
+        results_subset = results_subset.groupby("timestamp")["nominal_speed"].mean().reset_index()
+
+        ax2.plot(
+            subset_sorted["timestamp"],
+            subset_sorted["nominal_speed"],
+            marker="o",
+            label="Previous Results",
+        )
+        ax2.plot(
+            results_subset["timestamp"],
+            results_subset["nominal_speed"],
+            marker="o",
+            color="red",
+            label="New Results",
+        )
+        ax2.set_title("Evolution of Nominal Speed Over Time")
+        ax2.set_xlabel("Timestamp")
+        ax2.set_ylabel("Nominal Speed (samples/s)")
+        ax2.legend()
+        ax2.grid(True)
+        plt.tight_layout()
+        plt.savefig(
+            f"scripts/benchmarks/fig/loading_time/nominal_speed_evolution_{name}_{location}.png"
+        )
+        logger.info(
+            f"Saved plot: scripts/benchmarks/fig/loading_time"
+            f"/nominal_speed_evolution_{name}_{location}.png"
         )
         plt.close()
 
