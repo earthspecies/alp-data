@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Any, Dict, Iterator
+from typing import Any, Dict, Iterator, Literal
 
 import semver
 import yaml
@@ -130,6 +130,7 @@ class ConcatConfig(BaseModel):
     dataset_name: str = "concatenated_dataset"
     datasets: list[DatasetConfig]
     transformations: list | None = None
+    merge_level: Literal["hard", "overlap", "soft"] = "soft"
 
     @field_validator("transformations", mode="before")
     @classmethod

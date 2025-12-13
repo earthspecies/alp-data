@@ -123,7 +123,7 @@ def _merge_sample_rates(sample_rates: list[int | None]) -> int | None:
             return None
         if unique_sr is None:
             unique_sr = sr
-        if unique_sr != sr:
+        elif sr != unique_sr:
             return None
 
     return unique_sr
