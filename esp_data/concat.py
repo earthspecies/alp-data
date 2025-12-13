@@ -103,7 +103,9 @@ def _merge_backends(
 
 
 def _merge_sample_rates(sample_rates: list[int | None]) -> int | None:
-    """Merge sample rates from multiple datasets.
+    """Merge sample rates from multiple datasets. If any sample_rate
+    is None or sample_rates differ, output sample_rate is None, else
+    it is the unique, common sample_rate.
 
     Parameters
     ----------
@@ -114,27 +116,17 @@ def _merge_sample_rates(sample_rates: list[int | None]) -> int | None:
     -------
     int or None
         Combined sample rate
-
-    Raises
-    ------
-    MergeException
-        If sample rates are different
     """
-    # Filter out None values
-    non_none_rates = [sr for sr in sample_rates if sr is not None]
+    unique_sr = None
+    for sr in sample_rates:
+        if sr is None:
+            return None
+        if unique_sr is None:
+            unique_sr = sr
+        if unique_sr != sr:
+            return None
 
-    if not non_none_rates:
-        return None
-
-    # Check that all non-None rates are the same
-    first_rate = non_none_rates[0]
-    for i, rate in enumerate(non_none_rates[1:], 1):
-        if rate != first_rate:
-            raise MergeException(
-                f"Sample rates must match: dataset 0={first_rate}, dataset {i}={rate}"
-            )
-
-    return first_rate
+    return unique_sr
 
 
 def _merge_output_take_and_give(otags: list[dict | None]) -> dict | None:
@@ -606,7 +598,7 @@ class ChainedDataset(Dataset):
             )
         _streaming = streaming_modes.pop()
 
-        # _backend_class doesn't matter here since we override all data access methods
+        # _backend_class doesn'gt matter here since we override all data access methods
         super().__init__(streaming=_streaming)
 
         self._source_datasets = datasets
