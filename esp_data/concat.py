@@ -1,12 +1,13 @@
 """Dataset concatenation utilities."""
 
 import logging
-from typing import Any, Dict, Iterator, Literal
+from typing import Any, Iterator, Literal
 
 import semver
 
 from esp_data.backends.protocol import DataBackend
 from esp_data.dataset import (
+    ChainedDatasetConfig,
     ConcatConfig,
     Dataset,
     DatasetInfo,
@@ -19,6 +20,12 @@ logger = logging.getLogger("esp_data")
 
 class MergeException(Exception):
     """Exception raised when dataset concatenation fails."""
+
+    pass
+
+
+class ChainException(Exception):
+    """Exception raised when dataset chaining fails."""
 
     pass
 
@@ -377,12 +384,6 @@ class ConcatenatedDataset(Dataset):
         - "hard": All columns must match exactly across all datasets
         - "overlap": Keep only common columns across all datasets
         - "soft": Keep all columns from all datasets (fill missing with NaN)
-    collision_policy : {"raise", "suffix", "source-only", "concat-first"}, default="concat-first"
-        Policy for handling column name collisions:
-        - "raise": Raise an error on collision of any column names
-        - "suffix": Append '_concat' to colliding column names in the concatenated Backend
-        - "source-only": Keep only columns from source datasets, this discards any transformations
-        - "concat-first": In case of collision, keep the columns from the concatenated Backend
 
     Examples
     --------
@@ -408,11 +409,8 @@ class ConcatenatedDataset(Dataset):
 
     def __init__(
         self,
-        datasets: list[Dataset] | None = None,
+        datasets: list[Dataset],
         merge_level: Literal["hard", "overlap", "soft"] = "soft",
-        collision_policy: Literal[
-            "raise", "suffix", "source-only", "concat-first"
-        ] = "concat-first",
     ) -> None:
         # Validate inputs
         if not datasets:
@@ -426,12 +424,21 @@ class ConcatenatedDataset(Dataset):
         if not backend_type or not all(
             getattr(ds, "_backend_class", None) == backend_type for ds in datasets
         ):
-            raise ValueError(
+            raise MergeException(
                 "All datasets must have the same backend type "
                 "to be concatenated into a ConcatenatedDataset."
             )
 
-        super().__init__(backend=backend_type.__name__.replace("Backend", "").lower())
+        # Check that streaming is False for ConcatenatedDataset
+        if not all([not ds.streaming for ds in datasets]):
+            raise MergeException(
+                "Concatenation is only allowed with streaming=False",
+                "because transforms need to be performed on the whole dataset",
+            )
+
+        super().__init__(
+            backend=backend_type.__name__.replace("Backend", "").lower(), streaming=False
+        )
 
         (
             self._data,
@@ -443,7 +450,6 @@ class ConcatenatedDataset(Dataset):
 
         self.output_take_and_give = output_take_and_give
         self.split = "concatenated"
-        self.collision_policy = collision_policy
         if len(self._data) == 0:
             raise ValueError("Concatenated dataset is empty. Check input datasets or merge level.")
 
@@ -463,7 +469,7 @@ class ConcatenatedDataset(Dataset):
     @classmethod
     def from_config(
         cls, concat_config: ConcatConfig
-    ) -> tuple["ConcatenatedDataset", Dict[str, Any]]:
+    ) -> tuple["ConcatenatedDataset", dict[str, Any]]:
         """Create a ConcatenatedDataset from a ConcatConfig object.
 
         Parameters
@@ -482,7 +488,6 @@ class ConcatenatedDataset(Dataset):
         ds = cls(
             datasets,
             merge_level=concat_config.merge_level,
-            collision_policy=concat_config.collision_policy,
         )
 
         if concat_config.transformations:
@@ -494,7 +499,7 @@ class ConcatenatedDataset(Dataset):
     def __len__(self) -> int:
         return len(self._data)
 
-    def __getitem__(self, idx: int) -> Dict[str, Any]:
+    def __getitem__(self, idx: int) -> dict[str, Any]:
         if idx >= len(self._data):
             raise IndexError(f"Index {idx} out of bounds for dataset of length {len(self._data)}")
 
@@ -524,60 +529,20 @@ class ConcatenatedDataset(Dataset):
                 f"from source dataset {source_dataset_idx}: {e}"
             ) from e
 
-        # Use collision policy to determine final item
-        if self.collision_policy == "raise":
-            # Check for collisions
-            for key in row.keys():
-                if key in source_item and not key.startswith("_source_"):
-                    raise MergeException(
-                        f"Column name collision for key '{key}' "
-                        f"in concatenated dataset at index {idx}"
-                    )
-            item = {
-                **source_item,
-                **{k: v for k, v in row.items() if not k.startswith("_source_")},
-            }
-
-        elif self.collision_policy == "suffix":
-            item = source_item.copy()
-            for key, value in row.items():
-                if key.startswith("_source_"):
-                    continue
-                if key in item:
-                    item[f"{key}_concat"] = value
-                else:
-                    item[key] = value
-
-        elif self.collision_policy == "source-only":
-            item = source_item
-
-        elif self.collision_policy == "concat-first":
-            item = {}
-            for key, value in row.items():
-                if key.startswith("_source_"):
-                    continue
-                item[key] = value
-            for key, value in source_item.items():
-                if key not in item:
-                    item[key] = value
-
-        else:
-            raise MergeException(
-                f"Invalid collision_policy:{self.collision_policy}. "
-                f"Must be 'raise', 'suffix', 'source-only', or 'concat-first'."
-            )
+        # Merge with row
+        source_item.update(row)
 
         # Apply the concatenated dataset's output_take_and_give mapping
         if self.output_take_and_give:
             mapped_item = {}
             for key, value in self.output_take_and_give.items():
-                if key in item:
-                    mapped_item[value] = item[key]
+                if key in source_item:
+                    mapped_item[value] = source_item[key]
             return mapped_item
 
-        return item
+        return source_item
 
-    def __iter__(self) -> Iterator[Dict[str, Any]]:
+    def __iter__(self) -> Iterator[dict[str, Any]]:
         for idx in range(len(self)):
             yield self[idx]
 
@@ -591,11 +556,10 @@ class ConcatenatedDataset(Dataset):
         )
 
 
-class SimpleConcat:
-    """Helper class to concatenate multiple datasets for iteration.
+class ChainedDataset(Dataset):
+    """Helper class to chain multiple datasets for iteration and indexing.
 
     This class allows iterating over multiple datasets as if they were a single dataset.
-    It does not load all data into memory at once, making it suitable for large datasets.
 
     Parameters
     ----------
@@ -608,44 +572,148 @@ class SimpleConcat:
     >>> from esp_data.concat import SimpleConcat
     >>> dataset1 = InsectSet459(split="validation")
     >>> dataset2 = BirdSet(split="HSN-test")
-    >>> concat_iter = SimpleConcat([dataset1, dataset2])
+    >>> concat_iter = ChainedDataset([dataset1, dataset2])
     >>> total_length = len(dataset1) + len(dataset2)
     >>> item = next(iter(concat_iter))
     >>> assert len(concat_iter) == total_length, \
         "Concatenated iterator length should match sum of source datasets lengths"
     """
 
+    info = DatasetInfo(
+        name="chained_dataset",
+        owner="ESP Data Team",
+        split_paths={"chained": "virtual://chained_dataset"},
+        version="0.1.0",
+        description="A dataset created by chaining multiple datasets for iteration.",
+        sources=["Multiple datasets"],
+        license="CC0-1.0",
+    )
+
     def __init__(self, datasets: list[Dataset]) -> None:
         if not datasets:
-            raise ValueError("At least one dataset must be provided")
+            raise ChainException("At least one dataset must be provided")
 
         if not all(isinstance(ds, Dataset) for ds in datasets):
-            raise ValueError("All objects must be Dataset instances")
+            raise ChainException("All objects must be Dataset instances")
 
-        self._datasets = datasets
-        self._lengths = [len(ds) for ds in datasets]
-        self._total_length = sum(self._lengths)
+        # determine streaming mode based on source datasets
+        # all datasets must have the same streaming mode
+        streaming_modes = {ds.streaming for ds in datasets}
+        if len(streaming_modes) > 1:
+            raise ChainException(
+                "All datasets must have the same streaming mode "
+                "to be concatenated into a ConcatenatedDataset."
+            )
+        _streaming = streaming_modes.pop()
+
+        # _backend_class doesn't matter here since we override all data access methods
+        super().__init__(streaming=_streaming)
+
+        self._source_datasets = datasets
+        try:
+            self._lengths = [len(ds) for ds in datasets]
+            self._total_length = sum(self._lengths)
+        except RuntimeError:
+            self._lengths = []
+            self._total_length = -1
+
+        self._all_columns = set()
+        for ds in datasets:
+            self._all_columns.update(ds.columns)
+        self._all_columns = sorted(list(self._all_columns))
+
+    @property
+    def columns(self) -> list[str]:
+        return self._all_columns
+
+    @property
+    def available_splits(self) -> list[str]:
+        return ["chained"]
+
+    def _load(self) -> None:
+        pass  # Data is already loaded
 
     def __len__(self) -> int:
+        if self._streaming:
+            raise RuntimeError("Length is not supported in streaming mode")
         return self._total_length
 
-    def __iter__(self) -> Iterator[Dict[str, Any]]:
-        for dataset in self._datasets:
+    def __iter__(self) -> Iterator[dict[str, Any]]:
+        for dataset in self._source_datasets:
             for item in dataset:
                 yield item
 
-    def __getitem__(self, idx: int) -> Dict[str, Any]:
-        if idx < 0 or idx >= self._total_length:
+    def __getitem__(self, idx: int) -> dict[str, Any]:
+        """Get item by global index across chained datasets.
+
+        Parameters
+        ----------
+        idx : int
+            Global index across all chained datasets.
+
+        Returns
+        -------
+        dict[str, Any]
+            The item at the specified global index.
+
+        Raises
+        ------
+        IndexError
+            If the index is out of bounds.
+        RuntimeError
+            If indexing is attempted in streaming mode.
+        """
+        if self._streaming:
+            raise RuntimeError("Indexing is not supported in streaming mode")
+
+        if idx < 0:
+            raise IndexError("Negative indexing is not supported")
+
+        if idx >= self._total_length:
             raise IndexError(
                 f"Index {idx} out of bounds for concatenated dataset of length {self._total_length}"
             )
 
         # Determine which dataset the index falls into
         cumulative_length = 0
-        for dataset, length in zip(self._datasets, self._lengths, strict=True):
+        for dataset, length in zip(self._source_datasets, self._lengths, strict=True):
             if idx < cumulative_length + length:
                 return dataset[idx - cumulative_length]
             cumulative_length += length
 
-        # This should never be reached
-        raise IndexError(f"Index {idx} could not be resolved to a dataset")
+    @classmethod
+    def from_config(
+        cls, chain_config: ChainedDatasetConfig
+    ) -> tuple["ChainedDataset", dict[str, Any]]:
+        """Create a ConcatenatedDataset from a ConcatConfig object.
+
+        Parameters
+        ----------
+        chain_config : ChainedDatasetConfig
+            Configuration object specifying the datasets to concatenate
+            and how to merge them.
+
+        Returns
+        -------
+        tuple[ChainedDataset, dict]
+            A tuple containing the ConcatenatedDataset instance
+            and metadata about transformations applied.
+        """
+        datasets = []
+        metadata = {}
+        for cfg in chain_config.datasets:
+            ds, meta = dataset_from_config(cfg)
+            datasets.append(ds)
+            metadata.update({f"{cfg.dataset_name}_metadata": meta})
+        ds = cls(datasets)
+
+        return ds, metadata
+
+    def __str__(self) -> str:
+        return (
+            f"{self.info.name} (v{self.info.version})\n"
+            f"Description: {self.info.description}\n"
+            f"Length: {len(self)}\n"
+            f"Columns: {', '.join(self.columns)}\n"
+            f"Source datasets: {len(self._datasets)}"
+        )
