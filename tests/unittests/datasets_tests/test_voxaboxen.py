@@ -3,9 +3,9 @@
 import pytest
 import numpy as np
 
-from esp_data.io import anypath
-from esp_data import Dataset, DatasetConfig, Voxaboxen, VoxaboxenEvents
-
+from esp_data.io import anypath, exists
+from esp_data import Dataset, Voxaboxen, VoxaboxenEvents
+from esp_data.datasets.voxaboxen import VoxaboxenEventsConfig, VoxaboxenConfig
 
 @pytest.fixture
 def voxaboxen_dataset() -> Voxaboxen:
@@ -44,7 +44,7 @@ def voxaboxen_events_with_transforms() -> Dataset:
         An instance of the AnimalSpeak dataset with transformations applied.
     """
 
-    dataset_config = DatasetConfig(
+    dataset_config = VoxaboxenEventsConfig(
         dataset_name="voxaboxen_events",
         transformations=[
             {
@@ -68,7 +68,7 @@ def test_info_property(voxaboxen_dataset: Dataset) -> None:
     assert voxaboxen_dataset.info.version == "0.1.0"
     assert "Anuraset_train" in voxaboxen_dataset.info.split_paths
     for split in voxaboxen_dataset.info.split_paths.values():
-        assert anypath(split).exists(), f"Split path {split} does not exist"
+        assert exists(split), f"Split path {split} does not exist"
 
 
 def test_data_property(voxaboxen_dataset: Dataset) -> None:
@@ -89,7 +89,7 @@ def test_available_splits(voxaboxen_dataset: Dataset) -> None:
 def test_length(voxaboxen_dataset: Dataset) -> None:
     """Test if __len__ returns correct counts."""
     # Length should be sum of all splits
-    expected_len = voxaboxen_dataset._data.shape[0]
+    expected_len = len(voxaboxen_dataset._data)
     assert len(voxaboxen_dataset) == expected_len
     print(f"Dataset length: {len(voxaboxen_dataset)}")
     assert len(voxaboxen_dataset) == 126
@@ -116,7 +116,7 @@ def test_iteration(voxaboxen_dataset: Dataset) -> None:
 
 def test_load_from_config() -> None:
     """Test if dataset can be loaded from configuration."""
-    dataset_config = DatasetConfig(
+    dataset_config = VoxaboxenConfig(
         dataset_name="voxaboxen",
         split="hawaii_val",
     )
@@ -140,15 +140,15 @@ def test_voxaboxen_events_info(voxaboxen_events_dataset: Dataset) -> None:
     assert voxaboxen_events_dataset.info.version == "0.1.0"
     assert "hawaii_val" in voxaboxen_events_dataset.info.split_paths
     for split in voxaboxen_events_dataset.info.split_paths.values():
-        assert anypath(split).exists(), f"Split path {split} does not exist"
+        assert exists(split), f"Split path {split} does not exist"
 
 
 def test_voxaboxen_events_data_property(voxaboxen_events_dataset: Dataset) -> None:
     """Test if the data property returns correct dataframes for detection dataset."""
     # Data should be _loaded in __init__
     assert voxaboxen_events_dataset._data is not None
-    assert "audio_duration" in voxaboxen_events_dataset._data
-    assert "audio_fp" in voxaboxen_events_dataset._data
+    assert "audio_duration" in voxaboxen_events_dataset._data.columns
+    assert "audio_fp" in voxaboxen_events_dataset._data.columns
     assert voxaboxen_events_dataset._metadata is not None
     assert isinstance(voxaboxen_events_dataset._selection_table_dict, dict)
     assert len(voxaboxen_events_dataset._selection_table_dict) > 0, "Selection table should not be empty"

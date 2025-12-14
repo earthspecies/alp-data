@@ -11,9 +11,12 @@ The data is hosted in the `esp-ml-datasets` GCS bucket in folder bengalese_finch
 - Extracted call audio snippets in `wav/BirdX/` subdirectories
 
 The CSVs have the following columns:
-* ``local_path``     – relative path to the extracted call audio snippet
-* ``call_type``      – call-type ID (string)
-* ``individual_id``  – identifier of the individual bird
+* ``local_path``     - relative path to the extracted call audio snippet
+* ``call_type``      - call-type ID (string)
+* ``individual_id``  - identifier of the individual bird
+* ``local_path``     - relative path to the extracted call audio snippet
+* ``call_type``      - call-type ID (string)
+* ``individual_id``  - identifier of the individual bird
 
 **Available Split Types:**
 - ``{BirdX}_train``: Full training set (~70% of data)
@@ -23,24 +26,24 @@ The CSVs have the following columns:
 
 Examples
 --------
+# Individual bird
 >>> from esp_data.datasets import BengaleseFinchCalls
->>> # Individual bird
 >>> ds = BengaleseFinchCalls(split="Bird0", sample_rate=16000)
 >>> first = ds[0]
 >>> first.keys()
 dict_keys(['local_path', 'call_type', 'individual_id', 'audio'])
 
->>> # Bird2 training split
+# Bird2 training split
 >>> train_ds = BengaleseFinchCalls(split="Bird2_train", sample_rate=16000)
 >>> print(f"Training samples: {len(train_ds)}")
 Training samples: 18303
 
->>> # Learning with limited data
+# Learning with limited data
 >>> small_train_ds = BengaleseFinchCalls(split="Bird2_train_small", sample_rate=16000)
 >>> print(f"Small training samples: {len(small_train_ds)}")
 Small training samples: 1360
 
->>> # Any bird's splits are available
+# Any bird's splits are available
 >>> bird1_train = BengaleseFinchCalls(split="Bird1_train", sample_rate=16000)
 >>> bird8_valid = BengaleseFinchCalls(split="Bird8_valid", sample_rate=16000)
 >>> print(f"Bird1 training: {len(bird1_train)} samples")
@@ -49,13 +52,13 @@ Bird1 training: 25024 samples
 Bird8 validation: 746 samples
 """
 
-from typing import Any, Dict, Iterator, Optional
+from typing import Any, Dict, Iterator
 
 import librosa
 import numpy as np
-import pandas as pd
 
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
+from esp_data.backends import BackendType
 from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
 
 
@@ -144,61 +147,59 @@ class BengaleseFinchCalls(Dataset):
         license="CC-BY-4.0, CC0",
     )
 
-    # ---------------------------------------------------------------------
-    # Construction helpers
-    # ---------------------------------------------------------------------
-
     def __init__(
         self,
         split: str = "Bird2_train",
         output_take_and_give: dict[str, str] | None = None,
-        sample_rate: Optional[int] = None,
-        data_root: Optional[str | AnyPathT] = None,
+        sample_rate: int | None = None,
+        data_root: str | AnyPathT | None = None,
+        backend: BackendType = "polars",
+        streaming: bool = False,
     ) -> None:
         """Create a :class:`BengaleseFinchCalls` instance.
 
         Parameters
         ----------
-        split
+        split: str
             Which bird/split to load. Options include:
             - Individual birds: "Bird0", "Bird1", ..., "Bird10" (complete repertoires)
             - ML splits: "{BirdX}_train", "{BirdX}_train_small", "{BirdX}_valid", "{BirdX}_test"
-        output_take_and_give
+        output_take_and_give: dict[str, str], optional
             Mapping from original column names to desired output names.  When
             provided, the dataset __getitem__ will return only the mapped
             columns and use the *values* of this dict as keys.
-        sample_rate
+        sample_rate: int, optional
             Target sample-rate.  If provided and differs from the original, the
             audio is resampled with ``librosa.resample``.
-        data_root
+        data_root: str | AnyPathT, optional
             Custom root directory for audio files.  When *None* (default), we
             automatically use the parent directory of the metadata CSV.
+        backend: BackendType, optional
+            The backend to use ("pandas" or "polars"), by default "polars"
+        streaming: bool, optional
+            Whether to use streaming mode, by default False
 
         Raises
         ------
         LookupError
             If the specified split is not available in the dataset.
         """
-        super().__init__(output_take_and_give)
+        super().__init__(output_take_and_give, backend=backend, streaming=streaming)
         self.split = split
         self.sample_rate = sample_rate
-        self.data_root = data_root
 
         if self.split not in self.info.split_paths:
             raise LookupError(
                 f"Invalid split '{self.split}'. Available: {list(self.info.split_paths)}"
             )
 
-        if self.data_root is None:
-            # All CSVs are now in /raw/ with the audio files
+        if data_root is None:
             self.data_root = anypath(self.info.split_paths[self.split]).parent
+        else:
+            self.data_root = data_root
 
-        self._data: pd.DataFrame | None = None
+        self._data = None
         self._load()
-
-    # ------------------------------------------------------------------
-    # Properties
-    # ------------------------------------------------------------------
 
     @property
     def columns(self) -> list[str]:
@@ -210,37 +211,26 @@ class BengaleseFinchCalls(Dataset):
         """Return the names of available splits."""
         return list(self.info.split_paths)
 
-    # ------------------------------------------------------------------
-    # Internal helpers
-    # ------------------------------------------------------------------
-
     def _load(self) -> None:
         """Load the CSV for the chosen split into :pyattr:`_data`."""
         csv_path = self.info.split_paths[self.split]
 
         # Read as DataFrame (avoid NA coercion so that strings stay strings)
-        self._data = pd.read_csv(csv_path, keep_default_na=False, na_values=[""])
+        self._data = self._backend_class.from_csv(
+            csv_path,
+            streaming=self._streaming,  # keep_default_na=False, na_values=[""]
+        )
 
-    # ------------------------------------------------------------------
-    # Dataset API
-    # ------------------------------------------------------------------
-
-    def __len__(self) -> int:  # noqa: D401 – consistent with Dataset interface
+    def __len__(self) -> int:
         if self._data is None:
-            raise RuntimeError("Dataset not loaded – call _load() first.")
+            raise RuntimeError("Dataset not loaded - call _load() first.")
+        if self._streaming:
+            raise NotImplementedError("Length not available in streaming mode.")
         return len(self._data)
 
-    def __getitem__(self, idx: int) -> Dict[str, Any]:
-        if idx >= len(self):
-            raise IndexError(f"Index {idx} out of range (dataset length: {len(self)})")
-
-        row = self._data.iloc[idx].to_dict()
-
+    def _process(self, row: dict[str, Any]) -> dict[str, Any]:
         # Construct full audio path ("local_path" is relative)
-        if self.data_root is not None:
-            audio_path = anypath(self.data_root) / row["local_path"]
-        else:
-            audio_path = anypath(row["local_path"])
+        audio_path = anypath(self.data_root) / row["local_path"]
 
         # Load the audio file
         audio, sr = read_audio(audio_path)
@@ -261,9 +251,10 @@ class BengaleseFinchCalls(Dataset):
 
         # Apply output mapping if requested
         if self.output_take_and_give:
-            mapped: Dict[str, Any] = {}
+            mapped: dict[str, Any] = {}
             for src, dst in self.output_take_and_give.items():
                 mapped[dst] = row[src]
+
             # Always include audio unless explicitly mapped
             if "audio" not in self.output_take_and_give:
                 mapped["audio"] = row["audio"]
@@ -271,9 +262,30 @@ class BengaleseFinchCalls(Dataset):
 
         return row
 
-    # ------------------------------------------------------------------
-    # Convenience constructors
-    # ------------------------------------------------------------------
+    def __getitem__(self, idx: int) -> Dict[str, Any]:
+        """Get a specific sample from the dataset.
+        Parameters
+        ----------
+        idx : int
+            Index of the sample to get.
+
+        Returns
+        -------
+        dict[str, Any]
+            A dictionary containing the data.
+        """
+        row = self._data[idx]
+        return self._process(row)
+
+    def __iter__(self) -> Iterator[Dict[str, Any]]:
+        """Iterate over samples in the dataset.
+        Yields
+        -------
+        Dict[str, Any]
+            Each sample in the dataset.
+        """
+        for row in self._data:
+            yield self._process(row)
 
     @classmethod
     def from_config(
@@ -291,25 +303,16 @@ class BengaleseFinchCalls(Dataset):
         tuple[BengaleseFinchCalls, dict[str, Any]]
             A tuple containing the dataset instance and metadata from transformations.
             If no transformations are applied, metadata will be an empty dict.
-
-        Raises
-        ------
-        LookupError
-            If the specified split is not available in the dataset.
         """
-        cfg = dataset_config.model_dump(exclude=("dataset_name", "transformations"))
-
-        split = cfg.get("split", "Bird2_train")
-        if split not in cls.info.split_paths:
-            raise LookupError(
-                f"Invalid split '{split}'. Available splits: {', '.join(cls.info.split_paths)}"
-            )
+        cfg = dataset_config.model_dump(exclude={"dataset_name", "transformations"})
 
         ds = cls(
-            split=split,
-            output_take_and_give=cfg.get("output_take_and_give"),
-            data_root=cfg.get("data_root"),
-            sample_rate=cfg.get("sample_rate"),
+            split=cfg["split"],
+            output_take_and_give=cfg["output_take_and_give"],
+            data_root=cfg["data_root"],
+            sample_rate=cfg["sample_rate"],
+            backend=cfg["backend"],
+            streaming=cfg["streaming"],
         )
 
         if dataset_config.transformations:
@@ -317,16 +320,8 @@ class BengaleseFinchCalls(Dataset):
             return ds, transform_metadata
         return ds, {}
 
-    # ------------------------------------------------------------------
-    # Representation helpers
-    # ------------------------------------------------------------------
-
-    def __iter__(self) -> Iterator[Dict[str, Any]]:
-        for i in range(len(self)):
-            yield self[i]
-
     def __str__(self) -> str:  # noqa: D401 – keep style consistent
-        base = f"{self.info.name} (v{self.info.version})"
+        base = f"{self.info.name} (v{self.info.version}), split='{self.split}'"
         return (
             f"{base}\n"
             f"Description: {self.info.description}\n"

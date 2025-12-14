@@ -1,10 +1,11 @@
 """A dedicated transform to remove duplicate rows from a DataFrame."""
 
 import logging
-from typing import Literal, Optional
+from typing import Literal
 
-import pandas as pd
 from pydantic import BaseModel, Field
+
+from esp_data.backends.protocol import DataBackend
 
 from . import register_transform
 
@@ -13,7 +14,7 @@ logger = logging.Logger("esp_data")
 
 class DeduplicateConfig(BaseModel):
     type: Literal["deduplicate"]
-    subset: Optional[list[str]] = Field(
+    subset: list[str] | None = Field(
         default_factory=None,
         description="List of columns to consider for deduplication. "
         "If empty, all columns are considered.",
@@ -31,6 +32,8 @@ class Deduplicate:
     This transform removes duplicate rows based on specified columns or all columns if
     none are specified. It can keep either the first or last occurrence of duplicates.
 
+    Works with any backend (pandas, polars) through the DataBackend protocol.
+
     Parameters
     ----------
     subset: list[str]
@@ -42,14 +45,15 @@ class Deduplicate:
 
     Examples
     --------
+    >>> from esp_data.backends import PandasBackend
+    >>> import pandas as pd
     >>> df = pd.DataFrame({
     ...     "species": ["bee", "bee", "butterfly", "bee"],
     ...     "count": [10, 10, 5, 10]
     ... })
+    >>> backend = PandasBackend(df)
     >>> transform = Deduplicate(subset=["species"], keep_first=True)
-    >>> deduplicated_df, _ = transform(df)
-    >>> print(deduplicated_df.species.unique().tolist())
-    ['bee', 'butterfly']
+    >>> deduplicated_backend, _ = transform(backend)
     """
 
     def __init__(self, *, subset: list[str] | None = None, keep_first: bool = True) -> None:
@@ -60,10 +64,20 @@ class Deduplicate:
     def from_config(cls, cfg: DeduplicateConfig) -> "Deduplicate":
         return cls(subset=cfg.subset, keep_first=cfg.keep_first)
 
-    def __call__(self, df: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
-        return df.drop_duplicates(
-            subset=self.subset, keep="first" if self.keep_first else "last"
-        ), {}
+    def __call__(self, backend: DataBackend) -> tuple[DataBackend, dict]:
+        """Remove duplicate rows from the backend.
+
+        Args:
+            backend: The backend wrapping the dataframe to deduplicate
+
+        Returns:
+            The deduplicated backend (same type as input) and empty metadata dict.
+        """
+        deduplicated_backend = backend.drop_duplicates(
+            subset=self.subset,
+            keep="first" if self.keep_first else "last",
+        )
+        return deduplicated_backend, {}
 
 
 register_transform(DeduplicateConfig, Deduplicate)

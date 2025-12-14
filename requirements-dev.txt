@@ -46,7 +46,7 @@ pyyaml==6.0.2
 pyyaml-env-tag==0.1
 requests==2.32.3
 requirements-parser==0.11.0
-ruff==0.11.8
+ruff==0.14.5
 setuptools==80.3.1
 six==1.17.0
 tomli==2.2.1 ; python_full_version < '3.11'

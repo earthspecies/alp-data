@@ -1,12 +1,12 @@
 """Macaques Coo Calls dataset"""
 
-from typing import Any, Dict, Iterator, Optional
+from typing import Any, Dict, Iterator
 
 import librosa
 import numpy as np
-import pandas as pd
 
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
+from esp_data.backends import BackendType
 from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
 
 
@@ -25,7 +25,7 @@ class MacaquesCooCalls(Dataset):
     https://archive.org/details/macaque_coo_calls
 
     Examples
-    -------
+    --------
     >>> from esp_data.datasets import MacaquesCooCalls
     >>> dataset = MacaquesCooCalls(
     ...     split="test",
@@ -54,9 +54,11 @@ class MacaquesCooCalls(Dataset):
     def __init__(
         self,
         split: str = "train",
-        output_take_and_give: dict[str, str] = None,
-        sample_rate: Optional[int] = None,
-        data_root: Optional[str | AnyPathT] = None,
+        output_take_and_give: dict[str, str] | None = None,
+        sample_rate: int | None = None,
+        data_root: str | AnyPathT | None = None,
+        backend: BackendType = "polars",
+        streaming: bool = False,
     ) -> None:
         """Initialize the Macaques Coo Calls dataset.
 
@@ -73,19 +75,21 @@ class MacaquesCooCalls(Dataset):
             The root directory for the dataset. This is optionally appended to the
             path item of a sample in the dataset.
             If None, the default is the parent directory of the split path.
+        backend : BackendType, optional
+            The backend to use ("pandas" or "polars"), by default "polars"
+        streaming : bool, optional
+            Whether to use streaming mode, by default False
         """
-        super().__init__(output_take_and_give)  # Initialize the parent Dataset class
+        super().__init__(output_take_and_give, backend=backend, streaming=streaming)
         self.split = split
         self.sample_rate = sample_rate
-        self.data_root = data_root
-        if self.data_root is None:
-            # we assume that parent dir of the csv_data directory is the data root
-            # The split path is: .../raw/csv_data/test.csv
-            # We want the data root to be: .../raw/
-            split_path = anypath(self.info.split_paths[self.split])
-            self.data_root = split_path.parent
 
-        self._data: pd.DataFrame = None
+        if data_root is None:
+            self.data_root = anypath(self.info.split_paths[self.split]).parent
+        else:
+            self.data_root = data_root
+
+        self._data = None
         self._load()  # Load the dataset (fills self._data)
 
     @property
@@ -112,7 +116,7 @@ class MacaquesCooCalls(Dataset):
             )
 
         location = self.info.split_paths[self.split]
-        self._data = pd.read_csv(location)
+        self._data = self._backend_class.from_csv(location, streaming=self._streaming)
 
     @classmethod
     def from_config(
@@ -131,26 +135,16 @@ class MacaquesCooCalls(Dataset):
             A tuple containing the dataset instance and metadata.
             If the dataset_config contains transformations, they will be applied
             and the metadata will be returned as dict, otherwise empty dict.
-
-        Raises
-        -------
-        LookupError
-            If the specified split is not available in the dataset info.
         """
-        cfg = dataset_config.model_dump(exclude=("dataset_name", "transformations"))
-
-        split = cfg.get("split", None)
-        if not split or split not in cls.info.split_paths:
-            raise LookupError(
-                f"Invalid split '{split}'."
-                f"Available splits: {', '.join(cls.info.split_paths.keys())}"
-            )
+        cfg = dataset_config.model_dump(exclude={"dataset_name", "transformations"})
 
         ds = cls(
-            split=split,
-            output_take_and_give=cfg.get("output_take_and_give", None),
-            data_root=cfg.get("data_root"),
+            split=cfg["split"],
+            output_take_and_give=cfg["output_take_and_give"],
+            data_root=cfg["data_root"],
             sample_rate=cfg["sample_rate"],
+            backend=cfg["backend"],
+            streaming=cfg["streaming"],
         )
 
         if dataset_config.transformations:
@@ -174,35 +168,14 @@ class MacaquesCooCalls(Dataset):
         """
         if self._data is None:
             raise RuntimeError("No split has been loaded yet. Call load() first.")
+        if self._streaming:
+            raise RuntimeError("Length is not available in streaming mode for this dataset.")
         return len(self._data)
 
-    def __getitem__(self, idx: int) -> dict[str, Any]:
-        """Get a specific sample from the dataset.
-        Parameters
-        ----------
-        idx : int
-            Index of the sample to get.
-
-        Returns
-        -------
-        dict[str, Any]
-            A dictionary containing the data.
-
-        Raises
-        ------
-        IndexError
-            If the index is out of bounds.
-        """
-        if idx >= len(self._data):
-            raise IndexError(f"Index {idx} out of bounds for dataset of length {len(self._data)}.")
-
-        row = self._data.iloc[idx].to_dict()
+    def _process(self, row: dict[str, Any]) -> dict[str, Any]:
         # Ensure audio path is valid
-        if self.data_root:
-            # If data_root is provided, we need to construct the path properly
-            audio_path = anypath(self.data_root) / anypath(row["local_path"])
-        else:
-            audio_path = anypath(row["local_path"])
+        audio_path = anypath(self.data_root) / anypath(row["local_path"])
+
         # Read the audio clip
         audio, sr = read_audio(audio_path)
         audio = audio.astype(np.float32)
@@ -229,6 +202,21 @@ class MacaquesCooCalls(Dataset):
 
         return item
 
+    def __getitem__(self, idx: int) -> dict[str, Any]:
+        """Get a specific sample from the dataset.
+        Parameters
+        ----------
+        idx : int
+            Index of the sample to get.
+
+        Returns
+        -------
+        dict[str, Any]
+            A dictionary containing the data.
+        """
+        row = self._data[idx]
+        return self._process(row)
+
     def __iter__(self) -> Iterator[Dict[str, Any]]:
         """Iterate over samples in the dataset.
 
@@ -237,8 +225,8 @@ class MacaquesCooCalls(Dataset):
         Dict[str, Any]
             Each sample in the dataset.
         """
-        for idx in range(len(self)):
-            yield self[idx]
+        for row in self._data:
+            yield self._process(row)
 
     def __str__(self) -> str:
         """Return a string representation of the dataset.
@@ -249,7 +237,7 @@ class MacaquesCooCalls(Dataset):
             A string representation of the dataset including its name, version,
             and basic statistics if data is loaded.
         """
-        base_info = f"{self.info.name} (v{self.info.version})"
+        base_info = f"{self.info.name} (v{self.info.version}), split: {self.split}"
 
         return (
             f"{base_info}\n"

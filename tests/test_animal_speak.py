@@ -4,7 +4,7 @@ import pytest
 
 from esp_data.datasets import AnimalSpeak
 from esp_data import Dataset, DatasetConfig
-from esp_data.io import anypath
+from esp_data.io import anypath, exists
 
 
 @pytest.fixture
@@ -16,7 +16,7 @@ def dataset() -> Dataset:
     Dataset
         An instance of the AnimalSpeak dataset.
     """
-    ds = AnimalSpeak(split="validation", data_root="gs://")
+    ds = AnimalSpeak(split="validation")
     return ds
 
 
@@ -46,7 +46,6 @@ def dataset_with_transforms() -> Dataset:
                 "values": ["xeno-canto", "iNaturalist"],
             },
         ],
-        data_root="gs://",
     )
     ds = AnimalSpeak(split="validation")
     ds.apply_transformations(dataset_config.transformations)
@@ -82,7 +81,41 @@ def dataset_with_transforms_from_config() -> tuple[Dataset, dict]:
                 "values": ["xeno-canto", "iNaturalist"],
             },
         ],
-        data_root="gs://",
+    )
+    ds, metadata = AnimalSpeak.from_config(dataset_config)
+    return ds, metadata
+
+
+@pytest.fixture
+def dataset_with_transforms_streaming_from_config() -> tuple[Dataset, dict]:
+    """Fixture providing an AnimalSpeak dataset instance with transformations
+    applied in streaming mode.
+
+    Returns
+    -------
+    Dataset
+        An instance of the AnimalSpeak dataset with transformations applied.
+    dict
+        Metadata dictionary containing information about the transformations applied.
+    """
+
+    dataset_config = DatasetConfig(
+        dataset_name="animalspeak",
+        split="validation",
+        streaming=True,
+        transformations=[
+            {
+                "type": "label_from_feature",
+                "feature": "canonical_name",
+                "output_feature": "label",
+            },
+            {
+                "type": "filter",
+                "mode": "include",
+                "property": "source",
+                "values": ["xeno-canto", "iNaturalist"],
+            },
+        ],
     )
     ds, metadata = AnimalSpeak.from_config(dataset_config)
     return ds, metadata
@@ -104,7 +137,6 @@ def dataset_with_output_mapping() -> Dataset:
     ds = AnimalSpeak(
         split="validation",
         output_take_and_give=dataset_config.output_take_and_give,
-        data_root="gs://"
     )
     return ds
 
@@ -116,16 +148,16 @@ def test_info_property(dataset: Dataset) -> None:
     assert "train" in dataset.info.split_paths
     assert "validation" in dataset.info.split_paths
     # test splits exist
-    assert anypath(dataset.info.split_paths["train"]).exists()
-    assert anypath(dataset.info.split_paths["validation"]).exists()
+    assert exists(dataset.info.split_paths["train"])
+    assert exists(dataset.info.split_paths["validation"])
 
 
 def test_data_property(dataset: Dataset) -> None:
     """Test if the data property returns correct dataframes."""
     # Data should be _loaded in __init__
     assert dataset._data is not None
-    assert "genus" in dataset._data
-    assert "country" in dataset._data
+    assert "genus" in dataset._data.columns
+    assert "country" in dataset._data.columns
 
 
 def test_columns_property(dataset: Dataset) -> None:
@@ -145,7 +177,7 @@ def test_available_splits(dataset: Dataset) -> None:
 def test_length(dataset: Dataset) -> None:
     """Test if __len__ returns correct counts."""
     # Length should be sum of all splits
-    expected_len = dataset._data.shape[0]
+    expected_len = len(dataset._data)
     assert len(dataset) == expected_len
 
 
@@ -207,7 +239,7 @@ def test_transformations(dataset_with_transforms: Dataset) -> None:
     assert "label" in dataset_with_transforms._data.columns
 
     # Check that only specified sources are present
-    sources = dataset_with_transforms._data["source"].unique()
+    sources = dataset_with_transforms._data.get_unique("source")
     assert set(sources).issubset({"xeno-canto", "iNaturalist"})
 
     # Check that no other sources are present
@@ -226,7 +258,7 @@ def test_transformations_from_config(dataset_with_transforms_from_config: tuple[
     assert "label" in ds._data.columns
 
     # Check that only specified sources are present
-    sources = ds._data["source"].unique()
+    sources = ds._data.get_unique("source")
     assert set(sources).issubset({"xeno-canto", "iNaturalist"})
 
     # Check that no other sources are present
@@ -252,8 +284,33 @@ def test_output_take_and_give(dataset_with_output_mapping: Dataset) -> None:
     assert set(sample.keys()) == {"species", "location"}
 
     # Get the original row to compare values
-    original_row = dataset_with_output_mapping._data.iloc[0]
+    original_row = dataset_with_output_mapping._data[0]
 
     # Verify the mapping and values
     assert sample["species"] == original_row["canonical_name"]
     assert sample["location"] == original_row["country"]
+
+
+def test_streaming_mode_with_transformations(dataset_with_transforms_streaming_from_config) -> None:
+    """Test if transformations are applied correctly in streaming mode.
+
+    This test verifies that:
+    1. The label_from_feature transformation creates a label column
+    2. The filter transformation only keeps specified sources
+    3. The metadata is updated with transformation information
+    """
+    ds, metadata = dataset_with_transforms_streaming_from_config
+
+    # Check that label column was created
+    assert "label" in ds._data.columns
+
+    # Check that only specified sources are present
+    sources = ds._data.get_unique("source")
+    assert set(sources).issubset({"xeno-canto", "iNaturalist"})
+
+    # Check that no other sources are present
+    assert "Watkins" not in sources
+
+    # check that the metadata contains a key for "label_from_feature"
+    assert "label_from_feature" in metadata
+    assert "label_map" in metadata["label_from_feature"]

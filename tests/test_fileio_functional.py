@@ -1,6 +1,7 @@
 import pytest
+from uuid import uuid4
 
-from esp_data.io import anypath, filesystem_from_path
+from esp_data.io import anypath, filesystem_from_path, exists, rm
 
 
 @pytest.fixture
@@ -23,20 +24,20 @@ def test_upload_download_cloud(local_test_dir, cloud_path):
     local_file = local_test_dir / "cloud_test.bin"
     local_file.write_bytes(b"Hello Cloud")
 
-    assert local_file.exists() is True
+    assert exists(local_file)
 
     # Upload to remote
 
-    assert cloud_path.exists() is False
+    assert not exists(cloud_path)
     filesystem_from_path(cloud_path).put(str(local_file), str(cloud_path))
-    assert cloud_path.exists() is True
+    assert exists(cloud_path)
 
     # Download back to a different local file
     download_target = local_test_dir / "cloud_test_download.bin"
     filesystem_from_path(cloud_path).get(str(cloud_path), str(download_target))
     assert download_target.read_bytes() == b"Hello Cloud"
-    cloud_path.unlink()
-    assert not cloud_path.exists()
+    rm(cloud_path)
+    assert not exists(cloud_path)
 
 
 # def test_create_local_file(local_test_dir):
@@ -163,8 +164,8 @@ def test_list_files_in_cloud(cloud_dir, local_test_dir):
 
     files = fs.ls(str(cloud_dir))
     assert any("file_to_list_cloud.txt" in f for f in files)
-    anypath(remote_path).unlink()
-    assert not anypath(remote_path).exists()
+    rm(remote_path)
+    assert not exists(anypath(remote_path))
 
 
 @pytest.mark.parametrize(
@@ -179,10 +180,11 @@ def test_delete_files_in_cloud(cloud_dir, local_test_dir):
     test_file = local_test_dir / "file_delete_cloud.txt"
     test_file.write_text("Delete from cloud")
 
-    remote_path = cloud_dir / "file_delete_cloud.txt"
+    remote_path = cloud_dir / str(uuid4())
 
-    assert not remote_path.exists()
+    assert not exists(remote_path)
     filesystem_from_path(remote_path).put(str(test_file), str(remote_path))
-    assert remote_path.exists()
-    anypath(remote_path).unlink()
-    assert not anypath(remote_path).exists()
+
+    assert exists(remote_path)
+    rm(remote_path)
+    assert not exists(remote_path)

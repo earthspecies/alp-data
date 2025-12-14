@@ -20,15 +20,18 @@ In v1 of this approach, we have are three [merge strategies](#merge-strategies).
 2. **Overlap Merge**: Keeps only columns that exist in all datasets.
 3. **Hard Merge**: Requires all datasets to have identical columns, raising an error if they differ.
 
+!!! warning
+    When merging two datasets, be aware that if a column with the same name appears in multiple datasets being concatenated, and the data type **dtype** of the column is not the same across datasets, the resulting column in the concatenated dataset will be of type `object` in pandas, which may lead to unexpected behavior in downstream processing because this can be a mixed data type!
+
 ## How can I concatenate datasets?
 
-Datasets can be concatenated using the `concatenate_datasets` function with different merge strategies:
+Datasets can be concatenated using the `ConcatenatedDataset` class with different merge strategies:
 
 ### Basic Usage
 
 ```python
 from esp_data.datasets import AnimalSpeak, BarkleyCanyon
-from esp_data.concat import concatenate_datasets
+from esp_data.concat import ConcatanatedDataset
 
 # Load individual datasets
 dataset1 = AnimalSpeak(split="validation")
@@ -40,7 +43,10 @@ print(f"Dataset 2 length: {len(dataset2)}")
 # 9770
 
 # Concatenate with default soft merge
-combined_dataset = concatenate_datasets([dataset1, dataset2])
+combined_dataset = ConcatenatedDataset(
+    datasets=[dataset1, dataset2],
+    merge_level="soft"  # Options: "soft", "overlap", "hard"
+)
 
 # Access the combined data
 print(f"Combined dataset length: {len(combined_dataset)}")
@@ -52,9 +58,36 @@ print(f"First sample: {sample.keys()}")
 print(f"Last sample: {combined_dataset[-1].keys()}")
 ```
 
-!!! remark
-    The `ConcatenatedDataset` class *currently* cannot be instantiated from a `DatasetConfig`. It is designed to be created directly from existing `Dataset` objects. So trying `ConcatenatedDataset.from_config(config)` will raise an error.
+#### Create a combined dataset from a yaml config
+You can also create a concatenated dataset from a YAML configuration file. Here is an example of how to do this:
+Note the `concat` keyword at the top level of the config, and `datasets` list inside it (required).
 
+```yaml
+concat:
+  datasets:
+    - dataset_name: beans
+      split: dogs_test
+      output_take_and_give: null
+    - dataset_name: beans
+      split: esc50_validation
+      output_take_and_give: null
+  merge_level: soft
+  transformations:
+    - type: label_from_feature
+      feature: label
+      output_feature: label
+      override: true
+    - type: deduplicate
+      subset: ["file_name", "label"]
+      keep_first: true
+```
+Here, we're concatenating two splits of the `beans` dataset and applying some transformations to the combined dataset.
+The `concat` keyword is a *SPECIAL* keyword, which tells the `dataset_from_config` function to create a `ConcatenatedDataset` instead of a regular dataset. Here's the python code for loading this config:
+
+```python
+from esp_data import dataset_from_config
+combined_dataset = dataset_from_config("path/to/concat_config.yaml")
+```
 
 #### Apply transformations before / after concatenation
 
@@ -63,14 +96,13 @@ You can apply transformations to the individual datasets *before* concatenation 
 ```python
 from esp_data.datasets import AnimalSpeak, BarkleyCanyon
 from esp_data.transforms import FilterConfig
-
-from esp_data.concat import concatenate_datasets
+from esp_data.concat import ConcatenatedDataset
 
 # Load individual datasets
 dataset1 = AnimalSpeak(split="validation")
 dataset2 = BarkleyCanyon(split="train")
 # Concatenate datasets
-combined_dataset = concatenate_datasets([dataset1, dataset2])
+combined_dataset = ConcatenatedDataset([dataset1, dataset2])
 # Define a filter transformation
 filter_config = FilterConfig(
     type="filter",
@@ -83,7 +115,7 @@ filter_config = FilterConfig(
 transform_metadata = combined_dataset.apply_transformations([filter_config])
 ```
 !!! warning
-    If the `merge_level` was set to "soft" in `concatenate_datasets`, running a filter transformation like this
+    If the `merge_level` was set to "soft" in `ConcatenatedDataset`, running a filter transformation like this
     will end up dropping all rows from datasets that do not have the `species_common` column, since those rows will be
     `NaN` for those datasets.
 
@@ -91,10 +123,6 @@ transform_metadata = combined_dataset.apply_transformations([filter_config])
 As mentioned, ycou can also apply transforms to individual datasets before concatenation:
 
 ```python
-from esp_data.datasets import AnimalSpeak, InsectSet459
-from esp_data.transforms import FilterConfig
-from esp_data.concat import concatenate_datasets
-
 # Create and transform individual datasets
 animal_dataset = AnimalSpeak(split="train")
 animal_filter = FilterConfig(
@@ -115,7 +143,7 @@ insect_filter = FilterConfig(
 insect_dataset.apply_transformations([insect_filter])
 
 # Concatenate the transformed datasets
-combined_dataset = concatenate_datasets(
+combined_dataset = ConcatenatedDataset(
     [animal_dataset, insect_dataset],
     merge_level="overlap"
 )
@@ -131,7 +159,7 @@ Keeps all columns from all datasets, filling missing values with NaN:
 
 ```python
 # Soft merge - most permissive
-combined_dataset = concatenate_datasets(
+combined_dataset = ConcatenatedDataset(
     [dataset1, dataset2],
     merge_level="soft"
 )
@@ -142,7 +170,7 @@ Keeps only columns that exist in all datasets:
 
 ```python
 # Overlap merge - keeps common columns only
-combined_dataset = concatenate_datasets(
+combined_dataset = ConcatenatedDataset(
     [dataset1, dataset2],
     merge_level="overlap"
 )
@@ -153,7 +181,7 @@ Requires all datasets to have identical columns:
 
 ```python
 # Hard merge - strictest option
-combined_dataset = concatenate_datasets(
+combined_dataset = ConcatenatedDataset(
     [dataset1, dataset2],
     merge_level="hard"
 )
@@ -221,11 +249,11 @@ Sample rates must be compatible across datasets:
 
 ```python
 # This will work if both datasets have the same sample rate
-combined_dataset = concatenate_datasets([dataset1, dataset2])
+combined_dataset = ConcatenatedDataset([dataset1, dataset2])
 
 # This will raise MergeException if sample rates differ
 try:
-    incompatible_dataset = concatenate_datasets([audio_16k, audio_44k])
+    incompatible_dataset = ConcatenatedDataset([audio_16k, audio_44k])
 except MergeException as e:
     print(f"Sample rate mismatch: {e}")
 ```
@@ -250,7 +278,7 @@ dataset2 = AnimalSpeak(
 )
 
 # These will be merged successfully
-combined_dataset = concatenate_datasets([dataset1, dataset2])
+combined_dataset = ConcatenatedDataset([dataset1, dataset2])
 # Access the merged output mappings
 print(combined_dataset.output_take_and_give)
 # Output: {'canonical_name': 'species', 'local_path': 'path'}
@@ -262,7 +290,7 @@ dataset3 = AnimalSpeak(
 )
 
 try:
-    bad_combined = concatenate_datasets([dataset1, dataset3])
+    bad_combined = ConcatenatedDataset([dataset1, dataset3])
 except MergeException as e:
     print(f"Mapping conflict: {e}")
 ```
@@ -312,11 +340,6 @@ check_compatibility([dataset1, dataset2])
 - Index lookups require mapping back to source datasets
 
 ## Function Reference
-
-::: esp_data.concat.concatenate_datasets
-    handler: python
-    options:
-        show_source: true
 
 ::: esp_data.concat.ConcatenatedDataset
     handler: python

@@ -4,7 +4,7 @@ import pytest
 
 from esp_data.datasets import ChiffchaffId
 from esp_data import Dataset, DatasetConfig
-from esp_data.io import anypath
+from esp_data.io import exists
 
 
 @pytest.fixture
@@ -37,6 +37,27 @@ def dataset_with_transforms() -> Dataset:
 
 
 @pytest.fixture
+def dataset_with_transforms_streaming() -> Dataset:
+    """ChiffchaffID dataset with a label transformation applied in streaming mode."""
+
+    ds = ChiffchaffId(split="train_within_year", streaming=True)
+
+    dataset_config = DatasetConfig(
+        dataset_name="chiffchaff_id",
+        transformations=[
+            {
+                "type": "label_from_feature",
+                "feature": "individual_id",
+                "output_feature": "Label",
+            },
+        ],
+    )
+
+    ds.apply_transformations(dataset_config.transformations)
+    return ds
+
+
+@pytest.fixture
 def dataset_with_output_mapping() -> Dataset:
     """ChiffchaffID dataset with output_take_and_give mapping applied."""
 
@@ -45,23 +66,19 @@ def dataset_with_output_mapping() -> Dataset:
     return ds
 
 
-# -----------------------------------------------------------------------------
-# Basic dataset property tests
-# -----------------------------------------------------------------------------
-
 def test_info_property(dataset: Dataset) -> None:
     assert dataset.info.name == "chiffchaff_id"
     assert dataset.info.version == "0.1.0"
     assert "train_within_year" in dataset.info.split_paths
     assert "test_within_year" in dataset.info.split_paths
     for split in dataset.info.split_paths.values():
-        assert anypath(split).exists(), f"Split path {split} does not exist"
+        assert exists(split), f"Split path {split} does not exist"
 
 
 def test_data_property(dataset: Dataset) -> None:
     assert dataset._data is not None
-    assert "local_path" in dataset._data
-    assert "individual_id" in dataset._data
+    assert "local_path" in dataset._data.columns
+    assert "individual_id" in dataset._data.columns
 
 
 def test_columns_property(dataset: Dataset) -> None:
@@ -129,5 +146,19 @@ def test_output_take_and_give(dataset_with_output_mapping: Dataset) -> None:
     sample = dataset_with_output_mapping[0]
     assert set(sample.keys()) == {"bird_id"}
 
-    original_row = dataset_with_output_mapping._data.iloc[0]
+    original_row = dataset_with_output_mapping._data[0]
     assert sample["bird_id"] == original_row["individual_id"]
+
+
+def test_streaming_mode(dataset_with_transforms_streaming: Dataset) -> None:
+    assert dataset_with_transforms_streaming._streaming is True
+    for _, sample in enumerate(dataset_with_transforms_streaming):
+        assert "Label" in sample
+        break
+
+
+def test_columns_after_transformations(
+    dataset_with_transforms: Dataset,
+) -> None:
+    expected_columns = ["local_path", "individual_id", "Label"]
+    assert all(col in dataset_with_transforms.columns for col in expected_columns)

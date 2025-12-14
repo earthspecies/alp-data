@@ -1,0 +1,19 @@
+concat:
+  datasets:
+    - dataset_name: beans
+      split: dogs_test
+      output_take_and_give: null
+      backend: pandas
+    - dataset_name: beans
+      split: esc50_validation
+      output_take_and_give: null
+      backend: pandas
+  merge_level: soft
+  transformations:
+    - type: label_from_feature
+      feature: label
+      output_feature: label
+      override: true
+    - type: deduplicate
+      subset: ["file_name", "label"]
+      keep_first: true

@@ -2,11 +2,45 @@
 
 ## What is esp-data?
 
-`esp-data` is an internal Python package that helps with all data-related tasks at ESP. It aims to make working with datasets easier, regardless of where they are stored.
+`esp-data` is an internal Python package that helps with all data-related tasks at ESP. It aims to make working with datasets easier, regardless of where they are stored and in which format.
 
-In the future, it will also become the main interface for accessing and exploring datasets commonly used at ESP (this feature is on the roadmap and not yet implemented).
+Key features:
+- Unified dataset interface: Access datasets stored locally, on cloud storage (e.g., Google Cloud Storage), or in various formats (e.g., CSV, JSON, Parquet) through a consistent API.
+- Iterate or random access: Easily iterate over dataset samples or access them randomly using indexing.
+- Streaming support: Work with large datasets that don't fit into memory by streaming data on-the-fly.
+- On-the-fly data transformations: Apply transformations such as filtering rows / columns, create label
+- (beta) Concatenation and merging of multiple datasets: Combine datasets into a single unified dataset for training or evaluation.
 
-In the first version, the only available module is `esp_data.io`, which makes working with Google Cloud Storage (GCS) and Cloudflare R2 buckets more seamless. It provides utilities for file and bucket level operations. More information is available [here](io.md).
+
+## Getting started
+```python
+from esp_data import Beans
+
+# Load 'train' split of BEANS dataset at 16kHz sample rate
+# Resampling is done on the fly with librosa.resample
+beans = Beans(split="train", sample_rate=16000)
+
+print(len(beans))
+
+# Iterate over all samples
+for sample in beans:
+    print(sample["audio"].shape)
+    break
+
+# Fetch a single sample
+sample = beans[0]
+print(sample["audio"].shape)
+
+# Streaming only
+beans_streaming = Beans(split="train", streaming=True)  # loads faster
+print(len(beans_streaming))  # Throws an error since length is unknown in streaming mode
+
+# Iterate over all samples in streaming mode
+for sample in beans_streaming:
+    print(sample["audio"].shape)
+    break
+```
+Check out the datasets documentation for more details [here](./datasets.md).
 
 ## Installation
 
@@ -20,14 +54,64 @@ To authenticate and interact with Python repositories hosted on Artifact Registr
 uv tool install keyring --with keyrings.google-artifactregistry-auth
 ```
 
-!!! info
-    You only need to perform this installation once on your system.
+!!! success "Slurm"
+    This step is **NOT** required for Slurm jobs. All nodes on the cluster already have this package installed.
 
+!!! info
+    You only need to do this step once on your system.
 
 !!! tip
     `uv tool` allows you to install Python packages that provide command-line interfaces for system-wide use. The dependencies are installed in an isolated virtual environment, separate from your current project.
 
-### 2. Configure your project to use the private index
+### 2. Set up Google Cloud to access `esp-data` package
+
+This step is required if you haven't set up Google Cloud on your device yet. If Google Cloud isn't properly set up the following steps will fail.
+
+- Install the Google Cloud SDK by following the steps on https://cloud.google.com/sdk/docs/install
+
+- Initialize Google Cloud :
+    ```sh
+    gcloud init
+    ```
+
+    You will be prompted to sign in. Type `Y` to open a browser window for authentication and log in with your account.
+
+    Select the project to use; follow the instructions to choose project `okapi-274503`.
+
+    Configure a default Compute region and zone. It is recommended to use the same region and zone as your VM.
+
+    Then run :
+    ```sh
+    gcloud auth application-default login
+    ```
+    This will open a browser for authentication again.
+
+- Verify your active account :
+    ```sh
+    gcloud auth list
+    ```
+
+    Example output :
+    ```sh
+            Credentialed Accounts
+    ACTIVE  ACCOUNT
+    *       youremailaddress@example.com
+    ```
+
+- Confirm your active project :
+    ```sh
+    gcloud config list
+    ```
+    Example output :
+    ```sh
+        [core]
+    account = youremailaddress@example.com
+    disable_usage_reporting = True
+    project = okapi274503
+    ```
+
+
+### 3. Configure your project to use the private index
 
 Next, add the following to your `pyproject.toml` to configure your project to use the private package index:
 
@@ -44,7 +128,7 @@ esp-data = { index = "esp-pypi" }
 keyring-provider = "subprocess"
 ```
 
-### 3. Add `esp-data` as a dependency
+### 4. Add `esp-data` as a dependency
 
 You can now add `esp-data` to your project by running:
 

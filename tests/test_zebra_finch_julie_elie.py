@@ -4,7 +4,7 @@ import pytest
 
 from esp_data.datasets import ZebraFinchJulieElie
 from esp_data import Dataset, DatasetConfig
-from esp_data.io import anypath
+from esp_data.io import anypath, exists
 
 
 @pytest.fixture
@@ -72,7 +72,7 @@ def test_info_property(dataset: Dataset) -> None:
     assert dataset.info.version == "0.1.0"
     assert "test" in dataset.info.split_paths
     for split in dataset.info.split_paths.values():
-        assert anypath(split).exists(), f"Split path {split} does not exist"
+        assert exists(split), f"Split path {split} does not exist"
     assert dataset.info.sources == ["Julie Elie"]
     assert dataset.info.license == "CC-BY-4.0, CC0"
 
@@ -81,12 +81,12 @@ def test_data_property(dataset: Dataset) -> None:
     """Test if the data property returns correct dataframes."""
     # Data should be loaded in __init__
     assert dataset._data is not None
-    assert "local_path" in dataset._data
-    assert "call_type_1" in dataset._data
-    assert "call_type_2" in dataset._data
-    assert "call_type_id" in dataset._data
-    assert "age" in dataset._data
-    assert "id" in dataset._data
+    assert "local_path" in dataset._data.columns
+    assert "call_type_1" in dataset._data.columns
+    assert "call_type_2" in dataset._data.columns
+    assert "call_type_id" in dataset._data.columns
+    assert "age" in dataset._data.columns
+    assert "id" in dataset._data.columns
 
 
 def test_columns_property(dataset: Dataset) -> None:
@@ -106,7 +106,7 @@ def test_available_splits(dataset: Dataset) -> None:
 def test_length(dataset: Dataset) -> None:
     """Test if __len__ returns correct counts."""
     # Length should be sum of all splits
-    expected_len = dataset._data.shape[0]
+    expected_len = len(dataset._data)
     assert len(dataset) == expected_len
     assert len(dataset) == 453
 
@@ -202,7 +202,7 @@ def test_output_take_and_give(dataset_with_output_mapping: Dataset) -> None:
     assert set(sample.keys()) == expected_keys
 
     # Get the original row to compare values
-    original_row = dataset_with_output_mapping._data.iloc[0]
+    original_row = dataset_with_output_mapping._data[0]
 
     # Verify the mapping and values
     assert sample["label"] == original_row["call_type_1"]

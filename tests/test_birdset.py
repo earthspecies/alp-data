@@ -4,7 +4,7 @@ import pytest
 
 from esp_data.datasets import BirdSet
 from esp_data import Dataset, DatasetConfig
-from esp_data.io import anypath
+from esp_data.io import anypath, exists
 
 
 @pytest.fixture
@@ -16,7 +16,7 @@ def dataset() -> Dataset:
     Dataset
         An instance of the BirdSet dataset.
     """
-    ds = BirdSet(split="PER-test",data_root="gs://foundation-model-data/")
+    ds = BirdSet(split="PER-test")
     return ds
 
 
@@ -41,7 +41,7 @@ def dataset_with_transforms() -> Dataset:
             },
         ],
     )
-    ds = BirdSet(split="PER-test",data_root="gs://foundation-model-data/")
+    ds = BirdSet(split="PER-test")
     ds.apply_transformations(dataset_config.transformations)
     return ds
 
@@ -57,10 +57,43 @@ def dataset_with_output_mapping() -> Dataset:
     """
     dataset_config = DatasetConfig(
         dataset_name="birdset",
-        output_take_and_give={"answer": "label"},
+        output_take_and_give={"label": "Label"},
     )
-    ds = BirdSet(split="HSN-test", output_take_and_give=dataset_config.output_take_and_give,data_root="gs://foundation-model-data/")
+    ds = BirdSet(split="HSN-test", output_take_and_give=dataset_config.output_take_and_give)
     return ds
+
+
+@pytest.fixture
+def dataset_from_config_with_transformations_streaming() -> tuple[Dataset, dict]:
+    """Fixture providing an BirdSet dataset instance loaded from config
+    with transformations applied in streaming mode.
+
+    Returns
+    -------
+    tuple[Dataset, dict]
+        A tuple containing the BirdSet dataset instance and its config.
+    """
+    dataset_config = DatasetConfig(
+        dataset_name="birdset",
+        split="HSN-test",
+        data_root="gs://foundation-model-data/",
+        transformations=[
+            {
+                "type": "filter",
+                "property": "label",
+                "values": ["None"],
+                "mode": "exclude",
+            },
+            {
+                "type": "label_from_feature",
+                "feature": "label",
+                "output_feature": "Label",
+            },
+        ],
+        streaming=True,
+    )
+    dataset, _ = BirdSet.from_config(dataset_config)
+    return dataset, dataset_config
 
 
 def test_info_property(dataset: Dataset) -> None:
@@ -71,15 +104,15 @@ def test_info_property(dataset: Dataset) -> None:
     assert "PER-validation" in dataset.info.split_paths
     assert "POW-test" in dataset.info.split_paths
     for split in dataset.info.split_paths.values():
-        assert anypath(split).exists(), f"Split path {split} does not exist"
+        assert exists(split), f"Split path {split} does not exist"
 
 
 def test_data_property(dataset: Dataset) -> None:
     """Test if the data property returns correct dataframes."""
     # Data should be _loaded in __init__
     assert dataset._data is not None
-    assert "path" in dataset._data
-    assert "label" in dataset._data
+    assert "path" in dataset._data.columns
+    assert "label" in dataset._data.columns
 
 
 def test_columns_property(dataset: Dataset) -> None:
@@ -99,7 +132,7 @@ def test_available_splits(dataset: Dataset) -> None:
 def test_length(dataset: Dataset) -> None:
     """Test if __len__ returns correct counts."""
     # Length should be sum of all splits
-    expected_len = dataset._data.shape[0]
+    expected_len = len(dataset._data)
     assert len(dataset) == expected_len
     print(f"Dataset length: {len(dataset)}")
     assert len(dataset) == 15120  # Example expected length, adjust as necessary
@@ -128,7 +161,7 @@ def test_load_from_config() -> None:
     dataset_config = DatasetConfig(
         dataset_name="birdset",
         split="HSN-test",
-        data_root="gs://foundation-model-data/"
+
     )
     dataset, _ = BirdSet.from_config(dataset_config)
     assert dataset.info.name == "birdset"
@@ -162,3 +195,23 @@ def test_transformations(dataset_with_transforms: Dataset) -> None:
     """
     # Check that label column was created
     assert "Label" in dataset_with_transforms._data.columns
+
+
+def test_output_mapping(dataset_with_output_mapping: Dataset) -> None:
+    """Test if output mapping works correctly."""
+    # Check that output mapping was applied
+    sample = dataset_with_output_mapping[0]
+    assert "label" not in sample
+    assert "Label" in sample  # Original label should be renamed to answer
+
+
+def test_transformations_from_config_streaming(
+    dataset_from_config_with_transformations_streaming: tuple[Dataset, dict]
+) -> None:
+    """Test if transformations from config work in streaming mode."""
+    dataset, _ = dataset_from_config_with_transformations_streaming
+    assert dataset._streaming is True
+    for i, sample in enumerate(dataset):
+        assert "Label" in sample  # Check transformed label exists
+        assert sample["Label"] != "None"
+        break

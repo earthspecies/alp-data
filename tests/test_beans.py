@@ -4,7 +4,7 @@ import pytest
 
 from esp_data.datasets import Beans
 from esp_data import Dataset, DatasetConfig
-from esp_data.io import anypath
+from esp_data.io import anypath, exists
 
 
 @pytest.fixture
@@ -76,15 +76,15 @@ def test_info_property(dataset: Dataset) -> None:
     assert "train" in dataset.info.split_paths
     assert "validation" in dataset.info.split_paths
     for split in dataset.info.split_paths.values():
-        assert anypath(split).exists(), f"Split path {split} does not exist"
+        assert exists(split), f"Split path {split} does not exist"
 
 
 def test_data_property(dataset: Dataset) -> None:
     """Test if the data property returns correct dataframes."""
     # Data should be _loaded in __init__
     assert dataset._data is not None
-    assert "local_path" in dataset._data
-    assert "label" in dataset._data
+    assert "local_path" in dataset._data.columns
+    assert "label" in dataset._data.columns
 
 
 def test_columns_property(dataset: Dataset) -> None:
@@ -104,7 +104,7 @@ def test_available_splits(dataset: Dataset) -> None:
 def test_length(dataset: Dataset) -> None:
     """Test if __len__ returns correct counts."""
     # Length should be sum of all splits
-    expected_len = dataset._data.shape[0]
+    expected_len = len(dataset._data)
     assert len(dataset) == expected_len
     print(f"Dataset length: {len(dataset)}")
     assert len(dataset) == 62415  # Example expected length, adjust as necessary
@@ -169,7 +169,8 @@ def test_transformations(dataset_with_transforms: Dataset) -> None:
 
     # Check that the excluded genus is not present
     excluded_genus = "esc50"
-    assert not any(dataset_with_transforms._data["source_dataset"] == excluded_genus), (
+    source_datasets = [row["source_dataset"] for row in dataset_with_transforms._data]
+    assert excluded_genus not in source_datasets, (
         f"Genus '{excluded_genus}' should be excluded from the dataset."
     )
 
@@ -189,7 +190,7 @@ def test_output_take_and_give(dataset_with_output_mapping: Dataset) -> None:
     assert set(sample.keys()) == {"dataset_name", "answer"}
 
     # Get the original row to compare values
-    original_row = dataset_with_output_mapping._data.iloc[0]
+    original_row = dataset_with_output_mapping._data[0]
 
     # Verify the mapping and values
     assert sample["dataset_name"] == original_row["source_dataset"]

@@ -1,12 +1,18 @@
 """Dataset concatenation utilities."""
 
 import logging
-from typing import Any, Dict, Iterator, Literal, Optional
+from typing import Any, Dict, Iterator, Literal
 
-import pandas as pd
 import semver
 
-from esp_data.dataset import Dataset, DatasetConfig, DatasetInfo
+from esp_data.backends.protocol import DataBackend
+from esp_data.dataset import (
+    ConcatConfig,
+    Dataset,
+    DatasetInfo,
+    dataset_from_config,
+    register_dataset,
+)
 
 logger = logging.getLogger("esp_data")
 
@@ -17,51 +23,54 @@ class MergeException(Exception):
     pass
 
 
-def _merge_dataframes(
-    dataframes: list[pd.DataFrame], merge_level: Literal["hard", "overlap", "soft"]
-) -> pd.DataFrame:
-    """Merge multiple DataFrames based on the specified merge level.
+def _merge_backends(
+    backends: list["DataBackend"], merge_level: Literal["hard", "overlap", "soft"]
+) -> "DataBackend":
+    """Merge multiple backend instances based on the specified merge level.
 
     Parameters
     ----------
-    dataframes : list[pd.DataFrame]
-        DataFrames to merge
+    backends : list[DataBackend]
+        Backend instances to merge
     merge_level : {"hard", "overlap", "soft"}
         Merge strategy
 
     Returns
     -------
-    pd.DataFrame
-        Merged DataFrame
+    DataBackend
+        Merged backend instance
 
     Raises
     ------
     MergeException
         If merge cannot be performed according to merge_level
     """
-    if not dataframes:
-        raise MergeException("No dataframes to merge")
+    if not backends:
+        raise MergeException("No backends to merge")
 
-    if len(dataframes) == 1:
-        return dataframes[0].copy()
+    if len(backends) == 1:
+        return backends[0].copy()
+
+    # Get the backend class from the first backend
+    backend_class = type(backends[0])
 
     if merge_level == "hard":
-        # All dataframes must have identical columns
-        first_columns = set(dataframes[0].columns)
-        for i, df in enumerate(dataframes[1:], 1):
-            if set(df.columns) != first_columns:
+        # All backends must have identical columns
+        first_columns = set(backends[0].columns)
+        for i, backend in enumerate(backends[1:], 1):
+            if set(backend.columns) != first_columns:
                 raise MergeException(
                     f"Hard merge requires identical columns. "
                     f"Dataset 0 columns: {first_columns}, "
-                    f"Dataset {i} columns: {set(df.columns)}"
+                    f"Dataset {i} columns: {set(backend.columns)}"
                 )
-        return pd.concat(dataframes, ignore_index=True)
+        return backend_class.concat(backends, ignore_index=True)
 
     elif merge_level == "overlap":
-        # Find common columns across all dataframes
-        common_columns = set(list(dataframes[0].columns))
-        for df in dataframes[1:]:
-            common_columns &= set(list(df.columns))
+        # Find common columns across all backends
+        common_columns = set(backends[0].columns)
+        for backend in backends[1:]:
+            common_columns &= set(backend.columns)
 
         # remove _source_dataset and _source_index
         # because they are not part of the original data
@@ -71,14 +80,14 @@ def _merge_dataframes(
         if not common_columns:
             raise MergeException("No common columns found for overlap merge")
 
-        # Preserve column order from first dataframe
-        ordered_common_columns = [col for col in dataframes[0].columns if col in common_columns]
+        # Preserve column order from first backend
+        ordered_common_columns = [col for col in backends[0].columns if col in common_columns]
         ordered_common_columns += ["_source_dataset", "_source_index"]
-        selected_dfs = [df[ordered_common_columns] for df in dataframes]
-        return pd.concat(selected_dfs, ignore_index=True)
+        selected_backends = [backend.select_columns(ordered_common_columns) for backend in backends]
+        return backend_class.concat(selected_backends, ignore_index=True)
 
     elif merge_level == "soft":
-        return pd.concat(dataframes, ignore_index=True, sort=False)
+        return backend_class.concat(backends, ignore_index=True, sort=False)
 
     else:
         raise MergeException(
@@ -86,7 +95,7 @@ def _merge_dataframes(
         )
 
 
-def _merge_sample_rates(sample_rates: list[Optional[int]]) -> Optional[int]:
+def _merge_sample_rates(sample_rates: list[int | None]) -> int | None:
     """Merge sample rates from multiple datasets.
 
     Parameters
@@ -121,7 +130,7 @@ def _merge_sample_rates(sample_rates: list[Optional[int]]) -> Optional[int]:
     return first_rate
 
 
-def _merge_output_take_and_give(otags: list[Optional[dict]]) -> Optional[dict]:
+def _merge_output_take_and_give(otags: list[dict | None]) -> dict | None:
     """Merge output_take_and_give dictionaries from multiple datasets.
 
     Parameters
@@ -252,7 +261,7 @@ def _merge_dataset_info(dataset_infos: list[DatasetInfo]) -> DatasetInfo:
 
 def concatenate_datasets(
     datasets: list[Dataset], merge_level: Literal["hard", "overlap", "soft"] = "soft"
-) -> Dataset:
+) -> tuple["DataBackend", DatasetInfo, list[Dataset], int, dict]:
     """Concatenate multiple Dataset objects into a single Dataset.
 
     Parameters
@@ -267,14 +276,18 @@ def concatenate_datasets(
 
     Returns
     -------
-    Dataset
-        New Dataset object with concatenated data
+    tuple[DataBackend, DatasetInfo, list[Dataset], Optional[int], Optional[dict]]
+        Tuple containing:
+        - concatenated_backend: Merged backend instance
+        - merged_info: Merged dataset info
+        - datasets: List of source datasets
+        - combined_sample_rate: Merged sample rate
+        - combined_otag: Merged output_take_and_give dict
 
     Raises
     ------
     MergeException
-        If datasets cannot be merged according to the specified merge_level,
-        or if there are conflicting values for identical keys in output_take_and_give
+        If datasets cannot be concatenated according to merge_level
 
     Examples
     --------
@@ -282,21 +295,20 @@ def concatenate_datasets(
     >>> from esp_data.concat import concatenate_datasets
     >>> dataset1 = InsectSet459(split="validation")
     >>> dataset2 = BirdSet(split="HSN-test")
-    >>> concatenated_dataset = concatenate_datasets(
+    >>> backend, info, datasets, sr, otag = concatenate_datasets(
     ...    [dataset1, dataset2], merge_level="soft")
-    >>> print(concatenated_dataset.info.name)
-    insectset_459+birdset
+    >>> assert len(backend) == len(dataset1) + len(dataset2)
     """
-    # Validate inputs
-    if not datasets:
-        raise MergeException("At least one dataset must be provided")
-
-    if not all(isinstance(ds, Dataset) for ds in datasets):
-        raise MergeException("All objects must be Dataset instances")
-
     if len(datasets) == 1:
-        # If only one dataset, return it directly
-        return datasets[0]
+        # If only one dataset, return a copy of its data
+        ds = datasets[0]
+        return (
+            ds._data.copy(),
+            ds.info,
+            datasets,
+            ds.sample_rate,
+            ds.output_take_and_give,
+        )
 
     for i, dataset in enumerate(datasets):
         if dataset._data is None:
@@ -310,16 +322,19 @@ def concatenate_datasets(
         dataset.output_take_and_give = None
 
     try:
-        # Create enhanced dataframes with source tracking
-        enhanced_dfs = []
+        # Create enhanced backends with source tracking
+        enhanced_backends = []
         for i, dataset in enumerate(datasets):
-            df_enhanced = dataset._data.copy()
-            df_enhanced["_source_dataset"] = i  # Track which dataset each row came from
-            df_enhanced["_source_index"] = df_enhanced.index  # Original index in source dataset
-            enhanced_dfs.append(df_enhanced)
+            backend_copy = dataset._data.copy()
+            # Add source dataset tracking
+            backend_with_tracking = backend_copy.add_column("_source_dataset", i)
+            # Add source index tracking (original row indices)
+            indices = list(range(len(backend_copy)))
+            backend_enhanced = backend_with_tracking.add_column("_source_index", indices)
+            enhanced_backends.append(backend_enhanced)
 
-        # Merge DataFrames
-        concatenated_df = _merge_dataframes(enhanced_dfs, merge_level)
+        # Merge backends
+        concatenated_backend = _merge_backends(enhanced_backends, merge_level)
 
         # Merge sample rates
         sample_rates = [getattr(ds, "sample_rate", None) for ds in datasets]
@@ -332,12 +347,12 @@ def concatenate_datasets(
         dataset_infos = [ds.info for ds in datasets]
         merged_info = _merge_dataset_info(dataset_infos)
 
-        return ConcatenatedDataset(
-            data=concatenated_df,
-            dataset_info=merged_info,
-            source_datasets=datasets,
-            sample_rate=combined_sample_rate,
-            output_take_and_give=combined_otag,
+        return (
+            concatenated_backend,
+            merged_info,
+            datasets,
+            combined_sample_rate,
+            combined_otag,
         )
 
     finally:
@@ -346,6 +361,7 @@ def concatenate_datasets(
             dataset.output_take_and_give = original_otag
 
 
+@register_dataset
 class ConcatenatedDataset(Dataset):
     """A dataset created by concatenating multiple datasets.
 
@@ -354,17 +370,10 @@ class ConcatenatedDataset(Dataset):
 
     Parameters
     ----------
-    data : pd.DataFrame
-        The concatenated data as a DataFrame.
-    dataset_info : DatasetInfo
-        Metadata about the concatenated dataset.
-    source_datasets : list[Dataset]
-        List of original datasets that were concatenated.
-    sample_rate : int, optional
-        Sample rate for audio data, if applicable.
-    output_take_and_give : dict[str, str], optional
-        Mapping of output keys to original dataset keys.
-        This allows for renaming or filtering of columns in the output.
+    datasets : list[Dataset]
+        List of datasets to concatenate
+    merge_level : {"hard", "overlap", "soft"}, default="soft"
+        Strategy for handling different columns
 
     Examples
     --------
@@ -372,34 +381,64 @@ class ConcatenatedDataset(Dataset):
     >>> from esp_data.concat import concatenate_datasets
     >>> dataset1 = InsectSet459(split="validation")
     >>> dataset2 = BirdSet(split="HSN-test")
-    >>> concatenated_dataset = concatenate_datasets(
-    ...    [dataset1, dataset2], merge_level="soft")
-    >>> assert len(concatenated_dataset) > 0, "Concatenated dataset should not be empty"
-    >>> assert len(concatenated_dataset) == len(dataset1) + len(dataset2), \
+    >>> ds = ConcatenatedDataset([dataset1, dataset2], merge_level="soft")
+    >>> assert len(ds) > 0, "Concatenated dataset should not be empty"
+    >>> assert len(ds) == len(dataset1) + len(dataset2), \
         "Concatenated dataset length should match sum of source datasets lengths"
     """
 
-    # No class-level info attribute to avoid overwriting issues
+    info = DatasetInfo(
+        name="concatenated_dataset",
+        owner="ESP Data Team",
+        split_paths={"concatenated": "virtual://concatenated_dataset"},
+        version="0.1.0",
+        description="A dataset created by concatenating multiple datasets.",
+        sources=["Multiple datasets"],
+        license="CC0-1.0",
+    )
 
     def __init__(
         self,
-        data: pd.DataFrame,
-        dataset_info: DatasetInfo,
-        source_datasets: list[Dataset],
-        sample_rate: Optional[int] = None,
-        output_take_and_give: Optional[dict] = None,
+        datasets: list[Dataset] | None = None,
+        merge_level: Literal["hard", "overlap", "soft"] = "soft",
     ) -> None:
-        super().__init__(output_take_and_give)
-        self._data = data
-        self.info = dataset_info  # Instance attribute, not class attribute
-        self._source_datasets = source_datasets  # Private attribute
-        self.sample_rate = sample_rate
+        # Validate inputs
+        if not datasets:
+            raise MergeException("At least one dataset must be provided")
+
+        if not all(isinstance(ds, Dataset) for ds in datasets):
+            raise MergeException("All objects must be Dataset instances")
+
+        backend_type = getattr(datasets[0], "_backend_class", None) if datasets else None
+        # Make sure all backend types are the same
+        if not backend_type or not all(
+            getattr(ds, "_backend_class", None) == backend_type for ds in datasets
+        ):
+            raise ValueError(
+                "All datasets must have the same backend type "
+                "to be concatenated into a ConcatenatedDataset."
+            )
+
+        super().__init__(backend=backend_type.__name__.replace("Backend", "").lower())
+
+        (
+            self._data,
+            self.info,
+            self._source_datasets,
+            self.sample_rate,
+            output_take_and_give,
+        ) = concatenate_datasets(datasets, merge_level=merge_level)
+
+        self.output_take_and_give = output_take_and_give
         self.split = "concatenated"
+        if len(self._data) == 0:
+            raise ValueError("Concatenated dataset is empty. Check input datasets or merge level.")
 
     @property
     def columns(self) -> list[str]:
         # Filter out internal tracking columns
-        return [col for col in self._data.columns if not col.startswith("_source_")]
+        all_columns = self._data.columns
+        return [col for col in all_columns if not col.startswith("_source_")]
 
     @property
     def available_splits(self) -> list[str]:
@@ -409,11 +448,31 @@ class ConcatenatedDataset(Dataset):
         pass  # Data is already loaded
 
     @classmethod
-    def from_config(cls, dataset_config: DatasetConfig) -> None:
-        raise NotImplementedError(
-            "ConcatenatedDataset cannot be instantiated from config. "
-            "Use concatenate_datasets function instead."
-        )
+    def from_config(
+        cls, concat_config: ConcatConfig
+    ) -> tuple["ConcatenatedDataset", Dict[str, Any]]:
+        """Create a ConcatenatedDataset from a ConcatConfig object.
+
+        Parameters
+        ----------
+        concat_config : ConcatConfig
+            Configuration object specifying the datasets to concatenate
+            and how to merge them.
+
+        Returns
+        -------
+        tuple[ConcatenatedDataset, dict]
+            A tuple containing the ConcatenatedDataset instance
+            and metadata about transformations applied.
+        """
+        datasets = [dataset_from_config(cfg)[0] for cfg in concat_config.datasets]
+        ds = cls(datasets, merge_level=concat_config.merge_level)
+
+        if concat_config.transformations:
+            transform_metadata = ds.apply_transformations(concat_config.transformations)
+            return ds, transform_metadata
+
+        return ds, {}
 
     def __len__(self) -> int:
         return len(self._data)
@@ -422,7 +481,8 @@ class ConcatenatedDataset(Dataset):
         if idx >= len(self._data):
             raise IndexError(f"Index {idx} out of bounds for dataset of length {len(self._data)}")
 
-        row = self._data.iloc[idx].to_dict()
+        # Get row as dict from backend
+        row = self._data[idx]
 
         # Determine which source dataset this row came from
         source_dataset_idx = int(row["_source_dataset"])
@@ -468,7 +528,7 @@ class ConcatenatedDataset(Dataset):
         return (
             f"{self.info.name} (v{self.info.version})\n"
             f"Description: {self.info.description}\n"
-            f"Length: {len(self._data)}\n"
+            f"Length: {len(self)}\n"
             f"Columns: {', '.join(self.columns)}\n"
             f"Source datasets: {len(self._source_datasets)}"
         )

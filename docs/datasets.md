@@ -46,6 +46,36 @@ config = DatasetConfig(
 dataset, _ = AnimalSpeak.from_config(config)
 ```
 
+3. From a config yaml file:
+
+Your yaml config file should look like this for a single dataset (see [Concatenate](concatenate.md) for multiple datasets):
+Note the `dataset` key at the top level is **required**.
+
+```yaml
+dataset:
+  dataset_name: AnimalSpeak
+  split: validation
+  output_take_and_give:
+    labels: label
+  data_root: null
+  transformations:
+    - type: deduplicate
+      subset: null
+
+    - type: label_from_feature
+      feature: species_common
+      output_feature: label
+      override: true
+```
+
+```python
+from esp_data import dataset_from_config
+
+ds, transform_metadata = dataset_from_config("path/to/config.yaml")
+
+print(len(ds))
+```
+
 ### Dataset Configuration
 
 Deeper levels of configurations can be achieved by using specific parameters which are either common to all datasets or sometimes specific.
@@ -75,7 +105,7 @@ Transforms can be used in a sequential way, as in first get the original dataset
 
 ```python
 from esp_data.datasets import AnimalSpeak
-from esp_data.transforms import Filter, LabelFromFeatureConfig
+from esp_data.transforms import FilterConfig, LabelFromFeatureConfig
 
 # Create a dataset
 aspeak_output_map = {
@@ -94,7 +124,7 @@ filter_config = FilterConfig(
 label_from_feature_config = LabelFromFeatureConfig(
     type="label_from_feature",
     feature="canonical_name",
-    output_column="label"
+    output_feature="label"
 )
 
 dataset.apply_transformations([filter_config, label_from_feature_config])
@@ -118,7 +148,7 @@ filter_config = FilterConfig(
 label_config = LabelFromFeatureConfig(
     type="label_from_feature",
     feature="canonical_name",
-    output_column="label"
+    output_feature="label"
 )
 
 # Create dataset configuration with transforms
@@ -141,97 +171,14 @@ print(metadata["label_from_feature"].keys())
 
 The list of available dataset will grow over time. Please refer to the next section if you wish to use your own Dataset or add a new one to the list of officially supported ones.
 
-::: esp_data.datasets.AnimalSpeak
-    handler: python
+::: esp_data.datasets
     options:
+        show_root_toc_entry: false
+        heading_level: 3
+        members_order: alphabetical
         filters:
-            - "!^.*$"  # Exclude everything
-        show_source: true
-
-::: esp_data.datasets.BarkleyCanyon
-    handler: python
-    options:
-        filters:
-            - "!^.*$"  # Exclude everything
-        show_source: true
-
-::: esp_data.datasets.BarkleyCanyonDetection
-    handler: python
-    options:
-        filters:
-            - "!^.*$"  # Exclude everything
-        show_source: true
-
-::: esp_data.datasets.InsectSet459
-    handler: python
-    options:
-        filters:
-            - "!^.*$"  # Exclude everything
-        show_source: true
-
-::: esp_data.datasets.Beans
-    handler: python
-    options:
-        filters:
-            - "!^.*$"  # Exclude everything
-        show_source: true
-
-::: esp_data.datasets.ZebraFinchJulieElie
-    handler: python
-    options:
-        filters:
-            - "!^.*$"  # Exclude everything
-        show_source: true
-
-::: esp_data.datasets.BengaleseFinchCalls
-    handler: python
-    options:
-        filters:
-            - "!^.*$"  # Exclude everything
-        show_source: true
-
-::: esp_data.datasets.GiantOtters
-    handler: python
-    options:
-        filters:
-            - "!^.*$"  # Exclude everything
-        show_source: true
-
-::: esp_data.datasets.ChiffchaffId
-    handler: python
-    options:
-        filters:
-            - "!^.*$"  # Exclude everything
-        show_source: true
-
-::: esp_data.datasets.LittleOwlId
-    handler: python
-    options:
-        filters:
-            - "!^.*$"  # Exclude everything
-        show_source: true
-
-::: esp_data.datasets.PipitId
-    handler: python
-    options:
-        filters:
-            - "!^.*$"  # Exclude everything
-        show_source: true
-
-::: esp_data.datasets.AudioSet
-    handler: python
-    options:
-        filters:
-            - "!^.*$"  # Exclude everything
-        show_source: true
-
-::: esp_data.datasets.MacaquesCooCalls
-    handler: python
-    options:
-        filters:
-            - "!^.*$"  # Exclude everything
-        show_source: true
-
+            - "!^[a-z_]"  # Exclude attributes and methods (start with lowercase or underscore)
+            - "!^__"      # Exclude private methods (start with double underscore)
 
 ## Using your own dataset
 
@@ -337,7 +284,7 @@ class MyCustomDataset(Dataset):
     @classmethod
     def from_config(cls, dataset_config: DatasetConfig) -> "MyCustomDataset":
         """Create a Dataset instance from a configuration."""
-        cfg = dataset_config.model_dump(exclude=("dataset_name", "transformations"))
+        cfg = dataset_config.model_dump(exclude={"dataset_name", "transformations"})
 
         split = cfg.get("split", None)
         if not split or split not in cls.info.split_paths:
@@ -406,4 +353,3 @@ from esp_data.transforms import Filter
 filter_transform = Filter(property="category", values=["A", "B"])
 dataset.apply_transformations([filter_transform])
 ```
-

@@ -1,18 +1,19 @@
-"""This file offers functionalities necessary to
-manipulate different sort of filesystems
+"""
+This file offers functionalities necessary to manipulate different sort of filesystems
 """
 
 import logging
 from functools import cache
-from typing import Literal, Union
+from typing import Literal
 
 import fsspec
+from fsspec.implementations.local import LocalFileSystem
 from gcsfs import GCSFileSystem
 from s3fs import S3FileSystem
 
 from esp_data.utils import read_gcp_secret
 
-from .paths import AnyPathT, GSPath, R2Path, anypath
+from .paths import AnyPathT, PureGSPath, PureR2Path, anypath
 
 logger = logging.getLogger("esp_data")
 
@@ -21,7 +22,7 @@ logger = logging.getLogger("esp_data")
 def filesystem(
     protocol: Literal["gcs", "gs", "r2", "local"] = "local",
     **kwargs: dict,
-) -> Union[GCSFileSystem, S3FileSystem, fsspec.filesystem]:
+) -> GCSFileSystem | S3FileSystem | LocalFileSystem:
     """Initializes and returns a cached filesystem instance.
 
     This function acts as a factory for creating filesystem objects based on the
@@ -76,14 +77,12 @@ def filesystem(
     elif protocol == "local":
         return fsspec.filesystem("local", **kwargs)
     else:
-        raise ValueError(
-            f"Unknown backend: {protocol}. Supported backends are: gcs, r2."
-        )
+        raise ValueError(f"Unknown backend: {protocol}. Supported backends are: gcs, r2.")
 
 
 def filesystem_from_path(
     path: str | AnyPathT,
-) -> Union[GCSFileSystem, S3FileSystem, fsspec.filesystem]:
+) -> GCSFileSystem | S3FileSystem | LocalFileSystem:
     """Determines and returns the appropriate cached filesystem based on the path.
 
     Uses the `anypath` utility to normalize the input path and identify its
@@ -101,26 +100,17 @@ def filesystem_from_path(
     An filesystem object corresponding to the specified protocol
         (e.g., GCSFileSystem, S3FileSystem, LocalFileSystem).
 
-    Raises
-    ------
-    ValueError
-        If the path type derived from `anypath` is not recognized as
-        local, GSPath, or R2Path.
-
     Examples
     --------
     >>> # gcs_fs = filesystem_from_path("gs://esp-ci-cd-tests/esp-data-tests/file1.txt")
     >>> # isinstance(gcs_fs, GCSFileSystem) # Should be True if configured
     True
     """
-    path = anypath(path)
-    if path.is_local:
-        return filesystem("local")
-    elif isinstance(path, GSPath):
+    path = anypath(str(path))
+
+    if isinstance(path, PureGSPath):
         return filesystem("gcs")
-    elif isinstance(path, R2Path):
+    elif isinstance(path, PureR2Path):
         return filesystem("r2")
     else:
-        raise ValueError(
-            f"Unknown path type: {path}. Supported types are: local, gcs, r2."
-        )
+        return filesystem("local")

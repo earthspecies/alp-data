@@ -2,21 +2,19 @@
 
 import math
 from io import StringIO
-from typing import Any, Dict, Iterator, Optional
+from typing import Any, Dict, Iterator, Literal
 
 import librosa
 import numpy as np
 import pandas as pd
 from intervaltree import IntervalTree
 from numpy.random import default_rng
+from pydantic import Field
 
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
-from esp_data.io import (
-    AnyPathT,
-    anypath,
-    audio_stereo_to_mono,
-    read_audio,
-)
+from esp_data.backends import BackendType
+from esp_data.dataset import register_config
+from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio, read_text
 
 LABEL_SETS = {
     "Anuraset_train": [
@@ -130,6 +128,39 @@ LABEL_SETS = {
 }
 
 
+@register_config
+class VoxaboxenConfig(DatasetConfig):
+    """Configuration for the Voxaboxen dataset.
+
+    Parameters
+    ----------
+    dataset_name : Literal["voxaboxen"]
+        The name of the dataset.
+    split : str
+        The split to load. One of Voxaboxen.info.split_paths keys.
+    output_take_and_give : dict[str, str]
+        A dictionary mapping the original column names to the new column names.
+        It acts as a filter as well.
+    sample_rate : int | None
+        The sample rate to which audio files should be resampled.
+    data_root : str | AnyPathT | None
+        The root directory for the dataset. This is optionally appended to the
+        path item of a sample in the dataset.
+        If None, the default is the parent directory of the split path.
+    mono_method : str | None
+        Method to convert stereo audio to mono. If None, stereo is preserved.
+    """
+
+    dataset_name: str = "voxaboxen"
+    split: str = "Anuraset_train"
+    output_take_and_give: dict[str, str] = None
+    sample_rate: int | None = None
+    data_root: str | AnyPathT | None = None
+    mono_method: Literal["average", "keep_first"] | None = "average"
+    backend: BackendType = "polars"
+    streaming: bool = False
+
+
 @register_dataset
 class Voxaboxen(Dataset):
     """Voxaboxen dataset.
@@ -153,7 +184,7 @@ class Voxaboxen(Dataset):
     https://arxiv.org/abs/2503.02389
 
     Examples
-    -------
+    --------
     >>> from esp_data.datasets import Voxaboxen
     >>> dataset = Voxaboxen(
     ...     split="BV_val",
@@ -224,11 +255,13 @@ class Voxaboxen(Dataset):
 
     def __init__(
         self,
-        split: str = "train",
-        output_take_and_give: dict[str, str] = None,
-        sample_rate: Optional[int] = None,
-        data_root: Optional[str | AnyPathT] = None,
-        mono_method: Optional[str] = "average",
+        split: str = "Anuraset_train",
+        output_take_and_give: dict[str, str] | None = None,
+        sample_rate: int | None = None,
+        data_root: str | AnyPathT | None = None,
+        mono_method: str | None = "average",
+        backend: BackendType = "polars",
+        streaming: bool = False,
     ) -> None:
         """Initialize the Voxaboxen dataset.
 
@@ -245,17 +278,25 @@ class Voxaboxen(Dataset):
             The root directory for the dataset. This is optionally appended to the
             path item of a sample in the dataset.
             If None, the default is the parent directory of the split path.
+        mono_method : str, optional
+            Method to convert stereo audio to mono. Defaults to "average".
+        backend : BackendType, optional
+            The backend to use ("pandas" or "polars"), by default "polars"
+        streaming : bool, optional
+            Whether to use streaming mode, by default False
         """
-        super().__init__(output_take_and_give)  # Initialize the parent Dataset class
+        super().__init__(output_take_and_give, backend=backend, streaming=streaming)
         self.split = split
         self._data: pd.DataFrame = None
         self._load()  # Load the dataset (fills self._data)
         self.sample_rate = sample_rate
-        self.data_root = data_root
         self.mono_method = mono_method
-        if self.data_root is None:
+
+        if data_root is None:
             # we assume that parent dir of the split path is the data root
             self.data_root = anypath(self.info.split_paths[self.split]).parent
+        else:
+            self.data_root = data_root
 
     @property
     def columns(self) -> list[str]:
@@ -283,11 +324,11 @@ class Voxaboxen(Dataset):
 
         location = self.info.split_paths[self.split]
         # Read CSV content
-        csv_text = anypath(location).read_text(encoding="utf-8")
-        self._data = pd.read_csv(StringIO(csv_text))
+        csv_text = read_text(location, encoding="utf-8")
+        self._data = self._backend_class.from_csv(StringIO(csv_text), streaming=self._streaming)
 
     @classmethod
-    def from_config(cls, dataset_config: DatasetConfig) -> tuple["Voxaboxen", dict[str, Any]]:
+    def from_config(cls, dataset_config: VoxaboxenConfig) -> tuple["Voxaboxen", dict[str, Any]]:
         """Create a Dataset instance from a configuration dictionary.
 
         Parameters
@@ -301,27 +342,17 @@ class Voxaboxen(Dataset):
             A tuple containing the dataset instance and metadata.
             If the dataset_config contains transformations, they will be applied
             and the metadata will be returned as dict, otherwise an empty dict.
-
-        Raises
-        -------
-        LookupError
-            If the specified split is not available in the dataset info.
         """
-        cfg = dataset_config.model_dump(exclude=("dataset_name", "transformations"))
-
-        split = cfg.get("split", None)
-        if not split or split not in cls.info.split_paths:
-            raise LookupError(
-                f"Invalid split '{split}'."
-                f"Available splits: {', '.join(cls.info.split_paths.keys())}"
-            )
+        cfg = dataset_config.model_dump(exclude={"dataset_name", "transformations"})
 
         ds = cls(
-            split=split,
-            output_take_and_give=cfg.get("output_take_and_give", None),
-            data_root=cfg.get("data_root"),
+            split=cfg["split"],
+            output_take_and_give=cfg["output_take_and_give"],
+            data_root=cfg["data_root"],
             sample_rate=cfg["sample_rate"],
-            mono_method=cfg.get("mono_method", "average"),
+            mono_method=cfg["mono_method"],
+            backend=cfg["backend"],
+            streaming=cfg["streaming"],
         )
 
         if dataset_config.transformations:
@@ -345,36 +376,13 @@ class Voxaboxen(Dataset):
         """
         if self._data is None:
             raise RuntimeError("No split has been loaded yet. Call _load() first.")
+        if self._streaming:
+            raise RuntimeError("Length is not available in streaming mode.")
         return len(self._data)
 
-    def __getitem__(self, idx: int) -> dict[str, Any]:
-        """Get a specific sample from the dataset.
-        Parameters
-        ----------
-        idx : int
-            Index of the sample to get.
-
-        Returns
-        -------
-        dict[str, Any]
-            A dictionary containing the audio data, text label, label, and path.
-
-        Raises
-        ------
-        IndexError
-            If the index is out of bounds.
-        """
-        if idx >= len(self._data):
-            raise IndexError(f"Index {idx} out of bounds for dataset of length {len(self._data)}.")
-
-        row = self._data.iloc[idx].to_dict()
-
+    def _process(self, row: dict[str, Any]) -> dict[str, Any]:
         # Ensure audio path is valid
-        if self.data_root:
-            audio_path = anypath(self.data_root) / row["audio_fp"]
-        else:
-            audio_path = anypath(row["audio_fp"])
-
+        audio_path = anypath(self.data_root) / row["audio_fp"]
         audio, sr = read_audio(audio_path)
         audio = audio.astype(np.float32)
 
@@ -404,6 +412,21 @@ class Voxaboxen(Dataset):
 
         return item
 
+    def __getitem__(self, idx: int) -> dict[str, Any]:
+        """Get a specific sample from the dataset.
+        Parameters
+        ----------
+        idx : int
+            Index of the sample to get.
+
+        Returns
+        -------
+        dict[str, Any]
+            A dictionary containing the audio data, text label, label, and path.
+        """
+        row = self._data[idx]
+        return self._process(row)
+
     def __iter__(self) -> Iterator[Dict[str, Any]]:
         """Iterate over samples in the dataset.
 
@@ -412,8 +435,8 @@ class Voxaboxen(Dataset):
         Dict[str, Any]
             Each sample in the dataset.
         """
-        for idx in range(len(self)):
-            yield self[idx]
+        for row in self._data:
+            yield self._process(row)
 
     def __str__(self) -> str:
         """Return a string representation of the dataset.
@@ -424,7 +447,7 @@ class Voxaboxen(Dataset):
             A string representation of the dataset including its name, version,
             and basic statistics if data is loaded.
         """
-        base_info = f"{self.info.name} (v{self.info.version})"
+        base_info = f"{self.info.name} (v{self.info.version}), split='{self.split}'"
 
         return (
             f"{base_info}\n"
@@ -433,6 +456,96 @@ class Voxaboxen(Dataset):
             f"License: {self.info.license}\n"
             f"Available splits: {', '.join(self.info.split_paths.keys())}"
         )
+
+
+@register_config
+class VoxaboxenEventsConfig(DatasetConfig):
+    """Configuration for the VoxaboxenEvents dataset.
+
+    Parameters
+    ----------
+    dataset_name : Literal["voxaboxen_events"]
+        The name of the dataset.
+    split : str
+        The split to load. One of Voxaboxen.info.split_paths keys.
+    output_take_and_give : dict[str, str]
+        A dictionary mapping the original column names to the new column names.
+        It acts as a filter as well.
+    sample_rate : int | None
+        The sample rate to which audio files should be resampled.
+    data_root : str | AnyPathT | None
+        The root directory for the dataset. This is optionally appended to the
+        path item of a sample in the dataset.
+        If None, the default is the parent directory of the split path.
+    mono_method : str, optional
+        The method to convert stereo audio to mono. Defaults to "average".
+        Other options are "average" and "keep_first"
+    clip_duration : float, optional
+        Duration of each audio clip in seconds.
+    clip_hop : float, optional
+        Hop size between consecutive audio clips in seconds. If None, the full
+        audio is used without overlapping clips.
+    clip_start_offset : float, optional
+        Offset in seconds to start the first clip. Defaults to 0.0 seconds.
+        This is useful for skipping a portion of the audio before the first clip.
+    scale_factor : float, optional
+        Scale factor for downsampling the audio. This is needed when representations
+        have been downsampled by encoders like AVES.
+    omit_empty_clip_prob : float, optional
+        Probability of omitting empty clips (no annotations).
+        Defaults to 0.0, meaning no empty clips are omitted.
+    segmentation_based : bool, optional
+        If True, the dataset is segmented based on the selection table.
+        If False, the entire audio file is treated as a single segment.
+        Defaults to True.
+    unknown_label : str, optional
+        The label used for unknown annotations. Defaults to "unknown".
+    """
+
+    dataset_name: str = "voxaboxen_events"
+    split: str = "Anuraset_train"
+    output_take_and_give: dict[str, str] = None
+    sample_rate: int | None = None
+    data_root: str | AnyPathT | None = None
+    stereo_or_mono: Literal["stereo", "mono"] | None = Field(
+        default="mono", description="Whether to return stereo or mono audio."
+    )
+    mono_method: Literal["average", "keep_first"] | None = Field(
+        default="average",
+        description="Method to convert stereo audio to mono. "
+        "Ignored if stereo_or_mono is 'stereo'.",
+    )
+    clip_duration: float | None = Field(
+        default=10.0, ge=0.1, description="Duration of each audio clip in seconds."
+    )
+    clip_hop: float | None = Field(
+        default=5.0,
+        ge=0.0,
+        description="Hop size between consecutive audio clips in seconds. "
+        "If None, the full audio is used without overlapping clips.",
+    )
+    clip_start_offset: float | None = Field(
+        default=0.0, ge=0.0, description="Offset in seconds to start the first clip."
+    )
+    omit_empty_clip_prob: float | None = Field(
+        default=0.0,
+        ge=0.0,
+        le=1.0,
+        description="Probability of omitting empty clips (no annotations).",
+    )
+    scale_factor: int | None = Field(
+        default=1, ge=1, description="Scale factor for downsampling the audio."
+    )
+    segmentation_based: bool | None = Field(
+        default=True,
+        description="If True, the dataset is segmented based on the selection table. "
+        "If False, the entire audio file is treated as a single segment.",
+    )
+    unknown_label: str | None = Field(
+        default="Unknown", description="Label for unknown annotations."
+    )
+    backend: BackendType = "polars"
+    streaming: bool = False
 
 
 @register_dataset
@@ -452,7 +565,7 @@ class VoxaboxenEvents(Dataset):
     https://arxiv.org/abs/2503.02389
 
     Examples
-    -------
+    --------
     >>> from esp_data.datasets import VoxaboxenEvents
     >>> dataset = VoxaboxenEvents(
     ...     split="BV_val",
@@ -523,12 +636,12 @@ class VoxaboxenEvents(Dataset):
 
     def __init__(
         self,
-        split: str = "train",
-        output_take_and_give: dict[str, str] = None,
+        split: str = "Anuraset_train",
+        output_take_and_give: dict[str, str] | None = None,
         sample_rate: int = 16000,
-        data_root: Optional[str | AnyPathT] = None,
-        stereo_or_mono: str = "stereo",
-        mono_method: str = "average",
+        data_root: str | AnyPathT | None = None,
+        stereo_or_mono: Literal["stereo", "mono"] = "stereo",
+        mono_method: Literal["average", "keep_first"] = "average",
         clip_duration: float = 10.0,
         clip_hop: float = 5.0,
         clip_start_offset: float = 0.0,
@@ -536,6 +649,8 @@ class VoxaboxenEvents(Dataset):
         scale_factor: int = 1,
         segmentation_based: bool = True,
         unknown_label: str = "Unknown",
+        backend: BackendType = "polars",
+        streaming: bool = False,
     ) -> None:
         """Initialize the VoxaboxenEvents dataset.
 
@@ -575,13 +690,16 @@ class VoxaboxenEvents(Dataset):
             Defaults to True.
         unknown_label : str, optional
             The label used for unknown annotations. Defaults to "unknown".
+        backend : BackendType, optional
+            The backend to use ("pandas" or "polars"), by default "polars"
+        streaming : bool, optional
+            Whether to use streaming mode, by default False
         """
-        super().__init__(output_take_and_give)  # Initialize the parent Dataset class
+        super().__init__(output_take_and_give, backend=backend, streaming=streaming)
         self.split = split
-        self._data: pd.DataFrame = None
+        self._data = None
         self._load()  # Load the dataset (fills self._data)
         self.sample_rate = sample_rate
-        self.data_root = data_root
         self.stereo_or_mono = stereo_or_mono
         self.mono_method = mono_method
         self.clip_duration = clip_duration
@@ -593,9 +711,12 @@ class VoxaboxenEvents(Dataset):
 
         self.omit_empty_clip_prob = omit_empty_clip_prob
         self.rng = default_rng()
-        if self.data_root is None:
+
+        if data_root is None:
             # we assume that parent dir of the split path is the data root
             self.data_root = anypath(self.info.split_paths[self.split]).parent
+        else:
+            self.data_root = data_root
 
         self.label_mapping: dict = None
         if split in LABEL_SETS:
@@ -634,8 +755,8 @@ class VoxaboxenEvents(Dataset):
 
         location = self.info.split_paths[self.split]
         # Read CSV content
-        csv_text = anypath(location).read_text(encoding="utf-8")
-        self._data = pd.read_csv(StringIO(csv_text))
+        csv_text = read_text(location, encoding="utf-8")
+        self._data = self._backend_class.from_csv(StringIO(csv_text), streaming=self._streaming)
 
     @classmethod
     def from_config(cls, dataset_config: DatasetConfig) -> tuple["VoxaboxenEvents", dict[str, Any]]:
@@ -658,7 +779,7 @@ class VoxaboxenEvents(Dataset):
         LookupError
             If the specified split is not available in the dataset info.
         """
-        cfg = dataset_config.model_dump(exclude=("dataset_name", "transformations"))
+        cfg = dataset_config.model_dump(exclude={"dataset_name", "transformations"})
 
         split = cfg.get("split", None)
         if not split or split not in cls.info.split_paths:
@@ -669,17 +790,19 @@ class VoxaboxenEvents(Dataset):
 
         ds = cls(
             split=split,
-            output_take_and_give=cfg.get("output_take_and_give", None),
-            data_root=cfg.get("data_root"),
-            sample_rate=cfg.get("sample_rate", 16000),
-            mono_method=cfg.get("mono_method", "average"),
-            clip_duration=cfg.get("clip_duration", 10.0),
-            clip_hop=cfg.get("clip_hop", 5.0),
-            clip_start_offset=cfg.get("clip_start_offset", 0.0),
-            omit_empty_clip_prob=cfg.get("omit_empty_clip_prob", 0.0),
-            scale_factor=cfg.get("scale_factor", 1),
-            segmentation_based=cfg.get("segmentation_based", True),
-            unknown_label=cfg.get("unknown_label", "Unknown"),
+            output_take_and_give=cfg["output_take_and_give"],
+            data_root=cfg["data_root"],
+            sample_rate=cfg["sample_rate"],
+            mono_method=cfg["mono_method", "average"],
+            clip_duration=cfg["clip_duration"],
+            clip_hop=cfg["clip_hop"],
+            clip_start_offset=cfg["clip_start_offset"],
+            omit_empty_clip_prob=cfg["omit_empty_clip_prob"],
+            scale_factor=cfg["scale_factor"],
+            segmentation_based=cfg["segmentation_based"],
+            unknown_label=cfg["unknown_label"],
+            backend=cfg["backend"],
+            streaming=cfg["streaming"],
         )
 
         if dataset_config.transformations:
@@ -771,7 +894,7 @@ class VoxaboxenEvents(Dataset):
         selection_table_dict = dict()
         metadata = []
 
-        for _ii, row in self._data.iterrows():
+        for _ii, row in enumerate(self._data):
             fn = row["fn"]
             audio_fp = anypath(self.data_root) / row["audio_fp"]
 
@@ -1057,7 +1180,7 @@ class VoxaboxenEvents(Dataset):
             A string representation of the dataset including its name, version,
             and basic statistics if data is loaded.
         """
-        base_info = f"{self.info.name} (v{self.info.version})"
+        base_info = f"{self.info.name} (v{self.info.version}), split={self.split}"
 
         return (
             f"{base_info}\n"

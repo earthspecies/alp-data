@@ -1,12 +1,10 @@
 """Test suite for the PipitId dataset."""
 
 import pytest
-import numpy as np
-from esp_data.io import read_utils
 
 from esp_data.datasets import PipitId
 from esp_data import Dataset, DatasetConfig
-from esp_data.io import anypath
+from esp_data.io import exists
 
 
 @pytest.fixture
@@ -41,7 +39,7 @@ def test_info_property(dataset: Dataset) -> None:
     assert dataset.info.name == "pipit_id"
     assert dataset.info.version == "0.1.0"
     for split in dataset.info.split_paths.values():
-        assert anypath(split).exists()
+        assert exists(split)
 
 
 def test_available_splits(dataset: Dataset) -> None:
@@ -55,7 +53,7 @@ def test_available_splits(dataset: Dataset) -> None:
 
 
 def test_length(dataset: Dataset) -> None:
-    assert len(dataset) == dataset._data.shape[0]
+    assert len(dataset) == len(dataset._data)
 
 
 def test_getitem(dataset: Dataset) -> None:

@@ -1,4 +1,8 @@
-.PHONY: serve-docs
+.PHONY: serve-remote-docs serve-local-docs
 
-serve-docs:
-	uv run mike serve -b docs-site
+serve-remote-docs:
+	git fetch origin
+	uv run mike serve -b origin/docs-site
+
+serve-local-docs:
+	uv run mkdocs serve

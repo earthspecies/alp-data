@@ -1,14 +1,19 @@
 """BarkleyCanyon dataset"""
 
-from typing import Any, Dict, Iterator, Optional
+from typing import Any, Dict, Iterator
 
 import librosa
 import numpy as np
-import pandas as pd
 import soundfile as sf
 
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
-from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
+from esp_data.io import (
+    AnyPathT,
+    anypath,
+    audio_stereo_to_mono,
+    filesystem_from_path,
+    read_audio,
+)
 
 
 @register_dataset
@@ -35,7 +40,7 @@ class BarkleyCanyon(Dataset):
     The Journal of the Acoustical Society of America, vol. 148,
 
     Examples
-    -------
+    --------
     >>> from esp_data.datasets import BarkleyCanyon
     >>> dataset = BarkleyCanyon(split="train")
     >>> print(dataset.info.name)
@@ -57,11 +62,13 @@ class BarkleyCanyon(Dataset):
     def __init__(
         self,
         split: str = "train",
-        output_take_and_give: dict[str, str] = None,
-        sample_rate: Optional[int] = None,
-        data_root: Optional[str | AnyPathT] = None,
+        output_take_and_give: dict[str, str] | None = None,
+        sample_rate: int | None = None,
+        data_root: str | AnyPathT | None = None,
+        backend: str = "polars",
+        streaming: bool = False,
     ) -> None:
-        """Initialize the AnimalSpeak dataset.
+        """Initialize the BarkleyCanyon dataset.
 
         Parameters
         ----------
@@ -76,21 +83,26 @@ class BarkleyCanyon(Dataset):
             The root directory for the dataset. This is optionally appended to the
             path item of a sample in the dataset.
             If None, the default is the parent directory of the split path.
+        backend : str
+            Backend to use ("pandas" or "polars"), by default "polars"
+        streaming : bool
+            Whether to use streaming mode, by default False
         """
-        super().__init__(output_take_and_give)  # Initialize the parent Dataset class
+        super().__init__(output_take_and_give, backend, streaming)
         self.split = split
-        self._data: pd.DataFrame = None
+        self._data = None
         self._load()  # Load the dataset (fills self._data)
         self.sample_rate = sample_rate
-        self.data_root = data_root
-        if self.data_root is None:
-            # we assume that parent dir of the split path is the data root
+
+        if data_root is None:
             self.data_root = anypath(self.info.split_paths[self.split]).parent
+        else:
+            self.data_root = data_root
 
     @property
     def columns(self) -> list[str]:
         """Return the columns of the dataset."""
-        return list(self._data.columns)
+        return self._data.columns
 
     @property
     def available_splits(self) -> list[str]:
@@ -111,8 +123,11 @@ class BarkleyCanyon(Dataset):
             )
 
         location = self.info.split_paths[self.split]
-        # Read CSV content
-        self._data = pd.read_csv(location, keep_default_na=False, na_values=[""])
+        # Read CSV content using backend
+        self._data = self._backend_class.from_csv(
+            location,
+            streaming=self._streaming,
+        )
 
     @classmethod
     def from_config(cls, dataset_config: DatasetConfig) -> tuple["BarkleyCanyon", dict[str, Any]]:
@@ -121,7 +136,7 @@ class BarkleyCanyon(Dataset):
         Parameters
         ----------
         dataset_config : DatasetConfig
-            Configuration dictionary containing dataset parametesf
+            Configuration dictionary containing dataset parameters
 
         Returns
         -------
@@ -129,26 +144,16 @@ class BarkleyCanyon(Dataset):
             A tuple containing the dataset instance and metadata.
             If the dataset_config contains transformations, they will be applied
             and the metadata will be returned as dict, otherwise None.
-
-        Raises
-        -------
-        LookupError
-            If the specified split is not available in the dataset info.
         """
-        cfg = dataset_config.model_dump(exclude=("dataset_name", "transformations"))
-
-        split = cfg.get("split", None)
-        if not split or split not in cls.info.split_paths:
-            raise LookupError(
-                f"Invalid split '{split}'."
-                f"Available splits: {', '.join(cls.info.split_paths.keys())}"
-            )
+        cfg = dataset_config.model_dump(exclude={"dataset_name", "transformations"})
 
         ds = cls(
-            split=split,
-            output_take_and_give=cfg.get("output_take_and_give", None),
-            data_root=cfg.get("data_root"),
+            split=cfg["split"],
+            output_take_and_give=cfg["output_take_and_give"],
+            data_root=cfg["data_root"],
             sample_rate=cfg["sample_rate"],
+            backend=cfg["backend"],
+            streaming=cfg["streaming"],
         )
 
         if dataset_config.transformations:
@@ -172,38 +177,30 @@ class BarkleyCanyon(Dataset):
         """
         if self._data is None:
             raise RuntimeError("No split has been loaded yet. Call _load() first.")
+        if self._streaming:
+            raise NotImplementedError("Length is not available in streaming mode.")
         return len(self._data)
 
-    def __getitem__(self, idx: int) -> dict[str, Any]:
-        """Get a specific sample from the dataset.
+    def _process(self, row: dict[str, Any]) -> dict[str, Any]:
+        """Process a single row from the dataset.
         Parameters
         ----------
-        idx : int
-            Index of the sample to get.
-
+        row : dict[str, Any]
+            A dictionary representing a single row from the dataset.
         Returns
         -------
         dict[str, Any]
-            A dictionary containing the data.
+            A dictionary containing the processed data.
 
         Raises
         ------
         ValueError
             If the start time is beyond the audio duration.
-        IndexError
-            If the index is out of bounds.
         """
-        if idx >= len(self._data):
-            raise IndexError(f"Index {idx} out of bounds for dataset of length {len(self._data)}.")
-
-        row = self._data.iloc[idx].to_dict()
         # Ensure audio path is valid
-        if self.data_root:
-            audio_path = anypath(self.data_root) / row["local_path"]
-        else:
-            audio_path = anypath(row["local_path"])
+        audio_path = anypath(self.data_root) / row["local_path"]
 
-        with audio_path.open("rb") as f:
+        with filesystem_from_path(audio_path).open(str(audio_path), "rb") as f:
             info = sf.info(f)
             sr = info.samplerate
             start_frame = (
@@ -218,7 +215,7 @@ class BarkleyCanyon(Dataset):
 
             if frames_to_read <= 0:
                 raise ValueError(
-                    f"start_time ({row['start_times(sec)']}s) isbeyond the audio duration"
+                    f"start_time ({row['start_times(sec)']}s) is beyond the audio duration"
                 )
 
         # Read the audio clip
@@ -251,6 +248,21 @@ class BarkleyCanyon(Dataset):
 
         return item
 
+    def __getitem__(self, idx: int) -> dict[str, Any]:
+        """Get a specific sample from the dataset.
+        Parameters
+        ----------
+        idx : int
+            Index of the sample to get.
+
+        Returns
+        -------
+        dict[str, Any]
+            A dictionary containing the data.
+        """
+        row = self._data[idx]
+        return self._process(row)
+
     def __iter__(self) -> Iterator[Dict[str, Any]]:
         """Iterate over samples in the dataset.
 
@@ -259,8 +271,8 @@ class BarkleyCanyon(Dataset):
         Dict[str, Any]
             Each sample in the dataset.
         """
-        for idx in range(len(self)):
-            yield self[idx]
+        for row in self._data:
+            yield self._process(row)
 
     def __str__(self) -> str:
         """Return a string representation of the dataset.
@@ -271,7 +283,7 @@ class BarkleyCanyon(Dataset):
             A string representation of the dataset including its name, version,
             and basic statistics if data is loaded.
         """
-        base_info = f"{self.info.name} (v{self.info.version})"
+        base_info = f"{self.info.name} (v{self.info.version}), split: {self.split}"
 
         return (
             f"{base_info}\n"
@@ -291,8 +303,7 @@ class BarkleyCanyonDetection(Dataset):
     See:
     https://github.com/earthspecies/foundation-model-data/blob/main/scripts/convert_barkley_canyon.py
 
-
-    Examples:
+    Examples
     --------
     >>> from esp_data.datasets import BarkleyCanyon
     >>> dataset = BarkleyCanyonDetection(split="train")
@@ -322,11 +333,13 @@ class BarkleyCanyonDetection(Dataset):
     def __init__(
         self,
         split: str = "train",
-        output_take_and_give: dict[str, str] = None,
-        sample_rate: Optional[int] = None,
-        data_root: Optional[str | AnyPathT] = None,
+        output_take_and_give: dict[str, str] | None = None,
+        sample_rate: int | None = None,
+        data_root: str | AnyPathT | None = None,
+        backend: str = "polars",
+        streaming: bool = False,
     ) -> None:
-        """Initialize the AnimalSpeak dataset.
+        """Initialize the BarkleyCanyonDetection dataset.
 
         Parameters
         ----------
@@ -341,21 +354,27 @@ class BarkleyCanyonDetection(Dataset):
             The root directory for the dataset. This is optionally appended to the
             path item of a sample in the dataset.
             If None, the default is the parent directory of the split path.
+        backend : str
+            Backend to use ("pandas" or "polars"), by default "polars"
+        streaming : bool
+            Whether to use streaming mode, by default False
         """
-        super().__init__(output_take_and_give)  # Initialize the parent Dataset class
+        super().__init__(output_take_and_give, backend, streaming)
         self.split = split
-        self._data: pd.DataFrame = None
+        self._data = None
         self._load()  # Load the dataset (fills self._data)
         self.sample_rate = sample_rate
         self.data_root = data_root
-        if self.data_root is None:
-            # we assume that parent dir of the split path is the data root
+
+        if data_root is None:
             self.data_root = anypath(self.info.split_paths[self.split]).parent
+        else:
+            self.data_root = data_root
 
     @property
     def columns(self) -> list[str]:
         """Return the columns of the dataset."""
-        return list(self._data.columns)
+        return self._data.columns
 
     @property
     def available_splits(self) -> list[str]:
@@ -376,8 +395,11 @@ class BarkleyCanyonDetection(Dataset):
             )
 
         location = self.info.split_paths[self.split]
-        # Read CSV content
-        self._data = pd.read_csv(location, keep_default_na=False, na_values=[""])
+        # Read CSV content using backend
+        self._data = self._backend_class.from_csv(
+            location,
+            streaming=self._streaming,
+        )
 
     @classmethod
     def from_config(
@@ -388,7 +410,7 @@ class BarkleyCanyonDetection(Dataset):
         Parameters
         ----------
         dataset_config : DatasetConfig
-            Configuration dictionary containing dataset parametesf
+            Configuration dictionary containing dataset parameters
 
         Returns
         -------
@@ -396,26 +418,16 @@ class BarkleyCanyonDetection(Dataset):
             A tuple containing the dataset instance and metadata.
             If the dataset_config contains transformations, they will be applied
             and the metadata will be returned as dict, otherwise an empty dict.
-
-        Raises
-        -------
-        LookupError
-            If the specified split is not available in the dataset info.
         """
-        cfg = dataset_config.model_dump(exclude=("dataset_name", "transformations"))
-
-        split = cfg.get("split", None)
-        if not split or split not in cls.info.split_paths:
-            raise LookupError(
-                f"Invalid split '{split}'."
-                f"Available splits: {', '.join(cls.info.split_paths.keys())}"
-            )
+        cfg = dataset_config.model_dump(exclude={"dataset_name", "transformations"})
 
         ds = cls(
-            split=split,
-            output_take_and_give=cfg.get("output_take_and_give", None),
-            data_root=cfg.get("data_root"),
+            split=cfg["split"],
+            output_take_and_give=cfg["output_take_and_give"],
+            data_root=cfg["data_root"],
             sample_rate=cfg["sample_rate"],
+            backend=cfg["backend"],
+            streaming=cfg["streaming"],
         )
 
         if dataset_config.transformations:
@@ -439,34 +451,13 @@ class BarkleyCanyonDetection(Dataset):
         """
         if self._data is None:
             raise RuntimeError("No split has been loaded yet. Call _load() first.")
+        if self._streaming:
+            raise NotImplementedError("Length is not available in streaming mode.")
         return len(self._data)
 
-    def __getitem__(self, idx: int) -> dict[str, Any]:
-        """Get a specific sample from the dataset.
-        Parameters
-        ----------
-        idx : int
-            Index of the sample to get.
-
-        Returns
-        -------
-        dict[str, Any]
-            A dictionary containing the data.
-
-        Raises
-        ------
-        IndexError
-            If the index is out of bounds.
-        """
-        if idx < 0 or idx >= len(self._data):
-            raise IndexError(f"Index {idx} out of bounds for dataset of length {len(self._data)}.")
-
-        row = self._data.iloc[idx].to_dict()
+    def _process(self, row: dict[str, Any]) -> dict[str, Any]:
         # Ensure audio path is valid
-        if self.data_root:
-            audio_path = anypath(self.data_root) / row["local_path"]
-        else:
-            audio_path = anypath(row["local_path"])
+        audio_path = anypath(self.data_root) / row["local_path"]
 
         # Read the audio clip
         audio, sr = read_audio(
@@ -500,6 +491,21 @@ class BarkleyCanyonDetection(Dataset):
 
         return item
 
+    def __getitem__(self, idx: int) -> dict[str, Any]:
+        """Get a specific sample from the dataset.
+        Parameters
+        ----------
+        idx : int
+            Index of the sample to get.
+
+        Returns
+        -------
+        dict[str, Any]
+            A dictionary containing the data.
+        """
+        row = self._data[idx]
+        return self._process(row)
+
     def __iter__(self) -> Iterator[Dict[str, Any]]:
         """Iterate over samples in the dataset.
 
@@ -507,17 +513,9 @@ class BarkleyCanyonDetection(Dataset):
         -------
         Dict[str, Any]
             Each sample in the dataset.
-
-        Raises
-        ------
-        RuntimeError
-            If no split has been loaded yet.
         """
-        if self._data is None:
-            raise RuntimeError("No split has been loaded yet. Call load() first.")
-
-        for idx in range(len(self)):
-            yield self[idx]
+        for row in self._data:
+            yield self._process(row)
 
     def __str__(self) -> str:
         """Return a string representation of the dataset.
@@ -528,7 +526,7 @@ class BarkleyCanyonDetection(Dataset):
             A string representation of the dataset including its name, version,
             and basic statistics if data is loaded.
         """
-        base_info = f"{self.info.name} (v{self.info.version})"
+        base_info = f"{self.info.name} (v{self.info.version}), split: {self.split}"
 
         return (
             f"{base_info}\n"

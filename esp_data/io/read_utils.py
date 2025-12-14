@@ -2,17 +2,46 @@
 
 import io
 import logging
-from typing import Any, Literal, Optional
+from typing import Any, Literal
 
 import numpy as np
 import soundfile as sf
 
-from . import filesystem_from_path
-from .paths import AnyPathT, anypath
+from esp_data.io.filesystem import filesystem_from_path
+from esp_data.io.paths import AnyPathT, anypath
 
 logger = logging.getLogger("esp_data")
 
 _AUDIO_FORMATS = (".wav", ".flac", ".ogg", ".mp3")
+
+
+def read_text(
+    file_path: str | AnyPathT,
+    encoding: str | None = None,
+    errors: str | None = None,
+) -> str:
+    """
+    Open the file in text mode, read it, and close the file.
+
+    Parameters
+    ----------
+    file_path : str or AnyPathT
+        The path string or path object pointing to the text file.
+    encoding : str or None, optional
+        The encoding to use for the file. Defaults to None.
+    errors : str or None, optional
+        The error handling mode. Defaults to None.
+
+    Returns
+    -------
+    str
+        The contents of the file.
+    """
+
+    with filesystem_from_path(file_path).open(
+        str(file_path), "rt", encoding=encoding, errors=errors
+    ) as f:
+        return f.read()
 
 
 def _read_audio_from_bytes(
@@ -212,7 +241,8 @@ def get_audio_info(
 
     if extension not in _AUDIO_FORMATS:
         raise ValueError(f"Unsupported audio format: {extension}")
-    with file_path.open("rb") as f:
+
+    with filesystem_from_path(file_path).open(str(file_path), "rb") as f:
         info = sf.info(f)
 
     return {
@@ -228,8 +258,8 @@ def get_audio_info(
 def read_audio_by_time(
     file_path: str | AnyPathT,
     start_time: float = 0.0,
-    end_time: Optional[float] = None,
-    input_sr: Optional[int] = None,
+    end_time: float | None = None,
+    input_sr: int | None = None,
 ) -> tuple[np.ndarray, int]:
     """Reads audio data from a file path using time-based parameters.
 

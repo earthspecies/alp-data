@@ -15,6 +15,7 @@ nav:
   - io: io.md
   - Transforms: transforms.md
   - Concatenate datasets: concatenate.md
+  - Data Backends: backends.md
   - API Reference: reference.md
 
 theme:
@@ -57,8 +58,11 @@ plugins:
             show_symbol_type_toc: true
             show_symbol_type_heading: true
             modernize_annotations: true
-            # filters:
-            #   - "!^__.*__$"
+            show_bases: false
+            show_source: true
+
+hooks:
+  - docs/hooks/dataset_info_hook.py
 
 markdown_extensions:
   - admonition
@@ -70,6 +74,9 @@ markdown_extensions:
   - pymdownx.inlinehilite
   - pymdownx.snippets
   - pymdownx.superfences
+
+extra_css:
+  - stylesheets/extra.css
 
 extra:
   version:

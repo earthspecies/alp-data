@@ -1,11 +1,14 @@
-from .concat import concatenate_datasets
+from .concat import ConcatenatedDataset
 from .dataset import (
+    ConcatConfig,
     Dataset,
     DatasetConfig,
     DatasetInfo,
+    dataset_class_from_name,
     dataset_from_config,
     list_registered_datasets,
     print_registered_datasets,
+    register_config,
     register_dataset,
 )
 from .datasets import (
@@ -17,13 +20,16 @@ from .datasets import (
     BengaleseFinchCalls,
     BirdSet,
     ChiffchaffId,
+    ESPRaincoast,
     GiantOtters,
+    INaturalist,
     InsectSet459,
     LittleOwlId,
     MacaquesCooCalls,
     PipitId,
     Voxaboxen,
     VoxaboxenEvents,
+    XenoCanto,
     ZebraFinchJulieElie,
 )
 
@@ -32,10 +38,12 @@ __all__ = [
     "Dataset",
     "DatasetInfo",
     "DatasetConfig",
+    "ConcatConfig",
     "list_registered_datasets",
     "print_registered_datasets",
     "register_dataset",
-    "concatenate_datasets",
+    "register_config",
+    "ConcatenatedDataset",
     "AnimalSpeak",
     "AudioSet",
     "BarkleyCanyon",
@@ -52,4 +60,8 @@ __all__ = [
     "MacaquesCooCalls",
     "Voxaboxen",
     "VoxaboxenEvents",
+    "ESPRaincoast",
+    "dataset_class_from_name",
+    "INaturalist",
+    "XenoCanto",
 ]
