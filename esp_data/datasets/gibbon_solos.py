@@ -50,9 +50,11 @@ class GibbonSolos(Dataset):
     --------
     >>> from esp_data.datasets import GibbonSolos
     >>> dataset = GibbonSolos(
-    ...     split="test",
+    ...     split="all",
     ...     sample_rate=16000,
     ...     streaming=True)
+    >>> print(dataset.info.name)
+    gibbon_solos
     """
 
     info = DatasetInfo(

@@ -54,10 +54,11 @@ class Geladas(Dataset):
     --------
     >>> from esp_data.datasets import Geladas
     >>> dataset = Geladas(
-    ...     split="test",
-    ...     output_take_and_give={"label": "label"},
+    ...     split="all",
     ...     sample_rate=16000,
     ...     streaming=True)
+    >>> print(dataset.info.name)
+    geladas
     """
 
     info = DatasetInfo(
