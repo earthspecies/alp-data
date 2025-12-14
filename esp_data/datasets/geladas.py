@@ -52,7 +52,7 @@ class Geladas(Dataset):
 
     Examples
     --------
-    >>> from esp_data.datasets import
+    >>> from esp_data.datasets import Geladas
     >>> dataset = Geladas(
     ...     split="test",
     ...     output_take_and_give={"label": "label"},

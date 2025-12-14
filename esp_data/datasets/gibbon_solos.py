@@ -48,7 +48,7 @@ class GibbonSolos(Dataset):
 
     Examples
     --------
-    >>> from esp_data.datasets import
+    >>> from esp_data.datasets import GibbonSolos
     >>> dataset = GibbonSolos(
     ...     split="test",
     ...     sample_rate=16000,
