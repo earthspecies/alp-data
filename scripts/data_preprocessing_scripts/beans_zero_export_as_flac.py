@@ -88,6 +88,10 @@ def main() -> None:
     args = parser.parse_args()
 
     sample_rates = args.sample_rates if args.sample_rates else []
+    # Validate all sample rates are divisible by 1000
+    for sr in sample_rates:
+        if sr % 1000 != 0:
+            raise ValueError(f"Sample rate {sr} is not divisible by 1000.")
 
     # Load dataset
     beans_zero_hf = load_dataset(
@@ -101,12 +105,10 @@ def main() -> None:
     num_samples = len(beans_zero_hf) if not args.streaming else None
 
     for sample in tqdm(beans_zero_hf, desc="Processing samples", total=num_samples):
-        audio = sample["audio"]
+        audio = np.array(sample["audio"])
         metadata = json.loads(sample["metadata"])
 
         original_sample_rate = metadata["sample_rate"]
-        duration = metadata["duration_seconds"]
-
         annotations_dict = {
             "output": sample["output"],
             "instruction_text": sample["instruction_text"],
@@ -116,13 +118,14 @@ def main() -> None:
             "file_name": sample["file_name"],
             "license": sample["license"],
             "id": sample["id"],
-            "duration_seconds": duration,
+            "metadata": sample["metadata"],
+            "source_dataset": sample["source_dataset"],
         }
 
         if sample_rates:
             for target_sr in sample_rates:
                 resampled_audio = resample_audio(
-                    audio=np.array(audio["array"]),
+                    audio=audio,
                     sr=original_sample_rate,
                     target_sr=target_sr,
                 )
@@ -148,7 +151,7 @@ def main() -> None:
         )
         if not exists(audio_path):
             write_flac(
-                audio=np.array(audio["array"]),
+                audio=audio,
                 sample_rate=original_sample_rate,
                 path=audio_path,
             )
