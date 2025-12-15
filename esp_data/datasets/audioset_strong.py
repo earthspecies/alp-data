@@ -51,7 +51,7 @@ class AudioSetStrong(Dataset):
     >>> from esp_data.datasets import AudioSetStrong
     >>> dataset = AudioSetStrong(split="train", sample_rate=16000)
     >>> print(len(dataset))
-    103463
+    8841
     >>> item = dataset[0]
     >>> print(item.keys())
     dict_keys(['segment_id', 'youtube_id', 'segment_start', 'audio_path',
