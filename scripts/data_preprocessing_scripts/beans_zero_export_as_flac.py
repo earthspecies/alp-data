@@ -124,24 +124,26 @@ def main() -> None:
 
         if sample_rates:
             for target_sr in sample_rates:
-                resampled_audio = resample_audio(
-                    audio=audio,
-                    sr=original_sample_rate,
-                    target_sr=target_sr,
-                )
-                target_sr = int(target_sr / 1000)  # for folder naming
+                target_sr_khz = int(target_sr / 1000)  # for folder naming
                 audio_path = (
                     audio_dir
-                    + f"{annotations_dict['dataset_name']}/{target_sr}Hz/"
+                    + f"{annotations_dict['dataset_name']}/{target_sr_khz}KHz/"
                     + f"{annotations_dict['file_name']}.flac"
                 )
+
                 if not exists(audio_path):
+                    resampled_audio = resample_audio(
+                        audio=audio,
+                        sr=original_sample_rate,
+                        target_sr=target_sr,
+                    )
+
                     write_flac(
                         audio=resampled_audio,
                         sample_rate=target_sr,
                         path=audio_path,
                     )
-                annotations_dict[f"audio_path_{target_sr}Hz"] = audio_path
+                annotations_dict[f"audio_path_{target_sr}KHz"] = audio_path
 
         # Write original sample rate audio
         audio_path = (
