@@ -6,6 +6,7 @@ Usage: `uv run --with datasets[Audio] esp-data/scripts/beans_zero/beans_zero_exp
 
 import argparse
 import json
+import os
 from io import BytesIO
 
 import librosa
@@ -18,6 +19,8 @@ from tqdm import tqdm
 from esp_data.io import AnyPathT, exists, filesystem_from_path
 
 fs = filesystem_from_path("gs://")
+
+os.environ["HF_DATASETS_CACHE"] = "/mnt/home/esp-ml-datasets/"
 
 
 def resample_audio(audio: np.ndarray, sr: int, target_sr: int) -> np.ndarray:
@@ -95,8 +98,9 @@ def main() -> None:
     audio_dir = destination_bucket + "audio_flac/"
 
     df = []  # eventually a dataframe of annotations
+    num_samples = len(beans_zero_hf) if not args.streaming else None
 
-    for sample in tqdm(beans_zero_hf, desc="Processing samples", total=len(beans_zero_hf)):
+    for sample in tqdm(beans_zero_hf, desc="Processing samples", total=num_samples):
         audio = sample["audio"]
         metadata = json.loads(sample["metadata"])
 
