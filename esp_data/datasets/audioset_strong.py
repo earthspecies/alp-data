@@ -53,9 +53,8 @@ class AudioSetStrong(Dataset):
     >>> print(len(dataset))
     8841
     >>> item = dataset[0]
-    >>> print(item.keys())
-    dict_keys(['segment_id', 'youtube_id', 'segment_start', 'audio_path',
-               'selection_table', 'audio'])
+    >>> sorted(item.keys())
+    ['audio', 'audio_path', 'segment_id', 'segment_start', 'selection_table', 'youtube_id']
     >>> print(item['selection_table'].columns)
     Index(['Selection', 'Begin Time (s)', 'End Time (s)', 'Label'], dtype='object')
     """
