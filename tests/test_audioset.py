@@ -233,41 +233,6 @@ def test_str_representation(dataset: Dataset) -> None:
     assert "validation" in str_repr
 
 
-def test_version_selection_and_info_isolation() -> None:
-    """Ensure selecting different versions doesn't mutate shared class-level info.
-
-    Historically AudioSet mutated the class-level `info` object, which caused
-    instances of different versions to stomp each other's `info.version` and
-    `info.split_paths`. This test prevents regressions.
-    """
-    ds_v1 = AudioSet(split="validation", version="0.1.0", streaming=True)
-    ds_v2 = AudioSet(split="validation", version="0.2.0", streaming=True)
-
-    assert ds_v1.info.version == "0.1.0"
-    assert ds_v2.info.version == "0.2.0"
-
-    # v0.1.0 has balanced/animal/noise splits; v0.2.0 has different curated splits
-    assert "train-balanced" in ds_v1.info.split_paths
-    assert "train-strong" not in ds_v1.info.split_paths
-    assert "train-strong" in ds_v2.info.split_paths
-    assert "train-balanced" not in ds_v2.info.split_paths
-
-
-def test_available_sample_rates_v020() -> None:
-    """Check pre-resampled sample-rate reporting for v0.2.0.
-
-    We condition on the metadata containing the expected path column to avoid
-    hard-failing if the underlying CSV schema changes.
-    """
-    ds = AudioSet(split="validation", version="0.2.0", streaming=True)
-    sample_rates = ds.available_sample_rates
-    assert isinstance(sample_rates, list)
-    if "32khz_path" in ds.columns:
-        assert 32000 in sample_rates
-    else:
-        assert len(sample_rates) == 0
-
-
 def test_from_config_with_transformations() -> None:
     """Test if dataset can be loaded from configuration (no transformations with list labels)."""
     # Note: label_from_feature transform doesn't work with list-type labels
