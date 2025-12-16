@@ -234,10 +234,7 @@ class AudioSet(Dataset):
             )
 
         location = self.info.split_paths[self.split]
-        # Read CSV directly (supports local and cloud paths) via backend to avoid
-        # materializing large text blobs in memory.
-        #
-        # Note: We parse JSON-encoded "labels" lazily per-row in _process().
+
         self._data = self._backend_class.from_csv(location, streaming=self._streaming)
 
     @classmethod
