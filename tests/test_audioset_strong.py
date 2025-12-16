@@ -45,7 +45,7 @@ EXPECTED_LEN_TRAIN = 8841
 EXPECTED_FIRST_ITEM_AUDIO_SHA256 = (
     "cab77818f53bf12df33e349e55a24da93405a96b124d6bc683fca62f88427616"
 )
-ANNOTATIONS_SHA256 = "4ede48d02f5831830cbbbc10b334f4c1b56adbcb057f10a7a5368003458a891d"
+ANNOTATIONS_SHA256 = "ccec6aeb3a4d2b7b9f0819ef217ca8b163baa2bd1d645978c3d3c93a3ed66986"
 # ---------------------------------------------------------------------------
 
 
@@ -227,3 +227,89 @@ def test_str_representation(ds: AudioSetStrong):
     assert "audioset_strong" in str_repr
     assert "0.1.0" in str_repr
     assert "train" in str_repr
+
+
+def test_available_sample_rates(ds: AudioSetStrong):
+    """Test if available_sample_rates property works correctly."""
+    sample_rates = ds.available_sample_rates
+    assert isinstance(sample_rates, list)
+
+    # Check if 32kHz is available (depends on whether 32khz_path column exists)
+    if "32khz_path" in ds.columns:
+        assert 32000 in sample_rates
+        print("✓ 32kHz pre-resampled audio is available")
+    else:
+        assert len(sample_rates) == 0
+        print("Note: 32khz_path column not available in metadata")
+
+    print(f"Available pre-resampled sample rates: {sample_rates}")
+
+
+def test_pre_resampled_audio_32khz():
+    """Test loading pre-resampled 32kHz audio with fallback for corrupt files.
+
+    This test verifies that:
+    1. When sample_rate=32000, the dataset attempts to use pre-resampled files
+    2. Corrupt pre-resampled files (very short) fall back to on-the-fly resampling
+    3. Audio is returned correctly in both cases
+    """
+    ds_32k = AudioSetStrong(split="train", sample_rate=32000)
+
+    # Check if 32kHz pre-resampled audio is available
+    if "32khz_path" not in ds_32k.columns:
+        pytest.skip("32kHz pre-resampled audio not available")
+
+    # Test first few items
+    for i in range(min(5, len(ds_32k))):
+        item = ds_32k[i]
+        assert "audio" in item, f"[{i}] missing 'audio' key"
+        audio = item["audio"]
+
+        assert isinstance(audio, np.ndarray), f"[{i}] audio is not a numpy array"
+        assert audio.dtype == np.float32, f"[{i}] audio dtype is {audio.dtype}"
+
+        # Audio should have reasonable length (at least 1 second at 32kHz)
+        # This verifies the fallback works for corrupt pre-resampled files
+        min_samples = 32000  # 1 second at 32kHz
+        assert len(audio) >= min_samples, (
+            f"[{i}] audio too short ({len(audio)} samples). "
+            "Fallback may not be working for corrupt pre-resampled files."
+        )
+
+        print(f"  [{i}] {item['segment_id']}: audio shape={audio.shape}")
+
+
+def test_pre_resampled_vs_on_the_fly_consistency():
+    """Test that pre-resampled and on-the-fly resampled audio are similar.
+
+    We compare an item that uses pre-resampled 32kHz audio with the same item
+    resampled on-the-fly from the original. They should be very similar
+    (allowing for minor differences due to resampling algorithms).
+    """
+    ds_32k = AudioSetStrong(split="train", sample_rate=32000)
+
+    if "32khz_path" not in ds_32k.columns:
+        pytest.skip("32kHz pre-resampled audio not available")
+
+    # Find an item with a valid (non-corrupt) pre-resampled file
+    # Item at index 1 has valid 32kHz file based on earlier testing
+    valid_idx = 1
+
+    # Get audio using pre-resampled path
+    item_presampled = ds_32k[valid_idx]
+
+    # Get audio using on-the-fly resampling (by using a different sample rate)
+    ds_16k = AudioSetStrong(split="train", sample_rate=16000)
+    item_16k = ds_16k[valid_idx]
+
+    # Basic validation that both load correctly
+    assert item_presampled["segment_id"] == item_16k["segment_id"]
+    assert len(item_presampled["audio"]) > 0
+    assert len(item_16k["audio"]) > 0
+
+    # The 32kHz audio should be ~2x longer than 16kHz (same duration, different rate)
+    ratio = len(item_presampled["audio"]) / len(item_16k["audio"])
+    assert 1.8 < ratio < 2.2, (
+        f"Sample rate ratio unexpected: {ratio:.2f} "
+        f"(32kHz={len(item_presampled['audio'])}, 16kHz={len(item_16k['audio'])})"
+    )

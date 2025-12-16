@@ -37,6 +37,8 @@ class AudioSetStrong(Dataset):
     The strong labels provide temporal boundaries for sound events, making this dataset
     suitable for sound event detection and temporal localization tasks.
 
+    AudioSet recordings include those available in this huggingface dataset: https://huggingface.co/datasets/agkphysics/AudioSet
+
     References
     ----------
     AUDIO SET: AN ONTOLOGY AND HUMAN-LABELED DATASET FOR AUDIO EVENTS
@@ -53,7 +55,7 @@ class AudioSetStrong(Dataset):
     >>> print(len(dataset))
     8841
     >>> item = dataset[0]
-    >>> sorted(item.keys())
+    >>> [k for k in sorted(item.keys()) if k != '32khz_path']
     ['audio', 'audio_path', 'segment_id', 'segment_start', 'selection_table', 'youtube_id']
     >>> print(item['selection_table'].columns)
     Index(['Selection', 'Begin Time (s)', 'End Time (s)', 'Label'], dtype='object')
@@ -63,13 +65,22 @@ class AudioSetStrong(Dataset):
         name="audioset_strong",
         owner="david; marius; masato",
         split_paths={
-            "train": "gs://esp-ml-datasets/audioset/v0.2.0/raw/csv-data/audioset_train_strong_selection_tables_filtered.csv",
+            "train": "gs://esp-ml-datasets/audioset/v0.2.0/raw/csv-data/audioset_train_strong_selection_tables_filtered_with_32khz.csv",
         },
         version="0.1.0",
         description="AudioSet Strong: Strongly-labeled subset with temporal annotations",
         sources=["YouTube"],
         license="Mixed",
     )
+
+    # Mapping of sample rates to their corresponding path columns
+    # Pre-resampled 32kHz audio is available for ~92% of entries
+    _sample_rate_paths = {
+        32000: "32khz_path",
+    }
+
+    # Column name for original variable-rate audio files
+    _originals_path_column = "audio_path"
 
     def __init__(
         self,
@@ -88,7 +99,9 @@ class AudioSetStrong(Dataset):
         output_take_and_give : dict[str, str] | None
             Optional mapping of original → new output keys (filters columns as well).
         sample_rate : int | None
-            If set, audio is resampled to this rate.
+            Target sample rate for audio. If sample_rate=32000, pre-resampled audio
+            will be loaded directly when available (~92% of entries). Otherwise,
+            audio is resampled on-the-fly using librosa's kaiser_best method.
         data_root : str | AnyPathT | None
             Optional root directory to prepend to each row['audio_path'].
         backend : BackendType, optional
@@ -119,6 +132,23 @@ class AudioSetStrong(Dataset):
     def available_splits(self) -> list[str]:
         return list(self.info.split_paths.keys())
 
+    @property
+    def available_sample_rates(self) -> list[int]:
+        """Return the available pre-resampled sample rates.
+
+        Returns
+        -------
+        list[int]
+            List of sample rates (in Hz) for which pre-resampled audio is available.
+            Audio at these sample rates can be loaded directly without on-the-fly
+            resampling. This checks which path columns actually exist in the loaded data.
+        """
+        available = []
+        for sr, path_column in self._sample_rate_paths.items():
+            if path_column in self._data.columns:
+                available.append(sr)
+        return available
+
     def _load(self) -> None:
         if self.split not in self.info.split_paths:
             raise LookupError(
@@ -144,26 +174,53 @@ class AudioSetStrong(Dataset):
         return pd.DataFrame(columns=["Selection", "Begin Time (s)", "End Time (s)", "Label"])
 
     def _process(self, row: dict[str, Any]) -> dict[str, Any]:
-        # Resolve audio path
-        audio_path = (
-            (self.data_root / row["audio_path"]) if self.data_root else anypath(row["audio_path"])
-        )
+        # Determine which path column to use based on requested sample rate
+        # If a pre-resampled version is available, use it; otherwise resample on-the-fly
+        audio = None
+        sr = None
 
-        # Read audio
-        audio, sr = read_audio(audio_path)
-        audio = audio_stereo_to_mono(audio, mono_method="average").astype(np.float32)
+        # Try pre-resampled audio first if available
+        if self.sample_rate is not None and self.sample_rate in self._sample_rate_paths:
+            path_column = self._sample_rate_paths[self.sample_rate]
+            if (
+                path_column in row
+                and row[path_column] not in (None, "")
+                and not (isinstance(row[path_column], float) and np.isnan(row[path_column]))
+            ):
+                presampled_path = self.data_root / str(row[path_column])
+                try:
+                    audio, sr = read_audio(presampled_path)
+                    audio = audio_stereo_to_mono(audio, mono_method="average").astype(np.float32)
+                    # Validate: some pre-resampled files are corrupt (very short)
+                    # A valid 10-second clip at 32kHz should have ~320k samples
+                    # Use a minimum threshold of 1 second worth of samples
+                    min_samples = self.sample_rate  # 1 second at target rate
+                    if len(audio) < min_samples:
+                        audio = None  # Fall back to original
+                except Exception:
+                    audio = None  # Fall back to original on any error
 
-        # Resample if necessary
-        target_sr = self.sample_rate
-        if target_sr is not None and sr != target_sr:
-            audio = librosa.resample(
-                y=audio,
-                orig_sr=sr,
-                target_sr=target_sr,
-                scale=True,
-                res_type="kaiser_best",
+        # Fall back to original audio path with on-the-fly resampling
+        if audio is None:
+            audio_path = (
+                (self.data_root / row[self._originals_path_column])
+                if self.data_root
+                else anypath(row[self._originals_path_column])
             )
-            sr = target_sr
+            audio, sr = read_audio(audio_path)
+            audio = audio_stereo_to_mono(audio, mono_method="average").astype(np.float32)
+
+            # Resample if necessary
+            target_sr = self.sample_rate
+            if target_sr is not None and sr != target_sr:
+                audio = librosa.resample(
+                    y=audio,
+                    orig_sr=sr,
+                    target_sr=target_sr,
+                    scale=True,
+                    res_type="kaiser_best",
+                )
+                sr = target_sr
 
         # Selection table
         selection_table_blob = row.get("selection_table", "")
