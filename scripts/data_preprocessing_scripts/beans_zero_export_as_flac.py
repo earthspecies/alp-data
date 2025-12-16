@@ -16,7 +16,7 @@ import soundfile as sf
 from datasets import load_dataset
 from tqdm import tqdm
 
-from esp_data.io import AnyPathT, exists, filesystem_from_path
+from esp_data.io import AnyPathT, anypath, exists, filesystem_from_path
 
 fs = filesystem_from_path("gs://")
 
@@ -101,8 +101,8 @@ def main() -> None:
         "EarthSpeciesProject/BEANS-Zero", streaming=args.streaming, split="test"
     )
 
-    destination_bucket = "gs://esp-ml-datasets/beans-zero/v0.1.0/raw/"
-    audio_dir = destination_bucket + "audio_flac/"
+    destination_bucket = anypath("gs://esp-ml-datasets/beans-zero/v0.1.0/raw/")
+    audio_dir = destination_bucket / "audio"
 
     df = []  # eventually a dataframe of annotations
     num_samples = len(beans_zero_hf) if not args.streaming else None
@@ -130,8 +130,8 @@ def main() -> None:
                 target_sr_khz = int(target_sr / 1000)  # for folder naming
                 audio_path = (
                     audio_dir
-                    + f"{annotations_dict['dataset_name']}/{target_sr_khz}KHz/"
-                    + f"{annotations_dict['file_name']}.flac"
+                    / f"{annotations_dict['dataset_name']}/{target_sr_khz}KHz"
+                    / f"{annotations_dict['file_name']}.flac"
                 )
 
                 if not exists(audio_path):
@@ -151,9 +151,10 @@ def main() -> None:
         # Write original sample rate audio
         audio_path = (
             audio_dir
-            + f"{annotations_dict['dataset_name']}/original_sample_rate/"
-            + f"{annotations_dict['file_name']}.flac"
+            / f"{annotations_dict['dataset_name']}/original_sample_rate"
+            / f"{annotations_dict['file_name']}.flac"
         )
+
         if not exists(audio_path):
             write_flac(
                 audio=audio,
