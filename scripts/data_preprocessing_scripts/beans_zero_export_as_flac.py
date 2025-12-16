@@ -52,17 +52,20 @@ def resample_audio(audio: np.ndarray, sr: int, target_sr: int) -> np.ndarray:
     return audio
 
 
-def write_flac(audio: np.ndarray, sample_rate: int, path: AnyPathT | str) -> None:
+def write_flac(audio: np.ndarray, sample_rate: int, path: AnyPathT) -> None:
     """Write audio data to a FLAC file.
 
     Parameters
     ----------
     audio : np.ndarray
         The audio data to write.
-    path : AnyPathT | str
+    path : AnyPathT
         The path to the output FLAC file.
     """
-    with fs.open(str(path), "wb") as f:
+    # Remove the suffix from the path because soundfile adds it automatically
+    path_parent = path.parent
+    path_without_suffix = path_parent / path.stem
+    with fs.open(str(path_without_suffix), "wb") as f:
         buffer = BytesIO()
         sf.write(buffer, audio, samplerate=sample_rate, format="FLAC")
         f.write(buffer.getbuffer())
@@ -161,18 +164,26 @@ def main() -> None:
 
         df.append(annotations_dict)
 
-    # Write out dataframs per dataset as csvs
+    # Write out dataframs per dataset as jsonl
     df = pd.DataFrame(df)
     datasets = df["dataset_name"].unique()
     for dataset in datasets:
         dataset_df = df[df["dataset_name"] == dataset]
-        csv_path = destination_bucket + f"{dataset}.csv"
+        jsonl_path = destination_bucket + f"{dataset}_test.jsonl"
 
-        dataset_df.to_csv(str(csv_path), index=False)
+        dataset_df.to_json(
+            str(jsonl_path),
+            orient="records",
+            lines=True,
+        )
 
-    # Write full dataframe as csv
-    full_csv_path = destination_bucket + "test.csv"
-    df.to_csv(str(full_csv_path), index=False)
+    # Write full dataframe as jsonl
+    full_json_path = destination_bucket + "test.jsonl"
+    df.to_json(
+        str(full_json_path),
+        orient="records",
+        lines=True,
+    )
 
 
 if __name__ == "__main__":
