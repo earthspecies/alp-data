@@ -36,7 +36,13 @@ class AudioSet(Dataset):
     The "caption" column contains the caption from AudioSetCaps when available.
     AudioSetCaps Paper: https://arxiv.org/abs/2411.18953
     AudioSetCaps Dataset: https://huggingface.co/datasets/baijs/AudioSetCaps
-    Note these are empty with the exception of the unbalanced_train split.
+    Note these are empty with the exception of the unbalanced_train split of the V1 dataset.
+
+    Note that AudioSet contains different files depending on YouTube video availability at
+    time of download. Version 0.1.0 contains a dump of AudioSet pulled in 2021 and resampled
+    to 16khz. Version 0.2.0 contains a larger set of audios pulled from this HuggingFace
+    release https://huggingface.co/datasets/agkphysics/AudioSet and maintaining the sample
+    rates of the original files.
 
     Pre-resampled Audio
     -------------------
