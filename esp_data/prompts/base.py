@@ -57,16 +57,16 @@ Multiple response formats with coupled variants:
 
 import random
 from abc import abstractmethod
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, Protocol, runtime_checkable
 
 
 @dataclass
 class PromptVariant:
-    """A prompt-response pair with optional metadata.
+    """A prompt-response pair.
 
     This class couples a prompt template with its expected response format,
-    ensuring consistency when multiple prompt styles are used.
+    ensuring consistency when multiple prompt variants are used.
 
     Parameters
     ----------
@@ -74,17 +74,15 @@ class PromptVariant:
         The prompt/instruction template. Can include {field_name} placeholders.
     response : str
         The response template. Can include {field_name} placeholders.
-    style : str, optional
-        Style descriptor (e.g., "formal", "conversational"). Default: "default".
-    metadata : dict, optional
-        Additional metadata for the variant (e.g., difficulty, domain).
+    task : str, optional
+        Task descriptor (e.g., "species_id", "captioning"). Default: "default".
 
     Examples
     --------
     >>> variant = PromptVariant(
     ...     prompt="What species is this?",
     ...     response="{species_common}",
-    ...     style="simple",
+    ...     task="species_id",
     ... )
     >>> variant.prompt
     'What species is this?'
@@ -94,8 +92,7 @@ class PromptVariant:
 
     prompt: str
     response: str
-    style: str = "default"
-    metadata: dict[str, Any] = field(default_factory=dict)
+    task: str = "default"
 
 
 @runtime_checkable

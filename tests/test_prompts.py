@@ -38,27 +38,17 @@ class TestPromptVariant:
         variant = PromptVariant(prompt="What species?", response="{species}")
         assert variant.prompt == "What species?"
         assert variant.response == "{species}"
-        assert variant.style == "default"
-        assert variant.metadata == {}
+        assert variant.task == "default"
 
-    def test_with_style(self) -> None:
-        """Test creating a PromptVariant with style."""
+    def test_with_task(self) -> None:
+        """Test creating a PromptVariant with task."""
         variant = PromptVariant(
             prompt="Identify the species",
             response="{species_common}",
-            style="formal",
+            task="species_id",
         )
-        assert variant.style == "formal"
+        assert variant.task == "species_id"
 
-    def test_with_metadata(self) -> None:
-        """Test creating a PromptVariant with metadata."""
-        variant = PromptVariant(
-            prompt="What bird?",
-            response="{species}",
-            metadata={"difficulty": "easy", "domain": "birds"},
-        )
-        assert variant.metadata["difficulty"] == "easy"
-        assert variant.metadata["domain"] == "birds"
 
 
 # --- Test BasePromptTemplate ---
