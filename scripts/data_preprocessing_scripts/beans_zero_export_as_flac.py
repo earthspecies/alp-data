@@ -87,6 +87,9 @@ def main() -> None:
         action="store_true",
         help="Whether to load the dataset in streaming mode.",
     )
+    parser.add_argument(
+        "--dont-write-audio", action="store_true", help="If set, audio files will not be written."
+    )
 
     args = parser.parse_args()
 
@@ -133,19 +136,20 @@ def main() -> None:
                     / f"{annotations_dict['dataset_name']}/{target_sr_khz}KHz"
                     / f"{annotations_dict['file_name']}.flac"
                 )
+                if not args.dont_write_audio:
+                    # Takes a bit longer to test for existence on GCS, so do it last
+                    if not exists(audio_path):
+                        resampled_audio = resample_audio(
+                            audio=audio,
+                            sr=original_sample_rate,
+                            target_sr=target_sr,
+                        )
 
-                if not exists(audio_path):
-                    resampled_audio = resample_audio(
-                        audio=audio,
-                        sr=original_sample_rate,
-                        target_sr=target_sr,
-                    )
-
-                    write_flac(
-                        audio=resampled_audio,
-                        sample_rate=target_sr,
-                        path=audio_path,
-                    )
+                        write_flac(
+                            audio=resampled_audio,
+                            sample_rate=target_sr,
+                            path=audio_path,
+                        )
                 annotations_dict[f"audio_path_{target_sr}KHz"] = audio_path
 
         # Write original sample rate audio
@@ -155,12 +159,14 @@ def main() -> None:
             / f"{annotations_dict['file_name']}.flac"
         )
 
-        if not exists(audio_path):
-            write_flac(
-                audio=audio,
-                sample_rate=original_sample_rate,
-                path=audio_path,
-            )
+        if not args.dont_write_audio:
+            # Takes a bit longer to test for existence on GCS, so do it last
+            if not exists(audio_path):
+                write_flac(
+                    audio=audio,
+                    sample_rate=original_sample_rate,
+                    path=audio_path,
+                )
         annotations_dict["audio_path_original_sample_rate"] = audio_path
 
         df.append(annotations_dict)
@@ -170,7 +176,7 @@ def main() -> None:
     datasets = df["dataset_name"].unique()
     for dataset in datasets:
         dataset_df = df[df["dataset_name"] == dataset]
-        jsonl_path = destination_bucket + f"{dataset}_test.jsonl"
+        jsonl_path = destination_bucket / f"{dataset}_test.jsonl"
 
         dataset_df.to_json(
             str(jsonl_path),
@@ -179,7 +185,7 @@ def main() -> None:
         )
 
     # Write full dataframe as jsonl
-    full_json_path = destination_bucket + "test.jsonl"
+    full_json_path = destination_bucket / "test.jsonl"
     df.to_json(
         str(full_json_path),
         orient="records",
