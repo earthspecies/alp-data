@@ -22,19 +22,20 @@ Basic usage with a custom template:
 ...     def default_prompt(self):
 ...         return "What species is in this recording?"
 >>>
->>> register_prompt(SpeciesTemplate())
+>>> _ = register_prompt(SpeciesTemplate())
 >>>
->>> base = XenoCanto(split="train", sample_rate=16000)
->>> dataset = AudioLanguageDataset(base, prompt="my_species")
+>>> base = XenoCanto(split="train", sample_rate=16000)  # doctest: +SKIP
+>>> dataset = AudioLanguageDataset(base, prompt="my_species")  # doctest: +SKIP
 >>>
->>> sample = dataset[0]
->>> print(sample.keys())  # ['audio', 'prompt', 'text', ...]
+>>> sample = dataset[0]  # doctest: +SKIP
+>>> print(sample.keys())  # doctest: +SKIP
+dict_keys(['audio', 'prompt', 'text', ...])
 
 With a dataset that already has prompt/text fields:
 
 >>> # If base_dataset already provides 'prompt' and 'text' fields,
 >>> # use passthrough mode (automatic detection):
->>> dataset = AudioLanguageDataset(base_dataset, prompt="passthrough")
+>>> dataset = AudioLanguageDataset(base_dataset, prompt="passthrough")  # doctest: +SKIP
 """
 
 from typing import Any, Dict, Iterator, Sequence
@@ -106,27 +107,28 @@ class AudioLanguageDataset(Dataset):
     --------
     Wrap XenoCanto for species identification:
 
-    >>> from esp_data.datasets import XenoCanto
-    >>> from esp_data.audio_language import AudioLanguageDataset
+    >>> from esp_data.datasets import XenoCanto  # doctest: +SKIP
+    >>> from esp_data.audio_language import AudioLanguageDataset  # doctest: +SKIP
     >>>
-    >>> base = XenoCanto(split="train", sample_rate=16000)
-    >>> dataset = AudioLanguageDataset(base, prompt="species_common")
-    >>> sample = dataset[0]
-    >>> print(sample["prompt"])  # "What species is vocalizing..."
-    >>> print(sample["text"])    # "American Robin"
+    >>> base = XenoCanto(split="train", sample_rate=16000)  # doctest: +SKIP
+    >>> dataset = AudioLanguageDataset(base, prompt="species_common")  # doctest: +SKIP
+    >>> sample = dataset[0]  # doctest: +SKIP
+    >>> print(sample["prompt"])  # "What species is vocalizing..."  # doctest: +SKIP
+    >>> print(sample["text"])    # "American Robin"  # doctest: +SKIP
 
     Use with ConcatenatedDataset:
 
-    >>> from esp_data.concat import ConcatenatedDataset
-    >>> ds1 = AudioLanguageDataset(XenoCanto(split="train"), prompt="species_common")
-    >>> ds2 = AudioLanguageDataset(AudioSet(split="train"), prompt="captioning")
-    >>> combined = ConcatenatedDataset([ds1, ds2])
+    >>> from esp_data.concat import ConcatenatedDataset  # doctest: +SKIP
+    >>> xc = XenoCanto(split="train")  # doctest: +SKIP
+    >>> ds1 = AudioLanguageDataset(xc, prompt="species_common")  # doctest: +SKIP
+    >>> ds2 = AudioLanguageDataset(AudioSet(split="train"), prompt="captioning")  # doctest: +SKIP
+    >>> combined = ConcatenatedDataset([ds1, ds2])  # doctest: +SKIP
 
     Auto-detect native audio-language datasets:
 
     >>> # If source already has prompt/text, passthrough is used automatically
-    >>> native_al_dataset = SomeNativeALDataset()
-    >>> dataset = AudioLanguageDataset(native_al_dataset, prompt="passthrough")
+    >>> native_al_dataset = SomeNativeALDataset()  # doctest: +SKIP
+    >>> dataset = AudioLanguageDataset(native_al_dataset, prompt="passthrough")  # doctest: +SKIP
     """
 
     info = DatasetInfo(
