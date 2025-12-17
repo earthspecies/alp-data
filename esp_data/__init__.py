@@ -1,3 +1,4 @@
+from .audio_language import AudioLanguageDataset, is_audio_language_dataset
 from .concat import ConcatenatedDataset
 from .dataset import (
     ConcatConfig,
@@ -32,8 +33,18 @@ from .datasets import (
     XenoCanto,
     ZebraFinchJulieElie,
 )
+from .prompts import (
+    BasePromptTemplate,
+    PassthroughTemplate,
+    PromptTemplate,
+    PromptVariant,
+    get_prompt,
+    list_prompts,
+    register_prompt,
+)
 
 __all__ = [
+    # Core dataset classes and functions
     "dataset_from_config",
     "Dataset",
     "DatasetInfo",
@@ -44,24 +55,36 @@ __all__ = [
     "register_dataset",
     "register_config",
     "ConcatenatedDataset",
+    "dataset_class_from_name",
+    # Audio-language support
+    "AudioLanguageDataset",
+    "is_audio_language_dataset",
+    # Prompt templates
+    "PromptTemplate",
+    "PromptVariant",
+    "BasePromptTemplate",
+    "PassthroughTemplate",
+    "register_prompt",
+    "get_prompt",
+    "list_prompts",
+    # Dataset implementations
     "AnimalSpeak",
     "AudioSet",
     "BarkleyCanyon",
     "BarkleyCanyonDetection",
     "Beans",
+    "BengaleseFinchCalls",
     "BirdSet",
     "ChiffchaffId",
+    "ESPRaincoast",
     "GiantOtters",
+    "INaturalist",
     "InsectSet459",
     "LittleOwlId",
-    "PipitId",
-    "ZebraFinchJulieElie",
-    "BengaleseFinchCalls",
     "MacaquesCooCalls",
+    "PipitId",
     "Voxaboxen",
     "VoxaboxenEvents",
-    "ESPRaincoast",
-    "dataset_class_from_name",
-    "INaturalist",
     "XenoCanto",
+    "ZebraFinchJulieElie",
 ]
