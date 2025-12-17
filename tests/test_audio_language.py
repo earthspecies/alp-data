@@ -10,11 +10,11 @@ from esp_data.audio_language import AudioLanguageDataset, is_audio_language_data
 from esp_data.dataset import Dataset, DatasetInfo
 from esp_data.prompts import (
     BasePromptTemplate,
-    PassthroughTemplate,
+    PromptVariant,
     get_prompt,
     register_prompt,
-    unregister_prompt,
 )
+from esp_data.prompts.registry import _PROMPT_REGISTRY
 
 
 # --- Mock Dataset ---
@@ -124,21 +124,15 @@ class SpeciesTemplateForTest(BasePromptTemplate):
     """Test template for species identification."""
 
     name = "test_species_template"
-    response_field = "species_common"
-
-    @property
-    def default_prompt(self) -> str:
-        return "What species is this?"
 
     def __init__(self, seed: int | None = None):
         super().__init__(
-            prompt_variants=[
-                "What species is this?",
-                "Identify the species.",
+            variants=[
+                PromptVariant("What species is this?", "{species_common}"),
+                PromptVariant("Identify the species.", "{species_common}"),
             ],
             seed=seed,
         )
-
 
 # --- Fixtures ---
 
@@ -166,7 +160,7 @@ def test_template():
         pass
     yield template
     try:
-        unregister_prompt("test_species_template")
+        del _PROMPT_REGISTRY["test_species_template"]
     except KeyError:
         pass
 
@@ -211,7 +205,7 @@ class TestAudioLanguageDataset:
     def test_init_with_passthrough(self, native_al_dataset) -> None:
         """Test initialization with passthrough template."""
         al_ds = AudioLanguageDataset(native_al_dataset, prompt="passthrough")
-        assert isinstance(al_ds.template, PassthroughTemplate)
+        assert al_ds.template.name == "passthrough"
 
     def test_len(self, mock_dataset, test_template) -> None:
         """Test __len__ method."""

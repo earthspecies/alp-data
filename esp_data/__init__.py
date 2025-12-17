@@ -35,7 +35,6 @@ from .datasets import (
 )
 from .prompts import (
     BasePromptTemplate,
-    PassthroughTemplate,
     PromptTemplate,
     PromptVariant,
     get_prompt,
@@ -63,7 +62,6 @@ __all__ = [
     "PromptTemplate",
     "PromptVariant",
     "BasePromptTemplate",
-    "PassthroughTemplate",
     "register_prompt",
     "get_prompt",
     "list_prompts",
