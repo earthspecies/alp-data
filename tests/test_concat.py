@@ -6,10 +6,9 @@ import pandas as pd
 from typing import Dict, Any, Iterator, Optional
 
 from esp_data.dataset import Dataset, DatasetInfo, dataset_from_config
-from esp_data.concat import MergeException, ConcatenatedDataset, ChainedDataset
+from esp_data.concat import MergeException, ConcatenatedDataset
 from esp_data.backends import PandasBackend
 from esp_data import AnimalSpeak, BarkleyCanyon
-from esp_data.datasets import HawaiianBirds, NocturnalBirdMigration
 from esp_data.transforms import DeduplicateConfig, FilterConfig
 
 
