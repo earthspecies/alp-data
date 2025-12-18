@@ -45,21 +45,36 @@ def read_text(
         return f.read()
 
 
-def read_yaml(path: str | AnyPathT) -> dict:
+def read_yaml(path: str | AnyPathT) -> object:
     """Read a YAML file and return its contents as a dictionary.
 
     Parameters
     ----------
-    path : str | AnyPathT
-        The path to the YAML file.
+    path : str or AnyPathT
+        The path string or path object pointing to the YAML file.
 
     Returns
     -------
-    dict
-        The contents of the YAML file as a dictionary.
+    object
+        The contents of the YAML file.
+
+    Raises
+    ------
+    yaml.YAMLError
+        If there is an error parsing the YAML file.
+    ValueError
+        If the YAML file is empty.
     """
-    with filesystem_from_path(path).open(str(path), "r") as fp:
-        return yaml.safe_load(fp)
+    try:
+        with filesystem_from_path(path).open(str(path), "r") as fp:
+            result = yaml.safe_load(fp)
+    except yaml.YAMLError as e:
+        raise yaml.YAMLError(f"Error parsing YAML file '{path}': {e}") from e
+
+    if result is None:
+        raise ValueError(f"YAML file '{path}' is empty")
+
+    return result
 
 
 def _read_audio_from_bytes(
