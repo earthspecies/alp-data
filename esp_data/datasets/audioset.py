@@ -8,7 +8,46 @@ import numpy as np
 
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from esp_data.backends import BackendType
+from esp_data.dataset import register_config
 from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
+
+
+@register_config
+class AudioSetConfig(DatasetConfig):
+    """Configuration for the AudioSet dataset.
+
+    Parameters
+    ----------
+    dataset_name : str
+        The name of the dataset. Must be "audioset".
+    split : str
+        The split to load. One of AudioSet.info.split_paths keys.
+    version : str | None
+        The version of the dataset to use. If None, uses DEFAULT_VERSION.
+        Available versions: "0.1.0", "0.2.0"
+    output_take_and_give : dict[str, str] | None
+        A dictionary mapping the original column names to the new column names.
+        It acts as a filter as well.
+    sample_rate : int | None
+        The sample rate to which audio files should be resampled. For v0.2.0, if
+        sample_rate=32000, pre-resampled audio will be loaded directly (faster).
+    data_root : str | AnyPathT | None
+        The root directory for the dataset. This is optionally appended to the
+        path item of a sample in the dataset.
+    backend : BackendType
+        The backend to use ("pandas" or "polars"), by default "polars"
+    streaming : bool
+        Whether to use streaming mode, by default False
+    """
+
+    dataset_name: str = "audioset"
+    split: str = "train"
+    version: str | None = None
+    output_take_and_give: dict[str, str] | None = None
+    sample_rate: int | None = None
+    data_root: str | AnyPathT | None = None
+    backend: BackendType = "polars"
+    streaming: bool = False
 
 
 @register_dataset
@@ -77,10 +116,6 @@ class AudioSet(Dataset):
                 "train": "gs://esp-ml-datasets/audioset/v0.1.0/raw/csv-data/unbalanced_train_segments_processed.csv",
                 "train-balanced": "gs://esp-ml-datasets/audioset/v0.1.0/raw/csv-data/balanced_train_segments_processed.csv",
                 "validation": "gs://esp-ml-datasets/audioset/v0.1.0/raw/csv-data/eval_segments_processed.csv",
-                "train-animal": "gs://esp-ml-datasets/audioset/v0.1.0/raw/csv-data/unbalanced_train_segments_processed_animal.csv",
-                "validation-animal": "gs://esp-ml-datasets/audioset/v0.1.0/raw/csv-data/eval_segments_processed_animal.csv",
-                "train-noise": "gs://esp-ml-datasets/audioset/v0.1.0/raw/csv-data/unbalanced_train_segments_processed_noise.csv",
-                "validation-noise": "gs://esp-ml-datasets/audioset/v0.1.0/raw/csv-data/eval_segments_processed_noise.csv",
             },
             "data_root": "gs://esp-ml-datasets/audioset/v0.1.0/raw/",
         },
@@ -88,7 +123,6 @@ class AudioSet(Dataset):
             "split_paths": {
                 "train": "gs://esp-ml-datasets/audioset/v0.2.0/raw/csv-data/unbalanced_train_segments_processed.csv",
                 "validation": "gs://esp-ml-datasets/audioset/v0.2.0/raw/csv-data/eval_segments_processed.csv",
-                "train-strong": "gs://esp-ml-datasets/audioset/v0.2.0/raw/csv-data/audioset_train_strong_processed.csv",
                 "train-environmental": "gs://esp-ml-datasets/audioset/v0.2.0/raw/csv-data/unbalanced_train_environmental_sounds.csv",
             },
             "data_root": "gs://esp-ml-datasets/audioset/v0.2.0/raw/",
@@ -105,7 +139,7 @@ class AudioSet(Dataset):
         version="0.1.0",  # Default version
         description="AudioSet dataset",
         sources=["YouTube"],
-        license="Mixed",
+        license="CC BY 4.0",
     )
 
     # Mapping of sample rates to their corresponding path columns
@@ -238,12 +272,12 @@ class AudioSet(Dataset):
         self._data = self._backend_class.from_csv(location, streaming=self._streaming)
 
     @classmethod
-    def from_config(cls, dataset_config: DatasetConfig) -> tuple["AudioSet", dict[str, Any]]:
+    def from_config(cls, dataset_config: AudioSetConfig) -> tuple["AudioSet", dict[str, Any]]:
         """Create a Dataset instance from a configuration dictionary.
 
         Parameters
         ----------
-        dataset_config : DatasetConfig
+        dataset_config : AudioSetConfig
             Configuration dictionary containing dataset parameters.
 
         Returns
@@ -257,7 +291,7 @@ class AudioSet(Dataset):
 
         ds = cls(
             split=cfg["split"],
-            version=cfg.get("version"),  # Use get() for backward compatibility
+            version=cfg["version"],
             output_take_and_give=cfg["output_take_and_give"],
             data_root=cfg["data_root"],
             sample_rate=cfg["sample_rate"],
@@ -278,18 +312,7 @@ class AudioSet(Dataset):
         -------
         int
             Number of samples in the current split.
-
-        Raises
-        ------
-        RuntimeError
-            If no split has been loaded yet.
         """
-        if self._data is None:
-            raise RuntimeError("No split has been loaded yet. Call _load() first.")
-        if self._streaming:
-            raise NotImplementedError(
-                "Length is not available in streaming mode. Iterate over the dataset instead."
-            )
         return len(self._data)
 
     def _process(self, row: dict[str, Any]) -> dict[str, Any]:
@@ -353,6 +376,7 @@ class AudioSet(Dataset):
 
     def __getitem__(self, idx: int) -> dict[str, Any]:
         """Get a specific sample from the dataset.
+
         Parameters
         ----------
         idx : int
@@ -362,20 +386,7 @@ class AudioSet(Dataset):
         -------
         dict[str, Any]
             A dictionary containing the audio data, text label, label, and path.
-
-        Raises
-        ------
-        IndexError
-            If the index is out of bounds.
         """
-        if self._streaming:
-            raise NotImplementedError(
-                "Random access (__getitem__) is not available in streaming mode. "
-                "Iterate over the dataset instead."
-            )
-        if idx >= len(self._data):
-            raise IndexError(f"Index {idx} out of bounds for dataset of length {len(self._data)}.")
-
         row = self._data[idx]
         return self._process(row)
 
