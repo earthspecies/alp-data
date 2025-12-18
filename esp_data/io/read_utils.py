@@ -6,6 +6,7 @@ from typing import Any, Literal
 
 import numpy as np
 import soundfile as sf
+import yaml
 
 from esp_data.io.filesystem import filesystem_from_path
 from esp_data.io.paths import AnyPathT, anypath
@@ -42,6 +43,23 @@ def read_text(
         str(file_path), "rt", encoding=encoding, errors=errors
     ) as f:
         return f.read()
+
+
+def read_yaml(path: str | AnyPathT) -> dict:
+    """Read a YAML file and return its contents as a dictionary.
+
+    Parameters
+    ----------
+    path : str | AnyPathT
+        The path to the YAML file.
+
+    Returns
+    -------
+    dict
+        The contents of the YAML file as a dictionary.
+    """
+    with filesystem_from_path(path).open(str(path), "r") as fp:
+        return yaml.safe_load(fp)
 
 
 def _read_audio_from_bytes(

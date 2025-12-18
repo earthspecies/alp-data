@@ -6,10 +6,9 @@ import semver
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, field_validator
 
 from esp_data.backends import BackendType, get_backend
-from esp_data.io import AnyPathT
+from esp_data.io import AnyPathT, read_yaml
 from esp_data.transforms import transform_from_config
 from esp_data.transforms.registry import RegisteredTransformConfigs
-from esp_data.utils import read_yaml
 
 
 class DatasetConfig(BaseModel):
