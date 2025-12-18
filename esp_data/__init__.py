@@ -1,4 +1,5 @@
-from .concat import ChainedDataset, ConcatenatedDataset
+from .chain import ChainedDataset
+from .concat import ConcatenatedDataset
 from .dataset import (
     ChainedDatasetConfig,
     ConcatConfig,
