@@ -61,10 +61,6 @@ def test_info_property(dataset: Dataset) -> None:
     assert "train" in dataset.info.split_paths
     assert "validation" in dataset.info.split_paths
     assert "train-balanced" in dataset.info.split_paths
-    assert "train-animal" in dataset.info.split_paths
-    assert "validation-animal" in dataset.info.split_paths
-    assert "train-noise" in dataset.info.split_paths
-    assert "validation-noise" in dataset.info.split_paths
 
 
 def test_data_property(dataset: Dataset) -> None:
@@ -90,10 +86,6 @@ def test_available_splits_exist(dataset: Dataset) -> None:
         "train",
         "train-balanced",
         "validation",
-        "train-animal",
-        "validation-animal",
-        "train-noise",
-        "validation-noise",
     ]
     for split in expected_splits:
         assert split in dataset.available_splits
@@ -246,10 +238,10 @@ def test_version_selection_and_info_isolation() -> None:
     assert ds_v1.info.version == "0.1.0"
     assert ds_v2.info.version == "0.2.0"
 
-    # v0.1.0 has balanced/animal/noise splits; v0.2.0 has different curated splits
+    # v0.1.0 has balanced split; v0.2.0 has environmental split
     assert "train-balanced" in ds_v1.info.split_paths
-    assert "train-strong" not in ds_v1.info.split_paths
-    assert "train-strong" in ds_v2.info.split_paths
+    assert "train-environmental" not in ds_v1.info.split_paths
+    assert "train-environmental" in ds_v2.info.split_paths
     assert "train-balanced" not in ds_v2.info.split_paths
 
 
