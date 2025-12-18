@@ -1,11 +1,21 @@
 import pytest
+import pandas as pd
 
-from esp_data import ConcatenatedDataset, ChainedDataset
+from esp_data import ConcatenatedDataset, ChainedDataset, dataset_from_config
 from esp_data.datasets import HawaiianBirds, NocturnalBirdMigration
 from esp_data.concat import MergeException
 
 
 def test_concat_of_selection_table_datasets() -> None:
+    """Test concatenation of two datasets that have a selection_table column.
+
+    This test ensures that when chaining datasets that both contain a
+    selection_table column, the resulting dataset maintains the integrity of
+    that column without overwriting or losing data.
+
+    ConcatenatedDataset overwrites source datasets' columns when there are
+    conflicts, while ChainedDataset preserves them.
+    """
     hb = HawaiianBirds(split="all", backend="pandas", streaming=False)
     nbm = NocturnalBirdMigration(split="test", backend="pandas", streaming=False)
 
@@ -31,7 +41,19 @@ def test_concat_of_selection_table_datasets() -> None:
     assert isinstance(sample1["selection_table"], pd.DataFrame)
 
 
+def test_load_from_config_file() -> None:
+    ds, _ = dataset_from_config("tests/samples/test_chain_config.yml")
+
+    assert isinstance(ds, ChainedDataset)
+    assert ds.streaming
+    assert hasattr(ds, "_source_datasets")
+    assert ds._source_datasets[0].info.name == "beans"
+    sample = next(iter(ds))
+    assert "audio" in sample
+
+
 def test_chained_dataset_streaming() -> None:
+    """Test ChainedDataset in streaming mode."""
     nbm = NocturnalBirdMigration(split="test", backend="polars", streaming=True)
     hb = HawaiianBirds(split="all", backend="polars", streaming=True)
 

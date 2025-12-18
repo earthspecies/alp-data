@@ -624,12 +624,23 @@ def dataset_from_config(
 ) -> tuple[Dataset, dict[str, Any]]:
     """Load a single dataset or a dataset collection from a configuration.
 
+    Note: We require special keys in the configuration file to identify
+    the type of dataset configuration:
+    - 'dataset' for DatasetConfig
+    - 'concat' for ConcatConfig
+    - 'chain' for ChainedDatasetConfig
+
     Parameters
     ----------
     dataset_config : DatasetConfig | ConcatConfig | ChainedDatasetConfig | AnyPathT | str
         The configuration for the dataset. This can be either a DatasetConfig object,
         a ConcatConfig object, a ChainedDatasetConfig or a path to a YAML file
         containing the configuration.
+
+    key : str | None, optional
+        If the configuration file contains multiple dataset configurations,
+        this key can be used to select a specific one. If None, and multiple
+        configurations are found, a ValueError is raised. Default is None.
 
     Returns
     -------
@@ -660,8 +671,8 @@ def dataset_from_config(
         data = data[key]
 
     if isinstance(data, dict):
-        if "dataset" in data or "concat" in data or "chained" in data:
-            if sum(k in data for k in ("concat", "dataset", "chained")) > 1:
+        if "dataset" in data or "concat" in data or "chain" in data:
+            if sum(k in data for k in ("concat", "dataset", "chain")) > 1:
                 raise ValueError("Configuration cannot contain multiple dataset types at once.")
 
             if "dataset" in data:
@@ -673,12 +684,14 @@ def dataset_from_config(
                 cfg = data["concat"]
                 return _make_dataset_from_config(ConcatConfig.model_validate(cfg))
 
-            elif "chained" in data:
-                cfg = data["chained"]
+            elif "chain" in data:
+                cfg = data["chain"]
                 return _make_dataset_from_config(ChainedDatasetConfig.model_validate(cfg))
 
             else:
-                raise ValueError("Configuration must contain either 'dataset' or 'concat' key.")
+                raise ValueError(
+                    "Configuration must contain either 'dataset','concat' or 'chain' key."
+                )
         else:
             raise ValueError(
                 "Invalid dataset configurations found. Please provide a specific key to select one."
@@ -688,5 +701,5 @@ def dataset_from_config(
     Your configuration must either be:
     1. A DatasetConfig represented as the value of a dict with a single 'dataset' key
     2. A ConcatConfig represented as the value of a dict with a single 'concat' key
-    3. A ChainedDatasetConfig represented as the value of a dict with a single 'chained' key
+    3. A ChainedDatasetConfig represented as the value of a dict with a single 'chain' key
     """)

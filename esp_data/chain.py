@@ -1,6 +1,12 @@
 from typing import Any, Iterator
 
-from esp_data.dataset import ChainedDatasetConfig, Dataset, DatasetInfo, dataset_from_config
+from esp_data.dataset import (
+    ChainedDatasetConfig,
+    Dataset,
+    DatasetInfo,
+    dataset_from_config,
+    register_dataset,
+)
 
 
 class ChainException(Exception):
@@ -9,6 +15,7 @@ class ChainException(Exception):
     pass
 
 
+@register_dataset
 class ChainedDataset(Dataset):
     """Helper class to chain multiple datasets for iteration and indexing.
 
