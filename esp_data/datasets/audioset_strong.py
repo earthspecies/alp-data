@@ -31,13 +31,20 @@ class AudioSetStrong(Dataset):
 
     This class makes the AudioSet Strong subset available in the esp-data strongly-labeled
     format, where each entry consists of:
-    - An audio recording (10 seconds)
+    - An audio recording (10 seconds, pre-resampled to 32kHz)
     - A selection table with temporal annotations (begin time, end time, label)
 
     The strong labels provide temporal boundaries for sound events, making this dataset
     suitable for sound event detection and temporal localization tasks.
 
-    AudioSet recordings include those available in this huggingface dataset: https://huggingface.co/datasets/agkphysics/AudioSet
+    AudioSet recordings include those available in this huggingface dataset:
+    https://huggingface.co/datasets/agkphysics/AudioSet
+
+    Available Splits
+    ----------------
+    - ``train``: AudioSet Strong training set with 32kHz pre-resampled audio (8115 rows).
+    - ``train-environmental``: Filtered to rows where ALL labels are environmental sounds
+      (from AudioSet's environmental subset). 1109 rows.
 
     References
     ----------
@@ -51,35 +58,36 @@ class AudioSetStrong(Dataset):
     Examples
     --------
     >>> from esp_data.datasets import AudioSetStrong
-    >>> dataset = AudioSetStrong(split="train", sample_rate=16000)
+    >>> dataset = AudioSetStrong(split="train", sample_rate=32000)
     >>> print(len(dataset))
-    8841
+    8115
     >>> item = dataset[0]
     >>> [k for k in sorted(item.keys()) if k != '32khz_path']
     ['audio', 'audio_path', 'segment_id', 'segment_start', 'selection_table', 'youtube_id']
     >>> print(item['selection_table'].columns)
     Index(['Selection', 'Begin Time (s)', 'End Time (s)', 'Label'], dtype='object')
+
+    >>> env_dataset = AudioSetStrong(split="train-environmental", sample_rate=32000)
+    >>> print(len(env_dataset))
+    1109
     """
 
     info = DatasetInfo(
         name="audioset_strong",
         owner="david; marius; masato",
         split_paths={
-            "train": "gs://esp-ml-datasets/audioset/v0.2.0/raw/csv-data/audioset_train_strong_selection_tables_filtered_with_32khz.csv",
+            "train": "gs://esp-ml-datasets/audioset/v0.2.0/raw/csv-data/audioset_train_strong_32khz_only.csv",
+            "train-environmental": "gs://esp-ml-datasets/audioset/v0.2.0/raw/csv-data/audioset_train_strong_32khz_environmental.csv",
         },
         version="0.1.0",
         description="AudioSet Strong: Strongly-labeled subset with temporal annotations",
         sources=["YouTube"],
-        license="Mixed",
+        license="CC BY 4.0",
     )
 
-    # Mapping of sample rates to their corresponding path columns
-    # Pre-resampled 32kHz audio is available for ~92% of entries
     _sample_rate_paths = {
         32000: "32khz_path",
     }
-
-    # Column name for original variable-rate audio files
     _originals_path_column = "audio_path"
 
     def __init__(
@@ -95,13 +103,14 @@ class AudioSetStrong(Dataset):
         Parameters
         ----------
         split : str
-            Split to load (key in info.split_paths). Currently only "train" is available.
+            Split to load. Available splits:
+            - "train": Full set with 32kHz pre-resampled audio (8115 rows)
+            - "train-environmental": Environmental sounds only (1109 rows)
         output_take_and_give : dict[str, str] | None
             Optional mapping of original → new output keys (filters columns as well).
         sample_rate : int | None
             Target sample rate for audio. If sample_rate=32000, pre-resampled audio
-            will be loaded directly when available (~92% of entries). Otherwise,
-            audio is resampled on-the-fly using librosa's kaiser_best method.
+            is loaded directly. Other sample rates resample on-the-fly.
         data_root : str | AnyPathT | None
             Optional root directory to prepend to each row['audio_path'].
         backend : BackendType, optional
@@ -160,12 +169,6 @@ class AudioSetStrong(Dataset):
         )
 
     def __len__(self) -> int:
-        if self._data is None:
-            raise RuntimeError("No split loaded.")
-        if self._streaming:
-            raise NotImplementedError(
-                "Length is not available in streaming mode. Iterate over the dataset instead."
-            )
         return len(self._data)
 
     @staticmethod
@@ -174,12 +177,10 @@ class AudioSetStrong(Dataset):
         return pd.DataFrame(columns=["Selection", "Begin Time (s)", "End Time (s)", "Label"])
 
     def _process(self, row: dict[str, Any]) -> dict[str, Any]:
-        # Determine which path column to use based on requested sample rate
-        # If a pre-resampled version is available, use it; otherwise resample on-the-fly
         audio = None
         sr = None
 
-        # Try pre-resampled audio first if available
+        # Use pre-resampled audio if available for the requested sample rate
         if self.sample_rate is not None and self.sample_rate in self._sample_rate_paths:
             path_column = self._sample_rate_paths[self.sample_rate]
             if (
@@ -191,16 +192,13 @@ class AudioSetStrong(Dataset):
                 try:
                     audio, sr = read_audio(presampled_path)
                     audio = audio_stereo_to_mono(audio, mono_method="average").astype(np.float32)
-                    # Validate: some pre-resampled files are corrupt (very short)
-                    # A valid 10-second clip at 32kHz should have ~320k samples
-                    # Use a minimum threshold of 1 second worth of samples
-                    min_samples = self.sample_rate  # 1 second at target rate
-                    if len(audio) < min_samples:
-                        audio = None  # Fall back to original
+                    # Validate audio length (corrupt files may be very short)
+                    if len(audio) < self.sample_rate:
+                        audio = None
                 except Exception:
-                    audio = None  # Fall back to original on any error
+                    audio = None
 
-        # Fall back to original audio path with on-the-fly resampling
+        # Fall back to original audio with on-the-fly resampling if needed
         if audio is None:
             audio_path = (
                 (self.data_root / row[self._originals_path_column])
@@ -247,13 +245,6 @@ class AudioSetStrong(Dataset):
         return row
 
     def __getitem__(self, idx: int) -> dict[str, Any]:
-        if self._data is None:
-            raise RuntimeError("No split loaded.")
-        if self._streaming:
-            raise NotImplementedError(
-                "Random access (__getitem__) is not available in streaming mode. "
-                "Iterate over the dataset instead."
-            )
         if idx < 0 or idx >= len(self._data):
             raise IndexError(f"Index {idx} out of bounds for dataset length {len(self._data)}")
 
@@ -261,8 +252,6 @@ class AudioSetStrong(Dataset):
         return self._process(row)
 
     def __iter__(self) -> Iterator[dict[str, Any]]:
-        if self._data is None:
-            raise RuntimeError("No split loaded.")
         for row in self._data:
             yield self._process(row)
 
@@ -291,9 +280,6 @@ class AudioSetStrong(Dataset):
         List[str]
             A sorted list of all unique labels in the dataset.
         """
-        if self._data is None:
-            return []
-
         labels: set[str] = set()
         for row in self._data:
             selection_table_blob = row.get("selection_table", "")
