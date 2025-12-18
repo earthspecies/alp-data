@@ -29,7 +29,7 @@ class ChainedDataset(Dataset):
     Examples
     --------
     >>> from esp_data.datasets import InsectSet459, BirdSet
-    >>> from esp_data.concat import ChainedDataset
+    >>> from esp_data.chain import ChainedDataset
     >>> dataset1 = InsectSet459(split="validation")
     >>> dataset2 = BirdSet(split="HSN-test")
     >>> concat_iter = ChainedDataset([dataset1, dataset2])
