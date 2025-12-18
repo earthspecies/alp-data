@@ -291,7 +291,7 @@ class AudioSet(Dataset):
 
         ds = cls(
             split=cfg["split"],
-            version=cfg["version"],
+            version=cfg.get("version"),
             output_take_and_give=cfg["output_take_and_give"],
             data_root=cfg["data_root"],
             sample_rate=cfg["sample_rate"],
