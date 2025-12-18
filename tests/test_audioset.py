@@ -61,10 +61,6 @@ def test_info_property(dataset: Dataset) -> None:
     assert "train" in dataset.info.split_paths
     assert "validation" in dataset.info.split_paths
     assert "train-balanced" in dataset.info.split_paths
-    assert "train-animal" in dataset.info.split_paths
-    assert "validation-animal" in dataset.info.split_paths
-    assert "train-noise" in dataset.info.split_paths
-    assert "validation-noise" in dataset.info.split_paths
 
 
 def test_data_property(dataset: Dataset) -> None:
@@ -90,10 +86,6 @@ def test_available_splits_exist(dataset: Dataset) -> None:
         "train",
         "train-balanced",
         "validation",
-        "train-animal",
-        "validation-animal",
-        "train-noise",
-        "validation-noise",
     ]
     for split in expected_splits:
         assert split in dataset.available_splits
@@ -231,6 +223,41 @@ def test_str_representation(dataset: Dataset) -> None:
     assert "0.1.0" in str_repr
     assert "train" in str_repr
     assert "validation" in str_repr
+
+
+def test_version_selection_and_info_isolation() -> None:
+    """Ensure selecting different versions doesn't mutate shared class-level info.
+
+    Historically AudioSet mutated the class-level `info` object, which caused
+    instances of different versions to stomp each other's `info.version` and
+    `info.split_paths`. This test prevents regressions.
+    """
+    ds_v1 = AudioSet(split="validation", version="0.1.0", streaming=True)
+    ds_v2 = AudioSet(split="validation", version="0.2.0", streaming=True)
+
+    assert ds_v1.info.version == "0.1.0"
+    assert ds_v2.info.version == "0.2.0"
+
+    # v0.1.0 has balanced split; v0.2.0 has environmental split
+    assert "train-balanced" in ds_v1.info.split_paths
+    assert "train-environmental" not in ds_v1.info.split_paths
+    assert "train-environmental" in ds_v2.info.split_paths
+    assert "train-balanced" not in ds_v2.info.split_paths
+
+
+def test_available_sample_rates_v020() -> None:
+    """Check pre-resampled sample-rate reporting for v0.2.0.
+
+    We condition on the metadata containing the expected path column to avoid
+    hard-failing if the underlying CSV schema changes.
+    """
+    ds = AudioSet(split="validation", version="0.2.0", streaming=True)
+    sample_rates = ds.available_sample_rates
+    assert isinstance(sample_rates, list)
+    if "32khz_path" in ds.columns:
+        assert 32000 in sample_rates
+    else:
+        assert len(sample_rates) == 0
 
 
 def test_from_config_with_transformations() -> None:
