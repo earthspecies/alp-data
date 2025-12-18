@@ -5,11 +5,49 @@ from typing import Any, Dict, Iterator
 
 import librosa
 import numpy as np
-import pandas as pd
 
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from esp_data.backends import BackendType
+from esp_data.dataset import register_config
 from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
+
+
+@register_config
+class AudioSetConfig(DatasetConfig):
+    """Configuration for the AudioSet dataset.
+
+    Parameters
+    ----------
+    dataset_name : str
+        The name of the dataset. Must be "audioset".
+    split : str
+        The split to load. One of AudioSet.info.split_paths keys.
+    version : str | None
+        The version of the dataset to use. If None, uses DEFAULT_VERSION.
+        Available versions: "0.1.0", "0.2.0"
+    output_take_and_give : dict[str, str] | None
+        A dictionary mapping the original column names to the new column names.
+        It acts as a filter as well.
+    sample_rate : int | None
+        The sample rate to which audio files should be resampled. For v0.2.0, if
+        sample_rate=32000, pre-resampled audio will be loaded directly (faster).
+    data_root : str | AnyPathT | None
+        The root directory for the dataset. This is optionally appended to the
+        path item of a sample in the dataset.
+    backend : BackendType
+        The backend to use ("pandas" or "polars"), by default "polars"
+    streaming : bool
+        Whether to use streaming mode, by default False
+    """
+
+    dataset_name: str = "audioset"
+    split: str = "train"
+    version: str | None = None
+    output_take_and_give: dict[str, str] | None = None
+    sample_rate: int | None = None
+    data_root: str | AnyPathT | None = None
+    backend: BackendType = "polars"
+    streaming: bool = False
 
 
 @register_dataset
@@ -37,8 +75,26 @@ class AudioSet(Dataset):
     The "caption" column contains the caption from AudioSetCaps when available.
     AudioSetCaps Paper: https://arxiv.org/abs/2411.18953
     AudioSetCaps Dataset: https://huggingface.co/datasets/baijs/AudioSetCaps
-    Note these are empty with the exception of the unbalanced_train split.
+    Note these are empty with the exception of the unbalanced_train split of the V1 dataset.
 
+    Note that AudioSet contains different files depending on YouTube video availability at
+    time of download. Version 0.1.0 contains a dump of AudioSet pulled in 2021 and resampled
+    to 16khz. Version 0.2.0 contains a larger set of audios pulled from this HuggingFace
+    release https://huggingface.co/datasets/agkphysics/AudioSet and maintaining the sample
+    rates of the original files.
+
+    Pre-resampled Audio
+    -------------------
+    Version 0.2.0 includes pre-resampled 32kHz audio that can be loaded directly
+    without on-the-fly resampling for faster data loading:
+
+    >>> # Load with pre-resampled 32kHz audio (v0.2.0, no resampling needed)
+    >>> dataset_32k = AudioSet(split="validation", version="0.2.0", sample_rate=32000)
+    >>> print(dataset_32k.available_sample_rates)
+    [32000]
+
+    >>> # Load with on-the-fly resampling to 16kHz
+    >>> dataset_16k = AudioSet(split="validation", version="0.2.0", sample_rate=16000)
 
     Examples
     --------
@@ -49,33 +105,60 @@ class AudioSet(Dataset):
     ... )
     >>> print(dataset.info.name)
     audioset
+    >>> # Use a specific version
+    >>> dataset_v2 = AudioSet(split="train", version="0.2.0")
     """
+
+    # Version registry with version-specific configurations
+    VERSIONS = {
+        "0.1.0": {
+            "split_paths": {
+                "train": "gs://esp-ml-datasets/audioset/v0.1.0/raw/csv-data/unbalanced_train_segments_processed.csv",
+                "train-balanced": "gs://esp-ml-datasets/audioset/v0.1.0/raw/csv-data/balanced_train_segments_processed.csv",
+                "validation": "gs://esp-ml-datasets/audioset/v0.1.0/raw/csv-data/eval_segments_processed.csv",
+            },
+            "data_root": "gs://esp-ml-datasets/audioset/v0.1.0/raw/",
+        },
+        "0.2.0": {
+            "split_paths": {
+                "train": "gs://esp-ml-datasets/audioset/v0.2.0/raw/csv-data/unbalanced_train_segments_processed.csv",
+                "validation": "gs://esp-ml-datasets/audioset/v0.2.0/raw/csv-data/eval_segments_processed.csv",
+                "train-environmental": "gs://esp-ml-datasets/audioset/v0.2.0/raw/csv-data/unbalanced_train_environmental_sounds.csv",
+            },
+            "data_root": "gs://esp-ml-datasets/audioset/v0.2.0/raw/",
+        },
+    }
+
+    # Default version (keep as 0.1.0 if we want backward compatibility)
+    DEFAULT_VERSION = "0.1.0"
 
     info = DatasetInfo(
         name="audioset",
         owner="david; marius; masato",
-        split_paths={
-            "train": "gs://esp-ml-datasets/audioset/v0.1.0/raw/csv-data/unbalanced_train_segments_processed.csv",
-            "train-balanced": "gs://esp-ml-datasets/audioset/v0.1.0/raw/csv-data/balanced_train_segments_processed.csv",
-            "validation": "gs://esp-ml-datasets/audioset/v0.1.0/raw/csv-data/eval_segments_processed.csv",
-            "train-animal": "gs://esp-ml-datasets/audioset/v0.1.0/raw/csv-data/unbalanced_train_segments_processed_animal.csv",
-            "validation-animal": "gs://esp-ml-datasets/audioset/v0.1.0/raw/csv-data/eval_segments_processed_animal.csv",
-            "train-noise": "gs://esp-ml-datasets/audioset/v0.1.0/raw/csv-data/unbalanced_train_segments_processed_noise.csv",
-            "validation-noise": "gs://esp-ml-datasets/audioset/v0.1.0/raw/csv-data/eval_segments_processed_noise.csv",
-        },
-        version="0.1.0",
+        split_paths={},  # Will be populated based on version
+        version="0.1.0",  # Default version
         description="AudioSet dataset",
         sources=["YouTube"],
-        license="Mixed",
+        license="CC BY 4.0",
     )
+
+    # Mapping of sample rates to their corresponding path columns
+    # Pre-resampled audio is available for v0.2.0 only
+    _sample_rate_paths = {
+        32000: "32khz_path",  # Pre-resampled to 32kHz (v0.2.0 only)
+    }
+
+    # Column name for original variable-rate audio files
+    _originals_path_column = "local_path"
 
     def __init__(
         self,
         split: str = "train",
+        version: str | None = None,
         output_take_and_give: dict[str, str] | None = None,
         sample_rate: int | None = None,
         data_root: str | AnyPathT | None = None,
-        backend: BackendType = "pandas",
+        backend: BackendType = "polars",
         streaming: bool = False,
     ) -> None:
         """Initialize the AudioSet dataset.
@@ -84,38 +167,62 @@ class AudioSet(Dataset):
         ----------
         split : str
             The split to load. One of info.split_paths keys.
+        version : str, optional
+            The version of the dataset to use. If None, uses DEFAULT_VERSION.
+            Available versions: "0.1.0", "0.2.0"
         output_take_and_give : dict[str, str]
             A dictionary mapping the original column names to the new column names.
             It acts as a filter as well.
-        sample_rate : int
-            The sample rate to which audio files should be resampled.
+        sample_rate : int, optional
+            The sample rate to which audio files should be resampled. For v0.2.0, if
+            sample_rate=32000, pre-resampled audio will be loaded directly (faster).
+            Otherwise, audio will be resampled on-the-fly from the original files using
+            librosa's kaiser_best method. If None, audio is returned at its original
+            sample rate.
         data_root : str | AnyPathT, optional
             The root directory for the dataset. This is optionally appended to the
             path item of a sample in the dataset.
-            If None, the default is the parent directory of the split path.
+            If None, uses the default data_root for the specified version.
         backend : BackendType, optional
-            The backend to use ("pandas", "polars"), by default "polars"
+            The backend to use ("pandas" or "polars"), by default "polars"
         streaming : bool, optional
             Whether to use streaming mode, by default False
 
         Raises
         ------
         ValueError
-            If the backend is not "pandas".
+            If the specified version is not available.
         """
-        if backend != "pandas":
-            raise ValueError("AudioSet dataset only supports 'pandas' backend.")
-
         super().__init__(output_take_and_give, backend=backend, streaming=streaming)
+        # Copy class-level DatasetInfo to avoid cross-instance mutation (versions/splits)
+        self.info = self.info.model_copy(deep=True)
+
+        # Handle version selection
+        if version is None:
+            version = self.DEFAULT_VERSION
+
+        if version not in self.VERSIONS:
+            raise ValueError(
+                f"Version '{version}' is not available. "
+                f"Available versions: {list(self.VERSIONS.keys())}"
+            )
+
+        self.version = version
+        self.version_config = self.VERSIONS[version]
+
+        # Update info with version-specific split paths
+        self.info.split_paths = self.version_config["split_paths"]
+        self.info.version = version
+
         self.split = split
-        self._data: pd.DataFrame = None
+        self._data = None
         self._load()  # Load the dataset (fills self._data)
         self.sample_rate = sample_rate
 
         if data_root is None:
-            self.data_root = anypath("gs://esp-ml-datasets/audioset/v0.1.0/raw/")
+            self.data_root = anypath(self.version_config["data_root"])
         else:
-            self.data_root = data_root
+            self.data_root = anypath(data_root)
 
     @property
     def columns(self) -> list[str]:
@@ -126,6 +233,25 @@ class AudioSet(Dataset):
     def available_splits(self) -> list[str]:
         """Return the available splits of the dataset."""
         return list(self.info.split_paths.keys())
+
+    @property
+    def available_sample_rates(self) -> list[int]:
+        """Return the available pre-resampled sample rates.
+
+        Returns
+        -------
+        list[int]
+            List of sample rates (in Hz) for which pre-resampled audio is available.
+            Audio at these sample rates can be loaded directly without on-the-fly resampling.
+            This checks which path columns actually exist in the loaded data.
+            Note: Pre-resampled audio is only available for v0.2.0.
+        """
+        available = []
+        for sr, path_column in self._sample_rate_paths.items():
+            # Check if the path column exists in the loaded data
+            if path_column in self._data.columns:
+                available.append(sr)
+        return available
 
     def _load(self) -> None:
         """Load the dataset.
@@ -143,25 +269,15 @@ class AudioSet(Dataset):
 
         location = self.info.split_paths[self.split]
 
-        # Converter to parse JSON-encoded labels into Python lists
-        def parse_label(value: str) -> list:
-            if pd.isna(value) or value == "":
-                return []
-            return json.loads(value)
-
-        self._data = self._backend_class.from_csv(
-            location,  # StringIO(csv_text),
-            streaming=self._streaming,
-            converters={"labels": parse_label},
-        )
+        self._data = self._backend_class.from_csv(location, streaming=self._streaming)
 
     @classmethod
-    def from_config(cls, dataset_config: DatasetConfig) -> tuple["AudioSet", dict[str, Any]]:
+    def from_config(cls, dataset_config: AudioSetConfig) -> tuple["AudioSet", dict[str, Any]]:
         """Create a Dataset instance from a configuration dictionary.
 
         Parameters
         ----------
-        dataset_config : DatasetConfig
+        dataset_config : AudioSetConfig
             Configuration dictionary containing dataset parameters.
 
         Returns
@@ -175,6 +291,7 @@ class AudioSet(Dataset):
 
         ds = cls(
             split=cfg["split"],
+            version=cfg.get("version"),
             output_take_and_give=cfg["output_take_and_give"],
             data_root=cfg["data_root"],
             sample_rate=cfg["sample_rate"],
@@ -195,50 +312,71 @@ class AudioSet(Dataset):
         -------
         int
             Number of samples in the current split.
-
-        Raises
-        ------
-        RuntimeError
-            If no split has been loaded yet.
         """
-        if self._data is None:
-            raise RuntimeError("No split has been loaded yet. Call _load() first.")
-        if self._streaming:
-            raise NotImplementedError(
-                "Length is not available in streaming mode.Iterate over the dataset instead."
-            )
         return len(self._data)
 
     def _process(self, row: dict[str, Any]) -> dict[str, Any]:
-        audio_path = anypath(self.data_root) / row["local_path"]
+        """Process a single row of the dataset.
 
-        audio, sr = read_audio(audio_path)
-        audio = audio.astype(np.float32)
-        audio = audio_stereo_to_mono(audio, mono_method="average")
+        Returns
+        -------
+        dict[str, Any]
+            Processed row with audio loaded and labels parsed.
+        """
+        # Parse JSON-encoded labels if present
+        if "labels" in row:
+            v = row["labels"]
+            if v is None or v == "" or (isinstance(v, float) and np.isnan(v)):
+                row["labels"] = []
+            elif isinstance(v, str):
+                # Labels are stored as JSON arrays of strings
+                row["labels"] = json.loads(v)
 
-        if self.sample_rate is not None and sr != self.sample_rate:
-            audio = librosa.resample(
-                y=audio,
-                orig_sr=sr,
-                target_sr=self.sample_rate,
-                scale=True,
-                res_type="kaiser_best",
-            )
+        # Determine which path column to use based on requested sample rate
+        # If a pre-resampled version is available, use it; otherwise resample on-the-fly
+        use_presampled = False
+        if self.sample_rate is not None and self.sample_rate in self._sample_rate_paths:
+            path_column = self._sample_rate_paths[self.sample_rate]
+            if (
+                path_column in row
+                and row[path_column] not in (None, "")
+                and not (isinstance(row[path_column], float) and np.isnan(row[path_column]))
+            ):
+                audio_path = anypath(self.data_root) / str(row[path_column])
+                use_presampled = True
 
-        # AudioSet likes to call this 'raw_wav'
+        if use_presampled:
+            audio, sr = read_audio(audio_path)
+            audio = audio.astype(np.float32)
+            audio = audio_stereo_to_mono(audio, mono_method="average")
+        else:
+            audio_path = anypath(self.data_root) / str(row[self._originals_path_column])
+            audio, sr = read_audio(audio_path)
+            audio = audio.astype(np.float32)
+            audio = audio_stereo_to_mono(audio, mono_method="average")
+
+            if self.sample_rate is not None and sr != self.sample_rate:
+                audio = librosa.resample(
+                    y=audio,
+                    orig_sr=sr,
+                    target_sr=self.sample_rate,
+                    scale=True,
+                    res_type="kaiser_best",
+                )
+
         row["audio"] = audio
 
         if self.output_take_and_give:
-            item = {}
+            item: dict[str, Any] = {}
             for key, value in self.output_take_and_give.items():
                 item[value] = row[key]
-        else:
-            item = row
+            return item
 
-        return item
+        return row
 
     def __getitem__(self, idx: int) -> dict[str, Any]:
         """Get a specific sample from the dataset.
+
         Parameters
         ----------
         idx : int
@@ -272,12 +410,13 @@ class AudioSet(Dataset):
             A string representation of the dataset including its name, version,
             and basic statistics if data is loaded.
         """
-        base_info = f"{self.info.name} (v{self.info.version}), split: {self.split}"
+        base_info = f"{self.info.name} (v{self.version})"
 
         return (
             f"{base_info}\n"
             f"Description: {self.info.description}\n"
             f"Sources: {', '.join(self.info.sources)}\n"
             f"License: {self.info.license}\n"
+            f"Available versions: {', '.join(self.VERSIONS.keys())}\n"
             f"Available splits: {', '.join(self.info.split_paths.keys())}"
         )
