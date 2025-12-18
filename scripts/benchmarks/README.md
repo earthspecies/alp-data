@@ -7,6 +7,7 @@ Note: most benchmark default functionality is currently bucket‑oriented. The e
 Contents
 --------
 - `benchmark_config.yaml` — config file listing the configuration of the experiment settings for `nfs` and `bucket` locations.
+- `job_array_exp_config.yaml` — config file for job array experiments.
 - `benchmark_dataset.py`, `benchmark_latency.py`, `loading_time.py` — main benchmark scripts to measure loading and latency characteristics.
 - `benchmark_utils.py` — shared utilities used by the benchmarks.
 - `dataset_list.txt`, `generate_list.py` — helpers for producing dataset lists used in jobs.
@@ -24,6 +25,13 @@ Quick overview
 - Plots are saved locally to `scripts/benchmarks/fig/`.
 
 You can specify a dataset configuration via a YAML file or use the default configuration.
+
+What's new ? 🚀
+--------------
+- Added support for job array experiments to run multiple experiments in parallel and explore the impact of concurrent jobs on benchmark latency. (NFS and bucket configurations supported.)
+- Added `merge_array_results.py` to merge local results from multiple array jobs into a single CSV file in the cloud.
+- Updated `benchmark_latency.py` to handle array experiments and save results accordingly.
+- Provided a sample configuration file `job_array_exp_config.yaml` for job array experiments.
 
 Cluster-first workflow (SLURM)
 ------------------------------
@@ -97,6 +105,14 @@ info = DatasetInfo(
         ...
 )
 ```
+
+- Job array experiments (new feature):
+```
+sbatch jobs/benchmark_latency_array_exp.sh
+```
+
+You can customize the configuration by editing `scripts/benchmarks/job_array_exp_config.yaml` to specify different datasets and splits.
+You can also modify the job script to change the number of array jobs and other parameters.
 
 Collecting results and plots
 ---------------------------
