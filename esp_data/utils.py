@@ -8,7 +8,10 @@ from typing import Callable
 from uuid import UUID, uuid4
 
 import google_crc32c
+import yaml
 from google.cloud import secretmanager
+
+from esp_data.io.paths import AnyPathT, filesystem_from_path
 
 logger = logging.getLogger("esp_data")
 
@@ -273,6 +276,26 @@ def increment_version(version: str, mode: str = "patch") -> str:
         patch += 1
 
     return f"{major}.{minor}.{patch}"
+
+
+def read_yaml(path: str | AnyPathT) -> dict:
+    """Read a YAML file and return its contents as a dictionary.
+
+    Parameters
+    ----------
+    path : str | AnyPathT
+        The path to the YAML file.
+
+    Returns
+    -------
+    dict
+        The contents of the YAML file as a dictionary.
+    """
+    fs = filesystem_from_path(str(path))
+    with fs.open(str(path), "r") as fp:
+        data = yaml.safe_load(fp)
+
+    return data
 
 
 def read_gcp_secret(

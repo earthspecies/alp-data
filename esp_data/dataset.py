@@ -1,16 +1,15 @@
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
-from pathlib import Path
 from typing import Any, Dict, Iterator, Literal
 
 import semver
-import yaml
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, field_validator
 
 from esp_data.backends import BackendType, get_backend
-from esp_data.io import AnyPathT, anypath
+from esp_data.io import AnyPathT
 from esp_data.transforms import transform_from_config
 from esp_data.transforms.registry import RegisteredTransformConfigs
+from esp_data.utils import read_yaml
 
 
 class DatasetConfig(BaseModel):
@@ -621,7 +620,7 @@ def _make_dataset_from_config(dataset_config: DatasetConfig | ConcatConfig) -> D
 
 
 def dataset_from_config(
-    dataset_config: DatasetConfig | ConcatConfig | AnyPathT | str,
+    dataset_config: DatasetConfig | ConcatConfig | ChainedDatasetConfig | AnyPathT | str,
     key: str | None = None,
 ) -> tuple[Dataset, dict[str, Any]]:
     """Load a single dataset or a dataset collection from a configuration.
@@ -630,8 +629,8 @@ def dataset_from_config(
     ----------
     dataset_config : DatasetConfig | ConcatConfig | ChainedDatasetConfig | AnyPathT | str
         The configuration for the dataset. This can be either a DatasetConfig object,
-        a ConcatConfig object or instead a path to a YAML file containing the
-        configuration.
+        a ConcatConfig object, a ChainedDatasetConfig or a path to a YAML file
+        containing the configuration.
 
     Returns
     -------
@@ -650,13 +649,11 @@ def dataset_from_config(
     KeyError
         If the specified key does not match any dataset configuration in the data.
     """
-    if isinstance(dataset_config, (DatasetConfig, ConcatConfig)):
+    if isinstance(dataset_config, (DatasetConfig, ConcatConfig, ChainedDatasetConfig)):
         # If a DatasetConfig is passed, we can directly create the dataset
         return _make_dataset_from_config(dataset_config)
 
-    if isinstance(dataset_config, (Path, str, AnyPathT)):
-        with anypath(dataset_config).open("r") as fp:
-            data = yaml.safe_load(fp)
+    data = read_yaml(dataset_config)
 
     if key is not None:
         if key not in data:
