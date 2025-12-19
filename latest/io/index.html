@@ -52,6 +52,8 @@
     
       <link rel="stylesheet" href="../assets/_mkdocstrings.css">
     
+      <link rel="stylesheet" href="../stylesheets/extra.css">
+    
     <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
@@ -279,6 +281,44 @@
   
   
     <li class="md-tabs__item">
+      <a href="../chain/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Chain datasets
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../backends/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Data Backends
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
       <a href="../reference/" class="md-tabs__link">
         
   
@@ -473,37 +513,64 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#useful-pathlike-methods" class="md-nav__link">
+  <a href="#path-manipulation-methods" class="md-nav__link">
     <span class="md-ellipsis">
-      Useful pathlike methods
+      Path manipulation methods
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Useful pathlike methods">
+    <nav class="md-nav" aria-label="Path manipulation methods">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#delete-a-file-with-unlink" class="md-nav__link">
+  <a href="#basic-path-properties" class="md-nav__link">
     <span class="md-ellipsis">
-      Delete a file with .unlink()
+      Basic path properties
     </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#cloud-files" class="md-nav__link">
+  <a href="#working-with-cloud-paths" class="md-nav__link">
     <span class="md-ellipsis">
-      Cloud files
+      Working with cloud paths
     </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#copy-from-and-to-a-cloud-location" class="md-nav__link">
+  <a href="#joining-paths" class="md-nav__link">
     <span class="md-ellipsis">
-      Copy from and to a cloud location
+      Joining paths
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changing-path-components" class="md-nav__link">
+    <span class="md-ellipsis">
+      Changing path components
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#path-matching" class="md-nav__link">
+    <span class="md-ellipsis">
+      Path matching
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#converting-to-string-representations" class="md-nav__link">
+    <span class="md-ellipsis">
+      Converting to string representations
     </span>
   </a>
   
@@ -515,9 +582,9 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#folder-operations" class="md-nav__link">
+  <a href="#summary-anypath-behavior" class="md-nav__link">
     <span class="md-ellipsis">
-      Folder operations
+      Summary: anypath behavior
     </span>
   </a>
   
@@ -537,6 +604,48 @@
   
     <nav class="md-nav" aria-label="Filesystem approach with esp_data.io.filesystem">
       <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#file-operations-with-filesystem" class="md-nav__link">
+    <span class="md-ellipsis">
+      File operations with filesystem
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="File operations with filesystem">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#check-if-files-exist" class="md-nav__link">
+    <span class="md-ellipsis">
+      Check if files exist
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#read-and-write-to-files" class="md-nav__link">
+    <span class="md-ellipsis">
+      Read and write to files
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#delete-files" class="md-nav__link">
+    <span class="md-ellipsis">
+      Delete files
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
         
           <li class="md-nav__item">
   <a href="#filesystem-folder-operations" class="md-nav__link">
@@ -559,7 +668,7 @@
           <li class="md-nav__item">
   <a href="#move-files-from-one-cloud-location-to-another-cloud-location" class="md-nav__link">
     <span class="md-ellipsis">
-      Move files from one cloud location to another cloud location.
+      Move files from one cloud location to another cloud location
     </span>
   </a>
   
@@ -656,6 +765,50 @@
   
   
     <li class="md-nav__item">
+      <a href="../chain/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Chain datasets
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../backends/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Data Backends
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../reference/" class="md-nav__link">
         
   
@@ -693,12 +846,16 @@
 <h1 id="esp_dataio-module"><code>esp_data.io</code> module</h1>
 <h2 id="what-does-it-do">What does it do?</h2>
 <p>The <code>io</code> module provides a set of functions for reading and writing data to and from various file formats and storage systems. It supports local files, Google Cloud Storage (GCS), and Cloudflare R2 buckets.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>We have dropped support for <code>cloudpathlib</code> which was the basis for <code>anypath</code> until version 1.2.1. We now have our own implementation of a "cloud path" (e.g. "gs://my-bucket/file.txt"). This implementation <code>PureGSPath</code> or <code>PureS3Path</code> is more lightweight and provides <strong>path manipulation features only</strong>. For file operations on cloud paths (reading, writing, copying, listing files), you must use the <code>filesystem</code> interface.</p>
+</div>
 <p>You can use this module to:</p>
 <ol>
-<li>Conduct file operations like <a href="#useful-pathlike-methods"> "exists", "unlink" (delete), "open" (read/write), and "glob" (list files)</a></li>
-<li><a href="#copy-from-and-to-a-cloud-location">Download and upload files (and folders)</a> to and from cloud storage locations</li>
+<li><a href="#esp_dataioanypath">Path manipulation with <code>anypath</code></a> - join paths, get path components, change extensions, etc.</li>
+<li><a href="#download-and-upload-files-with-filesystem">Download and upload files (and folders)</a> to and from cloud storage locations</li>
 <li><a href="#filesystem-folder-operations">List the contents</a> of buckets</li>
-<li><a href="#delete-a-file-with-unlink">Delete files</a></li>
+<li><a href="#delete-files">Delete files</a> with filesystem operations</li>
 <li><a href="#move-files-from-one-cloud-location-to-another-cloud-location">Move files</a> from one cloud location to another cloud location</li>
 <li><a href="#copy-from-one-cloud-location-to-another-cloud-location">Copy files</a> from one cloud location to another cloud location</li>
 <li><a href="#read-audio-from-a-remote-file">Read audio</a> from a remote file directly into memory as a numpy array. This is <strong>NOT</strong> the same as <em>streaming</em>, it loads the whole file into memory, so be careful with large files.</li>
@@ -706,210 +863,337 @@
 </ol>
 <p>There are two interfaces available:</p>
 <ul>
-<li><code>esp_data.io.anypath</code> a <a href="#esp_dataioanypath">path-like interface</a>, if you're familiar with <code>pathlib</code> you can use this interface to read and write files.</li>
-<li><code>esp_data.io.filesystem</code> a <a href="#filesystem-approach-with-esp_dataiofilesystem">filesystem type interface</a></li>
+<li><code>esp_data.io.anypath</code> a <a href="#esp_dataioanypath">path-like interface</a>, if you're familiar with <code>pathlib</code> you can use this interface for path manipulation operations, like joining paths, listing path parts, path parents etc. <strong>Note</strong>: For cloud paths (gs://, s3://), this interface provides path manipulation only, not file I/O. For local paths, it returns <code>pathlib.Path</code> which supports full file I/O operations.</li>
+<li><code>esp_data.io.filesystem</code> a <a href="#filesystem-approach-with-esp_dataiofilesystem">filesystem type interface</a> this is the interface to use for reading and writing files on cloud storage, copying files between cloud and local locations, listing files in buckets etc.</li>
 </ul>
 <h2 id="why-two-interfaces">Why two interfaces?</h2>
-<p>The <code>anypath</code> interface is more user-friendly and is similar to the <code>pathlib</code> module in Python. It allows you to work with paths in a more intuitive way, especially if you're already familiar with <code>pathlib</code>. However, we've noticed some issues with the underlying <code>cloudpathlib</code> library that <code>anypath</code> uses, which can lead to unexpected behavior in certain cases.</p>
-<p>We recommend that for the following use cases, the <code>filesystem</code> interface is more reliable and consistent:</p>
+<p>The <code>anypath</code> factory function is user-friendly and returns the appropriate path type:
+- For <strong>local paths</strong>: Returns <code>pathlib.Path</code> which supports both path manipulation AND file I/O operations (<code>.exists()</code>, <code>.open()</code>, <code>.unlink()</code>, <code>.is_dir()</code>, etc.)
+- For <strong>cloud paths</strong> (gs://, s3://, r2://): Returns <code>PureCloudPath</code> instances (like <code>PureGSPath</code>) which support path manipulation only, NOT file I/O.</p>
+<p>The <code>filesystem</code> interface is required for cloud file operations:</p>
 <ul>
 <li>When you need to <a href="#download-and-upload-files-with-filesystem">copy files between cloud and local locations</a> or between two cloud locations.</li>
-<li>When you need to perform a search (a glob) operation for a file pattern. See <a href="#filesystem-folder-operations">folder operations</a> for more details.</li>
+<li>When you need to perform a search (a glob) operation for files in cloud storage. See <a href="#filesystem-folder-operations">folder operations</a> for more details.</li>
+<li>When you need to check if a cloud file exists, delete cloud files, or read/write cloud file contents.</li>
 </ul>
 <h2 id="esp_dataioanypath"><code>esp_data.io.anypath</code></h2>
-<p>Lets start by exploring the <code>anypath</code> function</p>
+<p>Let's start by exploring the <code>anypath</code> function for path manipulation.</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">esp_data.io</span><span class="w"> </span><span class="kn">import</span> <span class="n">anypath</span>
 </span></code></pre></div>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># automatically recognizes a path to a local file</span>
 </span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="n">path</span> <span class="o">=</span> <span class="n">anypath</span><span class="p">(</span><span class="s2">&quot;/some/random/file.txt&quot;</span><span class="p">)</span>
 </span></code></pre></div>
-<p>A local file path is a PosixPath</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">PosixPath</span>
-</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="nb">isinstance</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">PosixPath</span><span class="p">)</span>
+<p>A local file path is a Path (PosixPath on Unix systems) and supports full file I/O operations:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="nb">isinstance</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">Path</span><span class="p">)</span>
 </span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="c1"># Output: True</span>
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="c1"># Local paths support file I/O operations</span>
+</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="c1"># Check if file exists</span>
+</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span>
+</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="c1"># Output: False</span>
+</span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>
+</span><span id="__span-2-10"><a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="c1"># Create and write to a file</span>
+</span><span id="__span-2-11"><a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
+</span><span id="__span-2-12"><a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a><span class="n">json_path</span> <span class="o">=</span> <span class="n">anypath</span><span class="p">(</span><span class="s2">&quot;random.json&quot;</span><span class="p">)</span>
+</span><span id="__span-2-13"><a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a><span class="k">with</span> <span class="n">json_path</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="s2">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+</span><span id="__span-2-14"><a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a>    <span class="n">json</span><span class="o">.</span><span class="n">dump</span><span class="p">({</span><span class="s2">&quot;data&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">},</span> <span class="n">f</span><span class="p">)</span>
+</span><span id="__span-2-15"><a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a>
+</span><span id="__span-2-16"><a id="__codelineno-2-16" name="__codelineno-2-16" href="#__codelineno-2-16"></a><span class="c1"># Read it back</span>
+</span><span id="__span-2-17"><a id="__codelineno-2-17" name="__codelineno-2-17" href="#__codelineno-2-17"></a><span class="k">with</span> <span class="n">json_path</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="s2">&quot;r&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+</span><span id="__span-2-18"><a id="__codelineno-2-18" name="__codelineno-2-18" href="#__codelineno-2-18"></a>    <span class="n">data</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+</span><span id="__span-2-19"><a id="__codelineno-2-19" name="__codelineno-2-19" href="#__codelineno-2-19"></a>
+</span><span id="__span-2-20"><a id="__codelineno-2-20" name="__codelineno-2-20" href="#__codelineno-2-20"></a><span class="c1"># Delete the file</span>
+</span><span id="__span-2-21"><a id="__codelineno-2-21" name="__codelineno-2-21" href="#__codelineno-2-21"></a><span class="n">json_path</span><span class="o">.</span><span class="n">unlink</span><span class="p">()</span>
 </span></code></pre></div>
-<p>You can also check if the path is local or cloud</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="n">path</span><span class="o">.</span><span class="n">is_local</span>
-</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="c1"># Output: True</span>
+<p>Cloud files are identified by their prefix: "gs://" for Google Cloud and "r2://" or "s3://" for Cloudflare</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">esp_data.io</span><span class="w"> </span><span class="kn">import</span> <span class="n">PureGSPath</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="n">gs_path</span> <span class="o">=</span> <span class="n">anypath</span><span class="p">(</span><span class="s2">&quot;gs://some-bucket/some-file&quot;</span><span class="p">)</span>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="nb">isinstance</span><span class="p">(</span><span class="n">gs_path</span><span class="p">,</span> <span class="n">PureGSPath</span><span class="p">)</span>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="c1"># Output: True</span>
 </span></code></pre></div>
-<p>Cloud files are identified by their prefix: "gs://" for google cloud and "r2://" or "s3://" for cloudflare</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="n">anypath</span><span class="p">(</span><span class="s2">&quot;gs://some-bucket/some-file&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">is_cloud</span>
-</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="c1"># Output: True</span>
+<div class="admonition important">
+<p class="admonition-title">Important</p>
+<p><strong>Cloud paths do NOT support file I/O operations</strong>. The following will NOT work:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1"># ❌ These operations are NOT available for cloud paths</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="n">gs_path</span> <span class="o">=</span> <span class="n">anypath</span><span class="p">(</span><span class="s2">&quot;gs://bucket/file.txt&quot;</span><span class="p">)</span>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="n">gs_path</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span>  <span class="c1"># AttributeError: no &#39;exists&#39; method</span>
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="n">gs_path</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="s2">&quot;r&quot;</span><span class="p">)</span>  <span class="c1"># AttributeError: no &#39;open&#39; method</span>
+</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="n">gs_path</span><span class="o">.</span><span class="n">unlink</span><span class="p">()</span>  <span class="c1"># AttributeError: no &#39;unlink&#39; method</span>
+</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="n">gs_path</span><span class="o">.</span><span class="n">is_dir</span><span class="p">()</span>  <span class="c1"># AttributeError: no &#39;is_dir&#39; method</span>
 </span></code></pre></div>
+<p>For file operations on cloud paths, use the <a href="#filesystem-approach-with-esp_dataiofilesystem"><code>filesystem</code> interface</a> or standalone utility functions like <code>esp_data.io.exists()</code> and <code>esp_data.io.rm()</code>.</p>
+</div>
 <div class="admonition remark">
 <p class="admonition-title">Remark</p>
-<p><strong>Note</strong>: Cloudflare paths are considered <code>S3Path</code> objects which might confuse you since we don't use Amazon AWS S3 buckets. The reason is that Cloudflare uses the S3 API and we haven't found a great solution to separate S3 from R2 (yet). Please consider them equivalent for now.</p>
+<p><strong>Note</strong>: Cloudflare paths use the "r2://" prefix which gets converted to "s3://" internally because Cloudflare R2 uses the S3 API. The returned objects are <code>PureR2Path</code> (or <code>PureS3Path</code>) instances.</p>
 </div>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="nb">type</span><span class="p">(</span><span class="n">anypath</span><span class="p">(</span><span class="s2">&quot;r2://some-bucket/some-file&quot;</span><span class="p">))</span>
-</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="c1"># Output: esp_data.io.paths.R2Path</span>
-</span></code></pre></div>
-<p><div class="language-python highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="nb">print</span><span class="p">(</span><span class="n">anypath</span><span class="p">(</span><span class="s2">&quot;r2://some-bucket/some-file&quot;</span><span class="p">))</span>
-</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="c1"># Output: s3://some-bucket/some-file</span>
-</span></code></pre></div>
-<a href="#esp_dataio-module">Back to Top</a></p>
-<h3 id="useful-pathlike-methods">Useful pathlike methods</h3>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="n">path</span> <span class="o">=</span> <span class="n">anypath</span><span class="p">(</span><span class="s2">&quot;/some/random/file.txt&quot;</span><span class="p">)</span>
-</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>
-</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="c1"># does a file exist ?</span>
-</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Does </span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2"> exist? Answer: </span><span class="si">{</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="c1"># Output: Does /some/random/file.txt exist? Answer: False</span>
-</span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>
-</span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a><span class="c1"># what is its extension ?</span>
-</span><span id="__span-7-8"><a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Suffix: </span><span class="si">{</span><span class="n">path</span><span class="o">.</span><span class="n">suffix</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-</span><span id="__span-7-9"><a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a><span class="c1"># Output: Suffix: .txt</span>
-</span><span id="__span-7-10"><a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a>
-</span><span id="__span-7-11"><a id="__codelineno-7-11" name="__codelineno-7-11" href="#__codelineno-7-11"></a><span class="c1"># what is its name ?</span>
-</span><span id="__span-7-12"><a id="__codelineno-7-12" name="__codelineno-7-12" href="#__codelineno-7-12"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Filename: </span><span class="si">{</span><span class="n">path</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-</span><span id="__span-7-13"><a id="__codelineno-7-13" name="__codelineno-7-13" href="#__codelineno-7-13"></a><span class="c1"># Output: Filename: file.txt</span>
-</span><span id="__span-7-14"><a id="__codelineno-7-14" name="__codelineno-7-14" href="#__codelineno-7-14"></a>
-</span><span id="__span-7-15"><a id="__codelineno-7-15" name="__codelineno-7-15" href="#__codelineno-7-15"></a><span class="c1"># where is it located ?</span>
-</span><span id="__span-7-16"><a id="__codelineno-7-16" name="__codelineno-7-16" href="#__codelineno-7-16"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;It&#39;s here: </span><span class="si">{</span><span class="n">path</span><span class="o">.</span><span class="n">parent</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-</span><span id="__span-7-17"><a id="__codelineno-7-17" name="__codelineno-7-17" href="#__codelineno-7-17"></a><span class="c1"># Output: It&#39;s here: /some/random</span>
-</span><span id="__span-7-18"><a id="__codelineno-7-18" name="__codelineno-7-18" href="#__codelineno-7-18"></a>
-</span><span id="__span-7-19"><a id="__codelineno-7-19" name="__codelineno-7-19" href="#__codelineno-7-19"></a><span class="c1"># split the path</span>
-</span><span id="__span-7-20"><a id="__codelineno-7-20" name="__codelineno-7-20" href="#__codelineno-7-20"></a><span class="nb">print</span><span class="p">(</span><span class="n">path</span><span class="o">.</span><span class="n">parts</span><span class="p">)</span>
-</span><span id="__span-7-21"><a id="__codelineno-7-21" name="__codelineno-7-21" href="#__codelineno-7-21"></a><span class="c1"># Output: (&#39;/&#39;, &#39;some&#39;, &#39;random&#39;, &#39;file.txt&#39;)</span>
-</span></code></pre></div>
-<p>Read a pdf as bytes using <code>.open()</code></p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="k">with</span> <span class="n">path</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="s2">&quot;rb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
-</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>    <span class="n">text</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
-</span></code></pre></div>
-<p>Create a json file and write to it</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
-</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>
-</span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="k">with</span> <span class="n">anypath</span><span class="p">(</span><span class="s2">&quot;random.json&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="s2">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
-</span><span id="__span-9-4"><a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>    <span class="n">json</span><span class="o">.</span><span class="n">dump</span><span class="p">({</span><span class="s2">&quot;data&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">},</span> <span class="n">f</span><span class="p">)</span>
-</span><span id="__span-9-5"><a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a>
-</span><span id="__span-9-6"><a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a><span class="c1"># read it back</span>
-</span><span id="__span-9-7"><a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a><span class="k">with</span> <span class="n">anypath</span><span class="p">(</span><span class="s2">&quot;random.json&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="s2">&quot;r&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
-</span><span id="__span-9-8"><a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a>    <span class="n">data</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
-</span><span id="__span-9-9"><a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a>
-</span><span id="__span-9-10"><a id="__codelineno-9-10" name="__codelineno-9-10" href="#__codelineno-9-10"></a><span class="k">assert</span> <span class="n">data</span> <span class="o">==</span> <span class="p">{</span><span class="s2">&quot;data&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">}</span>
-</span></code></pre></div>
-<h4 id="delete-a-file-with-unlink">Delete a file with <code>.unlink()</code></h4>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="n">anypath</span><span class="p">(</span><span class="s2">&quot;random.json&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">unlink</span><span class="p">()</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">esp_data.io</span><span class="w"> </span><span class="kn">import</span> <span class="n">PureR2Path</span>
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="n">r2_path</span> <span class="o">=</span> <span class="n">anypath</span><span class="p">(</span><span class="s2">&quot;r2://some-bucket/some-file&quot;</span><span class="p">)</span>
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="nb">isinstance</span><span class="p">(</span><span class="n">r2_path</span><span class="p">,</span> <span class="n">PureR2Path</span><span class="p">)</span>
+</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="c1"># Output: True</span>
+</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="nb">print</span><span class="p">(</span><span class="n">r2_path</span><span class="p">)</span>
+</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="c1"># Output: s3://some-bucket/some-file</span>
 </span></code></pre></div>
 <p><a href="#esp_dataio-module">Back to Top</a></p>
-<h4 id="cloud-files">Cloud files</h4>
-<p>The above operations work identically for files in buckets.</p>
+<h3 id="path-manipulation-methods">Path manipulation methods</h3>
+<p>The <code>PureCloudPath</code> classes (and standard <code>Path</code> for local paths) provide these path manipulation methods:</p>
+<h4 id="basic-path-properties">Basic path properties</h4>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="n">path</span> <span class="o">=</span> <span class="n">anypath</span><span class="p">(</span><span class="s2">&quot;/some/random/file.txt&quot;</span><span class="p">)</span>
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="c1"># what is its extension?</span>
+</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Suffix: </span><span class="si">{</span><span class="n">path</span><span class="o">.</span><span class="n">suffix</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="c1"># Output: Suffix: .txt</span>
+</span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>
+</span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="c1"># all extensions (for files like .tar.gz)</span>
+</span><span id="__span-6-8"><a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Suffixes: </span><span class="si">{</span><span class="n">path</span><span class="o">.</span><span class="n">suffixes</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</span><span id="__span-6-9"><a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a><span class="c1"># Output: Suffixes: [&#39;.txt&#39;]</span>
+</span><span id="__span-6-10"><a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a>
+</span><span id="__span-6-11"><a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a><span class="c1"># what is its name?</span>
+</span><span id="__span-6-12"><a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Filename: </span><span class="si">{</span><span class="n">path</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</span><span id="__span-6-13"><a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a><span class="c1"># Output: Filename: file.txt</span>
+</span><span id="__span-6-14"><a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a>
+</span><span id="__span-6-15"><a id="__codelineno-6-15" name="__codelineno-6-15" href="#__codelineno-6-15"></a><span class="c1"># name without extension</span>
+</span><span id="__span-6-16"><a id="__codelineno-6-16" name="__codelineno-6-16" href="#__codelineno-6-16"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Stem: </span><span class="si">{</span><span class="n">path</span><span class="o">.</span><span class="n">stem</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</span><span id="__span-6-17"><a id="__codelineno-6-17" name="__codelineno-6-17" href="#__codelineno-6-17"></a><span class="c1"># Output: Stem: file</span>
+</span><span id="__span-6-18"><a id="__codelineno-6-18" name="__codelineno-6-18" href="#__codelineno-6-18"></a>
+</span><span id="__span-6-19"><a id="__codelineno-6-19" name="__codelineno-6-19" href="#__codelineno-6-19"></a><span class="c1"># where is it located?</span>
+</span><span id="__span-6-20"><a id="__codelineno-6-20" name="__codelineno-6-20" href="#__codelineno-6-20"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Parent: </span><span class="si">{</span><span class="n">path</span><span class="o">.</span><span class="n">parent</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</span><span id="__span-6-21"><a id="__codelineno-6-21" name="__codelineno-6-21" href="#__codelineno-6-21"></a><span class="c1"># Output: Parent: /some/random</span>
+</span><span id="__span-6-22"><a id="__codelineno-6-22" name="__codelineno-6-22" href="#__codelineno-6-22"></a>
+</span><span id="__span-6-23"><a id="__codelineno-6-23" name="__codelineno-6-23" href="#__codelineno-6-23"></a><span class="c1"># split the path into components</span>
+</span><span id="__span-6-24"><a id="__codelineno-6-24" name="__codelineno-6-24" href="#__codelineno-6-24"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Parts: </span><span class="si">{</span><span class="n">path</span><span class="o">.</span><span class="n">parts</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</span><span id="__span-6-25"><a id="__codelineno-6-25" name="__codelineno-6-25" href="#__codelineno-6-25"></a><span class="c1"># Output: Parts: (&#39;/&#39;, &#39;some&#39;, &#39;random&#39;, &#39;file.txt&#39;)</span>
+</span></code></pre></div>
+<h4 id="working-with-cloud-paths">Working with cloud paths</h4>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="n">gs_path</span> <span class="o">=</span> <span class="n">anypath</span><span class="p">(</span><span class="s2">&quot;gs://my-bucket/folder/file.txt&quot;</span><span class="p">)</span>
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>
+</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="c1"># get the bucket name</span>
+</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Bucket: </span><span class="si">{</span><span class="n">gs_path</span><span class="o">.</span><span class="n">bucket</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="c1"># Output: Bucket: my-bucket</span>
+</span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>
+</span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a><span class="c1"># get the drive (scheme + bucket)</span>
+</span><span id="__span-7-8"><a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Drive: </span><span class="si">{</span><span class="n">gs_path</span><span class="o">.</span><span class="n">drive</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</span><span id="__span-7-9"><a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a><span class="c1"># Output: Drive: gs://my-bucket</span>
+</span><span id="__span-7-10"><a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a>
+</span><span id="__span-7-11"><a id="__codelineno-7-11" name="__codelineno-7-11" href="#__codelineno-7-11"></a><span class="c1"># get the anchor (drive + root)</span>
+</span><span id="__span-7-12"><a id="__codelineno-7-12" name="__codelineno-7-12" href="#__codelineno-7-12"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Anchor: </span><span class="si">{</span><span class="n">gs_path</span><span class="o">.</span><span class="n">anchor</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</span><span id="__span-7-13"><a id="__codelineno-7-13" name="__codelineno-7-13" href="#__codelineno-7-13"></a><span class="c1"># Output: Anchor: gs://my-bucket/</span>
+</span><span id="__span-7-14"><a id="__codelineno-7-14" name="__codelineno-7-14" href="#__codelineno-7-14"></a>
+</span><span id="__span-7-15"><a id="__codelineno-7-15" name="__codelineno-7-15" href="#__codelineno-7-15"></a><span class="c1"># get path components</span>
+</span><span id="__span-7-16"><a id="__codelineno-7-16" name="__codelineno-7-16" href="#__codelineno-7-16"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Parts: </span><span class="si">{</span><span class="n">gs_path</span><span class="o">.</span><span class="n">parts</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</span><span id="__span-7-17"><a id="__codelineno-7-17" name="__codelineno-7-17" href="#__codelineno-7-17"></a><span class="c1"># Output: Parts: (&#39;gs://my-bucket/&#39;, &#39;folder&#39;, &#39;file.txt&#39;)</span>
+</span><span id="__span-7-18"><a id="__codelineno-7-18" name="__codelineno-7-18" href="#__codelineno-7-18"></a>
+</span><span id="__span-7-19"><a id="__codelineno-7-19" name="__codelineno-7-19" href="#__codelineno-7-19"></a><span class="c1"># access parent directories</span>
+</span><span id="__span-7-20"><a id="__codelineno-7-20" name="__codelineno-7-20" href="#__codelineno-7-20"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Parent: </span><span class="si">{</span><span class="n">gs_path</span><span class="o">.</span><span class="n">parent</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</span><span id="__span-7-21"><a id="__codelineno-7-21" name="__codelineno-7-21" href="#__codelineno-7-21"></a><span class="c1"># Output: Parent: gs://my-bucket/folder</span>
+</span><span id="__span-7-22"><a id="__codelineno-7-22" name="__codelineno-7-22" href="#__codelineno-7-22"></a>
+</span><span id="__span-7-23"><a id="__codelineno-7-23" name="__codelineno-7-23" href="#__codelineno-7-23"></a><span class="c1"># access multiple parent levels</span>
+</span><span id="__span-7-24"><a id="__codelineno-7-24" name="__codelineno-7-24" href="#__codelineno-7-24"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Grandparent: </span><span class="si">{</span><span class="n">gs_path</span><span class="o">.</span><span class="n">parents</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</span><span id="__span-7-25"><a id="__codelineno-7-25" name="__codelineno-7-25" href="#__codelineno-7-25"></a><span class="c1"># Output: Grandparent: gs://my-bucket/</span>
+</span></code></pre></div>
+<h4 id="joining-paths">Joining paths</h4>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="n">base</span> <span class="o">=</span> <span class="n">anypath</span><span class="p">(</span><span class="s2">&quot;gs://my-bucket/folder&quot;</span><span class="p">)</span>
+</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>
+</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="c1"># join with / operator</span>
+</span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="n">full_path</span> <span class="o">=</span> <span class="n">base</span> <span class="o">/</span> <span class="s2">&quot;subfolder&quot;</span> <span class="o">/</span> <span class="s2">&quot;file.txt&quot;</span>
+</span><span id="__span-8-5"><a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="nb">print</span><span class="p">(</span><span class="n">full_path</span><span class="p">)</span>
+</span><span id="__span-8-6"><a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a><span class="c1"># Output: gs://my-bucket/folder/subfolder/file.txt</span>
+</span><span id="__span-8-7"><a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a>
+</span><span id="__span-8-8"><a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a><span class="c1"># join with joinpath method</span>
+</span><span id="__span-8-9"><a id="__codelineno-8-9" name="__codelineno-8-9" href="#__codelineno-8-9"></a><span class="n">full_path</span> <span class="o">=</span> <span class="n">base</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s2">&quot;subfolder&quot;</span><span class="p">,</span> <span class="s2">&quot;file.txt&quot;</span><span class="p">)</span>
+</span><span id="__span-8-10"><a id="__codelineno-8-10" name="__codelineno-8-10" href="#__codelineno-8-10"></a><span class="nb">print</span><span class="p">(</span><span class="n">full_path</span><span class="p">)</span>
+</span><span id="__span-8-11"><a id="__codelineno-8-11" name="__codelineno-8-11" href="#__codelineno-8-11"></a><span class="c1"># Output: gs://my-bucket/folder/subfolder/file.txt</span>
+</span></code></pre></div>
+<h4 id="changing-path-components">Changing path components</h4>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="n">path</span> <span class="o">=</span> <span class="n">anypath</span><span class="p">(</span><span class="s2">&quot;gs://my-bucket/folder/file.txt&quot;</span><span class="p">)</span>
+</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>
+</span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="c1"># change the filename</span>
+</span><span id="__span-9-4"><a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="n">new_path</span> <span class="o">=</span> <span class="n">path</span><span class="o">.</span><span class="n">with_name</span><span class="p">(</span><span class="s2">&quot;newfile.txt&quot;</span><span class="p">)</span>
+</span><span id="__span-9-5"><a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="nb">print</span><span class="p">(</span><span class="n">new_path</span><span class="p">)</span>
+</span><span id="__span-9-6"><a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a><span class="c1"># Output: gs://my-bucket/folder/newfile.txt</span>
+</span><span id="__span-9-7"><a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a>
+</span><span id="__span-9-8"><a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a><span class="c1"># change the extension</span>
+</span><span id="__span-9-9"><a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a><span class="n">new_path</span> <span class="o">=</span> <span class="n">path</span><span class="o">.</span><span class="n">with_suffix</span><span class="p">(</span><span class="s2">&quot;.json&quot;</span><span class="p">)</span>
+</span><span id="__span-9-10"><a id="__codelineno-9-10" name="__codelineno-9-10" href="#__codelineno-9-10"></a><span class="nb">print</span><span class="p">(</span><span class="n">new_path</span><span class="p">)</span>
+</span><span id="__span-9-11"><a id="__codelineno-9-11" name="__codelineno-9-11" href="#__codelineno-9-11"></a><span class="c1"># Output: gs://my-bucket/folder/file.json</span>
+</span><span id="__span-9-12"><a id="__codelineno-9-12" name="__codelineno-9-12" href="#__codelineno-9-12"></a>
+</span><span id="__span-9-13"><a id="__codelineno-9-13" name="__codelineno-9-13" href="#__codelineno-9-13"></a><span class="c1"># change the stem (filename without extension)</span>
+</span><span id="__span-9-14"><a id="__codelineno-9-14" name="__codelineno-9-14" href="#__codelineno-9-14"></a><span class="n">new_path</span> <span class="o">=</span> <span class="n">path</span><span class="o">.</span><span class="n">with_stem</span><span class="p">(</span><span class="s2">&quot;renamed&quot;</span><span class="p">)</span>
+</span><span id="__span-9-15"><a id="__codelineno-9-15" name="__codelineno-9-15" href="#__codelineno-9-15"></a><span class="nb">print</span><span class="p">(</span><span class="n">new_path</span><span class="p">)</span>
+</span><span id="__span-9-16"><a id="__codelineno-9-16" name="__codelineno-9-16" href="#__codelineno-9-16"></a><span class="c1"># Output: gs://my-bucket/folder/renamed.txt</span>
+</span></code></pre></div>
+<h4 id="path-matching">Path matching</h4>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="n">path</span> <span class="o">=</span> <span class="n">anypath</span><span class="p">(</span><span class="s2">&quot;gs://my-bucket/data/2024/file.txt&quot;</span><span class="p">)</span>
+</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>
+</span><span id="__span-10-3"><a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="c1"># match against a pattern</span>
+</span><span id="__span-10-4"><a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="nb">print</span><span class="p">(</span><span class="n">path</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="s2">&quot;*.txt&quot;</span><span class="p">))</span>
+</span><span id="__span-10-5"><a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a><span class="c1"># Output: True</span>
+</span><span id="__span-10-6"><a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a>
+</span><span id="__span-10-7"><a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a><span class="nb">print</span><span class="p">(</span><span class="n">path</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="s2">&quot;data/*.txt&quot;</span><span class="p">))</span>
+</span><span id="__span-10-8"><a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a><span class="c1"># Output: False (doesn&#39;t match the full path structure)</span>
+</span><span id="__span-10-9"><a id="__codelineno-10-9" name="__codelineno-10-9" href="#__codelineno-10-9"></a>
+</span><span id="__span-10-10"><a id="__codelineno-10-10" name="__codelineno-10-10" href="#__codelineno-10-10"></a><span class="nb">print</span><span class="p">(</span><span class="n">path</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="s2">&quot;**/file.txt&quot;</span><span class="p">))</span>
+</span><span id="__span-10-11"><a id="__codelineno-10-11" name="__codelineno-10-11" href="#__codelineno-10-11"></a><span class="c1"># Output: True (** matches any number of directories)</span>
+</span></code></pre></div>
+<h4 id="converting-to-string-representations">Converting to string representations</h4>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="n">path</span> <span class="o">=</span> <span class="n">anypath</span><span class="p">(</span><span class="s2">&quot;gs://my-bucket/folder/file.txt&quot;</span><span class="p">)</span>
+</span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>
+</span><span id="__span-11-3"><a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="c1"># convert to string</span>
+</span><span id="__span-11-4"><a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="n">str_path</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+</span><span id="__span-11-5"><a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a><span class="c1"># Output: &#39;gs://my-bucket/folder/file.txt&#39;</span>
+</span><span id="__span-11-6"><a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a>
+</span><span id="__span-11-7"><a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a><span class="c1"># get as URI (only for absolute paths)</span>
+</span><span id="__span-11-8"><a id="__codelineno-11-8" name="__codelineno-11-8" href="#__codelineno-11-8"></a><span class="n">uri</span> <span class="o">=</span> <span class="n">path</span><span class="o">.</span><span class="n">as_uri</span><span class="p">()</span>
+</span><span id="__span-11-9"><a id="__codelineno-11-9" name="__codelineno-11-9" href="#__codelineno-11-9"></a><span class="c1"># Output: &#39;gs://my-bucket/folder/file.txt&#39;</span>
+</span><span id="__span-11-10"><a id="__codelineno-11-10" name="__codelineno-11-10" href="#__codelineno-11-10"></a>
+</span><span id="__span-11-11"><a id="__codelineno-11-11" name="__codelineno-11-11" href="#__codelineno-11-11"></a><span class="c1"># get as posix-style string (always forward slashes)</span>
+</span><span id="__span-11-12"><a id="__codelineno-11-12" name="__codelineno-11-12" href="#__codelineno-11-12"></a><span class="n">posix_path</span> <span class="o">=</span> <span class="n">path</span><span class="o">.</span><span class="n">as_posix</span><span class="p">()</span>
+</span><span id="__span-11-13"><a id="__codelineno-11-13" name="__codelineno-11-13" href="#__codelineno-11-13"></a><span class="c1"># Output: &#39;gs://my-bucket/folder/file.txt&#39;</span>
+</span><span id="__span-11-14"><a id="__codelineno-11-14" name="__codelineno-11-14" href="#__codelineno-11-14"></a>
+</span><span id="__span-11-15"><a id="__codelineno-11-15" name="__codelineno-11-15" href="#__codelineno-11-15"></a><span class="c1"># check if path is absolute</span>
+</span><span id="__span-11-16"><a id="__codelineno-11-16" name="__codelineno-11-16" href="#__codelineno-11-16"></a><span class="nb">print</span><span class="p">(</span><span class="n">path</span><span class="o">.</span><span class="n">is_absolute</span><span class="p">())</span>
+</span><span id="__span-11-17"><a id="__codelineno-11-17" name="__codelineno-11-17" href="#__codelineno-11-17"></a><span class="c1"># Output: True</span>
+</span></code></pre></div>
+<p><a href="#esp_dataio-module">Back to Top</a></p>
+<h3 id="summary-anypath-behavior">Summary: anypath behavior</h3>
+<div class="admonition summary">
+<p class="admonition-title">Summary</p>
+<p><strong>Key differences between local and cloud paths returned by <code>anypath</code>:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Operation</th>
+<th>Local Path (<code>Path</code>)</th>
+<th>Cloud Path (<code>PureGSPath</code>, <code>PureS3Path</code>, etc.)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Path manipulation (<code>.name</code>, <code>.parent</code>, <code>.suffix</code>, <code>/</code>, <code>.with_name()</code>, etc.)</td>
+<td>✅ Yes</td>
+<td>✅ Yes</td>
+</tr>
+<tr>
+<td>File I/O (<code>.exists()</code>, <code>.open()</code>, <code>.unlink()</code>, <code>.is_dir()</code>, etc.)</td>
+<td>✅ Yes</td>
+<td>❌ No - Use <code>filesystem</code></td>
+</tr>
+<tr>
+<td><code>.bucket</code> property</td>
+<td>N/A</td>
+<td>✅ Yes</td>
+</tr>
+</tbody>
+</table>
+<p><strong>For cloud file operations</strong>, use:
+- The <a href="#filesystem-approach-with-esp_dataiofilesystem"><code>filesystem</code> interface</a> for most operations
+- <code>esp_data.io.exists(path)</code> to check if a file exists
+- <code>esp_data.io.rm(path)</code> to delete a file
+- <code>esp_data.io.read_audio(path)</code> to read audio files</p>
+</div>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p>One important difference between cloudpaths like <code>GSPath</code> and <code>S3Path</code> and local <code>PosixPath</code> is that buckets dont have actual "folders" like your local filesystem. So if you try to create a <em>local</em> file remember that parent folders of that file need to exist. This is <strong>NOT</strong> true for a file like <code>gs://some_bucket/some_folder/some_file.txt</code>, you can directly write to it with <code>anypath("gs://some_bucket/some_folder/some_file.txt").open("w")</code>.</p>
+<p>Cloud storage systems like GCS and S3 don't have true "folders" like local filesystems. They use prefixes to simulate folder structures. When working with paths, remember that "gs://bucket/folder/file.txt" is really just a single object with a name that contains forward slashes.</p>
 </div>
-<h4 id="copy-from-and-to-a-cloud-location">Copy from and to a cloud location</h4>
-<p>Download from a cloud location to local
-<div class="language-python highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="n">p</span> <span class="o">=</span> <span class="n">anypath</span><span class="p">(</span><span class="s2">&quot;gs://esp-ci-cd-tests/esp-data-tests/random2.txt&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">download_to</span><span class="p">(</span><span class="s2">&quot;myfile.txt&quot;</span><span class="p">)</span>
-</span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="n">p</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span>
-</span><span id="__span-11-3"><a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="c1"># Output: True</span>
-</span></code></pre></div></p>
-<p>Copy a local file  to the <path> in anypath(<path>)
-<div class="language-python highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="n">p</span> <span class="o">=</span> <span class="n">anypath</span><span class="p">(</span><span class="s2">&quot;gs://esp-ci-cd-tests/esp-data-tests/random2.txt&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">upload_from</span><span class="p">(</span><span class="s2">&quot;myfile.txt&quot;</span><span class="p">)</span>
-</span><span id="__span-12-2"><a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="n">p</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span>
-</span><span id="__span-12-3"><a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="c1"># Output: True</span>
-</span></code></pre></div></p>
-<h3 id="folder-operations">Folder operations</h3>
-<p>If your path is a local or cloud "folder" you can also check if its a directory and list things in it</p>
-<p><div class="language-python highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="n">folder</span> <span class="o">=</span> <span class="n">anypath</span><span class="p">(</span><span class="s2">&quot;r2://esp-ci-cd-tests&quot;</span><span class="p">)</span>
-</span><span id="__span-13-2"><a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a><span class="n">folder</span>
-</span></code></pre></div>
-    R2Path('s3://esp-ci-cd-tests')</p>
-<p><a href="#esp_dataio-module">Back to Top</a></p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="n">folder</span><span class="o">.</span><span class="n">is_dir</span><span class="p">()</span>
-</span><span id="__span-14-2"><a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a><span class="c1"># True</span>
-</span><span id="__span-14-3"><a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a><span class="n">folder</span><span class="o">.</span><span class="n">is_file</span><span class="p">()</span>
-</span><span id="__span-14-4"><a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a><span class="c1"># False</span>
-</span></code></pre></div>
-<p>Download all the contents from the cloud "folder" to a local folder called "tempfolder"
-⚠️ This will create the folder if it does not exist. If it exists, it will overwrite the contents of the folder.</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="n">folder</span><span class="o">.</span><span class="n">download_to</span><span class="p">(</span><span class="s2">&quot;tempfolder&quot;</span><span class="p">)</span>
-</span><span id="__span-15-2"><a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a><span class="c1"># Output: PosixPath(&#39;tempfolder&#39;)</span>
-</span><span id="__span-15-3"><a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a><span class="n">anypath</span><span class="p">(</span><span class="s2">&quot;tempfolder&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span>
-</span><span id="__span-15-4"><a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a><span class="c1"># Output: True</span>
-</span></code></pre></div>
 <p><a href="#esp_dataio-module">Back to Top</a></p>
 <h2 id="filesystem-approach-with-esp_dataiofilesystem">Filesystem approach with <code>esp_data.io.filesystem</code></h2>
-<p>Let's now dive into the filesystem approach</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-16-1"><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">esp_data.io</span><span class="w"> </span><span class="kn">import</span> <span class="n">filesystem</span><span class="p">,</span> <span class="n">filesystem_from_path</span>
+<p>Let's now dive into the filesystem approach for file operations.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">esp_data.io</span><span class="w"> </span><span class="kn">import</span> <span class="n">filesystem</span><span class="p">,</span> <span class="n">filesystem_from_path</span>
 </span></code></pre></div>
-<p>You can instantiate a filesystem for a local, google cloud or r2 bucket with <code>filesystem</code></p>
-<p>Lets start with a GCS filesystem by passing in "gcs" (or "gs") to <code>filesystem()</code>.
+<p>You can instantiate a filesystem for a local, Google Cloud or R2 bucket with <code>filesystem</code></p>
+<p>Let's start with a GCS filesystem by passing in "gcs" (or "gs") to <code>filesystem()</code>.
 The same API works for local filesystem as <code>filesystem("local")</code></p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-17-1"><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="n">fs</span> <span class="o">=</span> <span class="n">filesystem</span><span class="p">(</span><span class="s2">&quot;gcs&quot;</span><span class="p">)</span> <span class="c1"># &quot;gs&quot; also works as an alias</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="n">fs</span> <span class="o">=</span> <span class="n">filesystem</span><span class="p">(</span><span class="s2">&quot;gcs&quot;</span><span class="p">)</span> <span class="c1"># &quot;gs&quot; also works as an alias</span>
 </span></code></pre></div>
 <div class="admonition tip">
 <p class="admonition-title">Tip</p>
-<p>Once a filesystem object has been created, you dont need to type the "gs://" prefix.</p>
+<p>Once a filesystem object has been created, you don't need to type the "gs://" prefix.</p>
 </div>
 <p>You can also create the appropriate filesystem object from a path using <code>filesystem_from_path</code>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-18-1"><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="n">fs</span> <span class="o">=</span> <span class="n">filesystem_from_path</span><span class="p">(</span><span class="s2">&quot;gs://esp-ci-cd-tests&quot;</span><span class="p">)</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="n">fs</span> <span class="o">=</span> <span class="n">filesystem_from_path</span><span class="p">(</span><span class="s2">&quot;gs://esp-ci-cd-tests&quot;</span><span class="p">)</span>
 </span></code></pre></div></p>
-<p>File operations work like so:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-19-1"><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="c1"># check for existence</span>
-</span><span id="__span-19-2"><a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a><span class="n">fs</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="s2">&quot;esp-ci-cd-tests/delme1&quot;</span><span class="p">)</span>
+<h3 id="file-operations-with-filesystem">File operations with filesystem</h3>
+<h4 id="check-if-files-exist">Check if files exist</h4>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="c1"># check for existence</span>
+</span><span id="__span-15-2"><a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a><span class="n">fs</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="s2">&quot;esp-ci-cd-tests/delme1&quot;</span><span class="p">)</span>
 </span></code></pre></div>
-<p>Read and write to files</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-20-1"><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="k">with</span> <span class="n">fs</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="s2">&quot;esp-ci-cd-tests/delme1&quot;</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
-</span><span id="__span-20-2"><a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a>    <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+<h4 id="read-and-write-to-files">Read and write to files</h4>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-16-1"><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="k">with</span> <span class="n">fs</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="s2">&quot;esp-ci-cd-tests/delme1&quot;</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+</span><span id="__span-16-2"><a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a>    <span class="n">content</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
 </span></code></pre></div>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-21-1"><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="k">with</span> <span class="n">fs</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="s2">&quot;esp-ci-cd-tests/docstest&quot;</span><span class="p">,</span><span class="s2">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
-</span><span id="__span-21-2"><a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a>    <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;hello&quot;</span><span class="p">)</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-17-1"><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="k">with</span> <span class="n">fs</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="s2">&quot;esp-ci-cd-tests/docstest&quot;</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+</span><span id="__span-17-2"><a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a>    <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;hello&quot;</span><span class="p">)</span>
 </span></code></pre></div>
-<p>Delete files</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-22-1"><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a><span class="n">fs</span><span class="o">.</span><span class="n">rm</span><span class="p">(</span><span class="s2">&quot;esp-ci-cd-tests/docstest&quot;</span><span class="p">)</span>
-</span><span id="__span-22-2"><a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a><span class="c1"># Check if it was deleted</span>
-</span><span id="__span-22-3"><a id="__codelineno-22-3" name="__codelineno-22-3" href="#__codelineno-22-3"></a><span class="n">fs</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="s2">&quot;esp-ci-cd-tests/docstest&quot;</span><span class="p">)</span>
-</span><span id="__span-22-4"><a id="__codelineno-22-4" name="__codelineno-22-4" href="#__codelineno-22-4"></a><span class="c1"># Output: False</span>
+<h4 id="delete-files">Delete files</h4>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-18-1"><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="n">fs</span><span class="o">.</span><span class="n">rm</span><span class="p">(</span><span class="s2">&quot;esp-ci-cd-tests/docstest&quot;</span><span class="p">)</span>
+</span><span id="__span-18-2"><a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a><span class="c1"># Check if it was deleted</span>
+</span><span id="__span-18-3"><a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a><span class="n">fs</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="s2">&quot;esp-ci-cd-tests/docstest&quot;</span><span class="p">)</span>
+</span><span id="__span-18-4"><a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a><span class="c1"># Output: False</span>
 </span></code></pre></div>
-<h4 id="filesystem-folder-operations">Filesystem folder operations</h4>
-<p>List contents that match a pattern like '*txt' under a path</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-23-1"><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a><span class="n">fs</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="s2">&quot;esp-ci-cd-tests/**/*txt&quot;</span><span class="p">)</span>
+<p>You can also use the standalone utility functions:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-19-1"><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">esp_data.io</span><span class="w"> </span><span class="kn">import</span> <span class="n">exists</span><span class="p">,</span> <span class="n">rm</span>
+</span><span id="__span-19-2"><a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a>
+</span><span id="__span-19-3"><a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a><span class="c1"># check existence</span>
+</span><span id="__span-19-4"><a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a><span class="n">exists</span><span class="p">(</span><span class="s2">&quot;gs://esp-ci-cd-tests/docstest&quot;</span><span class="p">)</span>
+</span><span id="__span-19-5"><a id="__codelineno-19-5" name="__codelineno-19-5" href="#__codelineno-19-5"></a>
+</span><span id="__span-19-6"><a id="__codelineno-19-6" name="__codelineno-19-6" href="#__codelineno-19-6"></a><span class="c1"># delete a file</span>
+</span><span id="__span-19-7"><a id="__codelineno-19-7" name="__codelineno-19-7" href="#__codelineno-19-7"></a><span class="n">rm</span><span class="p">(</span><span class="s2">&quot;gs://esp-ci-cd-tests/docstest&quot;</span><span class="p">)</span>
 </span></code></pre></div>
-<div class="language-text highlight"><pre><span></span><code>    &#39;esp-ci-cd-tests/esp-data-tests/find_files_tests/file_find_cloud.txt&#39;,
-    &#39;esp-ci-cd-tests/esp-data-tests/non_empty/temp_file.txt&#39;,
-    &#39;esp-ci-cd-tests/esp-data-tests/random2.txt&#39;,
-    &#39;esp-ci-cd-tests/random.txt&#39;,
-    ...
-</code></pre></div>
 <p><a href="#esp_dataio-module">Back to Top</a></p>
-<h4 id="download-and-upload-files-with-filesystem">Download and upload files with <code>filesystem</code></h4>
+<h3 id="filesystem-folder-operations">Filesystem folder operations</h3>
+<p>List contents that match a pattern like '*txt' under a path</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-20-1"><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="n">fs</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="s2">&quot;esp-ci-cd-tests/**/*txt&quot;</span><span class="p">)</span>
+</span></code></pre></div>
+<p>Output:
+<div class="language-text highlight"><pre><span></span><code><span id="__span-21-1"><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a>&#39;esp-ci-cd-tests/esp-data-tests/find_files_tests/file_find_cloud.txt&#39;,
+</span><span id="__span-21-2"><a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a>&#39;esp-ci-cd-tests/esp-data-tests/non_empty/temp_file.txt&#39;,
+</span><span id="__span-21-3"><a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a>&#39;esp-ci-cd-tests/esp-data-tests/random2.txt&#39;,
+</span><span id="__span-21-4"><a id="__codelineno-21-4" name="__codelineno-21-4" href="#__codelineno-21-4"></a>&#39;esp-ci-cd-tests/random.txt&#39;,
+</span><span id="__span-21-5"><a id="__codelineno-21-5" name="__codelineno-21-5" href="#__codelineno-21-5"></a>...
+</span></code></pre></div></p>
+<p><a href="#esp_dataio-module">Back to Top</a></p>
+<h3 id="download-and-upload-files-with-filesystem">Download and upload files with <code>filesystem</code></h3>
 <p>Download files from a cloud location to local. 📝 <code>get</code> and <code>put</code> return <code>None</code> if the operation was successful.</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-24-1"><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a><span class="n">fs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;esp-ci-cd-tests/foo.txt&quot;</span><span class="p">,</span> <span class="s2">&quot;foofoo.txt&quot;</span><span class="p">)</span>
-</span><span id="__span-24-2"><a id="__codelineno-24-2" name="__codelineno-24-2" href="#__codelineno-24-2"></a><span class="c1"># Output: [None]</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-22-1"><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a><span class="n">fs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;esp-ci-cd-tests/foo.txt&quot;</span><span class="p">,</span> <span class="s2">&quot;foofoo.txt&quot;</span><span class="p">)</span>
+</span><span id="__span-22-2"><a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a><span class="c1"># Output: [None]</span>
 </span></code></pre></div>
 <p>Upload files from local to a cloud location.</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-25-1"><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a><span class="n">fs</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="s2">&quot;foofoo.txt&quot;</span><span class="p">,</span> <span class="s2">&quot;esp-ci-cd-tests/foo.txt&quot;</span><span class="p">)</span>
-</span><span id="__span-25-2"><a id="__codelineno-25-2" name="__codelineno-25-2" href="#__codelineno-25-2"></a><span class="c1"># Output: [None]</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-23-1"><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a><span class="n">fs</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="s2">&quot;foofoo.txt&quot;</span><span class="p">,</span> <span class="s2">&quot;esp-ci-cd-tests/foo.txt&quot;</span><span class="p">)</span>
+</span><span id="__span-23-2"><a id="__codelineno-23-2" name="__codelineno-23-2" href="#__codelineno-23-2"></a><span class="c1"># Output: [None]</span>
 </span></code></pre></div>
-<h4 id="move-files-from-one-cloud-location-to-another-cloud-location">Move files from one cloud location to another cloud location.</h4>
+<p><a href="#esp_dataio-module">Back to Top</a></p>
+<h3 id="move-files-from-one-cloud-location-to-another-cloud-location">Move files from one cloud location to another cloud location</h3>
 <p>📝 In reality this just renames the file in the bucket.</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-26-1"><a id="__codelineno-26-1" name="__codelineno-26-1" href="#__codelineno-26-1"></a><span class="n">fs</span><span class="o">.</span><span class="n">mv</span><span class="p">(</span><span class="s2">&quot;esp-ci-cd-tests/foo.txt&quot;</span><span class="p">,</span> <span class="s2">&quot;esp-ci-cd-tests/foo2.txt&quot;</span><span class="p">)</span>
-</span><span id="__span-26-2"><a id="__codelineno-26-2" name="__codelineno-26-2" href="#__codelineno-26-2"></a><span class="n">fs</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="s2">&quot;esp-ci-cd-tests/foo.txt&quot;</span><span class="p">)</span>
-</span><span id="__span-26-3"><a id="__codelineno-26-3" name="__codelineno-26-3" href="#__codelineno-26-3"></a><span class="c1"># Output: False</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-24-1"><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a><span class="n">fs</span><span class="o">.</span><span class="n">mv</span><span class="p">(</span><span class="s2">&quot;esp-ci-cd-tests/foo.txt&quot;</span><span class="p">,</span> <span class="s2">&quot;esp-ci-cd-tests/foo2.txt&quot;</span><span class="p">)</span>
+</span><span id="__span-24-2"><a id="__codelineno-24-2" name="__codelineno-24-2" href="#__codelineno-24-2"></a><span class="n">fs</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="s2">&quot;esp-ci-cd-tests/foo.txt&quot;</span><span class="p">)</span>
+</span><span id="__span-24-3"><a id="__codelineno-24-3" name="__codelineno-24-3" href="#__codelineno-24-3"></a><span class="c1"># Output: False</span>
 </span></code></pre></div>
-<h4 id="copy-from-one-cloud-location-to-another-cloud-location">Copy from one cloud location to another cloud location</h4>
+<h3 id="copy-from-one-cloud-location-to-another-cloud-location">Copy from one cloud location to another cloud location</h3>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
 <p>Copy is only supported when the source and destination cloud location are on the same cloud provider. For example, you cannot copy from a GCS bucket to an R2 bucket.</p>
 </div>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-27-1"><a id="__codelineno-27-1" name="__codelineno-27-1" href="#__codelineno-27-1"></a><span class="n">fs</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="s2">&quot;esp-ci-cd-tests/foo2.txt&quot;</span><span class="p">,</span> <span class="s2">&quot;esp-ci-cd-tests/foo3.txt&quot;</span><span class="p">)</span>
-</span><span id="__span-27-2"><a id="__codelineno-27-2" name="__codelineno-27-2" href="#__codelineno-27-2"></a><span class="n">fs</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="s2">&quot;esp-ci-cd-tests/foo3.txt&quot;</span><span class="p">)</span>
-</span><span id="__span-27-3"><a id="__codelineno-27-3" name="__codelineno-27-3" href="#__codelineno-27-3"></a><span class="c1"># Output: True</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-25-1"><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a><span class="n">fs</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="s2">&quot;esp-ci-cd-tests/foo2.txt&quot;</span><span class="p">,</span> <span class="s2">&quot;esp-ci-cd-tests/foo3.txt&quot;</span><span class="p">)</span>
+</span><span id="__span-25-2"><a id="__codelineno-25-2" name="__codelineno-25-2" href="#__codelineno-25-2"></a><span class="n">fs</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="s2">&quot;esp-ci-cd-tests/foo3.txt&quot;</span><span class="p">)</span>
+</span><span id="__span-25-3"><a id="__codelineno-25-3" name="__codelineno-25-3" href="#__codelineno-25-3"></a><span class="c1"># Output: True</span>
 </span></code></pre></div>
 <p><a href="#esp_dataio-module">Back to Top</a></p>
 <h2 id="read-audio-from-a-remote-file">Read audio from a remote file</h2>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-28-1"><a id="__codelineno-28-1" name="__codelineno-28-1" href="#__codelineno-28-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">esp_data.io</span><span class="w"> </span><span class="kn">import</span> <span class="n">read_audio</span>
-</span><span id="__span-28-2"><a id="__codelineno-28-2" name="__codelineno-28-2" href="#__codelineno-28-2"></a>
-</span><span id="__span-28-3"><a id="__codelineno-28-3" name="__codelineno-28-3" href="#__codelineno-28-3"></a><span class="n">audio</span><span class="p">,</span> <span class="n">sample_rate</span> <span class="o">=</span> <span class="n">read_audio</span><span class="p">(</span><span class="s2">&quot;gs://esp-ci-cd-tests/esp-data-tests/some_subfolder/nri-battlesounds.mp3&quot;</span><span class="p">)</span>
-</span><span id="__span-28-4"><a id="__codelineno-28-4" name="__codelineno-28-4" href="#__codelineno-28-4"></a><span class="nb">print</span><span class="p">(</span><span class="n">audio</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">sample_rate</span><span class="p">)</span>
-</span><span id="__span-28-5"><a id="__codelineno-28-5" name="__codelineno-28-5" href="#__codelineno-28-5"></a><span class="c1"># (235008,) 44100</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-26-1"><a id="__codelineno-26-1" name="__codelineno-26-1" href="#__codelineno-26-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">esp_data.io</span><span class="w"> </span><span class="kn">import</span> <span class="n">read_audio</span>
+</span><span id="__span-26-2"><a id="__codelineno-26-2" name="__codelineno-26-2" href="#__codelineno-26-2"></a>
+</span><span id="__span-26-3"><a id="__codelineno-26-3" name="__codelineno-26-3" href="#__codelineno-26-3"></a><span class="n">audio</span><span class="p">,</span> <span class="n">sample_rate</span> <span class="o">=</span> <span class="n">read_audio</span><span class="p">(</span><span class="s2">&quot;gs://esp-ci-cd-tests/esp-data-tests/some_subfolder/nri-battlesounds.mp3&quot;</span><span class="p">)</span>
+</span><span id="__span-26-4"><a id="__codelineno-26-4" name="__codelineno-26-4" href="#__codelineno-26-4"></a><span class="nb">print</span><span class="p">(</span><span class="n">audio</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">sample_rate</span><span class="p">)</span>
+</span><span id="__span-26-5"><a id="__codelineno-26-5" name="__codelineno-26-5" href="#__codelineno-26-5"></a><span class="c1"># (235008,) 44100</span>
 </span></code></pre></div>
 <h2 id="get-info-about-an-audio-file-before-reading">Get info about an audio file before reading</h2>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-29-1"><a id="__codelineno-29-1" name="__codelineno-29-1" href="#__codelineno-29-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">esp_data.io</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_audio_info</span>
-</span><span id="__span-29-2"><a id="__codelineno-29-2" name="__codelineno-29-2" href="#__codelineno-29-2"></a>
-</span><span id="__span-29-3"><a id="__codelineno-29-3" name="__codelineno-29-3" href="#__codelineno-29-3"></a><span class="n">info</span> <span class="o">=</span> <span class="n">get_audio_info</span><span class="p">(</span><span class="s2">&quot;gs://esp-ci-cd-tests/esp-data-tests/some_subfolder/nri-battlesounds.mp3&quot;</span><span class="p">)</span>
-</span><span id="__span-29-4"><a id="__codelineno-29-4" name="__codelineno-29-4" href="#__codelineno-29-4"></a><span class="nb">print</span><span class="p">(</span><span class="n">info</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
-</span><span id="__span-29-5"><a id="__codelineno-29-5" name="__codelineno-29-5" href="#__codelineno-29-5"></a><span class="c1"># dict_keys([&#39;sr&#39;, &#39;duration&#39;, &#39;num_frames&#39;, &#39;num_channels&#39;, &#39;format&#39;, &#39;subtype&#39;])</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-27-1"><a id="__codelineno-27-1" name="__codelineno-27-1" href="#__codelineno-27-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">esp_data.io</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_audio_info</span>
+</span><span id="__span-27-2"><a id="__codelineno-27-2" name="__codelineno-27-2" href="#__codelineno-27-2"></a>
+</span><span id="__span-27-3"><a id="__codelineno-27-3" name="__codelineno-27-3" href="#__codelineno-27-3"></a><span class="n">info</span> <span class="o">=</span> <span class="n">get_audio_info</span><span class="p">(</span><span class="s2">&quot;gs://esp-ci-cd-tests/esp-data-tests/some_subfolder/nri-battlesounds.mp3&quot;</span><span class="p">)</span>
+</span><span id="__span-27-4"><a id="__codelineno-27-4" name="__codelineno-27-4" href="#__codelineno-27-4"></a><span class="nb">print</span><span class="p">(</span><span class="n">info</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+</span><span id="__span-27-5"><a id="__codelineno-27-5" name="__codelineno-27-5" href="#__codelineno-27-5"></a><span class="c1"># dict_keys([&#39;sr&#39;, &#39;duration&#39;, &#39;num_frames&#39;, &#39;num_channels&#39;, &#39;format&#39;, &#39;subtype&#39;])</span>
 </span></code></pre></div>
+<p><a href="#esp_dataio-module">Back to Top</a></p>
 
 
 
