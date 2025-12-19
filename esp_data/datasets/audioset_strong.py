@@ -64,7 +64,7 @@ class AudioSetStrong(Dataset):
     >>> item = dataset[0]
     >>> [k for k in sorted(item.keys()) if k != '32khz_path']
     ['audio', 'audio_path', 'segment_id', 'segment_start', 'selection_table', 'youtube_id']
-    >>> print(item['selection_table'].columns)
+    >>> print(list(item['selection_table'].columns))
     ['Selection', 'Begin Time (s)', 'End Time (s)', 'Label']
 
     >>> env_dataset = AudioSetStrong(split="train-environmental", sample_rate=32000)
