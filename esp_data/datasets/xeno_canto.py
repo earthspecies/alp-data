@@ -38,6 +38,7 @@ class XenoCanto(Dataset):
         - ``relative_path``: Path to original audio relative to data_root (variable sample rate)
         - ``gcs_path``: Full GCS path to original audio
         - ``32khz_path``: Path to pre-resampled 32kHz audio (if available)
+        - ``16khz_path``: Path to pre-resampled 16kHz audio (if available)
 
     **Recording Metadata:**
         - ``eventDate``, ``eventTime``: When the recording was made
@@ -74,12 +75,12 @@ class XenoCanto(Dataset):
     >>> print(dataset.info.name)
     xeno-canto
     >>> print(dataset.available_sample_rates)
-    [32000]
+    [32000, 16000]
 
     # Load with pre-resampled 32kHz audio (when available)
     >>> dataset_32k = XenoCanto(split="train", sample_rate=32000)
 
-    # Load with on-the-fly resampling to 16kHz from original (variable rate) files
+    # Load with pre-resampled 16kHz audio (when available)
     >>> dataset_16k = XenoCanto(split="train", sample_rate=16000)
     """
 
@@ -104,6 +105,7 @@ class XenoCanto(Dataset):
     # Mapping of sample rates to their corresponding path columns
     _sample_rate_paths = {
         32000: "32khz_path",  # Pre-resampled to 32kHz
+        16000: "16khz_path",  # Pre-resampled to 16kHz
     }
 
     # Column name for original variable-rate audio files
@@ -151,9 +153,11 @@ class XenoCanto(Dataset):
         if data_root is None:
             self.data_root = anypath("gs://esp-ml-datasets/xeno-canto/v0.1.0/raw/")
             self._data_root_32k = anypath("gs://esp-ml-datasets/xeno-canto/v0.1.0/raw/audio_32k/")
+            self._data_root_16k = anypath("gs://esp-ml-datasets/xeno-canto/v0.1.0/raw/audio_16k/")
         else:
             self.data_root = anypath(data_root)
             self._data_root_32k = anypath(data_root)
+            self._data_root_16k = anypath(data_root)
 
     @property
     def columns(self) -> list[str]:
@@ -276,7 +280,10 @@ class XenoCanto(Dataset):
             # Check if the pre-resampled path column exists in the data
             if path_column in row and row[path_column] is not None and row[path_column] != "":
                 # Use pre-resampled audio with appropriate data root
-                audio_path = self._data_root_32k / row[path_column]
+                if self.sample_rate == 16000:
+                    audio_path = self._data_root_16k / row[path_column]
+                else:
+                    audio_path = self._data_root_32k / row[path_column]
                 use_presampled = True
 
         if use_presampled:
