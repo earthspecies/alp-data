@@ -241,7 +241,9 @@ class AudioSetStrong(Dataset):
 
         # Build output
         row["audio"] = audio
-        row["selection_table"] = st
+        row["selection_table"] = (
+            st.to_pandas()
+        )  # to adhere to the rest of the selection_table datasets
 
         if self.output_take_and_give:
             item: dict[str, Any] = {}

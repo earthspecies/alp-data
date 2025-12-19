@@ -117,7 +117,7 @@ def test_check_selection_table(ds: AudioSetStrong, sample_indices: List[int]):
         assert "selection_table" in item, f"[{idx}] missing 'selection_table' key"
         st = item["selection_table"]
 
-        assert isinstance(st, pl.DataFrame), f"[{idx}] selection_table is not a polars DataFrame"
+        assert isinstance(st, pd.DataFrame), f"[{idx}] selection_table is not a DataFrame"
         missing = required - set(st.columns)
         assert not missing, f"[{idx}] selection_table missing columns: {sorted(missing)}"
 
@@ -132,7 +132,7 @@ def test_get_available_labels(ds: AudioSetStrong, sample_indices: List[int]):
         item = ds[idx]
         st = item["selection_table"]
         if "Label" in st.columns and len(st) > 0:
-            labels_sample.update(st["Label"].cast(pl.Utf8).to_list())
+            labels_sample.update(st["Label"].to_list())
 
     assert len(labels_sample) > 0, "Should have at least one label"
     for label in labels_sample:
