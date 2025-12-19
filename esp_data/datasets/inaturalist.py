@@ -4,9 +4,9 @@ from typing import Any, Dict, Iterator
 
 import librosa
 import numpy as np
+import pandas as pd
 
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
-from esp_data.backends import BackendType
 from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
 
 
@@ -67,7 +67,6 @@ class INaturalist(Dataset):
     iNaturalist: https://www.inaturalist.org/
 
     Examples
-    --------
     >>> from esp_data.datasets import INaturalist
     >>> dataset = INaturalist(
     ...     split="train",
@@ -76,13 +75,16 @@ class INaturalist(Dataset):
     >>> print(dataset.info.name)
     inaturalist
     >>> print(dataset.available_sample_rates)
-    [32000]
+    [32000, 16000]
 
     Load with pre-resampled 32kHz audio (no on-the-fly resampling needed)
     >>> dataset_32k = INaturalist(split="train", sample_rate=32000)
 
-    Load with on-the-fly resampling to 16kHz from original (variable rate) files
+    Load with pre-resampled 16kHz audio (no on-the-fly resampling needed)
     >>> dataset_16k = INaturalist(split="train", sample_rate=16000)
+
+    If a requested sample rate is not available as a precomputed path column,
+    audio will be resampled on-the-fly from the original files.
     """
 
     info = DatasetInfo(
@@ -102,6 +104,7 @@ class INaturalist(Dataset):
     # Mapping of sample rates to their corresponding path columns
     _sample_rate_paths = {
         32000: "32khz_path",  # Pre-resampled to 32kHz
+        16000: "16khz_path",  # Pre-resampled to 16kHz (derived in _load if missing)
     }
 
     # Column name for original variable-rate audio files
@@ -113,8 +116,6 @@ class INaturalist(Dataset):
         output_take_and_give: dict[str, str] = None,
         sample_rate: int | None = None,
         data_root: str | AnyPathT | None = None,
-        backend: BackendType = "polars",
-        streaming: bool = False,
     ) -> None:
         """Initialize the iNaturalist dataset.
 
@@ -135,14 +136,10 @@ class INaturalist(Dataset):
             The root directory for the dataset. This is prepended to the local_path
             column value to construct the full path to audio files. If None, defaults
             to the GCS bucket path for this dataset.
-        backend : BackendType, optional
-            The backend to use ("pandas" or "polars"), by default "polars"
-        streaming : bool, optional
-            Whether to use streaming mode, by default False
         """
-        super().__init__(output_take_and_give, backend=backend, streaming=streaming)
+        super().__init__(output_take_and_give)
         self.split = split
-        self._data = None
+        self._data: pd.DataFrame = None
         self._load()
         self.sample_rate = sample_rate
 
@@ -195,7 +192,22 @@ class INaturalist(Dataset):
 
         location = self.info.split_paths[self.split]
         # Read CSV directly from GCS path to avoid memory issues
-        self._data = self._backend_class.from_csv(location, streaming=self._streaming)
+        self._data = pd.read_csv(location, low_memory=False)
+
+        # If a 16kHz pre-resampled path column is not present yet, derive it.
+        # Current GCS layout for iNat 16k: gs://.../raw/audio_16k/audio/<id>.wav
+        if "16khz_path" not in self._data.columns and "originals_path" in self._data.columns:
+            # originals_path looks like: audio/<id>.<ext>
+            op = self._data["originals_path"]
+            stems = (
+                op.where(op.notna(), other="")
+                .astype(str)
+                .str.replace(r"^audio/", "", regex=True)
+                .str.replace(r"\.[A-Za-z0-9]+$", "", regex=True)
+            )
+            self._data["16khz_path"] = stems.apply(
+                lambda s: f"audio_16k/audio/{s}.wav" if s else ""
+            )
 
     @classmethod
     def from_config(cls, dataset_config: DatasetConfig) -> tuple["INaturalist", dict[str, Any]]:
@@ -220,8 +232,6 @@ class INaturalist(Dataset):
             output_take_and_give=cfg["output_take_and_give"],
             data_root=cfg["data_root"],
             sample_rate=cfg["sample_rate"],
-            backend=cfg["backend"],
-            streaming=cfg["streaming"],
         )
 
         if dataset_config.transformations:
@@ -245,25 +255,40 @@ class INaturalist(Dataset):
         """
         if self._data is None:
             raise RuntimeError("No split has been loaded yet. Call _load() first.")
-        if self._streaming:
-            raise NotImplementedError(
-                "Length is not available in streaming mode. Iterate over the dataset instead."
-            )
         return len(self._data)
 
-    def _process(self, row: dict[str, Any]) -> dict[str, Any]:
-        """Process a single row of the dataset.
+    def __getitem__(self, idx: int) -> dict[str, Any]:
+        """Get a specific sample from the dataset.
+
+        This method loads the audio file for the given index, processes it
+        (converting to mono, resampling if needed), and returns it along with
+        the metadata from the CSV file.
 
         Parameters
         ----------
-        row : dict[str, Any]
-            A dictionary representing a single row of the dataset.
+        idx : int
+            Index of the sample to get.
 
         Returns
         -------
         dict[str, Any]
-            The processed row.
+            A dictionary containing the audio data and metadata. The audio data
+            is stored under the 'audio' key as a 1D numpy array of float32 values.
+            Other keys contain metadata from the CSV file (e.g., 'canonical_name',
+            'species_scientific', 'family', 'genus', 'order', etc.).
+
+            If `output_take_and_give` was specified, only the mapped columns will
+            be present in the output dictionary.
+
+        Raises
+        ------
+        IndexError
+            If the index is out of bounds.
         """
+        if idx >= len(self._data):
+            raise IndexError(f"Index {idx} out of bounds for dataset of length {len(self._data)}.")
+
+        row = self._data.iloc[idx].to_dict()
 
         # Determine which path column to use based on requested sample rate
         # If a pre-resampled version is available, use it; otherwise resample on-the-fly
@@ -271,7 +296,7 @@ class INaturalist(Dataset):
         if self.sample_rate is not None and self.sample_rate in self._sample_rate_paths:
             path_column = self._sample_rate_paths[self.sample_rate]
             # Check if the pre-resampled path column exists in the data
-            if path_column in row and row[path_column] is not None and row[path_column] != "":
+            if path_column in row and pd.notna(row[path_column]):
                 # Use pre-resampled audio
                 audio_path = anypath(self.data_root) / row[path_column]
                 use_presampled = True
@@ -308,22 +333,6 @@ class INaturalist(Dataset):
 
         return item
 
-    def __getitem__(self, idx: int) -> dict[str, Any]:
-        """Get a specific sample from the dataset.
-
-        Parameters
-        ----------
-        idx : int
-            Index of the sample to get.
-
-        Returns
-        -------
-        dict[str, Any]
-            A dictionary containing the processed data.
-        """
-        row = self._data[idx]
-        return self._process(row)
-
     def __iter__(self) -> Iterator[Dict[str, Any]]:
         """Iterate over samples in the dataset.
 
@@ -332,8 +341,8 @@ class INaturalist(Dataset):
         Dict[str, Any]
             Each sample in the dataset.
         """
-        for row in self._data:
-            yield self._process(row)
+        for idx in range(len(self)):
+            yield self[idx]
 
     def __str__(self) -> str:
         """Return a string representation of the dataset.

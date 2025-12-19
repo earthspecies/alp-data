@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 
 from esp_data.datasets import INaturalist
-from esp_data import Dataset, DatasetConfig
+from esp_data import Dataset
 
 # Expected SHA256 hash of the first item's audio (index 0) at default (variable) sample rate
 # This ensures bitwise stability of the dataset over time.
@@ -22,84 +22,64 @@ EXPECTED_FIRST_ITEM_AUDIO_SHA256 = (
 
 
 @pytest.fixture
-def dataset_with_transforms_from_config() -> tuple[Dataset, dict]:
-    """Fixture providing an iNaturalist dataset instance with transformations
-    applied from config.
+def dataset() -> Dataset:
+    """Fixture providing an iNaturalist dataset instance.
 
     Returns
     -------
     Dataset
-        An instance of the iNaturalist dataset with transformations applied.
-    dict
-        Metadata dictionary containing information about the transformations applied.
+        An instance of the iNaturalist dataset.
     """
-
-    dataset_config = DatasetConfig(
-        dataset_name="inaturalist",
-        split="train",
-        sample_rate=32000,
-        transformations=[
-            {
-                "type": "label_from_feature",
-                "feature": "canonical_name",
-                "output_feature": "label",
-            },
-        ],
-    )
-    ds, _ = INaturalist.from_config(dataset_config)
+    ds = INaturalist(split="train", sample_rate=32000)
     return ds
 
 
-def test_info_property(dataset_with_transforms_from_config: Dataset) -> None:
+def test_info_property(dataset: Dataset) -> None:
     """Test if the info property returns correct metadata."""
-    assert dataset_with_transforms_from_config.info.name == "inaturalist"
-    assert dataset_with_transforms_from_config.info.version == "0.1.0"
-    assert "train" in dataset_with_transforms_from_config.info.split_paths
+    assert dataset.info.name == "inaturalist"
+    assert dataset.info.version == "0.1.0"
+    assert "train" in dataset.info.split_paths
     # Test that split paths are configured correctly
-    assert dataset_with_transforms_from_config.info.split_paths["train"] is not None
+    assert dataset.info.split_paths["train"] is not None
 
 
-def test_data_property(dataset_with_transforms_from_config: Dataset) -> None:
+def test_data_property(dataset: Dataset) -> None:
     """Test if the data property returns correct dataframes."""
     # Data should be loaded in __init__
-    assert dataset_with_transforms_from_config._data is not None
-    assert "originals_path" in dataset_with_transforms_from_config._data.columns
+    assert dataset._data is not None
+    assert "originals_path" in dataset._data.columns
 
 
-def test_columns_property(dataset_with_transforms_from_config: Dataset) -> None:
+def test_columns_property(dataset: Dataset) -> None:
     """Test if the columns property returns correct column names."""
     # Columns should match the dataframe columns
-    assert "originals_path" in dataset_with_transforms_from_config.columns
+    assert "originals_path" in dataset.columns
     # Check for expected columns
     expected_columns = ["originals_path"]
-    assert all(
-        col in dataset_with_transforms_from_config.columns for col in expected_columns
-    )
+    assert all(col in dataset.columns for col in expected_columns)
 
 
-def test_available_splits(dataset_with_transforms_from_config: Dataset) -> None:
+def test_available_splits(dataset: Dataset) -> None:
     """Test if available_splits returns correct split names."""
     # Available splits should contain train
     expected_splits = ["train"]
-    assert set(dataset_with_transforms_from_config.available_splits) == set(
-        expected_splits
-    )
+    assert set(dataset.available_splits) == set(expected_splits)
 
 
-def test_length(dataset_with_transforms_from_config: Dataset) -> None:
+def test_length(dataset: Dataset) -> None:
     """Test if __len__ returns correct counts."""
     # Length should be the number of rows in the dataframe
-    expected_len = dataset_with_transforms_from_config._data.unwrap.shape[0]
-    assert len(dataset_with_transforms_from_config) == expected_len
-    print(f"Dataset length: {len(dataset_with_transforms_from_config)}")
+    expected_len = dataset._data.shape[0]
+    assert len(dataset) == expected_len
+    print(f"Dataset length: {len(dataset)}")
     # iNaturalist should have some samples
-    assert len(dataset_with_transforms_from_config) > 0
+    assert len(dataset) > 0
 
 
-def test_getitem(dataset_with_transforms_from_config: Dataset) -> None:
+def test_getitem(dataset: Dataset) -> None:
     """Test if __getitem__ returns correct sample format."""
     # Get first sample
-    sample = dataset_with_transforms_from_config[0]
+    sample = dataset[0]
     assert isinstance(sample, dict)
     assert "audio" in sample
     assert "originals_path" in sample
@@ -110,9 +90,9 @@ def test_getitem(dataset_with_transforms_from_config: Dataset) -> None:
     assert len(sample["audio"]) > 0
 
 
-def test_iteration(dataset_with_transforms_from_config: Dataset) -> None:
+def test_iteration(dataset: Dataset) -> None:
     """Test if iteration works correctly."""
-    for i, sample in enumerate(dataset_with_transforms_from_config):
+    for i, sample in enumerate(dataset):
         assert isinstance(sample, dict)
         # Ensure we can access expected keys
         assert "audio" in sample
@@ -127,91 +107,67 @@ def test_invalid_split() -> None:
         INaturalist(split="invalid_split")
 
 
-def test_sample_consistency(dataset_with_transforms_from_config: Dataset) -> None:
+def test_sample_consistency(dataset: Dataset) -> None:
     """Test if samples are consistent when accessed multiple ways."""
     # Get same sample through different methods
-    direct_sample = dataset_with_transforms_from_config[0]
-    iter_sample = next(iter(dataset_with_transforms_from_config))
+    direct_sample = dataset[0]
+    iter_sample = next(iter(dataset))
 
     # Compare samples (they should be identical)
     assert direct_sample["originals_path"] == iter_sample["originals_path"]
 
 
-def test_transformations(dataset_with_transforms_from_config: Dataset) -> None:
-    """Test if transformations are applied correctly.
-
-    This test verifies that:
-    1. The label_from_feature transformation creates a label column
-    2. The metadata is updated with transformation information
-    """
-    # Check that label column was created
-    assert "label" in dataset_with_transforms_from_config._data.columns
-
-
-def test_transformations_from_config(
-    dataset_with_transforms_from_config: tuple[Dataset, dict],
-) -> None:
-    """Test if transformations from config are applied correctly.
-
-    This test verifies that:
-    1. The label_from_feature transformation creates a label column
-    2. The metadata contains transformation information
-    """
-    assert "label" in dataset_with_transforms_from_config.columns
-
-
-def test_sample_rate_resampling(dataset_with_transforms_from_config: Dataset) -> None:
+def test_sample_rate_resampling(dataset: Dataset) -> None:
     """Test if sample rate resampling works correctly."""
     # Check that sample rate is set correctly
-    dataset_with_transforms_from_config.sample_rate == 22050
+    assert dataset.sample_rate == 32000
     # Test with first valid sample
-    sample = dataset_with_transforms_from_config[0]
+    sample = dataset[0]
     assert "audio" in sample
     assert sample["audio"].dtype.name == "float32"
 
 
-def test_data_root_handling(dataset_with_transforms_from_config: Dataset) -> None:
+def test_data_root_handling(dataset: Dataset) -> None:
     """Test if data_root parameter works correctly."""
     # Test with default data_root
-    assert dataset_with_transforms_from_config.data_root is not None
+    assert dataset.data_root is not None
 
 
-def test_str_representation(dataset_with_transforms_from_config: Dataset) -> None:
+def test_str_representation(dataset: Dataset) -> None:
     """Test if string representation works correctly."""
-    str_repr = str(dataset_with_transforms_from_config)
+    str_repr = str(dataset)
     assert "inaturalist" in str_repr
     assert "0.1.0" in str_repr
     assert "train" in str_repr
 
 
-def test_index_error_handling(dataset_with_transforms_from_config: Dataset) -> None:
+def test_index_error_handling(dataset: Dataset) -> None:
     """Test if index error handling works correctly."""
     with pytest.raises(IndexError):
-        _ = dataset_with_transforms_from_config[
-            len(dataset_with_transforms_from_config)
-        ]  # Should raise IndexError
+        _ = dataset[len(dataset)]  # Should raise IndexError
 
 
-def test_available_sample_rates(dataset_with_transforms_from_config: Dataset) -> None:
+def test_available_sample_rates(dataset: Dataset) -> None:
     """Test if available_sample_rates property works correctly."""
     # Check that available_sample_rates returns a list
-    sample_rates = dataset_with_transforms_from_config.available_sample_rates
+    sample_rates = dataset.available_sample_rates
     assert isinstance(sample_rates, list)
 
     # Check that 32kHz (pre-resampled) is available if the column exists
-    if "32khz_path" in dataset_with_transforms_from_config.columns:
+    if "32khz_path" in dataset.columns:
         assert 32000 in sample_rates
         print("✓ 32kHz pre-resampled audio is available")
-    else:
-        # Column doesn't exist yet, so no pre-resampled rates available
-        assert len(sample_rates) == 0
-        print("Note: 32khz_path column not yet available in metadata")
+
+    # Check that 16kHz (pre-resampled) is available if the column exists
+    if "16khz_path" in dataset.columns:
+        assert 16000 in sample_rates
+        print("✓ 16kHz pre-resampled audio is available")
 
     # Original files are at variable rates, not pre-resampled to any specific rate
     print(f"Available pre-resampled sample rates: {sample_rates}")
 
 
-def test_reference_item_stability(dataset_with_transforms_from_config: Dataset) -> None:
+def test_reference_item_stability() -> None:
     """Check that a canonical item (index 0) is bitwise-stable.
 
     We hash the raw float32 audio buffer. This catches:
@@ -223,10 +179,10 @@ def test_reference_item_stability(dataset_with_transforms_from_config: Dataset) 
     If this fails for a legitimate/intentional reason, recompute the hash below
     and update EXPECTED_FIRST_ITEM_AUDIO_SHA256.
     """
-    dataset_with_transforms_from_config.sample_rate = None  # original sr
+    ds = INaturalist(split="train", sample_rate=None)  # original sr
     # Choose deterministic index
     idx = 0
-    item = dataset_with_transforms_from_config[idx]
+    item = ds[idx]
 
     # Audio presence/type checks (defensive, so the hash failure message is clearer)
     assert "audio" in item, "[0] missing 'audio' key"
