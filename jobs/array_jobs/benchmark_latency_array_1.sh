@@ -17,7 +17,7 @@ srun uv run python scripts/benchmarks/benchmark_latency.py \
    --batch-size 64 \
    --prefetch-factor 0 \
    --sleep 0.5 \
-   --config-path scripts/benchmarks/job_array_exp_config.yaml \
+   --config-path scripts/benchmarks/job_array_exp_no_resampling_config.yaml \
    --data-location bucket \
    --save "local" \
    --nb_array 1
@@ -30,7 +30,7 @@ srun uv run python scripts/benchmarks/benchmark_latency.py \
     --batch-size 64 \
     --prefetch-factor 0 \
     --sleep 0.5 \
-    --config-path scripts/benchmarks/job_array_exp_config.yaml \
+    --config-path scripts/benchmarks/job_array_exp_no_resampling_config.yaml \
     --data-location nfs \
     --save "local" \
     --nb_array 1
