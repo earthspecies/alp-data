@@ -1,7 +1,7 @@
 """Dataset concatenation utilities."""
 
 import logging
-from typing import Any, Dict, Iterator, Literal
+from typing import Any, Iterator, Literal
 
 import semver
 
@@ -96,7 +96,9 @@ def _merge_backends(
 
 
 def _merge_sample_rates(sample_rates: list[int | None]) -> int | None:
-    """Merge sample rates from multiple datasets.
+    """Merge sample rates from multiple datasets. If any sample_rate
+    is None or sample_rates differ, output sample_rate is None, else
+    it is the unique, common sample_rate.
 
     Parameters
     ----------
@@ -107,27 +109,17 @@ def _merge_sample_rates(sample_rates: list[int | None]) -> int | None:
     -------
     int or None
         Combined sample rate
-
-    Raises
-    ------
-    MergeException
-        If sample rates are different
     """
-    # Filter out None values
-    non_none_rates = [sr for sr in sample_rates if sr is not None]
+    unique_sr = None
+    for sr in sample_rates:
+        if sr is None:
+            return None
+        if unique_sr is None:
+            unique_sr = sr
+        elif sr != unique_sr:
+            return None
 
-    if not non_none_rates:
-        return None
-
-    # Check that all non-None rates are the same
-    first_rate = non_none_rates[0]
-    for i, rate in enumerate(non_none_rates[1:], 1):
-        if rate != first_rate:
-            raise MergeException(
-                f"Sample rates must match: dataset 0={first_rate}, dataset {i}={rate}"
-            )
-
-    return first_rate
+    return unique_sr
 
 
 def _merge_output_take_and_give(otags: list[dict | None]) -> dict | None:
@@ -374,6 +366,9 @@ class ConcatenatedDataset(Dataset):
         List of datasets to concatenate
     merge_level : {"hard", "overlap", "soft"}, default="soft"
         Strategy for handling different columns
+        - "hard": All columns must match exactly across all datasets
+        - "overlap": Keep only common columns across all datasets
+        - "soft": Keep all columns from all datasets (fill missing with NaN)
 
     Examples
     --------
@@ -399,7 +394,7 @@ class ConcatenatedDataset(Dataset):
 
     def __init__(
         self,
-        datasets: list[Dataset] | None = None,
+        datasets: list[Dataset],
         merge_level: Literal["hard", "overlap", "soft"] = "soft",
     ) -> None:
         # Validate inputs
@@ -414,12 +409,21 @@ class ConcatenatedDataset(Dataset):
         if not backend_type or not all(
             getattr(ds, "_backend_class", None) == backend_type for ds in datasets
         ):
-            raise ValueError(
+            raise MergeException(
                 "All datasets must have the same backend type "
                 "to be concatenated into a ConcatenatedDataset."
             )
 
-        super().__init__(backend=backend_type.__name__.replace("Backend", "").lower())
+        # Check that streaming is False for ConcatenatedDataset
+        if not all([not ds.streaming for ds in datasets]):
+            raise MergeException(
+                "Concatenation is only allowed with streaming=False",
+                "because transforms need to be performed on the whole dataset",
+            )
+
+        super().__init__(
+            backend=backend_type.__name__.replace("Backend", "").lower(), streaming=False
+        )
 
         (
             self._data,
@@ -450,7 +454,7 @@ class ConcatenatedDataset(Dataset):
     @classmethod
     def from_config(
         cls, concat_config: ConcatConfig
-    ) -> tuple["ConcatenatedDataset", Dict[str, Any]]:
+    ) -> tuple["ConcatenatedDataset", dict[str, Any]]:
         """Create a ConcatenatedDataset from a ConcatConfig object.
 
         Parameters
@@ -466,7 +470,10 @@ class ConcatenatedDataset(Dataset):
             and metadata about transformations applied.
         """
         datasets = [dataset_from_config(cfg)[0] for cfg in concat_config.datasets]
-        ds = cls(datasets, merge_level=concat_config.merge_level)
+        ds = cls(
+            datasets,
+            merge_level=concat_config.merge_level,
+        )
 
         if concat_config.transformations:
             transform_metadata = ds.apply_transformations(concat_config.transformations)
@@ -477,11 +484,12 @@ class ConcatenatedDataset(Dataset):
     def __len__(self) -> int:
         return len(self._data)
 
-    def __getitem__(self, idx: int) -> Dict[str, Any]:
+    def __getitem__(self, idx: int) -> dict[str, Any]:
         if idx >= len(self._data):
             raise IndexError(f"Index {idx} out of bounds for dataset of length {len(self._data)}")
 
         # Get row as dict from backend
+        # This dict has transforms applied at concat level
         row = self._data[idx]
 
         # Determine which source dataset this row came from
@@ -506,21 +514,20 @@ class ConcatenatedDataset(Dataset):
                 f"from source dataset {source_dataset_idx}: {e}"
             ) from e
 
-        # merge the source_item and row dicts, giving precedence
-        # to 'row' if clash. This ensures that transforms applied
-        # at the level of the concatenated dataset take precedence
+        # Merge with row
         source_item.update(row)
 
         # Apply the concatenated dataset's output_take_and_give mapping
         if self.output_take_and_give:
-            item = {}
+            mapped_item = {}
             for key, value in self.output_take_and_give.items():
                 if key in source_item:
-                    item[value] = source_item[key]
-            return item
+                    mapped_item[value] = source_item[key]
+            return mapped_item
+
         return source_item
 
-    def __iter__(self) -> Iterator[Dict[str, Any]]:
+    def __iter__(self) -> Iterator[dict[str, Any]]:
         for idx in range(len(self)):
             yield self[idx]
 

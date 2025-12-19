@@ -40,7 +40,7 @@ for nw in "${nw_values[@]}"; do
         --prefetch-factor 0 \
         --sleep 0.5 \
         --dataset-name "$DATASET" \
-        --save
+        --save "cloud"
 done
 
 num_values=${#nw_values[@]}
@@ -58,7 +58,7 @@ for pf in "${pf_values[@]}"; do
         --prefetch-factor $pf \
         --sleep 0.5 \
         --dataset-name "$DATASET" \
-        --save
+        --save "cloud"
 done
 
 num_values=${#pf_values[@]}
