@@ -1,14 +1,12 @@
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
-from pathlib import Path
 from typing import Any, Dict, Iterator, Literal
 
 import semver
-import yaml
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, field_validator
 
 from esp_data.backends import BackendType, get_backend
-from esp_data.io import AnyPathT, anypath
+from esp_data.io import AnyPathT, read_yaml
 from esp_data.transforms import transform_from_config
 from esp_data.transforms.registry import RegisteredTransformConfigs
 
@@ -109,11 +107,13 @@ class ConcatConfig(BaseModel):
     ----------
     datasets : list[DatasetConfig]
         List of DatasetConfig objects to concatenate.
+
     merge_level : {"hard", "overlap", "soft"}, default="soft"
         Strategy for handling different columns:
         - "hard": All columns must match exactly across all datasets
         - "overlap": Keep only common columns across all datasets
         - "soft": Keep all columns from all datasets (fill missing with NaN)
+
     transformations : list | None, optional
         List of transforms to apply to the concatenated dataset.
     """
@@ -127,8 +127,8 @@ class ConcatConfig(BaseModel):
 
     dataset_name: str = "concatenated_dataset"
     datasets: list[DatasetConfig]
-    merge_level: Literal["hard", "overlap", "soft"] = "soft"
     transformations: list | None = None
+    merge_level: Literal["hard", "overlap", "soft"] = "soft"
 
     @field_validator("transformations", mode="before")
     @classmethod
@@ -151,6 +151,27 @@ class ConcatConfig(BaseModel):
             return validated
         else:
             return None
+
+
+class ChainedDatasetConfig(BaseModel):
+    """A Pydantic base model for the configuration of a ChainedDataset
+    In YAML, this is represented under the 'chained' key.
+
+    Attributes
+    ----------
+    datasets : list[DatasetConfig]
+        List of DatasetConfig objects to concatenate.
+    """
+
+    model_config = ConfigDict(
+        arbitrary_types_allowed=True,
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        extra="forbid",
+    )
+
+    dataset_name: str = "chained_dataset"
+    datasets: list[DatasetConfig]
 
 
 class DatasetInfo(BaseModel):
@@ -338,6 +359,10 @@ class Dataset(ABC):
             A sequence of column names in the dataset.
         """
         pass
+
+    @property
+    def streaming(self) -> bool:
+        return self._streaming
 
     @abstractmethod
     def _load(self) -> Sequence[Any] | None:
@@ -594,17 +619,28 @@ def _make_dataset_from_config(dataset_config: DatasetConfig | ConcatConfig) -> D
 
 
 def dataset_from_config(
-    dataset_config: DatasetConfig | ConcatConfig | AnyPathT | Path | str,
+    dataset_config: DatasetConfig | ConcatConfig | ChainedDatasetConfig | AnyPathT | str,
     key: str | None = None,
 ) -> tuple[Dataset, dict[str, Any]]:
     """Load a single dataset or a dataset collection from a configuration.
 
+    Note: We require special keys in the configuration file to identify
+    the type of dataset configuration:
+    - 'dataset' for DatasetConfig
+    - 'concat' for ConcatConfig
+    - 'chain' for ChainedDatasetConfig
+
     Parameters
     ----------
-    dataset_config : DatasetConfig | ConcatConfig | AnyPathT | Path | str
+    dataset_config : DatasetConfig | ConcatConfig | ChainedDatasetConfig | AnyPathT | str
         The configuration for the dataset. This can be either a DatasetConfig object,
-        a ConcatConfig object or instead a path to a YAML file containing the
-        configuration.
+        a ConcatConfig object, a ChainedDatasetConfig or a path to a YAML file
+        containing the configuration.
+
+    key : str | None, optional
+        If the configuration file contains multiple dataset configurations,
+        this key can be used to select a specific one. If None, and multiple
+        configurations are found, a ValueError is raised. Default is None.
 
     Returns
     -------
@@ -623,13 +659,11 @@ def dataset_from_config(
     KeyError
         If the specified key does not match any dataset configuration in the data.
     """
-    if isinstance(dataset_config, (DatasetConfig, ConcatConfig)):
+    if isinstance(dataset_config, (DatasetConfig, ConcatConfig, ChainedDatasetConfig)):
         # If a DatasetConfig is passed, we can directly create the dataset
         return _make_dataset_from_config(dataset_config)
 
-    if isinstance(dataset_config, (Path, str, AnyPathT)):
-        with anypath(dataset_config).open("r") as fp:
-            data = yaml.safe_load(fp)
+    data = read_yaml(dataset_config)
 
     if key is not None:
         if key not in data:
@@ -637,9 +671,9 @@ def dataset_from_config(
         data = data[key]
 
     if isinstance(data, dict):
-        if len(data) == 1 and ("dataset" in data or "concat" in data):
-            if "concat" in data and "dataset" in data:
-                raise ValueError("Configuration cannot contain both 'concat' and 'dataset' keys.")
+        if "dataset" in data or "concat" in data or "chain" in data:
+            if sum(k in data for k in ("concat", "dataset", "chain")) > 1:
+                raise ValueError("Configuration cannot contain multiple dataset types at once.")
 
             if "dataset" in data:
                 cfg = data["dataset"]
@@ -650,16 +684,22 @@ def dataset_from_config(
                 cfg = data["concat"]
                 return _make_dataset_from_config(ConcatConfig.model_validate(cfg))
 
+            elif "chain" in data:
+                cfg = data["chain"]
+                return _make_dataset_from_config(ChainedDatasetConfig.model_validate(cfg))
+
             else:
-                raise ValueError("Configuration must contain either 'dataset' or 'concat' key.")
+                raise ValueError(
+                    "Configuration must contain either 'dataset','concat' or 'chain' key."
+                )
         else:
             raise ValueError(
-                "Multiple / Invalid dataset configurations found. "
-                "Please provide a specific key to select one."
+                "Invalid dataset configurations found. Please provide a specific key to select one."
             )
 
     raise ValueError("""Invalid configuration format.
     Your configuration must either be:
     1. A DatasetConfig represented as the value of a dict with a single 'dataset' key
     2. A ConcatConfig represented as the value of a dict with a single 'concat' key
+    3. A ChainedDatasetConfig represented as the value of a dict with a single 'chain' key
     """)

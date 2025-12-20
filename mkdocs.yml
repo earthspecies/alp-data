@@ -15,6 +15,7 @@ nav:
   - io: io.md
   - Transforms: transforms.md
   - Concatenate datasets: concatenate.md
+  - Chain datasets: chain.md
   - Data Backends: backends.md
   - API Reference: reference.md
 

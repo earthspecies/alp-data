@@ -37,6 +37,7 @@ class INaturalist(Dataset):
     **Audio File Paths:**
         - ``originals_path``: Path to original audio (variable sample rate)
         - ``32khz_path``: Path to pre-resampled 32kHz audio
+        - ``16khz_path``: Path to pre-resampled 16kHz audio
 
     **Recording Metadata:**
         - ``eventDate``, ``eventTime``: When the recording was made
@@ -76,12 +77,12 @@ class INaturalist(Dataset):
     >>> print(dataset.info.name)
     inaturalist
     >>> print(dataset.available_sample_rates)
-    [32000]
+    [32000, 16000]
 
     Load with pre-resampled 32kHz audio (no on-the-fly resampling needed)
     >>> dataset_32k = INaturalist(split="train", sample_rate=32000)
 
-    Load with on-the-fly resampling to 16kHz from original (variable rate) files
+    Load with pre-resampled 16kHz audio (no on-the-fly resampling needed)
     >>> dataset_16k = INaturalist(split="train", sample_rate=16000)
     """
 
@@ -102,6 +103,7 @@ class INaturalist(Dataset):
     # Mapping of sample rates to their corresponding path columns
     _sample_rate_paths = {
         32000: "32khz_path",  # Pre-resampled to 32kHz
+        16000: "16khz_path",  # Pre-resampled to 16kHz
     }
 
     # Column name for original variable-rate audio files

@@ -237,8 +237,10 @@ def test_available_sample_rates(dataset: Dataset) -> None:
     # Check if 32kHz is available (depends on whether 32khz_path column exists)
     if "32khz_path" in dataset.columns:
         assert 32000 in sample_rates
-    else:
-        assert len(sample_rates) == 0
+
+    # Check if 16kHz is available (depends on whether 16khz_path column exists)
+    if "16khz_path" in dataset.columns:
+        assert 16000 in sample_rates
 
 
 def test_pre_resampled_audio_32khz(dataset) -> None:

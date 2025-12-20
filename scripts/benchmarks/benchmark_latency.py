@@ -6,11 +6,13 @@ This will load individual samples from bucket or disk.
 """
 
 import logging
+import os
 import time
 import warnings
 from pathlib import Path
 
 import click
+import numpy as np
 import pandas
 import torch
 import torch.multiprocessing as mp
@@ -116,6 +118,9 @@ def benchmark_loader(
                 logger.info(f"Reached max_iterations={max_iterations}, stopping early.")
                 closing_time = time.perf_counter()
                 break
+            # Stop timing when we reach the end of the loader
+            if n_batches == len(loader):
+                closing_time = time.perf_counter()
 
     # Final stats
     closing_time = time.perf_counter() - closing_time
@@ -314,8 +319,17 @@ def benchmark_raw_dataset(
 )
 @click.option(
     "--save",
-    is_flag=True,
-    help="Save results to CSV in GCS bucket after benchmarking",
+    type=str,
+    default=None,
+    show_default=True,
+    help="Save results to CSV in GCS bucket or locally after benchmarking",
+)
+@click.option(
+    "--nb_array",
+    type=int,
+    default=None,
+    show_default=True,
+    help="Number of array experiments that have been run in parallel",
 )
 def main(
     config_path: Path,
@@ -328,7 +342,8 @@ def main(
     batch_size: int,
     dataset_name: str,
     prefetch_factor: int,
-    save: bool,
+    save: str,
+    nb_array: int,
 ) -> None:
     time_stored = {}
     with Timer("loading_time", store=time_stored):
@@ -354,6 +369,7 @@ def main(
             "raw_dataset": True,
             "machine_location": machine_location if data_location == "bucket" else None,
             "bucket_location": bucket_location if data_location == "bucket" else None,
+            "array_exp": nb_array,
         }
         result_df = benchmark_raw_dataset(
             train_ds,
@@ -386,6 +402,7 @@ def main(
             "prefetch_factor": prefetch_factor,
             "machine_location": machine_location if data_location == "bucket" else None,
             "bucket_location": bucket_location if data_location == "bucket" else None,
+            "nb_array": nb_array,
         }
 
         train_dl = build_dataloader(
@@ -408,12 +425,30 @@ def main(
         # Add to our collection of all results
         all_results = pandas.concat([all_results, result_df], ignore_index=True)
 
-    if save:
-        # Define the CSV file path in the bucket
+    if save == "cloud":
         csv_path = "gs://esp-ci-cd-tests/esp-data-tests/benchmark_dataset/benchmark_latency.csv"
 
-        # Save all results to the single CSV file in the bucket
+        if nb_array is not None:
+            logger.info(f"Saving results for array experiment with nb_array={nb_array}")
+            csv_path = (
+                "gs://esp-ci-cd-tests/esp-data-tests/benchmark_dataset/benchmark_latency_array.csv"
+            )
+
         save_results(all_results, csv_path)
+
+    # This option was necessary for array experiments where multiple jobs write to the same file,
+    # because there were conflicts.
+    # This part can definitely be improved.
+    elif save == "local":
+        # Save results locally without replacing if the file exists
+        os.makedirs(f"scripts/benchmarks/array_{nb_array}", exist_ok=True)
+
+        local_csv_path = Path(
+            f"scripts/benchmarks/array_{nb_array}/"
+            f"benchmark_latency_results_{int(time.time() + 1000 * np.random.rand())}.csv"
+        )
+        logger.info(f"Saving results locally to {local_csv_path}")
+        all_results.to_csv(local_csv_path, index=False)
 
 
 if __name__ == "__main__":

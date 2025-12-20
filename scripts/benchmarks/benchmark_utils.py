@@ -105,7 +105,9 @@ def build_raw_dataset(config_path: Path, data_location: str, dataset_name: str) 
         del raw["split"]
     else:
         logger.info(f"Building dataset '{dataset_name}' with default parameters")
-        dataset = dataset_class_from_name(dataset_name)()
+        dataset = dataset_class_from_name(dataset_name)(
+            sample_rate=None
+        )  # no resampling by default
         # Get corresponding raw information with following format:
         # dataset_name:
         # split:

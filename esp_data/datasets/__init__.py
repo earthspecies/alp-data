@@ -2,6 +2,7 @@ from .animalspeak import AnimalSpeak
 from .anuraset import AnuraSetStrong
 from .arctic_bird_sounds import ArcticBirdSounds
 from .audioset import AudioSet
+from .audioset_strong import AudioSetStrong
 from .barkley_canyon import BarkleyCanyon, BarkleyCanyonDetection
 from .beans import Beans
 from .bengalese_finch_calls import BengaleseFinchCalls
@@ -44,6 +45,7 @@ __all__ = [
     "LittleOwlId",
     "PipitId",
     "AudioSet",
+    "AudioSetStrong",
     "MacaquesCooCalls",
     "Voxaboxen",
     "VoxaboxenEvents",
