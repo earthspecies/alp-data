@@ -4,10 +4,13 @@ This module provides shared functions and classes used across various benchmark 
 """
 
 import logging
+import os
 import time
+import warnings
 from pathlib import Path
 from types import TracebackType
 
+import matplotlib.pyplot as plt
 import pandas
 import torch
 import yaml
@@ -276,3 +279,21 @@ def get_GCP_instance_location() -> tuple[str, str]:
     except Exception as e:
         logger.warning(f"Could not determine machine location: {e}")
         return "unknown", "unknown"
+
+
+def save_and_log(path: str) -> None:
+    logger = logging.getLogger("plots_saver")
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    plt.savefig(path)
+    plt.close()
+    logger.info(f"Saved plot: {path}")
+
+
+def filter_cloud_warnings() -> None:
+    """Filter out specific cloud-related warnings to reduce log clutter."""
+    warnings.filterwarnings(
+        "ignore",
+        message=r".*end user credentials from Google Cloud SDK without a quota project.*",
+        category=UserWarning,
+        module=r"google\.auth\._default",
+    )

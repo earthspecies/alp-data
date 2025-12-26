@@ -20,6 +20,7 @@ from .nocturnal_bird_migration import NocturnalBirdMigration
 from .pipit_id import PipitId
 from .powdermill import Powdermill
 from .subsegmentation import Subsegmentation
+from .superb_starling import SuperbStarling
 from .voxaboxen import Voxaboxen, VoxaboxenEvents
 from .wabad import WABAD
 from .xeno_canto import XenoCanto
@@ -56,4 +57,5 @@ __all__ = [
     "ArcticBirdSounds",
     "NocturnalBirdMigration",
     "Birdeep",
+    "SuperbStarling",
 ]
