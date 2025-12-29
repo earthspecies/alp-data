@@ -80,38 +80,45 @@ def plot_last_experiment_results_against_all(results: pd.DataFrame) -> None:
         plt.tight_layout()
         save_and_log(f"scripts/benchmarks/fig/loading_time/boxplot_{name}_{location}.png")
 
-        # Plot a evolution of Nominal Speed over time
-        fig2, ax2 = plt.subplots(figsize=(12, 4))
-        # Convert timestamp to datetime (round to day for better visualization)
-        subset["timestamp"] = pd.to_datetime(subset["timestamp"]).dt.floor("d")
-        results_subset["timestamp"] = pd.to_datetime(results_subset["timestamp"]).dt.floor("d")
-        subset_sorted = subset.sort_values(by="timestamp")
-        # if same date -> take the mean of the nominal_speed
-        subset_sorted = subset_sorted.groupby("timestamp")["nominal_speed"].mean().reset_index()
+        metrics = [
+            "nominal_speed",
+            "loading_time",
+        ]
+        # Plot a evolution of metrics over time
+        fig2, ax2 = plt.subplots(1, 2, figsize=(12, 4))
 
-        results_subset = results_subset.groupby("timestamp")["nominal_speed"].mean().reset_index()
+        for i, metric in enumerate(metrics):
+            ax = ax2[i]
+            # Convert timestamp to datetime (round to day for better visualization)
+            subset["timestamp"] = pd.to_datetime(subset["timestamp"]).dt.floor("d")
+            results_subset["timestamp"] = pd.to_datetime(results_subset["timestamp"]).dt.floor("d")
+            subset_sorted = subset.sort_values(by="timestamp")
+            # if same date -> take the mean of the nominal_speed
+            subset_metric = subset_sorted.groupby("timestamp")[metric].mean().reset_index()
 
-        ax2.plot(
-            subset_sorted["timestamp"],
-            subset_sorted["nominal_speed"],
-            marker="o",
-            label="Previous Results",
-        )
-        ax2.plot(
-            results_subset["timestamp"],
-            results_subset["nominal_speed"],
-            marker="o",
-            color="red",
-            label="New Results",
-        )
-        ax2.set_title("Evolution of Nominal Speed Over Time")
-        ax2.set_xlabel("Timestamp")
-        ax2.set_ylabel("Nominal Speed (samples/s)")
-        ax2.legend()
-        ax2.grid(True)
+            results_metric = results_subset.groupby("timestamp")[metric].mean().reset_index()
+
+            ax.plot(
+                subset_metric["timestamp"],
+                subset_metric[metric],
+                marker="o",
+                label="Previous Results",
+            )
+            ax.plot(
+                results_metric["timestamp"],
+                results_metric[metric],
+                marker="o",
+                color="red",
+                label="New Results",
+            )
+            ax.set_title(f"Evolution of {metric} Over Time")
+            ax.set_xlabel("Timestamp")
+            ax.set_ylabel(f"{metric}")
+            ax.legend()
+            ax.grid(True)
         plt.tight_layout()
         save_and_log(
-            f"scripts/benchmarks/fig/loading_time/nominal_speed_evolution_{name}_{location}.png"
+            f"scripts/benchmarks/fig/loading_time/{metric}_evolution_{name}_{location}.png"
         )
 
 
