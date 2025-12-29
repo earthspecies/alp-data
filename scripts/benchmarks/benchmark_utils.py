@@ -106,6 +106,8 @@ def build_raw_dataset(config_path: Path, data_location: str, dataset_name: str) 
         raw["split_config"] = "from_config"
         # delete raw["split"]
         del raw["split"]
+        # sample_rate might not be in the config if no resampling is desired
+        raw["sample_rate"] = raw.get("sample_rate", "default")
     else:
         logger.info(f"Building dataset '{dataset_name}' with default parameters")
         dataset = dataset_class_from_name(dataset_name)(

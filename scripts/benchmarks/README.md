@@ -126,7 +126,7 @@ Collecting results and plots
 - Plots are written to `scripts/benchmarks/fig/` inside the job’s workspace; results are saved as CSV files to a GCS bucket.
 - To copy plots to your local machine via SSH:
 ```bash
-    scp -P 22 username@cluster:esp-data/scripts/benchmarks/fig/* .
+    scp -P 22 username@cluster:esp-data/scripts/benchmarks/fig/* ./your/target/directory/
 ```
 
 What you can do
