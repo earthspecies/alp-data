@@ -30,7 +30,8 @@ class AudioSetConfig(DatasetConfig):
         It acts as a filter as well.
     sample_rate : int | None
         The sample rate to which audio files should be resampled. For v0.2.0, if
-        sample_rate=32000, pre-resampled audio will be loaded directly (faster).
+        sample_rate=16000 or sample_rate=32000, pre-resampled audio will be loaded
+        directly (faster).
     data_root : str | AnyPathT | None
         The root directory for the dataset. This is optionally appended to the
         path item of a sample in the dataset.
@@ -85,16 +86,19 @@ class AudioSet(Dataset):
 
     Pre-resampled Audio
     -------------------
-    Version 0.2.0 includes pre-resampled 32kHz audio that can be loaded directly
-    without on-the-fly resampling for faster data loading:
+    Version 0.2.0 includes pre-resampled 16kHz and 32kHz audio that can be loaded
+    directly without on-the-fly resampling for faster data loading:
+
+    >>> # Load with pre-resampled 16kHz audio (v0.2.0, no resampling needed)
+    >>> dataset_16k = AudioSet(split="validation", version="0.2.0", sample_rate=16000)
+    >>> print(dataset_16k.available_sample_rates)
+    [16000, 32000]
 
     >>> # Load with pre-resampled 32kHz audio (v0.2.0, no resampling needed)
     >>> dataset_32k = AudioSet(split="validation", version="0.2.0", sample_rate=32000)
-    >>> print(dataset_32k.available_sample_rates)
-    [32000]
 
-    >>> # Load with on-the-fly resampling to 16kHz
-    >>> dataset_16k = AudioSet(split="validation", version="0.2.0", sample_rate=16000)
+    >>> # Load with on-the-fly resampling to 22050Hz (not pre-resampled)
+    >>> dataset_22k = AudioSet(split="validation", version="0.2.0", sample_rate=22050)
 
     Examples
     --------
@@ -145,6 +149,7 @@ class AudioSet(Dataset):
     # Mapping of sample rates to their corresponding path columns
     # Pre-resampled audio is available for v0.2.0 only
     _sample_rate_paths = {
+        16000: "16khz_path",  # Pre-resampled to 16kHz (v0.2.0 only)
         32000: "32khz_path",  # Pre-resampled to 32kHz (v0.2.0 only)
     }
 
@@ -175,10 +180,10 @@ class AudioSet(Dataset):
             It acts as a filter as well.
         sample_rate : int, optional
             The sample rate to which audio files should be resampled. For v0.2.0, if
-            sample_rate=32000, pre-resampled audio will be loaded directly (faster).
-            Otherwise, audio will be resampled on-the-fly from the original files using
-            librosa's kaiser_best method. If None, audio is returned at its original
-            sample rate.
+            sample_rate=16000 or sample_rate=32000, pre-resampled audio will be loaded
+            directly (faster). Otherwise, audio will be resampled on-the-fly from the
+            original files using librosa's kaiser_best method. If None, audio is
+            returned at its original sample rate.
         data_root : str | AnyPathT, optional
             The root directory for the dataset. This is optionally appended to the
             path item of a sample in the dataset.
