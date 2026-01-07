@@ -234,25 +234,6 @@ class BeansZero(Dataset):
         return ds, {}
 
     def _process(self, row: dict[str, Any]) -> dict[str, Any]:
-        # audio_path = anypath(self.data_root) / row["local_path"]
-
-        # # Read the audio clip
-        # audio, sr = read_audio(audio_path)
-        # audio = audio.astype(np.float32)
-        # # Stereo to mono if necessary.
-        # audio = audio_stereo_to_mono(audio, mono_method="average")
-
-        # if self.sample_rate is not None and sr != self.sample_rate:
-        #     audio = librosa.resample(
-        #         y=audio,
-        #         orig_sr=sr,
-        #         target_sr=self.sample_rate,
-        #         scale=True,
-        #         res_type="kaiser_best",
-        #     )
-
-        # row["audio"] = audio
-
         # Determine which path column to use based on requested sample rate
         # If a pre-resampled version is available, use it; otherwise resample on-the-fly
         use_presampled = False
