@@ -141,19 +141,14 @@ def _read_audio_from_bytes(
           be (frames,) for mono or (frames, channels) for multi-channel audio.
         - samplerate (int): The sample rate of the audio in Hz.
     """
-
-    # For formats like MP3, soundfile cannot read from BytesIO with format specification
-    # due to libsndfile limitations. We use a temporary file as a workaround.
-    if format and format.upper() in ("MP3", "OGG"):
-        return _read_audio_from_tmpfile(audio_bytes, format, frames, start)
-
-    # For WAV and FLAC, try reading from BytesIO directly (auto-detection should work)
     try:
         with io.BytesIO(audio_bytes) as audio_buffer:
             data, samplerate = sf.read(audio_buffer, frames=frames, start=start)
         return data, samplerate
     except Exception:
         # Fallback to temporary file if BytesIO approach fails
+        # For formats like MP3, soundfile cannot read from BytesIO with format specification
+        # due to libsndfile limitations. We use a temporary file as a workaround.
         if format:
             return _read_audio_from_tmpfile(audio_bytes, format, frames, start)
         raise
@@ -328,19 +323,16 @@ def get_audio_info(
     if extension not in _AUDIO_FORMATS:
         raise ValueError(f"Unsupported audio format: {extension}")
 
-    audio_format = extension.lstrip(".").upper()
-
-    # For MP3/OGG, use temporary file approach due to libsndfile limitations
-    if audio_format in ("MP3", "OGG"):
+    try:
+        with filesystem_from_path(file_path).open(str(file_path), "rb") as f:
+            info = sf.info(f)
+    except Exception:
         with filesystem_from_path(file_path).open(str(file_path), "rb") as f:
             file_bytes = f.read()
         with tempfile.NamedTemporaryFile(suffix=extension, delete=True) as tmp_file:
             tmp_file.write(file_bytes)
             tmp_file.flush()
             info = sf.info(tmp_file.name)
-    else:
-        with filesystem_from_path(file_path).open(str(file_path), "rb") as f:
-            info = sf.info(f)
 
     return {
         "sr": info.samplerate,
@@ -402,9 +394,11 @@ def read_audio_by_time(
         with fs.open(str(file_path), "rb") as f:
             file_bytes = f.read()
 
-        # Get file info without loading audio data
-        audio_format = extension.lstrip(".").upper()
-        if audio_format in ("MP3", "OGG"):
+        try:
+            info = sf.info(io.BytesIO(file_bytes))
+            file_sr = info.samplerate
+            total_frames = info.frames
+        except Exception:
             # Use temporary file for MP3/OGG
             with tempfile.NamedTemporaryFile(suffix=extension, delete=True) as tmp_file:
                 tmp_file.write(file_bytes)
@@ -412,10 +406,6 @@ def read_audio_by_time(
                 info = sf.info(tmp_file.name)
                 file_sr = info.samplerate
                 total_frames = info.frames
-        else:
-            info = sf.info(io.BytesIO(file_bytes))
-            file_sr = info.samplerate
-            total_frames = info.frames
 
         # Validate input sample rate if provided
         if input_sr is not None and input_sr != file_sr:
@@ -436,16 +426,15 @@ def read_audio_by_time(
             frames_to_read = min(frames_to_read, total_frames - start_frame)
 
         # Read the actual audio data
-        if audio_format in ("MP3", "OGG"):
-            # Use temporary file for MP3/OGG
+        try:
+            data, samplerate = sf.read(
+                io.BytesIO(file_bytes), frames=frames_to_read, start=start_frame
+            )
+        except Exception:
             with tempfile.NamedTemporaryFile(suffix=extension, delete=True) as tmp_file:
                 tmp_file.write(file_bytes)
                 tmp_file.flush()
                 data, samplerate = sf.read(tmp_file.name, frames=frames_to_read, start=start_frame)
-        else:
-            data, samplerate = sf.read(
-                io.BytesIO(file_bytes), frames=frames_to_read, start=start_frame
-            )
 
         return data, samplerate
 

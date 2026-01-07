@@ -210,3 +210,30 @@ def test_read_mp3_from_bytes_with_frames() -> None:
 
     assert sr == 44100
     assert data.shape[0] == frames
+
+
+def test_read_troublesome_xc_file() -> None:
+    """Test reading a known troublesome audio file from Xenocanto."""
+    remote_path = "gs://esp-ci-cd-tests/esp-data-tests/XC_corcorax.mp3"
+    data, sr = read_audio(remote_path)
+
+    assert sr == 48000
+    # Actual decoded frames (not metadata frames due to encoder padding)
+    assert data.shape[0] == 2794752
+
+    # test reading by time
+    start_time = 5.0
+    end_time = 10.0
+    segment, sr3 = read_audio_by_time(remote_path, start_time=start_time, end_time=end_time)
+    expected_length = int((end_time - start_time) * sr)
+    assert sr3 == sr
+    assert segment.shape[0] == expected_length
+
+
+def test_get_audio_info_troublesome_xc_file() -> None:
+    """Test getting audio info for a known troublesome audio file from Xenocanto."""
+    remote_path = "gs://esp-ci-cd-tests/esp-data-tests/XC_corcorax.mp3"
+    info = get_audio_info(remote_path)
+
+    assert info["sr"] == 48000
+    assert info["num_frames"] == 2807470  # FIXME: Info gives more frames
