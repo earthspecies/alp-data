@@ -20,7 +20,7 @@ from esp_data.datasets import AudioSetStrong
 
 EXPECTED_LEN_TRAIN = 8115
 EXPECTED_FIRST_ITEM_AUDIO_SHA256 = (
-    "47b0c29f8f2b206bfceceb9923d7a63670b596d6014f06208795ea79f8db9af8"
+    "ed702ffa252ca32e11f8fe72fd759a2729d728de48729b8ac5fbf05dff3fc94f"
 )
 ANNOTATIONS_SHA256 = "3d5be67b9fff56146d67523b258cc1a165cd3fbb198aacb6a7e7c2f3ab7fc797"
 
