@@ -55,7 +55,7 @@ def main(number_of_samples: int, parameter: str, array_exp: bool) -> None:
         batch_size = df["batch_size"].iloc[0]
         prefetch_factor = df["prefetch_factor"].iloc[0]
         num_locations = len(df["data_location"].unique())
-        fig, axs = plt.subplots(num_locations * 3, figsize=(8, 6 * num_locations))
+        fig, axs = plt.subplots(num_locations * 3, figsize=(8, 8 * num_locations), sharey="all")
         fig.suptitle(
             f"Latency {parameter.capitalize()} Results - "
             f"Num Workers = {num_workers}, Batch Size = {batch_size},"
