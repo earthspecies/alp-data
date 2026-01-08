@@ -4,6 +4,8 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from benchmark_utils import filter_cloud_warnings, save_and_log, set_logging_config
 
+plt.rcParams.update({"font.size": 16})
+
 filter_cloud_warnings()
 
 set_logging_config()
@@ -68,12 +70,14 @@ def plot_last_experiment_results_against_all(results: pd.DataFrame) -> None:
                 s=100,
                 zorder=5,
             )
-            ax.set_title(f"Boxplot of {col}")
+            ax.set_title(f"{col}")
             ax.set_ylabel(boxplot_cols[i])
+            # sharey = True
+            ax.sharey = True
             ax.grid(axis="y")
 
         plt.suptitle(
-            f"Boxplots of {name} - Data Location: {location} "
+            f"{name} - Data Location: {location} "
             f"-- Bucket: {bucket_location} -- Machine: {machine_location}"
             f"\n Sample Rate: {sr}, Split: {split}"
         )
@@ -111,8 +115,8 @@ def plot_last_experiment_results_against_all(results: pd.DataFrame) -> None:
                 color="red",
                 label="New Results",
             )
-            ax.set_title(f"Evolution of {metric} Over Time")
-            ax.set_xlabel("Timestamp")
+            ax.set_title(f"{metric} over time")
+            ax.set_xlabel(None)
             ax.set_ylabel(f"{metric}")
             ax.legend()
             ax.grid(True)

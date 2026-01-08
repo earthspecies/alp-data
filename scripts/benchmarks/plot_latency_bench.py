@@ -5,6 +5,8 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from benchmark_utils import filter_cloud_warnings, save_and_log, set_logging_config
 
+plt.rcParams.update({"font.size": 16})
+
 filter_cloud_warnings()
 
 set_logging_config()
