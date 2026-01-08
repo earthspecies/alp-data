@@ -28,9 +28,10 @@ jobs:
         uses: astral-sh/setup-uv@v4
         with:
           enable-cache: true
+          version: "0.9.22"
 
       - name: Install the project
-        run: uv sync --all-extras --dev --python-preference only-managed
+        run: uv sync --all-extras --dev --managed-python
 
       - name: Checking dependencies
         run: uv run deptry .
@@ -64,9 +65,10 @@ jobs:
         uses: astral-sh/setup-uv@v4
         with:
           enable-cache: true
+          version: "0.9.22"
 
       - name: Install the project
-        run: uv sync --all-extras --dev --python ${{ matrix.python-version }} --python-preference only-managed
+        run: uv sync --all-extras --dev --python ${{ matrix.python-version }} --managed-python
 
       - name: Run core tests
         run: uv run pytest tests/io
