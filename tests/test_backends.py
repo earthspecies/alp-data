@@ -84,6 +84,21 @@ class TestPandasBackend:
         uniques = backend.get_unique("species")
         assert set(uniques) == {"bird", "cat", "dog"}
 
+    def test_histogram(self):
+        """Test getting value counts (histogram)."""
+        df = pd.DataFrame({"species": ["cat", "dog", "bird", "cat", "dog", "cat"]})
+        backend = PandasBackend(df)
+        histogram = backend.histogram("species")
+        assert histogram == {"cat": 3, "dog": 2, "bird": 1}
+
+    def test_histogram_with_nulls(self):
+        """Test histogram excludes null values."""
+        df = pd.DataFrame({"species": ["cat", "dog", None, "cat", None, "bird"]})
+        backend = PandasBackend(df)
+        histogram = backend.histogram("species")
+        assert histogram == {"cat": 2, "dog": 1, "bird": 1}
+        assert None not in histogram
+
     def test_map_column(self):
         """Test mapping column values."""
         df = pd.DataFrame({"species": ["cat", "dog", "bird"]})
@@ -208,6 +223,21 @@ class TestPolarsBackend:
         backend = PolarsBackend(df)
         uniques = backend.get_unique("species")
         assert set(uniques) == {"bird", "cat", "dog"}
+
+    def test_histogram(self):
+        """Test getting value counts (histogram)."""
+        df = pl.DataFrame({"species": ["cat", "dog", "bird", "cat", "dog", "cat"]})
+        backend = PolarsBackend(df)
+        histogram = backend.histogram("species")
+        assert histogram == {"cat": 3, "dog": 2, "bird": 1}
+
+    def test_histogram_with_nulls(self):
+        """Test histogram excludes null values."""
+        df = pl.DataFrame({"species": ["cat", "dog", None, "cat", None, "bird"]})
+        backend = PolarsBackend(df)
+        histogram = backend.histogram("species")
+        assert histogram == {"cat": 2, "dog": 1, "bird": 1}
+        assert None not in histogram
 
     def test_map_column(self):
         """Test mapping column values."""
