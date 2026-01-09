@@ -109,28 +109,7 @@ class UniformSample:
         unique_values = backend.get_unique(self.property)
 
         # Get counts for each category to compute inverse probabilities
-        # We need to use unwrap temporarily to get category counts
-        df = backend.unwrap
-        if hasattr(df, "value_counts"):  # pandas
-            import pandas as pd
-
-            if isinstance(df, pd.DataFrame):
-                category_counts = df[self.property].value_counts().to_dict()
-            else:
-                # Handle streaming case - collect if needed
-                category_counts = {}
-                for val in unique_values:
-                    mask = df[self.property] == val
-                    category_counts[val] = int(mask.sum())
-        else:  # polars
-            import polars as pl
-
-            if isinstance(df, pl.LazyFrame):
-                df = df.collect()
-            category_counts = df.group_by(self.property).len().to_dict(as_series=False)
-            category_counts = dict(
-                zip(category_counts[self.property], category_counts["len"], strict=True)
-            )
+        category_counts = backend.histogram(self.property)
 
         if not category_counts:
             # Empty dataset

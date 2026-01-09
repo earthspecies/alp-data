@@ -462,6 +462,26 @@ class PolarsBackend(DataBackend):
         unique_values = df[column].drop_nulls().unique().to_list()
         return sorted(unique_values)
 
+    def histogram(self, column: str) -> dict[Any, int]:
+        """Get value counts (histogram) for a column.
+
+        Parameters
+        ----------
+        column : str
+            Column name
+
+        Returns
+        -------
+        dict[Any, int]
+            Dictionary mapping unique values to their counts (nulls excluded)
+        """
+        df = self._ensure_collected()
+        # Drop nulls and group by column to get counts
+        counts_df = df.drop_nulls(subset=[column]).group_by(column).len()
+        # Convert to dictionary
+        counts_dict = counts_df.to_dict(as_series=False)
+        return dict(zip(counts_dict[column], counts_dict["len"], strict=True))
+
     def map_column(
         self,
         column: str,

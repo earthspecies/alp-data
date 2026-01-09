@@ -270,6 +270,21 @@ class DataBackend(Protocol):
         """
         ...
 
+    def histogram(self, column: str) -> dict[Any, int]:
+        """Get value counts (histogram) for a column.
+
+        Parameters
+        ----------
+        column : str
+            Column name
+
+        Returns
+        -------
+        dict[Any, int]
+            Dictionary mapping unique values to their counts (nulls excluded)
+        """
+        ...
+
     def map_column(
         self,
         column: str,

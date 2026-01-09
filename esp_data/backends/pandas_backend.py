@@ -422,6 +422,22 @@ class PandasBackend(DataBackend):
         self._ensure_not_streaming("get_unique")
         return sorted(self._df[column].dropna().unique().tolist())
 
+    def histogram(self, column: str) -> dict[Any, int]:
+        """Get value counts (histogram) for a column.
+
+        Parameters
+        ----------
+        column : str
+            Column name
+
+        Returns
+        -------
+        dict[Any, int]
+            Dictionary mapping unique values to their counts (nulls excluded)
+        """
+        self._ensure_not_streaming("histogram")
+        return self._df[column].value_counts().to_dict()
+
     def map_column(
         self,
         column: str,
