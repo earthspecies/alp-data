@@ -1,9 +1,9 @@
 import logging
 from typing import Literal
 
-import numpy as np
-import pandas as pd
 from pydantic import BaseModel, field_validator
+
+from esp_data.backends.protocol import DataBackend
 
 from . import register_transform
 
@@ -14,6 +14,7 @@ class UniformSampleConfig(BaseModel):
     type: Literal["uniform_sample"]
     property: str
     ratio: float
+    seed: int = 42
 
     @field_validator("ratio")
     @classmethod
@@ -45,46 +46,74 @@ class UniformSample:
         The ratio of samples to keep for each unique value of the property. This should
         be a float in the range [0, 1], where 1 means all samples are kept and 0 means
         no samples are kept.
+    seed: int
+        Random seed for reproducibility. Defaults to 42.
+
+    Examples
+    -------
+    >>> from esp_data.transforms import UniformSample, UniformSampleConfig
+    >>> from esp_data.backends import PandasBackend
+    >>> import pandas as pd
+    >>> config = UniformSampleConfig(
+    ...     type="uniform_sample",
+    ...     property="species",
+    ...     ratio=0.5,
+    ...     seed=42
+    ... )
+    >>> uniform_sample_transform = UniformSample.from_config(config)
+    >>> df = pd.DataFrame({
+    ...     "species": ["bee", "bee", "butterfly", "ant", "butterfly", "spider"],
+    ...     "count": [10, 5, 8, 2, 3, 1]
+    ... })
+    >>> backend = PandasBackend(df)
+    >>> sampled_backend, _ = uniform_sample_transform(backend)
     """
 
-    def __init__(self, property: str, ratio: float) -> None:
+    def __init__(self, property: str, ratio: float, seed: int = 42) -> None:
         self.property = property
         self.ratio = ratio
+        self.seed = seed
 
     @classmethod
     def from_config(cls, cfg: UniformSampleConfig) -> "UniformSample":
         return cls(**cfg.model_dump(exclude=("type")))
 
-    def __call__(self, data: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
-        if isinstance(data, pd.DataFrame):
-            return self._uniform_sample_dataframe(data), {}
-        # if isinstance(data, dict):
-        #     return self._uniform_sample_dict(data)
-        raise TypeError(f"Unsupported data type: {type(data)}")
+    def __call__(self, backend: DataBackend) -> tuple[DataBackend, dict]:
+        """Apply the uniform sample transformation.
 
-    def _uniform_sample_dataframe(self, df: pd.DataFrame) -> pd.DataFrame:
+        Parameters
+        ----------
+        backend: DataBackend
+            The backend wrapping the dataframe to sample.
+
+        Returns
+        -------
+        tuple[DataBackend, dict]: A tuple containing:
+            The sampled backend (same type as input).
+            The metadata dictionary (empty placeholder for future use).
+
+        Raises
+        ------
+        KeyError
+            If the specified property is not found in the DataFrame columns.
         """
-        Uniformly sample a pandas DataFrame.
+        if self.property not in backend.columns:
+            raise KeyError(f"Property '{self.property}' not found in the DataFrame columns.")
 
-        Returns:
-        --------
-        tuple[pd.DataFrame, dict]:
-            A tuple containing the sampled DataFrame and an empty dictionary for
-            metadata. The dictionary can be used to store any additional information
-            about the sampling process, if needed.
-        """
+        # Get all unique values for the property
+        unique_values = backend.get_unique(self.property)
 
-        # Group by the property and sample uniformly
-        groups = []
-        for _, group in df.groupby(self.property):
-            n_samples = max(1, int(len(group) * self.ratio))
-            # TODO is this the right way to set up the random seed? Do we want to fix it
-            # here?
-            rng = np.random.default_rng(seed=42)
-            sampled_indices = rng.choice(len(group), size=n_samples, replace=False)
-            groups.append(group.iloc[sampled_indices])
+        # Create a ratios dict with the same ratio for all unique values
+        ratios = {value: self.ratio for value in unique_values}
 
-        return pd.concat(groups, ignore_index=True), {}
+        # Use backend's subsample_by_column method
+        sampled_backend = backend.subsample_by_column(
+            column=self.property,
+            ratios=ratios,
+            seed=self.seed,
+        )
+
+        return sampled_backend, {}
 
 
 register_transform(UniformSampleConfig, UniformSample)
