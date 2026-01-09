@@ -81,6 +81,11 @@ class UniformSample:
     def __call__(self, backend: DataBackend) -> tuple[DataBackend, dict]:
         """Apply the uniform sample transformation.
 
+        This transform creates a uniform distribution by computing inverse probabilities.
+        For each category, it calculates the ratio needed to achieve equal representation
+        across all categories. The `ratio` parameter controls the target sample size
+        relative to the minimum category count.
+
         Parameters
         ----------
         backend: DataBackend
@@ -103,8 +108,61 @@ class UniformSample:
         # Get all unique values for the property
         unique_values = backend.get_unique(self.property)
 
-        # Create a ratios dict with the same ratio for all unique values
-        ratios = {value: self.ratio for value in unique_values}
+        # Get counts for each category to compute inverse probabilities
+        # We need to use unwrap temporarily to get category counts
+        df = backend.unwrap
+        if hasattr(df, "value_counts"):  # pandas
+            import pandas as pd
+
+            if isinstance(df, pd.DataFrame):
+                category_counts = df[self.property].value_counts().to_dict()
+            else:
+                # Handle streaming case - collect if needed
+                category_counts = {}
+                for val in unique_values:
+                    mask = df[self.property] == val
+                    category_counts[val] = int(mask.sum())
+        else:  # polars
+            import polars as pl
+
+            if isinstance(df, pl.LazyFrame):
+                df = df.collect()
+            category_counts = df.group_by(self.property).len().to_dict(as_series=False)
+            category_counts = dict(
+                zip(category_counts[self.property], category_counts["len"], strict=True)
+            )
+
+        if not category_counts:
+            # Empty dataset
+            return backend, {}
+
+        total_count = sum(category_counts.values())
+        num_categories = len(unique_values)
+
+        # Compute inverse probabilities as Gagan suggested
+        # Original probability of category i: p_i = count_i / total_count
+        # Target uniform probability: p_target = 1 / num_categories
+        # Inverse probability ratio: ratio_i = p_target / p_i
+        #   = total_count / (num_categories * count_i)
+        # This gives us the relative sampling rate needed for each category
+        inverse_prob_ratios = {}
+        for value in unique_values:
+            count = category_counts[value]
+            if count == 0:
+                inverse_prob_ratios[value] = 0.0
+            else:
+                inverse_prob_ratios[value] = total_count / (num_categories * count)
+
+        # Normalize ratios so max is 1.0 (since we can't oversample)
+        # Then scale by self.ratio to control overall sample size
+        max_ratio = max(inverse_prob_ratios.values()) if inverse_prob_ratios else 1.0
+        if max_ratio > 0:
+            ratios = {
+                value: min(1.0, (inv_ratio / max_ratio) * self.ratio)
+                for value, inv_ratio in inverse_prob_ratios.items()
+            }
+        else:
+            ratios = {value: 0.0 for value in unique_values}
 
         # Use backend's subsample_by_column method
         sampled_backend = backend.subsample_by_column(
