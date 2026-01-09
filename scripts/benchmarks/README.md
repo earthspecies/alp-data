@@ -70,19 +70,22 @@ Job scripts are located in `jobs/` and are designed to be submitted with `sbatch
 
 Examples:
 
-- Simple way to launch a global default benchmark (might take some time)
+- Simple way to launch a global default benchmark (might take some time ~30 datasets). Loading time and dataloader latency benchmarks included.
 ```
 sbatch jobs/run_benchmark.sh
 ```
 
 - Specific benchmarks with default configuration.
 ```
-# dataloader latency over different parameters for a single dataset
+# dataloader latency over different parameters for a single dataset.
 sbatch jobs/benchmark_latency_default.sh --dataset beans
-
+# You have to specify the `--dataset` argument. But to modify the default configuration, you have to edit the script.
+```
+```
 # dataset loading time and sample access for a single dataset
 sbatch jobs/benchmark_loading_time_default.sh --dataset beans
-
+```
+```
 # loading time over every available dataset in esp-data
 sbatch jobs/multi_dataset_loading_time.sh
 ```
@@ -91,6 +94,10 @@ sbatch jobs/multi_dataset_loading_time.sh
 ```
 # dataloader latency over different parameters for a single dataset
 sbatch jobs/benchmark_latency_config.sh --config your/path/to/config --data-location nfs
+
+# Both --config and --data-location are required.
+```
+```
 
 # dataset loading time and sample access for a single dataset
 sbatch jobs/benchmark_loading_time_config.sh --config your/path/to/config --data-location bucket
@@ -119,9 +126,10 @@ Collecting results and plots
 - Plots are written to `scripts/benchmarks/fig/` inside the job’s workspace; results are saved as CSV files to a GCS bucket.
 - To copy plots to your local machine via SSH:
 ```bash
-    scp -P 22 username@cluster:esp-data/scripts/benchmarks/fig/* .
+    scp -P 22 username@cluster:esp-data/scripts/benchmarks/fig/* ./your/target/directory/
 ```
 
 What you can do
 ----------------
 To adjust or expand experiments, edit the job script (for example `benchmark_latency.sh`) to change the tested parameter ranges. You can modify `--sleep` (simulated work per batch), `--batch-size`, and `--max-iterations` (total workload).
+If you want to run an experiment to debug or to test a specific configuration, and you don't want to save the results, just remove the `--save` flag in jobs scripts.

@@ -8,7 +8,6 @@ This will load individual samples from bucket or disk.
 import logging
 import os
 import time
-import warnings
 from pathlib import Path
 
 import click
@@ -20,6 +19,7 @@ from benchmark_utils import (
     Timer,
     build_dataloader,
     build_raw_dataset,
+    filter_cloud_warnings,
     get_bucket_location,
     get_GCP_instance_location,
     save_results,
@@ -28,12 +28,7 @@ from benchmark_utils import (
 
 from esp_data import Dataset
 
-warnings.filterwarnings(
-    "ignore",
-    message=r".*end user credentials from Google Cloud SDK without a quota project.*",
-    category=UserWarning,
-    module=r"google\.auth\._default",
-)
+filter_cloud_warnings()
 
 set_logging_config()
 
