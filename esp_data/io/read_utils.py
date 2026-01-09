@@ -2,11 +2,12 @@
 
 import logging
 import tempfile
-from typing import Any, Literal
+from typing import Any, BinaryIO, Literal
 
 import numpy as np
 import soundfile as sf
 import yaml
+from soundfile import LibsndfileError
 
 from esp_data.io.filesystem import filesystem_from_path
 from esp_data.io.paths import AnyPathT, anypath
@@ -113,15 +114,14 @@ def read_yaml(path: str | AnyPathT) -> object:
 
 
 def _read_audio_from_file(
-    audio_file: object, frames: int = -1, start: int = 0, format: str | None = None
+    audio_file: BinaryIO, frames: int = -1, start: int = 0, format: str | None = None
 ) -> tuple[np.ndarray, int]:
-    """
-    Reads from an audio buffer while indexing if necessary. By default,
+    """Reads from an audio buffer while indexing if necessary. By default,
     reads the entire buffer.
 
     Parameters
     ----------
-    audio_file : file-like object
+    audio_file : BinaryIO
         The audio file-like object containing the encoded audio data.
     frames : int, optional
         The number of frames to read. -1 reads all frames from the
@@ -143,17 +143,16 @@ def _read_audio_from_file(
     try:
         data, samplerate = sf.read(audio_file, frames=frames, start=start)
         return data, samplerate
-    except Exception:
-        # logger.warning(
-        #     "Failed to read audio from file-like object directly, "
-        #     f"falling back to temporary file method: {e}"
-        # )
+    except LibsndfileError as e:
+        logger.warning(
+            "Failed to read audio from file-like object directly, "
+            f"falling back to temporary file method: {e}"
+        )
         # Fallback to temporary file if BytesIO approach fails
         # For formats like MP3, soundfile cannot read from BytesIO with format specification
         # due to libsndfile limitations. We use a temporary file as a workaround.
         if format:
             return _read_audio_from_tmpfile(audio_file.read(), format, frames, start)
-        raise
 
 
 def read_audio(
@@ -222,7 +221,6 @@ def read_audio(
     try:
         fs = filesystem_from_path(file_path)
         with fs.open(str(file_path), "rb") as f:
-            # Extract format from extension (remove leading dot and uppercase)
             audio_format = extension.lstrip(".").upper()
             return _read_audio_from_file(f, frames, start, format=audio_format)
     except Exception as e:
@@ -328,11 +326,11 @@ def get_audio_info(
     try:
         with filesystem_from_path(file_path).open(str(file_path), "rb") as f:
             info = sf.info(f)
-    except Exception:
-        # logger.warning(
-        #     "Failed to read audio from file-like object directly, "
-        #     f"falling back to temporary file method: {e}"
-        # )
+    except LibsndfileError as e:
+        logger.warning(
+            "Failed to read audio from file-like object directly, "
+            f"falling back to temporary file method: {e}"
+        )
         with filesystem_from_path(file_path).open(str(file_path), "rb") as f:
             file_bytes = f.read()
         with tempfile.NamedTemporaryFile(suffix=extension, delete=True) as tmp_file:
@@ -404,7 +402,7 @@ def read_audio_by_time(
             info = sf.info(fp)
             file_sr = info.samplerate
             total_frames = info.frames
-        except Exception:
+        except LibsndfileError:
             # Use temporary file for MP3/OGG
             with tempfile.NamedTemporaryFile(suffix=extension, delete=True) as tmp_file:
                 tmp_file.write(fp.read())
@@ -435,11 +433,11 @@ def read_audio_by_time(
         fp.seek(0)
         try:
             data, samplerate = sf.read(fp, frames=frames_to_read, start=start_frame, format=None)
-        except Exception:
-            # logger.warning(
-            #     "Failed to read audio from file-like object directly, "
-            #     f"falling back to temporary file method: {e}"
-            # )
+        except LibsndfileError as e:
+            logger.warning(
+                "Failed to read audio from file-like object directly, "
+                f"falling back to temporary file method: {e}"
+            )
             data, samplerate = _read_audio_from_tmpfile(
                 fp.read(),
                 format=format,
