@@ -1,12 +1,10 @@
 """Unitary tests of audio file reading functions."""
 
-import io
-
 import numpy as np
 import soundfile as sf
 
 from esp_data.io.read_utils import (
-    _read_audio_from_bytes,
+    _read_audio_from_file,
     read_audio,
     audio_stereo_to_mono,
     get_audio_info,
@@ -20,6 +18,7 @@ def test_read_from_file() -> None:
     assert sr == 16000
     assert data.shape == (524288,)
 
+
 def test_read_from_file_from_time() -> None:
     path = "tests/samples/noise.wav"
     data, sr = read_audio(path, start_time=0.0)
@@ -30,39 +29,38 @@ def test_read_from_file_from_time() -> None:
     assert sr == 16000
     assert data.shape == (508288,)
 
-def test_read_no_offset() -> None:
+
+def test_read_no_offset(tmp_path) -> None:
     # Create some dummy audio data (pretend it's a short, single-channel sound)
     sample_rate = 16000
     test_data = np.array([0.1, 0.2, 0.3, 0.4], dtype=np.float32)
-    buffer = io.BytesIO()
-    sf.write(buffer, test_data, sample_rate, format="WAV")
-    audio_bytes = buffer.getvalue()
+    sf.write(tmp_path / "test.wav", test_data, sample_rate, format="WAV")
 
-    data, sr = _read_audio_from_bytes(audio_bytes)
+    f = open(tmp_path / "test.wav", "rb")
+    data, sr = _read_audio_from_file(f, format="WAV")
 
     assert sr == sample_rate
     np.testing.assert_allclose(data.flatten(), test_data, atol=1e-04)
 
 
-def test_read_with_offset() -> None:
+def test_read_with_offset(tmp_path) -> None:
     # Create some dummy audio data
     sample_rate = 8000
     all_data = np.array([0.1, 0.2, 0.3, 0.4, 0.5, 0.6], dtype=np.float32)
     offset = 2  # We want to skip the first 2 frames
     expected_data = np.array([0.3, 0.4, 0.5, 0.6], dtype=np.float32)
 
-    buffer = io.BytesIO()
-    sf.write(buffer, all_data, sample_rate, format="WAV")
-    audio_bytes = buffer.getvalue()
+    sf.write(tmp_path / "test.wav", all_data, sample_rate, format="WAV")
 
     # Call your function with an offset
-    data, sr = _read_audio_from_bytes(audio_bytes, start=offset)
+    f = open(tmp_path / "test.wav", "rb")
+    data, sr = _read_audio_from_file(f, start=offset, format="WAV")
 
     assert sr == sample_rate
     np.testing.assert_allclose(data.flatten(), expected_data, atol=1e-04)
 
 
-def test_read_with_offset_and_frames() -> None:
+def test_read_with_offset_and_frames(tmp_path) -> None:
     # Create some dummy audio data
     sample_rate = 8000
     all_data = np.array([0.1, 0.2, 0.3, 0.4, 0.5, 0.6], dtype=np.float32)
@@ -70,12 +68,11 @@ def test_read_with_offset_and_frames() -> None:
     frames = 3  # Number of frames we want to get.
     expected_data = np.array([0.3, 0.4, 0.5], dtype=np.float32)
 
-    buffer = io.BytesIO()
-    sf.write(buffer, all_data, sample_rate, format="WAV")
-    audio_bytes = buffer.getvalue()
+    sf.write(tmp_path / "test.wav", all_data, sample_rate, format="WAV")
+    f = open(tmp_path / "test.wav", "rb")
 
     # Call your function with an offset
-    data, sr = _read_audio_from_bytes(audio_bytes, start=offset, frames=frames)
+    data, sr = _read_audio_from_file(f, start=offset, frames=frames, format="WAV")
 
     assert sr == sample_rate
     np.testing.assert_allclose(data.flatten(), expected_data, atol=1e-04)
@@ -91,14 +88,12 @@ def test_audio_stereo_to_mono() -> None:
 
     # Expected result is the average of the two channels
     expected_mono = np.array([0.25, 0.35, 0.45], dtype=np.float32)
-
     np.testing.assert_allclose(mono_audio.flatten(), expected_mono, atol=1e-04)
 
     mono_audio2 = audio_stereo_to_mono(stereo_audio, mono_method="keep_first")
 
     # Expected result is the first channel
     expected_mono2 = np.array([0.1, 0.2, 0.3], dtype=np.float32)
-
     np.testing.assert_allclose(mono_audio2.flatten(), expected_mono2, atol=1e-04)
 
 
@@ -165,10 +160,8 @@ def test_read_mp3_from_bytes() -> None:
     fs = filesystem_from_path(remote_path)
 
     with fs.open(remote_path, "rb") as f:
-        audio_bytes = f.read()
-
-    # Now test reading from bytes with MP3 format
-    data, sr = _read_audio_from_bytes(audio_bytes, format="MP3")
+        # Now test reading from bytes with MP3 format
+        data, sr = _read_audio_from_file(f, format="MP3")
 
     assert sr == 44100
     # Actual decoded frames (not metadata frames due to encoder padding)
@@ -183,11 +176,9 @@ def test_read_mp3_from_bytes_with_offset() -> None:
     fs = filesystem_from_path(remote_path)
 
     with fs.open(remote_path, "rb") as f:
-        audio_bytes = f.read()
-
-    # Read with offset (skip first 44100 frames = 1 second)
-    offset = 44100
-    data, sr = _read_audio_from_bytes(audio_bytes, start=offset, format="MP3")
+        # Read with offset (skip first 44100 frames = 1 second)
+        offset = 44100
+        data, sr = _read_audio_from_file(f, start=offset, format="MP3")
 
     assert sr == 44100
     # Should have 1 second less of data (using actual decoded frames)
@@ -202,11 +193,9 @@ def test_read_mp3_from_bytes_with_frames() -> None:
     fs = filesystem_from_path(remote_path)
 
     with fs.open(remote_path, "rb") as f:
-        audio_bytes = f.read()
-
-    # Read only first 2 seconds (88200 frames at 44100 Hz)
-    frames = 88200
-    data, sr = _read_audio_from_bytes(audio_bytes, frames=frames, format="MP3")
+        # Read only first 2 seconds (88200 frames at 44100 Hz)
+        frames = 88200
+        data, sr = _read_audio_from_file(f, frames=frames, format="MP3")
 
     assert sr == 44100
     assert data.shape[0] == frames
