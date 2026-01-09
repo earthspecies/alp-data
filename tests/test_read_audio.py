@@ -8,7 +8,8 @@ from esp_data.io.read_utils import (
     read_audio,
     audio_stereo_to_mono,
     get_audio_info,
-    read_audio_by_time
+    read_audio_by_time,
+    _read_audio_from_tmpfile
 )
 
 
@@ -191,7 +192,6 @@ def test_read_mp3_from_bytes_with_frames() -> None:
 
     remote_path = "gs://esp-ci-cd-tests/esp-data-tests/some_subfolder/nri-battlesounds.mp3"
     fs = filesystem_from_path(remote_path)
-
     with fs.open(remote_path, "rb") as f:
         # Read only first 2 seconds (88200 frames at 44100 Hz)
         frames = 88200
@@ -199,6 +199,13 @@ def test_read_mp3_from_bytes_with_frames() -> None:
 
     assert sr == 44100
     assert data.shape[0] == frames
+
+    # read from tmpfile and compare
+    with fs.open(remote_path, "rb") as f:
+        data2, sr2 = _read_audio_from_tmpfile(f.read(), frames=frames, format="MP3")
+    assert sr2 == sr
+    np.testing.assert_allclose(data, data2, atol=1e-04)
+
 
 
 def test_read_troublesome_xc_file() -> None:

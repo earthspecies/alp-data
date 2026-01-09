@@ -141,14 +141,13 @@ def _read_audio_from_file(
         - samplerate (int): The sample rate of the audio in Hz.
     """
     try:
-        # with io.BytesIO(audio_bytes) as audio_buffer:
         data, samplerate = sf.read(audio_file, frames=frames, start=start)
         return data, samplerate
-    except Exception as e:
-        logger.warning(
-            "Failed to read audio from file-like object directly, "
-            f"falling back to temporary file method: {e}"
-        )
+    except Exception:
+        # logger.warning(
+        #     "Failed to read audio from file-like object directly, "
+        #     f"falling back to temporary file method: {e}"
+        # )
         # Fallback to temporary file if BytesIO approach fails
         # For formats like MP3, soundfile cannot read from BytesIO with format specification
         # due to libsndfile limitations. We use a temporary file as a workaround.
@@ -329,11 +328,11 @@ def get_audio_info(
     try:
         with filesystem_from_path(file_path).open(str(file_path), "rb") as f:
             info = sf.info(f)
-    except Exception as e:
-        logger.warning(
-            "Failed to read audio from file-like object directly, "
-            f"falling back to temporary file method: {e}"
-        )
+    except Exception:
+        # logger.warning(
+        #     "Failed to read audio from file-like object directly, "
+        #     f"falling back to temporary file method: {e}"
+        # )
         with filesystem_from_path(file_path).open(str(file_path), "rb") as f:
             file_bytes = f.read()
         with tempfile.NamedTemporaryFile(suffix=extension, delete=True) as tmp_file:
@@ -392,6 +391,7 @@ def read_audio_by_time(
     """
     file_path = anypath(file_path)
     extension = file_path.suffix
+    format = extension.lstrip(".").upper()
 
     if extension not in _AUDIO_FORMATS:
         raise ValueError(f"Unsupported audio format: {extension}")
@@ -434,15 +434,15 @@ def read_audio_by_time(
         # Read the actual audio data
         fp.seek(0)
         try:
-            data, samplerate = sf.read(fp, frames=frames_to_read, start=start_frame)
-        except Exception as e:
-            logger.warning(
-                "Failed to read audio from file-like object directly, "
-                f"falling back to temporary file method: {e}"
-            )
+            data, samplerate = sf.read(fp, frames=frames_to_read, start=start_frame, format=None)
+        except Exception:
+            # logger.warning(
+            #     "Failed to read audio from file-like object directly, "
+            #     f"falling back to temporary file method: {e}"
+            # )
             data, samplerate = _read_audio_from_tmpfile(
                 fp.read(),
-                format=extension.lstrip(".").upper(),
+                format=format,
                 frames=frames_to_read,
                 start=start_frame,
             )
