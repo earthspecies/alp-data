@@ -1,4 +1,3 @@
-from .audio_language import AudioLanguageDataset, is_audio_language_dataset
 from .concat import ConcatenatedDataset
 from .dataset import (
     ConcatConfig,
@@ -34,9 +33,10 @@ from .datasets import (
     ZebraFinchJulieElie,
 )
 from .prompts import (
-    BasePromptTemplate,
+    Message,
+    PromptResponsePair,
     PromptTemplate,
-    PromptVariant,
+    PromptTemplateConfig,
     get_prompt,
     list_prompts,
     register_prompt,
@@ -55,13 +55,11 @@ __all__ = [
     "register_config",
     "ConcatenatedDataset",
     "dataset_class_from_name",
-    # Audio-language support
-    "AudioLanguageDataset",
-    "is_audio_language_dataset",
     # Prompt templates
     "PromptTemplate",
-    "PromptVariant",
-    "BasePromptTemplate",
+    "PromptResponsePair",
+    "PromptTemplateConfig",
+    "Message",
     "register_prompt",
     "get_prompt",
     "list_prompts",

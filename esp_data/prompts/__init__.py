@@ -1,16 +1,33 @@
-from .base import BasePromptTemplate, PromptTemplate, PromptVariant
-from .registry import get_prompt, list_prompts, register_prompt
+from .registry import get_prompt, list_prompts, register_prompt, register_prompt_from_config
+from .template import (
+    Message,
+    PromptResponsePair,
+    PromptTemplate,
+    PromptTemplateConfig,
+)
 
-# Register built-in passthrough template
-_passthrough = BasePromptTemplate(variants=[PromptVariant("{prompt}", "{text}")])
-_passthrough.name = "passthrough"
+# Default passthrough template - copies existing prompt/response fields
+_passthrough = PromptTemplate(
+    name="passthrough",
+    variants=PromptResponsePair(
+        messages=[
+            Message(role="user", content="{{ prompt }}"),
+            Message(role="assistant", content="{{ response }}"),
+        ]
+    ),
+)
 register_prompt(_passthrough)
 
 __all__ = [
+    # Template class
     "PromptTemplate",
-    "PromptVariant",
-    "BasePromptTemplate",
+    # Data classes
+    "Message",
+    "PromptResponsePair",
+    "PromptTemplateConfig",
+    # Registry functions
     "register_prompt",
+    "register_prompt_from_config",
     "get_prompt",
     "list_prompts",
 ]
