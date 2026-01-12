@@ -669,6 +669,96 @@ class PolarsBackend(DataBackend):
         """
         return self._df
 
+    def _sample_by_column_helper(
+        self,
+        column: str,
+        values_dict: dict[str, Any],
+        *,
+        sample_fn: Callable[[pl.DataFrame, Any], pl.DataFrame],
+        other_sample_fn: Callable[[pl.DataFrame, Any], pl.DataFrame],
+        dict_name: str,
+    ) -> "PolarsBackend":
+        """Helper function for sampling by column values.
+
+        Parameters
+        ----------
+        column : str
+            Column name to group by
+        values_dict : dict[str, Any]
+            Dictionary mapping column values to sampling parameters
+        sample_fn : Callable[[pl.DataFrame, Any], pl.DataFrame]
+            Function to sample a group given (group_df, value_from_dict).
+            The function should handle seed internally via closure.
+        other_sample_fn : Callable[[pl.DataFrame, Any], pl.DataFrame]
+            Function to sample the "other" group given (other_df, other_value).
+            The function should handle seed internally via closure.
+        dict_name : str
+            Name of the dictionary for error messages (e.g., "ratios", "target_counts")
+
+        Returns
+        -------
+        PolarsBackend
+            New backend with sampled rows
+        """
+        df = self._ensure_collected()
+        groups = []
+
+        # Get unique values once for missing key detection
+        unique_values_set = set(df[column].unique().to_list())
+
+        # Handle explicitly listed values
+        explicit_values = set(values_dict.keys()) - {"other"}
+        for val, param in values_dict.items():
+            if val == "other":
+                continue
+
+            # Filter for this value
+            mask = pl.col(column) == val
+            group_df = df.filter(mask)
+
+            if len(group_df) == 0:
+                # Check if category exists at all (warn if not)
+                if val not in unique_values_set:
+                    warnings.warn(
+                        f"Key {val!r} in {dict_name} not found in column '{column}'. "
+                        "This may indicate a typo or type mismatch "
+                        "(e.g., string key for int column). Skipping this key.",
+                        UserWarning,
+                        stacklevel=3,
+                    )
+                continue
+
+            # Sample using the provided function
+            sampled = sample_fn(group_df, param)
+
+            if len(sampled) > 0:
+                groups.append(sampled)
+
+        # Handle "other" category (pooled unlisted values)
+        if "other" in values_dict:
+            # Get all values not explicitly in values_dict (excluding "other" itself)
+            # This includes NaN values if present
+            explicit_values_list = list(explicit_values)
+            mask_other = ~pl.col(column).is_in(explicit_values_list)
+            other_df = df.filter(mask_other)
+
+            other_param = values_dict["other"]
+            if len(other_df) == 0:
+                sampled_other = other_df.head(0)
+            else:
+                sampled_other = other_sample_fn(other_df, other_param)
+
+            if len(sampled_other) > 0:
+                groups.append(sampled_other)
+
+        # Concatenate all groups
+        if groups:
+            result_df = pl.concat(groups)
+        else:
+            result_df = df.head(0)  # Empty dataframe with same schema
+
+        return PolarsBackend(result_df, streaming=False)
+
     def subsample_by_column(
         self,
         column: str,
@@ -681,13 +771,19 @@ class PolarsBackend(DataBackend):
         For each unique value in the column, sample the specified ratio of rows.
         Special key "other" can be used to subsample all values not explicitly listed.
 
+        If the backend is in streaming mode, a UserWarning will be issued and the
+        LazyFrame will be collected since sampling requires materialization.
+
+        Note: The "other" key pools all unlisted values together and samples from
+        the pooled group, rather than applying the ratio per unlisted category.
+
         Parameters
         ----------
         column : str
             Column name to group by
         ratios : dict[str, float]
             Dictionary mapping column values to sampling ratios (0.0 to 1.0).
-            Special key "other" applies to all unlisted values.
+            Special key "other" applies to all unlisted values (pooled together).
         seed : int, optional
             Random seed for reproducibility, by default 42
 
@@ -696,11 +792,12 @@ class PolarsBackend(DataBackend):
         PolarsBackend
             New backend with subsampled rows
 
-        Warnings
-        --------
-        UserWarning
-            If backend is in streaming mode, warns that LazyFrame will be collected
-            since sampling requires materialization.
+        Raises
+        ------
+        KeyError
+            If the specified column does not exist in the DataFrame
+        ValueError
+            If any ratio is negative or greater than 1.0
         """
         if self._streaming:
             warnings.warn(
@@ -710,86 +807,169 @@ class PolarsBackend(DataBackend):
                 stacklevel=2,
             )
 
-        groups = []
+        df = self._ensure_collected()
 
-        # Handle explicitly listed values
+        # Validate column exists
+        if column not in df.columns:
+            raise KeyError(f"Column '{column}' not found in DataFrame columns.")
+
+        # Validate ratios (including "other")
         for val, ratio in ratios.items():
-            if val == "other":
-                continue
+            if ratio < 0.0:
+                raise ValueError(
+                    f"Ratio for value {val!r} is negative: {ratio}. Ratios must be >= 0.0"
+                )
+            if ratio > 1.0:
+                raise ValueError(
+                    f"Ratio for value {val!r} is greater than 1.0: {ratio}. "
+                    "For ratios > 1.0, use upsample_by_column() instead."
+                )
 
-            # Filter for this value
-            mask = pl.col(column) == val
-            group_df = self._df.filter(mask)
+        import numpy as np
 
-            # Sample if ratio < 1.0
+        rng = np.random.default_rng(seed=seed)
+
+        def sample_by_ratio(group_df: pl.DataFrame, ratio: float) -> pl.DataFrame:
+            """Sample group by ratio.
+
+            Parameters
+            ----------
+            group_df : pl.DataFrame
+                Group DataFrame to sample from
+            ratio : float
+                Sampling ratio (0.0 to 1.0)
+
+            Returns
+            -------
+            pl.DataFrame
+                Sampled DataFrame
+            """
             if ratio >= 1.0:
-                sampled = group_df
+                return group_df
+            n = max(0, int(len(group_df) * ratio))
+            if n == 0:
+                return group_df.head(0)
+            # Use NumPy RNG for consistency with upsampling
+            indices = list(range(len(group_df)))
+            chosen_indices = rng.choice(indices, size=n, replace=False).tolist()
+            return group_df[chosen_indices]
+
+        return self._sample_by_column_helper(
+            column=column,
+            values_dict=ratios,
+            sample_fn=sample_by_ratio,
+            other_sample_fn=sample_by_ratio,
+            dict_name="ratios",
+        )
+
+    def upsample_by_column(
+        self,
+        column: str,
+        target_counts: dict[str, int],
+        *,
+        seed: int = 42,
+    ) -> "PolarsBackend":
+        """Upsample rows by column values to target counts with replacement.
+
+        For each unique value in the column, sample rows with replacement to reach
+        the target count. If a category already has more rows than the target, it will
+        be downsampled (without replacement) to the target count.
+
+        If the backend is in streaming mode, a UserWarning will be issued and the
+        LazyFrame will be collected since sampling requires materialization.
+
+        Note: The "other" key pools all unlisted values together and samples from
+        the pooled group to reach the target count, rather than applying the target
+        per unlisted category.
+
+        Parameters
+        ----------
+        column : str
+            Column name to group by
+        target_counts : dict[str, int]
+            Dictionary mapping column values to target sample counts.
+            Special key "other" applies to all unlisted values (pooled together).
+        seed : int, optional
+            Random seed for reproducibility, by default 42
+
+        Returns
+        -------
+        PolarsBackend
+            New backend with upsampled/downsampled rows
+
+        Raises
+        ------
+        KeyError
+            If the specified column does not exist in the DataFrame
+        ValueError
+            If any target count is negative
+        TypeError
+            If any target count is not an integer
+        """
+        if self._streaming:
+            warnings.warn(
+                "upsample_by_column() requires collection of LazyFrame for sampling. "
+                "The returned backend will be in eager mode (streaming=False).",
+                UserWarning,
+                stacklevel=2,
+            )
+
+        df = self._ensure_collected()
+
+        # Validate column exists
+        if column not in df.columns:
+            raise KeyError(f"Column '{column}' not found in DataFrame columns.")
+
+        # Validate target counts (including "other")
+        for val, target_count in target_counts.items():
+            if target_count < 0:
+                raise ValueError(
+                    f"Target count for value {val!r} is negative: {target_count}. "
+                    "Target counts must be >= 0"
+                )
+            if not isinstance(target_count, int):
+                raise TypeError(
+                    f"Target count for value {val!r} must be an integer, "
+                    f"got {type(target_count).__name__}"
+                )
+
+        import numpy as np
+
+        rng = np.random.default_rng(seed=seed)
+
+        def sample_by_target_count(group_df: pl.DataFrame, target_count: int) -> pl.DataFrame:
+            """Sample group to target count (with upsampling support).
+
+            Parameters
+            ----------
+            group_df : pl.DataFrame
+                Group DataFrame to sample from
+            target_count : int
+                Target number of samples
+
+            Returns
+            -------
+            pl.DataFrame
+                Sampled DataFrame
+            """
+            if target_count == 0:
+                return group_df.head(0)
+            indices = list(range(len(group_df)))
+            if target_count <= len(group_df):
+                # Downsample: sample without replacement (explicit replace=False)
+                chosen_indices = rng.choice(indices, size=target_count, replace=False).tolist()
             else:
-                # Calculate number of rows to sample
-                # For LazyFrame, we need to collect to get length
-                if isinstance(group_df, pl.LazyFrame):
-                    group_collected = group_df.collect()
-                    n = int(len(group_collected) * ratio)
-                    if n > 0:
-                        sampled = group_collected.sample(n=n, seed=seed)
-                    else:
-                        sampled = group_collected.head(0)
-                else:
-                    n = int(len(group_df) * ratio)
-                    if n > 0:
-                        sampled = group_df.sample(n=n, seed=seed)
-                    else:
-                        sampled = group_df.head(0)
+                # Upsample: sample with replacement
+                chosen_indices = rng.choice(indices, size=target_count, replace=True).tolist()
+            return group_df[chosen_indices]
 
-            groups.append(sampled)
-
-        # Handle "other" category
-        if "other" in ratios:
-            # Get all values not explicitly in ratios (excluding "other" itself)
-            explicit_values = list(set(ratios.keys()) - {"other"})
-            mask_other = ~pl.col(column).is_in(explicit_values)
-            other_df = self._df.filter(mask_other)
-
-            ratio = ratios["other"]
-            if ratio >= 1.0:
-                sampled_other = other_df
-            else:
-                # For LazyFrame, we need to collect to get length
-                if isinstance(other_df, pl.LazyFrame):
-                    other_collected = other_df.collect()
-                    n = int(len(other_collected) * ratio)
-                    if n > 0:
-                        sampled_other = other_collected.sample(n=n, seed=seed)
-                    else:
-                        sampled_other = other_collected.head(0)
-                else:
-                    n = int(len(other_df) * ratio)
-                    if n > 0:
-                        sampled_other = other_df.sample(n=n, seed=seed)
-                    else:
-                        sampled_other = other_df.head(0)
-
-            groups.append(sampled_other)
-
-        # Concatenate all groups
-        if groups:
-            # Ensure all groups are DataFrame (not LazyFrame) for concat
-            collected_groups = []
-            for g in groups:
-                if isinstance(g, pl.LazyFrame):
-                    collected_groups.append(g.collect())
-                else:
-                    collected_groups.append(g)
-            result_df = pl.concat(collected_groups)
-        else:
-            # Return empty dataframe with same schema
-            if isinstance(self._df, pl.LazyFrame):
-                result_df = self._df.head(0).collect()
-            else:
-                result_df = self._df.head(0)
-
-        # Note: streaming mode is lost because we had to collect for sampling
-        return PolarsBackend(result_df, streaming=False)
+        return self._sample_by_column_helper(
+            column=column,
+            values_dict=target_counts,
+            sample_fn=sample_by_target_count,
+            other_sample_fn=sample_by_target_count,
+            dict_name="target_counts",
+        )
 
     def sample_rows(
         self,

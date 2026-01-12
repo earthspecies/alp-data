@@ -443,13 +443,16 @@ class DataBackend(Protocol):
         For each unique value in the column, sample the specified ratio of rows.
         Special key "other" can be used to subsample all values not explicitly listed.
 
+        Note: The "other" key pools all unlisted values together and samples from
+        the pooled group, rather than applying the ratio per unlisted category.
+
         Parameters
         ----------
         column : str
             Column name to group by
         ratios : dict[str, float]
             Dictionary mapping column values to sampling ratios (0.0 to 1.0).
-            Special key "other" applies to all unlisted values.
+            Special key "other" applies to all unlisted values (pooled together).
         seed : int, optional
             Random seed for reproducibility, by default 42
 
@@ -457,6 +460,54 @@ class DataBackend(Protocol):
         -------
         DataBackend
             New backend with subsampled rows
+
+        Raises
+        ------
+        KeyError
+            If the specified column does not exist in the DataFrame
+        ValueError
+            If any ratio is negative or greater than 1.0
+        """
+        ...
+
+    def upsample_by_column(
+        self,
+        column: str,
+        target_counts: dict[str, int],
+        *,
+        seed: int = 42,
+    ) -> "DataBackend":
+        """Upsample rows by column values to target counts with replacement.
+
+        For each unique value in the column, sample rows with replacement to reach
+        the target count. If a category already has more rows than the target, it will
+        be downsampled (without replacement) to the target count.
+
+        Note: The "other" key pools all unlisted values together and samples from
+        the pooled group to reach the target count, rather than applying the target
+        per unlisted category.
+
+        Parameters
+        ----------
+        column : str
+            Column name to group by
+        target_counts : dict[str, int]
+            Dictionary mapping column values to target sample counts.
+            Special key "other" applies to all unlisted values (pooled together).
+        seed : int, optional
+            Random seed for reproducibility, by default 42
+
+        Returns
+        -------
+        DataBackend
+            New backend with upsampled/downsampled rows
+
+        Raises
+        ------
+        KeyError
+            If the specified column does not exist in the DataFrame
+        ValueError
+            If any target count is negative
         """
         ...
 
