@@ -258,8 +258,6 @@ class NocturnalBirdMigration(Dataset):
         ---------
         A list of all the available labels for anno_column
         """
-        if self._data is None:
-            return []
         available_labels = set()
         for row in self._data:
             st = pd.read_csv(StringIO(row["selection_table"]), sep="\t")
