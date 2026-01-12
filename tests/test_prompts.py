@@ -355,6 +355,54 @@ class TestPromptTemplate:
         assert prompt_msgs[0]["content"] == "Describe the robin from California."
         assert result["response"] == "The robin is a bird found in California."
 
+    def test_jinja2_conditionals(self) -> None:
+        """Test Jinja2 conditional logic in templates."""
+        pair = PromptResponsePair(
+            messages=[
+                Message(role="user", content="Describe this audio."),
+                Message(
+                    role="assistant",
+                    content="{% if behavior == 'song' %}A singing {{ species }}{% else %}A {{ species }} {{ behavior }}{% endif %}",
+                ),
+            ]
+        )
+        template = PromptTemplate(name="test_conditionals", variants=pair)
+
+        # Test "song" branch
+        result = template({"behavior": "song", "species": "robin"})
+        assert result["response"] == "A singing robin"
+
+        # Test else branch
+        result = template({"behavior": "call", "species": "jay"})
+        assert result["response"] == "A jay call"
+
+    def test_jinja2_filters(self) -> None:
+        """Test Jinja2 built-in filters."""
+        pair = PromptResponsePair(
+            messages=[
+                Message(role="user", content="What species?"),
+                Message(role="assistant", content="{{ species | upper }}"),
+            ]
+        )
+        template = PromptTemplate(name="test_filters", variants=pair)
+        result = template({"species": "robin"})
+        assert result["response"] == "ROBIN"
+
+    def test_jinja2_loops(self) -> None:
+        """Test Jinja2 loop constructs."""
+        pair = PromptResponsePair(
+            messages=[
+                Message(role="user", content="List the species."),
+                Message(
+                    role="assistant",
+                    content="{% for s in species %}{{ s }}{% if not loop.last %}, {% endif %}{% endfor %}",
+                ),
+            ]
+        )
+        template = PromptTemplate(name="test_loops", variants=pair)
+        result = template({"species": ["robin", "jay", "cardinal"]})
+        assert result["response"] == "robin, jay, cardinal"
+
     def test_empty_messages_raises(self) -> None:
         """Test that empty messages raises ValueError."""
         pair = PromptResponsePair(messages=[])
