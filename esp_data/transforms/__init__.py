@@ -12,6 +12,8 @@ from .subsample import Subsample, SubsampleConfig
 from .uniform_sample import UniformSample, UniformSampleConfig
 
 __all__ = [
+    "Deduplicate",
+    "DeduplicateConfig",
     "Filter",
     "FilterConfig",
     "LabelFromFeature",
@@ -22,8 +24,6 @@ __all__ = [
     "SubsampleConfig",
     "UniformSample",
     "UniformSampleConfig",
-    "Deduplicate",
-    "DeduplicateConfig",
     "register_transform",
     "transform_from_config",
 ]

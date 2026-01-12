@@ -81,21 +81,18 @@ class TestPromptResponsePair:
     def test_basic_creation(self) -> None:
         """Test creating a basic PromptResponsePair."""
         pair = PromptResponsePair(
-            messages=[
-                Message(role="user", content="What species?"),
-                Message(role="assistant", content="{{ species }}"),
-            ]
+            messages=[Message(role="user", content="What species?")],
+            response="{{ species }}",
         )
-        assert len(pair.messages) == 2
+        assert len(pair.messages) == 1
+        assert pair.response == "{{ species }}"
         assert pair.task == "default"
 
     def test_with_task(self) -> None:
         """Test creating a PromptResponsePair with custom task."""
         pair = PromptResponsePair(
-            messages=[
-                Message(role="user", content="Identify the species"),
-                Message(role="assistant", content="{{ species_common }}"),
-            ],
+            messages=[Message(role="user", content="Identify the species")],
+            response="{{ species_common }}",
             task="species_id",
         )
         assert pair.task == "species_id"
@@ -103,15 +100,13 @@ class TestPromptResponsePair:
     def test_render(self) -> None:
         """Test rendering a pair with data."""
         pair = PromptResponsePair(
-            messages=[
-                Message(role="user", content="What is {{ field }}?"),
-                Message(role="assistant", content="{{ answer }}"),
-            ]
+            messages=[Message(role="user", content="What is {{ field }}?")],
+            response="{{ answer }}",
         )
-        rendered = pair.render(field="the species", answer="Robin")
-        assert len(rendered) == 2
-        assert rendered[0] == {"role": "user", "content": "What is the species?"}
-        assert rendered[1] == {"role": "assistant", "content": "Robin"}
+        prompt_msgs, response = pair.render(field="the species", answer="Robin")
+        assert len(prompt_msgs) == 1
+        assert prompt_msgs[0] == {"role": "user", "content": "What is the species?"}
+        assert response == "Robin"
 
     def test_multi_turn_conversation(self) -> None:
         """Test a multi-turn conversation pair."""
@@ -119,13 +114,14 @@ class TestPromptResponsePair:
             messages=[
                 Message(role="system", content="You are a bioacoustics expert."),
                 Message(role="user", content="What species is in this audio?"),
-                Message(role="assistant", content="{{ species_common }}"),
-            ]
+            ],
+            response="{{ species_common }}",
         )
-        rendered = pair.render(species_common="Blue Jay")
-        assert len(rendered) == 3
-        assert rendered[0]["role"] == "system"
-        assert rendered[2]["content"] == "Blue Jay"
+        prompt_msgs, response = pair.render(species_common="Blue Jay")
+        assert len(prompt_msgs) == 2
+        assert prompt_msgs[0]["role"] == "system"
+        assert prompt_msgs[1]["role"] == "user"
+        assert response == "Blue Jay"
 
 
 # --- Test PromptTemplateConfig ---
@@ -140,10 +136,8 @@ class TestPromptTemplateConfig:
             name="test_prompt",
             variants=[
                 PromptResponsePair(
-                    messages=[
-                        Message(role="user", content="Question?"),
-                        Message(role="assistant", content="{{ answer }}"),
-                    ]
+                    messages=[Message(role="user", content="Question?")],
+                    response="{{ answer }}",
                 )
             ],
         )
@@ -156,16 +150,12 @@ class TestPromptTemplateConfig:
             name="multi_variant",
             variants=[
                 PromptResponsePair(
-                    messages=[
-                        Message(role="user", content="What species?"),
-                        Message(role="assistant", content="{{ species }}"),
-                    ]
+                    messages=[Message(role="user", content="What species?")],
+                    response="{{ species }}",
                 ),
                 PromptResponsePair(
-                    messages=[
-                        Message(role="user", content="Identify the animal."),
-                        Message(role="assistant", content="{{ species }}"),
-                    ]
+                    messages=[Message(role="user", content="Identify the animal.")],
+                    response="{{ species }}",
                 ),
             ],
         )
@@ -181,10 +171,8 @@ class TestPromptTemplate:
     def test_basic_call(self) -> None:
         """Test basic template call adds prompt and response."""
         pair = PromptResponsePair(
-            messages=[
-                Message(role="user", content="What species?"),
-                Message(role="assistant", content="{{ species }}"),
-            ]
+            messages=[Message(role="user", content="What species?")],
+            response="{{ species }}",
         )
         template = PromptTemplate(name="test_basic", variants=pair)
         item = {"species": "Robin", "extra": "data"}
@@ -195,7 +183,7 @@ class TestPromptTemplate:
         assert result["response"] == "Robin"
         assert result["extra"] == "data"  # Original data preserved
 
-        # Prompt should be JSON of messages before assistant
+        # Prompt should be JSON of messages
         prompt_msgs = json.loads(result["prompt"])
         assert len(prompt_msgs) == 1
         assert prompt_msgs[0]["role"] == "user"
@@ -204,10 +192,8 @@ class TestPromptTemplate:
     def test_original_item_not_modified(self) -> None:
         """Test that original item is not modified."""
         pair = PromptResponsePair(
-            messages=[
-                Message(role="user", content="Q?"),
-                Message(role="assistant", content="{{ a }}"),
-            ]
+            messages=[Message(role="user", content="Q?")],
+            response="{{ a }}",
         )
         template = PromptTemplate(name="test_no_modify", variants=pair)
         item = {"a": "answer"}
@@ -223,8 +209,8 @@ class TestPromptTemplate:
             messages=[
                 Message(role="system", content="You are an expert."),
                 Message(role="user", content="What is {{ thing }}?"),
-                Message(role="assistant", content="{{ answer }}"),
-            ]
+            ],
+            response="{{ answer }}",
         )
         template = PromptTemplate(name="test_multi_turn", variants=pair)
         result = template({"thing": "this", "answer": "A bird"})
@@ -235,27 +221,11 @@ class TestPromptTemplate:
         assert prompt_msgs[1]["role"] == "user"
         assert result["response"] == "A bird"
 
-    def test_no_assistant_message(self) -> None:
-        """Test handling when last message is not assistant."""
-        pair = PromptResponsePair(
-            messages=[
-                Message(role="user", content="What is this?"),
-            ]
-        )
-        template = PromptTemplate(name="test_no_assistant", variants=pair)
-        result = template({})
-
-        prompt_msgs = json.loads(result["prompt"])
-        assert len(prompt_msgs) == 1
-        assert result["response"] == ""
-
     def test_single_variant_deterministic(self) -> None:
         """Test that single variant is deterministic."""
         pair = PromptResponsePair(
-            messages=[
-                Message(role="user", content="The only prompt"),
-                Message(role="assistant", content="{{ x }}"),
-            ]
+            messages=[Message(role="user", content="The only prompt")],
+            response="{{ x }}",
         )
         template = PromptTemplate(name="test_deterministic", variants=pair)
         item = {"x": "value"}
@@ -270,22 +240,16 @@ class TestPromptTemplate:
         """Test that seed produces deterministic variant selection."""
         variants = [
             PromptResponsePair(
-                messages=[
-                    Message(role="user", content="A"),
-                    Message(role="assistant", content="{{ x }}"),
-                ]
+                messages=[Message(role="user", content="A")],
+                response="{{ x }}",
             ),
             PromptResponsePair(
-                messages=[
-                    Message(role="user", content="B"),
-                    Message(role="assistant", content="{{ x }}"),
-                ]
+                messages=[Message(role="user", content="B")],
+                response="{{ x }}",
             ),
             PromptResponsePair(
-                messages=[
-                    Message(role="user", content="C"),
-                    Message(role="assistant", content="{{ x }}"),
-                ]
+                messages=[Message(role="user", content="C")],
+                response="{{ x }}",
             ),
         ]
 
@@ -302,22 +266,16 @@ class TestPromptTemplate:
         """Test that multiple variants are randomly selected without seed."""
         variants = [
             PromptResponsePair(
-                messages=[
-                    Message(role="user", content="A"),
-                    Message(role="assistant", content="{{ x }}"),
-                ]
+                messages=[Message(role="user", content="A")],
+                response="{{ x }}",
             ),
             PromptResponsePair(
-                messages=[
-                    Message(role="user", content="B"),
-                    Message(role="assistant", content="{{ x }}"),
-                ]
+                messages=[Message(role="user", content="B")],
+                response="{{ x }}",
             ),
             PromptResponsePair(
-                messages=[
-                    Message(role="user", content="C"),
-                    Message(role="assistant", content="{{ x }}"),
-                ]
+                messages=[Message(role="user", content="C")],
+                response="{{ x }}",
             ),
         ]
 
@@ -342,11 +300,8 @@ class TestPromptTemplate:
                     role="user",
                     content="Describe the {{ species }} from {{ location }}.",
                 ),
-                Message(
-                    role="assistant",
-                    content="The {{ species }} is a bird found in {{ location }}.",
-                ),
-            ]
+            ],
+            response="The {{ species }} is a bird found in {{ location }}.",
         )
         template = PromptTemplate(name="test_jinja", variants=pair)
         result = template({"species": "robin", "location": "California"})
@@ -358,13 +313,8 @@ class TestPromptTemplate:
     def test_jinja2_conditionals(self) -> None:
         """Test Jinja2 conditional logic in templates."""
         pair = PromptResponsePair(
-            messages=[
-                Message(role="user", content="Describe this audio."),
-                Message(
-                    role="assistant",
-                    content="{% if behavior == 'song' %}A singing {{ species }}{% else %}A {{ species }} {{ behavior }}{% endif %}",
-                ),
-            ]
+            messages=[Message(role="user", content="Describe this audio.")],
+            response="{% if behavior == 'song' %}A singing {{ species }}{% else %}A {{ species }} {{ behavior }}{% endif %}",
         )
         template = PromptTemplate(name="test_conditionals", variants=pair)
 
@@ -379,10 +329,8 @@ class TestPromptTemplate:
     def test_jinja2_filters(self) -> None:
         """Test Jinja2 built-in filters."""
         pair = PromptResponsePair(
-            messages=[
-                Message(role="user", content="What species?"),
-                Message(role="assistant", content="{{ species | upper }}"),
-            ]
+            messages=[Message(role="user", content="What species?")],
+            response="{{ species | upper }}",
         )
         template = PromptTemplate(name="test_filters", variants=pair)
         result = template({"species": "robin"})
@@ -391,13 +339,8 @@ class TestPromptTemplate:
     def test_jinja2_loops(self) -> None:
         """Test Jinja2 loop constructs."""
         pair = PromptResponsePair(
-            messages=[
-                Message(role="user", content="List the species."),
-                Message(
-                    role="assistant",
-                    content="{% for s in species %}{{ s }}{% if not loop.last %}, {% endif %}{% endfor %}",
-                ),
-            ]
+            messages=[Message(role="user", content="List the species.")],
+            response="{% for s in species %}{{ s }}{% if not loop.last %}, {% endif %}{% endfor %}",
         )
         template = PromptTemplate(name="test_loops", variants=pair)
         result = template({"species": ["robin", "jay", "cardinal"]})
@@ -405,7 +348,7 @@ class TestPromptTemplate:
 
     def test_empty_messages_raises(self) -> None:
         """Test that empty messages raises ValueError."""
-        pair = PromptResponsePair(messages=[])
+        pair = PromptResponsePair(messages=[], response="answer")
         template = PromptTemplate(name="test_empty", variants=pair)
 
         with pytest.raises(ValueError, match="no messages"):
@@ -414,12 +357,21 @@ class TestPromptTemplate:
     def test_missing_variable_raises(self) -> None:
         """Test that missing template variables raise UndefinedError."""
         pair = PromptResponsePair(
-            messages=[
-                Message(role="user", content="What is {{ missing }}?"),
-                Message(role="assistant", content="Answer"),
-            ]
+            messages=[Message(role="user", content="What is {{ missing }}?")],
+            response="Answer",
         )
         template = PromptTemplate(name="test_missing", variants=pair)
+
+        with pytest.raises(UndefinedError):
+            template({"other": "value"})
+
+    def test_missing_response_variable_raises(self) -> None:
+        """Test that missing response template variables raise UndefinedError."""
+        pair = PromptResponsePair(
+            messages=[Message(role="user", content="Question")],
+            response="{{ missing_var }}",
+        )
+        template = PromptTemplate(name="test_missing_response", variants=pair)
 
         with pytest.raises(UndefinedError):
             template({"other": "value"})
@@ -427,10 +379,8 @@ class TestPromptTemplate:
     def test_name_property(self) -> None:
         """Test that name property is set correctly."""
         pair = PromptResponsePair(
-            messages=[
-                Message(role="user", content="Q"),
-                Message(role="assistant", content="A"),
-            ]
+            messages=[Message(role="user", content="Q")],
+            response="A",
         )
         template = PromptTemplate(name="my_template", variants=pair)
         assert template.name == "my_template"
@@ -439,10 +389,8 @@ class TestPromptTemplate:
         """Test that variants can be passed as a list."""
         variants = [
             PromptResponsePair(
-                messages=[
-                    Message(role="user", content="Question"),
-                    Message(role="assistant", content="{{ answer }}"),
-                ]
+                messages=[Message(role="user", content="Question")],
+                response="{{ answer }}",
             )
         ]
         template = PromptTemplate(name="test_list", variants=variants)
@@ -498,10 +446,8 @@ class TestPromptRegistry:
     def test_register_and_get(self) -> None:
         """Test registering and retrieving a template."""
         pair = PromptResponsePair(
-            messages=[
-                Message(role="user", content="Q"),
-                Message(role="assistant", content="{{ a }}"),
-            ]
+            messages=[Message(role="user", content="Q")],
+            response="{{ a }}",
         )
         template = PromptTemplate(name="test_register_get", variants=pair)
         register_prompt(template)
@@ -512,10 +458,8 @@ class TestPromptRegistry:
     def test_register_duplicate_raises(self) -> None:
         """Test that registering duplicate name raises ValueError."""
         pair = PromptResponsePair(
-            messages=[
-                Message(role="user", content="Q"),
-                Message(role="assistant", content="{{ a }}"),
-            ]
+            messages=[Message(role="user", content="Q")],
+            response="{{ a }}",
         )
         register_prompt(PromptTemplate(name="test_duplicate", variants=pair))
 
@@ -530,10 +474,8 @@ class TestPromptRegistry:
     def test_list_prompts(self) -> None:
         """Test listing registered prompts."""
         pair = PromptResponsePair(
-            messages=[
-                Message(role="user", content="Q"),
-                Message(role="assistant", content="{{ a }}"),
-            ]
+            messages=[Message(role="user", content="Q")],
+            response="{{ a }}",
         )
         register_prompt(PromptTemplate(name="test_list_item", variants=pair))
 
@@ -549,10 +491,8 @@ class TestPromptRegistry:
             name="from_config_test",
             variants=[
                 PromptResponsePair(
-                    messages=[
-                        Message(role="user", content="Q"),
-                        Message(role="assistant", content="{{ a }}"),
-                    ]
+                    messages=[Message(role="user", content="Q")],
+                    response="{{ a }}",
                 )
             ],
         )

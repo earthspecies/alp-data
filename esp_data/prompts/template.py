@@ -31,24 +31,27 @@ class Message(BaseModel):
 
 
 class PromptResponsePair(BaseModel):
-    """A single prompt-response conversation as a sequence of messages.
+    """A prompt-response pair with explicit separation.
 
-    The last message with role="assistant" is treated as the response;
-    all preceding messages form the prompt.
+    The messages list contains the prompt (input to the model).
+    The response field is a template string for the target output.
     """
 
     messages: list[Message]
+    response: str
     task: str = "default"
 
-    def render(self, **kwargs: Any) -> list[dict[str, str]]:
-        """Render all messages in this pair.
+    def render(self, **kwargs: Any) -> tuple[list[dict[str, str]], str]:
+        """Render all messages and the response template.
 
         Returns
         -------
-        list[dict[str, str]]
-            List of rendered message dicts with 'role' and 'content' keys.
+        tuple[list[dict[str, str]], str]
+            Tuple of (rendered message dicts, rendered response string).
         """
-        return [m.render(**kwargs).model_dump() for m in self.messages]
+        rendered_msgs = [m.render(**kwargs).model_dump() for m in self.messages]
+        rendered_response = Template(self.response, undefined=StrictUndefined).render(**kwargs)
+        return rendered_msgs, rendered_response
 
 
 class PromptTemplateConfig(BaseModel):
@@ -69,8 +72,7 @@ class PromptTemplate:
     With multiple variants, randomly selects one per call.
     Use seed parameter for reproducible results.
 
-    Splits conversation into 'prompt' (JSON of messages) and 'response'
-    (final assistant message content).
+    Returns a dict with 'prompt' (JSON of messages) and 'response' (string).
     """
 
     def __init__(
@@ -85,17 +87,9 @@ class PromptTemplate:
 
     def __call__(self, item: dict[str, Any]) -> dict[str, Any]:
         variant = self._rng.choice(self.variants)
-        rendered = variant.render(**item)
+        prompt_msgs, response = variant.render(**item)
 
-        if not rendered:
+        if not prompt_msgs:
             raise ValueError(f"Prompt '{self.name}' has no messages.")
-
-        last = rendered[-1]
-        if last["role"] == "assistant":
-            prompt_msgs = rendered[:-1]
-            response = last["content"]
-        else:
-            prompt_msgs = rendered
-            response = ""
 
         return {**item, "prompt": json.dumps(prompt_msgs), "response": response}

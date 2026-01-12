@@ -10,10 +10,8 @@ from .template import (
 _passthrough = PromptTemplate(
     name="passthrough",
     variants=PromptResponsePair(
-        messages=[
-            Message(role="user", content="{{ prompt }}"),
-            Message(role="assistant", content="{{ response }}"),
-        ]
+        messages=[Message(role="user", content="{{ prompt }}")],
+        response="{{ response }}",
     ),
 )
 register_prompt(_passthrough)
