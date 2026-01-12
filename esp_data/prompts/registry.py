@@ -4,22 +4,22 @@ from __future__ import annotations
 
 from typing import Any
 
-from .template import PromptTemplate, PromptTemplateConfig
+from .template import PromptResponseTemplate, PromptResponseTemplateConfig
 
-_REGISTRY: dict[str, PromptTemplate] = {}
+_REGISTRY: dict[str, PromptResponseTemplate] = {}
 
 
-def register_prompt(template: PromptTemplate) -> PromptTemplate:
+def register_prompt(template: PromptResponseTemplate) -> PromptResponseTemplate:
     """Register a prompt template by name.
 
     Parameters
     ----------
-    template : PromptTemplate
+    template : PromptResponseTemplate
         Template instance with a unique name attribute.
 
     Returns
     -------
-    PromptTemplate
+    PromptResponseTemplate
         The registered template (for decorator use).
 
     Raises
@@ -34,28 +34,28 @@ def register_prompt(template: PromptTemplate) -> PromptTemplate:
 
 
 def register_prompt_from_config(
-    config: dict[str, Any] | PromptTemplateConfig,
-) -> PromptTemplate:
-    """Register a prompt template from a configuration dict or PromptTemplateConfig.
+    config: dict[str, Any] | PromptResponseTemplateConfig,
+) -> PromptResponseTemplate:
+    """Register a prompt template from a configuration dict or PromptResponseTemplateConfig.
 
-    Creates a PromptTemplate from the config and registers it.
+    Creates a PromptResponseTemplate from the config and registers it.
 
     Parameters
     ----------
-    config : dict[str, Any] | PromptTemplateConfig
+    config : dict[str, Any] | PromptResponseTemplateConfig
         Configuration for the prompt template. If dict, must have 'name' and 'variants' keys.
 
     Returns
     -------
-    PromptTemplate
+    PromptResponseTemplate
         The registered template.
     """
     if isinstance(config, dict):
-        config = PromptTemplateConfig.model_validate(config)
-    return register_prompt(PromptTemplate(name=config.name, variants=config.variants))
+        config = PromptResponseTemplateConfig.model_validate(config)
+    return register_prompt(PromptResponseTemplate(name=config.name, variants=config.variants))
 
 
-def get_prompt(name: str) -> PromptTemplate:
+def get_prompt(name: str) -> PromptResponseTemplate:
     """Retrieve a registered prompt template by name.
 
     Parameters
@@ -65,7 +65,7 @@ def get_prompt(name: str) -> PromptTemplate:
 
     Returns
     -------
-    PromptTemplate
+    PromptResponseTemplate
         The registered template.
 
     Raises

@@ -8,8 +8,8 @@ from jinja2 import UndefinedError
 from esp_data.prompts import (
     Message,
     PromptResponsePair,
-    PromptTemplate,
-    PromptTemplateConfig,
+    PromptResponseTemplate,
+    PromptResponseTemplateConfig,
     get_prompt,
     list_prompts,
     register_prompt,
@@ -124,15 +124,15 @@ class TestPromptResponsePair:
         assert response == "Blue Jay"
 
 
-# --- Test PromptTemplateConfig ---
+# --- Test PromptResponseTemplateConfig ---
 
 
-class TestPromptTemplateConfig:
-    """Tests for PromptTemplateConfig model."""
+class TestPromptResponseTemplateConfig:
+    """Tests for PromptResponseTemplateConfig model."""
 
     def test_basic_creation(self) -> None:
-        """Test creating a PromptTemplateConfig."""
-        config = PromptTemplateConfig(
+        """Test creating a PromptResponseTemplateConfig."""
+        config = PromptResponseTemplateConfig(
             name="test_prompt",
             variants=[
                 PromptResponsePair(
@@ -146,7 +146,7 @@ class TestPromptTemplateConfig:
 
     def test_multiple_variants(self) -> None:
         """Test config with multiple variants."""
-        config = PromptTemplateConfig(
+        config = PromptResponseTemplateConfig(
             name="multi_variant",
             variants=[
                 PromptResponsePair(
@@ -162,11 +162,11 @@ class TestPromptTemplateConfig:
         assert len(config.variants) == 2
 
 
-# --- Test PromptTemplate ---
+# --- Test PromptResponseTemplate ---
 
 
-class TestPromptTemplate:
-    """Tests for PromptTemplate."""
+class TestPromptResponseTemplate:
+    """Tests for PromptResponseTemplate."""
 
     def test_basic_call(self) -> None:
         """Test basic template call adds prompt and response."""
@@ -174,7 +174,7 @@ class TestPromptTemplate:
             messages=[Message(role="user", content="What species?")],
             response="{{ species }}",
         )
-        template = PromptTemplate(name="test_basic", variants=pair)
+        template = PromptResponseTemplate(name="test_basic", variants=[pair])
         item = {"species": "Robin", "extra": "data"}
         result = template(item)
 
@@ -195,7 +195,7 @@ class TestPromptTemplate:
             messages=[Message(role="user", content="Q?")],
             response="{{ a }}",
         )
-        template = PromptTemplate(name="test_no_modify", variants=pair)
+        template = PromptResponseTemplate(name="test_no_modify", variants=[pair])
         item = {"a": "answer"}
         result = template(item)
 
@@ -212,7 +212,7 @@ class TestPromptTemplate:
             ],
             response="{{ answer }}",
         )
-        template = PromptTemplate(name="test_multi_turn", variants=pair)
+        template = PromptResponseTemplate(name="test_multi_turn", variants=[pair])
         result = template({"thing": "this", "answer": "A bird"})
 
         prompt_msgs = json.loads(result["prompt"])
@@ -227,7 +227,7 @@ class TestPromptTemplate:
             messages=[Message(role="user", content="The only prompt")],
             response="{{ x }}",
         )
-        template = PromptTemplate(name="test_deterministic", variants=pair)
+        template = PromptResponseTemplate(name="test_deterministic", variants=[pair])
         item = {"x": "value"}
 
         # Call multiple times - should always get same result
@@ -253,8 +253,8 @@ class TestPromptTemplate:
             ),
         ]
 
-        template1 = PromptTemplate(name="test_seed", variants=variants, seed=12345)
-        template2 = PromptTemplate(name="test_seed", variants=variants, seed=12345)
+        template1 = PromptResponseTemplate(name="test_seed", variants=variants, seed=12345)
+        template2 = PromptResponseTemplate(name="test_seed", variants=variants, seed=12345)
 
         item = {"x": "value"}
         results1 = [json.loads(template1(item)["prompt"])[0]["content"] for _ in range(20)]
@@ -279,7 +279,7 @@ class TestPromptTemplate:
             ),
         ]
 
-        template = PromptTemplate(name="test_random", variants=variants)
+        template = PromptResponseTemplate(name="test_random", variants=variants)
         item = {"x": "value"}
 
         # Collect prompts from multiple calls
@@ -303,7 +303,7 @@ class TestPromptTemplate:
             ],
             response="The {{ species }} is a bird found in {{ location }}.",
         )
-        template = PromptTemplate(name="test_jinja", variants=pair)
+        template = PromptResponseTemplate(name="test_jinja", variants=[pair])
         result = template({"species": "robin", "location": "California"})
 
         prompt_msgs = json.loads(result["prompt"])
@@ -316,7 +316,7 @@ class TestPromptTemplate:
             messages=[Message(role="user", content="Describe this audio.")],
             response="{% if behavior == 'song' %}A singing {{ species }}{% else %}A {{ species }} {{ behavior }}{% endif %}",
         )
-        template = PromptTemplate(name="test_conditionals", variants=pair)
+        template = PromptResponseTemplate(name="test_conditionals", variants=[pair])
 
         # Test "song" branch
         result = template({"behavior": "song", "species": "robin"})
@@ -332,7 +332,7 @@ class TestPromptTemplate:
             messages=[Message(role="user", content="What species?")],
             response="{{ species | upper }}",
         )
-        template = PromptTemplate(name="test_filters", variants=pair)
+        template = PromptResponseTemplate(name="test_filters", variants=[pair])
         result = template({"species": "robin"})
         assert result["response"] == "ROBIN"
 
@@ -342,14 +342,14 @@ class TestPromptTemplate:
             messages=[Message(role="user", content="List the species.")],
             response="{% for s in species %}{{ s }}{% if not loop.last %}, {% endif %}{% endfor %}",
         )
-        template = PromptTemplate(name="test_loops", variants=pair)
+        template = PromptResponseTemplate(name="test_loops", variants=[pair])
         result = template({"species": ["robin", "jay", "cardinal"]})
         assert result["response"] == "robin, jay, cardinal"
 
     def test_empty_messages_raises(self) -> None:
         """Test that empty messages raises ValueError."""
         pair = PromptResponsePair(messages=[], response="answer")
-        template = PromptTemplate(name="test_empty", variants=pair)
+        template = PromptResponseTemplate(name="test_empty", variants=[pair])
 
         with pytest.raises(ValueError, match="no messages"):
             template({})
@@ -360,7 +360,7 @@ class TestPromptTemplate:
             messages=[Message(role="user", content="What is {{ missing }}?")],
             response="Answer",
         )
-        template = PromptTemplate(name="test_missing", variants=pair)
+        template = PromptResponseTemplate(name="test_missing", variants=[pair])
 
         with pytest.raises(UndefinedError):
             template({"other": "value"})
@@ -371,7 +371,7 @@ class TestPromptTemplate:
             messages=[Message(role="user", content="Question")],
             response="{{ missing_var }}",
         )
-        template = PromptTemplate(name="test_missing_response", variants=pair)
+        template = PromptResponseTemplate(name="test_missing_response", variants=[pair])
 
         with pytest.raises(UndefinedError):
             template({"other": "value"})
@@ -382,18 +382,18 @@ class TestPromptTemplate:
             messages=[Message(role="user", content="Q")],
             response="A",
         )
-        template = PromptTemplate(name="my_template", variants=pair)
+        template = PromptResponseTemplate(name="my_template", variants=[pair])
         assert template.name == "my_template"
 
     def test_accepts_list_of_variants(self) -> None:
-        """Test that variants can be passed as a list."""
+        """Test that variants must be a list."""
         variants = [
             PromptResponsePair(
                 messages=[Message(role="user", content="Question")],
                 response="{{ answer }}",
             )
         ]
-        template = PromptTemplate(name="test_list", variants=variants)
+        template = PromptResponseTemplate(name="test_list", variants=variants)
         result = template({"answer": "Response"})
 
         assert result["response"] == "Response"
@@ -449,7 +449,7 @@ class TestPromptRegistry:
             messages=[Message(role="user", content="Q")],
             response="{{ a }}",
         )
-        template = PromptTemplate(name="test_register_get", variants=pair)
+        template = PromptResponseTemplate(name="test_register_get", variants=[pair])
         register_prompt(template)
 
         retrieved = get_prompt("test_register_get")
@@ -461,10 +461,10 @@ class TestPromptRegistry:
             messages=[Message(role="user", content="Q")],
             response="{{ a }}",
         )
-        register_prompt(PromptTemplate(name="test_duplicate", variants=pair))
+        register_prompt(PromptResponseTemplate(name="test_duplicate", variants=[pair]))
 
         with pytest.raises(ValueError, match="already registered"):
-            register_prompt(PromptTemplate(name="test_duplicate", variants=pair))
+            register_prompt(PromptResponseTemplate(name="test_duplicate", variants=[pair]))
 
     def test_get_nonexistent_raises(self) -> None:
         """Test that getting nonexistent template raises KeyError."""
@@ -477,17 +477,17 @@ class TestPromptRegistry:
             messages=[Message(role="user", content="Q")],
             response="{{ a }}",
         )
-        register_prompt(PromptTemplate(name="test_list_item", variants=pair))
+        register_prompt(PromptResponseTemplate(name="test_list_item", variants=[pair]))
 
         prompts = list_prompts()
         assert "test_list_item" in prompts
         assert "passthrough" in prompts
 
     def test_register_from_config(self) -> None:
-        """Test registering from PromptTemplateConfig."""
+        """Test registering from PromptResponseTemplateConfig."""
         from esp_data.prompts import register_prompt_from_config
 
-        config = PromptTemplateConfig(
+        config = PromptResponseTemplateConfig(
             name="from_config_test",
             variants=[
                 PromptResponsePair(

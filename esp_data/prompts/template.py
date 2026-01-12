@@ -54,8 +54,8 @@ class PromptResponsePair(BaseModel):
         return rendered_msgs, rendered_response
 
 
-class PromptTemplateConfig(BaseModel):
-    """Configuration for a prompt template.
+class PromptResponseTemplateConfig(BaseModel):
+    """Configuration for a prompt-response template.
 
     Used for YAML-based configuration where prompt variants
     are defined declaratively.
@@ -65,8 +65,8 @@ class PromptTemplateConfig(BaseModel):
     variants: list[PromptResponsePair]
 
 
-class PromptTemplate:
-    """Prompt template with optional random variant selection.
+class PromptResponseTemplate:
+    """Prompt-response template with optional random variant selection.
 
     With a single variant, behavior is deterministic.
     With multiple variants, randomly selects one per call.
@@ -78,11 +78,11 @@ class PromptTemplate:
     def __init__(
         self,
         name: str,
-        variants: list[PromptResponsePair] | PromptResponsePair,
+        variants: list[PromptResponsePair],
         seed: int | None = None,
     ) -> None:
         self.name = name
-        self.variants = [variants] if isinstance(variants, PromptResponsePair) else variants
+        self.variants = variants
         self._rng = random.Random(seed)
 
     def __call__(self, item: dict[str, Any]) -> dict[str, Any]:

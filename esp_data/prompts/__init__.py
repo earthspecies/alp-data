@@ -2,27 +2,29 @@ from .registry import get_prompt, list_prompts, register_prompt, register_prompt
 from .template import (
     Message,
     PromptResponsePair,
-    PromptTemplate,
-    PromptTemplateConfig,
+    PromptResponseTemplate,
+    PromptResponseTemplateConfig,
 )
 
 # Default passthrough template - copies existing prompt/response fields
-_passthrough = PromptTemplate(
+_passthrough = PromptResponseTemplate(
     name="passthrough",
-    variants=PromptResponsePair(
-        messages=[Message(role="user", content="{{ prompt }}")],
-        response="{{ response }}",
-    ),
+    variants=[
+        PromptResponsePair(
+            messages=[Message(role="user", content="{{ prompt }}")],
+            response="{{ response }}",
+        )
+    ],
 )
 register_prompt(_passthrough)
 
 __all__ = [
     # Template class
-    "PromptTemplate",
+    "PromptResponseTemplate",
     # Data classes
     "Message",
     "PromptResponsePair",
-    "PromptTemplateConfig",
+    "PromptResponseTemplateConfig",
     # Registry functions
     "register_prompt",
     "register_prompt_from_config",
