@@ -87,6 +87,9 @@ def main() -> None:
         action="store_true",
         help="Whether to load the dataset in streaming mode.",
     )
+    parser.add_argument(
+        "--dont-write-audio", action="store_true", help="If set, audio files will not be written."
+    )
 
     args = parser.parse_args()
 
@@ -107,7 +110,7 @@ def main() -> None:
     df = []  # eventually a dataframe of annotations
     num_samples = len(beans_zero_hf) if not args.streaming else None
 
-    for sample in tqdm(beans_zero_hf, desc="Processing samples", total=num_samples):
+    for _, sample in tqdm(enumerate(beans_zero_hf), desc="Processing samples", total=num_samples):
         audio = np.array(sample["audio"])
         metadata = json.loads(sample["metadata"])
 
@@ -131,21 +134,22 @@ def main() -> None:
                 audio_path = (
                     audio_dir
                     / f"{annotations_dict['dataset_name']}/{target_sr_khz}KHz"
-                    / f"{annotations_dict['file_name']}.flac"
+                    / f"{annotations_dict['file_name']}"
                 )
+                if not args.dont_write_audio:
+                    # Takes a bit longer to test for existence on GCS, so do it last
+                    if not exists(audio_path):
+                        resampled_audio = resample_audio(
+                            audio=audio,
+                            sr=original_sample_rate,
+                            target_sr=target_sr,
+                        )
 
-                if not exists(audio_path):
-                    resampled_audio = resample_audio(
-                        audio=audio,
-                        sr=original_sample_rate,
-                        target_sr=target_sr,
-                    )
-
-                    write_flac(
-                        audio=resampled_audio,
-                        sample_rate=target_sr,
-                        path=audio_path,
-                    )
+                        write_flac(
+                            audio=resampled_audio,
+                            sample_rate=target_sr,
+                            path=audio_path,
+                        )
                 annotations_dict[f"audio_path_{target_sr}KHz"] = audio_path
 
         # Write original sample rate audio
@@ -155,12 +159,14 @@ def main() -> None:
             / f"{annotations_dict['file_name']}.flac"
         )
 
-        if not exists(audio_path):
-            write_flac(
-                audio=audio,
-                sample_rate=original_sample_rate,
-                path=audio_path,
-            )
+        if not args.dont_write_audio:
+            # Takes a bit longer to test for existence on GCS, so do it last
+            if not exists(audio_path):
+                write_flac(
+                    audio=audio,
+                    sample_rate=original_sample_rate,
+                    path=audio_path,
+                )
         annotations_dict["audio_path_original_sample_rate"] = audio_path
 
         df.append(annotations_dict)
@@ -170,7 +176,7 @@ def main() -> None:
     datasets = df["dataset_name"].unique()
     for dataset in datasets:
         dataset_df = df[df["dataset_name"] == dataset]
-        jsonl_path = destination_bucket + f"{dataset}_test.jsonl"
+        jsonl_path = destination_bucket / f"{dataset}_test.jsonl"
 
         dataset_df.to_json(
             str(jsonl_path),
@@ -179,7 +185,7 @@ def main() -> None:
         )
 
     # Write full dataframe as jsonl
-    full_json_path = destination_bucket + "test.jsonl"
+    full_json_path = destination_bucket / "test.jsonl"
     df.to_json(
         str(full_json_path),
         orient="records",
@@ -187,5 +193,78 @@ def main() -> None:
     )
 
 
+def export_annotations() -> None:
+    # Load dataset
+    beans_zero_hf = load_dataset("EarthSpeciesProject/BEANS-Zero", streaming=False, split="test")
+
+    destination_bucket = anypath("gs://esp-ml-datasets/beans-zero/v0.1.0/raw/")
+    audio_dir = anypath("audio")
+
+    source_datasets = beans_zero_hf["source_dataset"]
+    dataset_names = beans_zero_hf["dataset_name"]
+    outputs = beans_zero_hf["output"]
+    instruction_texts = beans_zero_hf["instruction_text"]
+    instructions = beans_zero_hf["instruction"]
+    tasks = beans_zero_hf["task"]
+    file_names = beans_zero_hf["file_name"]
+    licenses = beans_zero_hf["license"]
+    ids = beans_zero_hf["id"]
+    metadatas = beans_zero_hf["metadata"]
+
+    # Build file paths
+    audio_paths_orig = []
+    audio_paths_16K = []
+    audio_paths_32K = []
+
+    for ds, fname in tqdm(zip(dataset_names, file_names, strict=True), total=len(file_names)):
+        dirr = audio_dir / ds
+        audio_paths_orig.append(str(dirr / "original_sample_rate" / fname))
+        audio_paths_16K.append(str(dirr / "16KHz" / fname))
+        audio_paths_32K.append(str(dirr / "32KHz" / fname))
+        # assert these paths exist
+        assert exists(destination_bucket / audio_paths_orig[-1])
+        assert exists(destination_bucket / audio_paths_16K[-1])
+        assert exists(destination_bucket / audio_paths_32K[-1])
+
+    df = pd.DataFrame(
+        {
+            "source_dataset": source_datasets,
+            "dataset_name": dataset_names,
+            "output": outputs,
+            "instruction_text": instruction_texts,
+            "instruction": instructions,
+            "task": tasks,
+            "file_name": file_names,
+            "license": licenses,
+            "id": ids,
+            "metadata": metadatas,
+            "audio_path_original_sample_rate": audio_paths_orig,
+            "audio_path_16KHz": audio_paths_16K,
+            "audio_path_32KHz": audio_paths_32K,
+        }
+    )
+
+    # Write full dataframe as jsonl
+    full_json_path = destination_bucket / "test.jsonl"
+    df.to_json(
+        str(full_json_path),
+        orient="records",
+        lines=True,
+    )
+
+    # Write out dataframs per dataset as jsonl
+    unique_datasets = set(dataset_names)
+    for dataset in unique_datasets:
+        dataset_df = df[df["dataset_name"] == dataset]
+        jsonl_path = destination_bucket / f"{dataset}_test.jsonl"
+
+        dataset_df.to_json(
+            str(jsonl_path),
+            orient="records",
+            lines=True,
+        )
+
+
 if __name__ == "__main__":
-    main()
+    # main()
+    export_annotations()
