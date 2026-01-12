@@ -2,14 +2,19 @@ from .animalspeak import AnimalSpeak
 from .anuraset import AnuraSetStrong
 from .arctic_bird_sounds import ArcticBirdSounds
 from .audioset import AudioSet
+from .audioset_strong import AudioSetStrong
 from .barkley_canyon import BarkleyCanyon, BarkleyCanyonDetection
 from .beans import Beans
+from .beans_zero import BeansZero
 from .bengalese_finch_calls import BengaleseFinchCalls
 from .birdeep import Birdeep
 from .birdset import BirdSet
 from .chiffchaff_id import ChiffchaffId
+from .dinardo_dolphin_whistles import DinardoDolphinWhistles
 from .esp_raincoast import ESPRaincoast
+from .geladas import Geladas
 from .giant_otters import GiantOtters
+from .gibbon_solos import GibbonSolos
 from .hawaiian_birds import HawaiianBirds
 from .inaturalist import INaturalist
 from .insectset_459 import InsectSet459
@@ -19,6 +24,7 @@ from .nocturnal_bird_migration import NocturnalBirdMigration
 from .pipit_id import PipitId
 from .powdermill import Powdermill
 from .subsegmentation import Subsegmentation
+from .superb_starling import SuperbStarling
 from .voxaboxen import Voxaboxen, VoxaboxenEvents
 from .wabad import WABAD
 from .xeno_canto import XenoCanto
@@ -33,6 +39,7 @@ __all__ = [
     "INaturalist",
     "InsectSet459",
     "Beans",
+    "BeansZero",
     "ZebraFinchJulieElie",
     "BirdSet",
     "BengaleseFinchCalls",
@@ -40,11 +47,13 @@ __all__ = [
     "LittleOwlId",
     "PipitId",
     "AudioSet",
+    "AudioSetStrong",
     "MacaquesCooCalls",
     "Voxaboxen",
     "VoxaboxenEvents",
     "ESPRaincoast",
     "Subsegmentation",
+    "SuperbStarling",
     "WABAD",
     "XenoCanto",
     "XenoCantoAnnotatedJeantet23",
@@ -54,4 +63,7 @@ __all__ = [
     "ArcticBirdSounds",
     "NocturnalBirdMigration",
     "Birdeep",
+    "Geladas",
+    "DinardoDolphinWhistles",
+    "GibbonSolos",
 ]

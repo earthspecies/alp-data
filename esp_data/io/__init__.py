@@ -6,6 +6,7 @@ from esp_data.io.read_utils import (
     get_audio_info,
     read_audio,
     read_text,
+    read_yaml,
 )
 
 __all__ = [
@@ -22,4 +23,5 @@ __all__ = [
     "filesystem_from_path",
     "exists",
     "rm",
+    "read_yaml",
 ]

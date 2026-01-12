@@ -1,9 +1,10 @@
-"""iNaturalist dataset"""
+"""BEANS-Zero dataset"""
 
 from typing import Any, Dict, Iterator
 
 import librosa
 import numpy as np
+import pandas as pd
 
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from esp_data.backends import BackendType
@@ -11,132 +12,126 @@ from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
 
 
 @register_dataset
-class INaturalist(Dataset):
-    """iNaturalist audio dataset.
+class BeansZero(Dataset):
+    """BEANS-Zero dataset
 
     Description
     -----------
-    iNaturalist is a citizen science platform and biodiversity database
-    containing observations of organisms. This dataset includes audio
-    recordings from iNaturalist with associated metadata about species,
-    locations, and other observation details. Recordings are linked to taxonomic information
-    following ESP's taxonomy app (GBIF backbone),
-    including species scientific and common names, family, genus, order.
-    There is additional metadata including location, date, and recordist information.
-    The current version 0.1.0 includes iNaturalist data up to July 2025.
-
-    Available Metadata Fields
-    -------------------------
-    **Taxonomic Information:**
-        - ``canonical_name``: Canonical species name (primary identifier)
-        - ``species_scientific``: Scientific species name
-        - ``species_common``: Common name for the species
-        - ``genus``, ``family``, ``order``, ``class``, ``phylum``: Taxonomic hierarchy
-        - ``gbifID``: GBIF (Global Biodiversity Information Facility) identifier
-
-    **Audio File Paths:**
-        - ``originals_path``: Path to original audio (variable sample rate)
-        - ``32khz_path``: Path to pre-resampled 32kHz audio
-        - ``16khz_path``: Path to pre-resampled 16kHz audio
-
-    **Recording Metadata:**
-        - ``eventDate``, ``eventTime``: When the recording was made
-        - ``lifeStage``, ``sex``, ``behavior``: Biological context
-
-    **Location:**
-        - ``latitudeDecimal``, ``longitudeDecimal``: GPS coordinates
-        - ``country``, ``locality``: Geographic location names
-        - ``verbatimElevation``: Elevation information
-
-    **Rights & Attribution:**
-        - ``recordist``: Person who made the recording
-        - ``rightsHolder``: Copyright holder
-        - ``license``: License information (e.g., CC BY)
-        - ``url``: Original iNaturalist sound URL
-
-    **Captions (from AnimalSpeak):**
-        - ``caption``, ``caption2``, ``caption3``: Descriptive text captions for the audio:
-            only for the subset drawn from AnimalSpeak.
-
-    **Additional Fields:**
-        - ``fieldNotes``: Observer's notes about the recording
-        - ``source``, ``data_source``: Origin of the data
-        - ``identifier``: iNaturalist observation identifier
+    BEANS-Zero is a bioacoustics benchmark designed to evaluate multimodal
+    audio-language models in zero-shot settings. Introduced in the paper
+    NatureLM-audio paper (Robinson et al., 2025), it brings together tasks
+    from both existing datasets and newly curated resources.
+    The benchmark focuses on models that take a bioacoustic audio input
+    (e.g., bird or mammal vocalizations) and a text instruction
+    (e.g., "What species is in this audio?"),
+    and return a textual output (e.g., "Taeniopygia guttata").
+    As a zero-shot benchmark, BEANS-Zero contains only a test
+    split—no training or in-context examples are provided.
 
     References
     ----------
-    iNaturalist: https://www.inaturalist.org/
+    NatureLM-audio: an Audio-Language Foundation Model for Bioacoustics
+    David Robinson, Marius Miron, Masato Hagiwara, Olivier Pietquin
+    https://openreview.net/forum?id=hJVdwBpWjt
+
+    Huggingface Dataset:
+    https://huggingface.co/datasets/EarthSpeciesProject/BEANS-Zero
+
 
     Examples
     --------
-    >>> from esp_data.datasets import INaturalist
-    >>> dataset = INaturalist(
-    ...     split="train",
-    ...     output_take_and_give={"canonical_name": "species"}
+    >>> from esp_data.datasets import Beans
+    >>> dataset = BeansZero(
+    ...     split="test",
+    ...     output_take_and_give={"species_scientific": "species"},
+    ...     sample_rate=16000,
+    ...     data_root="gs://esp-ml-datasets/beans-zero/v0.1.0/raw/"
     ... )
-    >>> print(dataset.info.name)
-    inaturalist
-    >>> print(dataset.available_sample_rates)
-    [32000, 16000]
-
-    Load with pre-resampled 32kHz audio (no on-the-fly resampling needed)
-    >>> dataset_32k = INaturalist(split="train", sample_rate=32000)
-
-    Load with pre-resampled 16kHz audio (no on-the-fly resampling needed)
-    >>> dataset_16k = INaturalist(split="train", sample_rate=16000)
     """
 
     info = DatasetInfo(
-        name="inaturalist",
-        owner="gagan; david",
+        name="beans_zero",
+        owner="gagan, masato, david, marius",
         split_paths={
-            "train": "gs://esp-ml-datasets/inaturalist/v0.1.0/raw/metadata_2025_07_no_m4a.csv",
+            # 'test' is the full test set combining all tasks
+            "test": "gs://esp-ml-datasets/beans-zero/v0.1.0/raw/test.jsonl",
+            "cbi": "gs://esp-ml-datasets/beans-zero/v0.1.0/raw/cbi_test.jsonl",
+            "watkins": "gs://esp-ml-datasets/beans-zero/v0.1.0/raw/watkins_test.jsonl",
+            "hiceas": "gs://esp-ml-datasets/beans-zero/v0.1.0/raw/hiceas_test.jsonl",
+            "dcase": "gs://esp-ml-datasets/beans-zero/v0.1.0/raw/dcase_test.jsonl",
+            "enabirds": "gs://esp-ml-datasets/beans-zero/v0.1.0/raw/enabirds_test.jsonl",
+            "esc50": "gs://esp-ml-datasets/beans-zero/v0.1.0/raw/esc50_test.jsonl",
+            "humbugdb": "gs://esp-ml-datasets/beans-zero/v0.1.0/raw/humbugdb_test.jsonl",
+            "rfcx": "gs://esp-ml-datasets/beans-zero/v0.1.0/raw/rfcx_test.jsonl",
+            "gibbons": "gs://esp-ml-datasets/beans-zero/v0.1.0/raw/gibbons_test.jsonl",
+            "lifestage": "gs://esp-ml-datasets/beans-zero/v0.1.0/raw/lifestage_test.jsonl",
+            "call-type": "gs://esp-ml-datasets/beans-zero/v0.1.0/raw/call-type_test.jsonl",
+            "captioning": "gs://esp-ml-datasets/beans-zero/v0.1.0/raw/captioning_test.jsonl",
+            "zf-indiv": "gs://esp-ml-datasets/beans-zero/v0.1.0/raw/zf-indiv_test.jsonl",
+            "unseen-family-cmn": "gs://esp-ml-datasets/beans-zero/v0.1.0/raw/unseen-family-cmn_test.jsonl",
+            "unseen-family-sci": "gs://esp-ml-datasets/beans-zero/v0.1.0/raw/unseen-family-sci_test.jsonl",
+            "unseen-family-tax": "gs://esp-ml-datasets/beans-zero/v0.1.0/raw/unseen-family-tax_test.jsonl",
+            "unseen-genus-cmn": "gs://esp-ml-datasets/beans-zero/v0.1.0/raw/unseen-genus-cmn_test.jsonl",
+            "unseen-genus-sci": "gs://esp-ml-datasets/beans-zero/v0.1.0/raw/unseen-genus-sci_test.jsonl",
+            "unseen-genus-tax": "gs://esp-ml-datasets/beans-zero/v0.1.0/raw/unseen-genus-tax_test.jsonl",
+            "unseen-species-cmn": "gs://esp-ml-datasets/beans-zero/v0.1.0/raw/unseen-species-cmn_test.jsonl",
+            "unseen-species-sci": "gs://esp-ml-datasets/beans-zero/v0.1.0/raw/unseen-species-sci_test.jsonl",
+            "unseen-species-tax": "gs://esp-ml-datasets/beans-zero/v0.1.0/raw/unseen-species-tax_test.jsonl",
         },
         version="0.1.0",
-        description="iNaturalist audio dataset with taxonomic metadata. "
-        "Available at original (variable) sample rates and 32kHz (pre-resampled). "
-        "Pre-resampled audio uses librosa's kaiser_best resampling method.",
-        sources=["iNaturalist"],
-        license="CC BY",
+        description="BEANS-Zero benchmark dataset",
+        sources=[
+            "Xeno-canto",
+            "iNaturalist",
+            "Animal Sound Archive",
+            "Elie and Theunissen 2016",
+            "Beans",
+            "esc50",
+            "rfcx",
+            "CBI",
+            "HumBugDB",
+            "Enabirds",
+            "HICEAS",
+            "Watkins",
+            "Gibbons",
+            "DCASE-2021-Task-5",
+        ],
+        license="CC-BY-4.0, CC0",
     )
 
     # Mapping of sample rates to their corresponding path columns
     _sample_rate_paths = {
-        32000: "32khz_path",  # Pre-resampled to 32kHz
-        16000: "16khz_path",  # Pre-resampled to 16kHz
+        32000: "audio_path_32KHz",  # Pre-resampled to 32kHz with librosa.resample
+        16000: "audio_path_16KHz",  # Pre-resampled to 16kHz with librosa.resample
     }
 
     # Column name for original variable-rate audio files
-    _originals_path_column = "originals_path"
+    _originals_path_column = "audio_path_original_sample_rate"
 
     def __init__(
         self,
-        split: str = "train",
-        output_take_and_give: dict[str, str] = None,
+        split: str = "test",
+        output_take_and_give: dict[str, str] | None = None,
         sample_rate: int | None = None,
         data_root: str | AnyPathT | None = None,
         backend: BackendType = "polars",
         streaming: bool = False,
     ) -> None:
-        """Initialize the iNaturalist dataset.
+        """Initialize the BEANS dataset.
 
         Parameters
         ----------
-        split : str, default="train"
+        split : str
             The split to load. One of info.split_paths keys.
-        output_take_and_give : dict[str, str], optional
+        output_take_and_give : dict[str, str]
             A dictionary mapping the original column names to the new column names.
-        sample_rate : int, optional
-            The sample rate to which audio files should be resampled. If the requested
-            sample rate is available as pre-resampled audio (see `available_sample_rates`),
-            the pre-resampled version will be loaded directly. Otherwise, audio will be
-            resampled on-the-fly from the original files (at variable sample rates) using
-            librosa's kaiser_best method. If None, audio is returned at its original
-            (variable) sample rate.
+            It acts as a filter as well.
+        sample_rate : int
+            The sample rate to which audio files should be resampled.
         data_root : str | AnyPathT, optional
-            The root directory for the dataset. This is prepended to the local_path
-            column value to construct the full path to audio files. If None, defaults
-            to the GCS bucket path for this dataset.
+            The root directory for the dataset. This is optionally appended to the
+            path item of a sample in the dataset.
+            If None, the default is the parent directory of the split path.
         backend : BackendType, optional
             The backend to use ("pandas" or "polars"), by default "polars"
         streaming : bool, optional
@@ -144,12 +139,13 @@ class INaturalist(Dataset):
         """
         super().__init__(output_take_and_give, backend=backend, streaming=streaming)
         self.split = split
-        self._data = None
-        self._load()
+        self._data: pd.DataFrame = None
+        self._load()  # Load the dataset (fills self._data)
         self.sample_rate = sample_rate
+        self.data_root = data_root
 
         if data_root is None:
-            self.data_root = anypath("gs://esp-ml-datasets/inaturalist/v0.1.0/raw/")
+            self.data_root = anypath(self.info.split_paths[self.split]).parent
         else:
             self.data_root = data_root
 
@@ -191,22 +187,27 @@ class INaturalist(Dataset):
         """
         if self.split not in self.info.split_paths:
             raise LookupError(
-                f"Invalid split: {self.split}."
-                "Expected one of {list(self.info.split_paths.keys())}"
+                f"Invalid split: {self.split}.Expected one of {list(self.info.split_paths.keys())}"
             )
 
         location = self.info.split_paths[self.split]
-        # Read CSV directly from GCS path to avoid memory issues
-        self._data = self._backend_class.from_csv(location, streaming=self._streaming)
+        if anypath(location).suffix == ".jsonl":
+            # For JSONL files, read them directly into a DataFrame
+            self._data = self._backend_class.from_json(location, lines=True, orient="records")
+        else:
+            # Read CSV content
+            self._data = self._backend_class.from_csv(
+                location, keep_default_na=False, na_values=[""], null_values=[]
+            )  # This setting avoids setting 'None' to a pd.NA type
 
     @classmethod
-    def from_config(cls, dataset_config: DatasetConfig) -> tuple["INaturalist", dict[str, Any]]:
+    def from_config(cls, dataset_config: DatasetConfig) -> tuple["BeansZero", dict[str, Any]]:
         """Create a Dataset instance from a configuration dictionary.
 
         Parameters
         ----------
         dataset_config : DatasetConfig
-            Configuration dictionary containing dataset parameters.
+            Configuration dictionary containing dataset parametesf
 
         Returns
         -------
@@ -232,41 +233,7 @@ class INaturalist(Dataset):
 
         return ds, {}
 
-    def __len__(self) -> int:
-        """Return the number of samples in the dataset.
-
-        Returns
-        -------
-        int
-            Number of samples in the current split.
-
-        Raises
-        ------
-        RuntimeError
-            If no split has been loaded yet.
-        """
-        if self._data is None:
-            raise RuntimeError("No split has been loaded yet. Call _load() first.")
-        if self._streaming:
-            raise NotImplementedError(
-                "Length is not available in streaming mode. Iterate over the dataset instead."
-            )
-        return len(self._data)
-
     def _process(self, row: dict[str, Any]) -> dict[str, Any]:
-        """Process a single row of the dataset.
-
-        Parameters
-        ----------
-        row : dict[str, Any]
-            A dictionary representing a single row of the dataset.
-
-        Returns
-        -------
-        dict[str, Any]
-            The processed row.
-        """
-
         # Determine which path column to use based on requested sample rate
         # If a pre-resampled version is available, use it; otherwise resample on-the-fly
         use_presampled = False
@@ -310,9 +277,27 @@ class INaturalist(Dataset):
 
         return item
 
+    def __len__(self) -> int:
+        """Return the number of samples in the dataset.
+
+        Returns
+        -------
+        int
+            Number of samples in the current split.
+
+        Raises
+        ------
+        RuntimeError
+            If no split has been loaded yet.
+        """
+        if self._data is None:
+            raise RuntimeError("No split has been loaded yet. Call load() first.")
+        if self._streaming:
+            raise NotImplementedError("Length is not available in streaming mode.")
+        return len(self._data)
+
     def __getitem__(self, idx: int) -> dict[str, Any]:
         """Get a specific sample from the dataset.
-
         Parameters
         ----------
         idx : int
@@ -321,7 +306,7 @@ class INaturalist(Dataset):
         Returns
         -------
         dict[str, Any]
-            A dictionary containing the processed data.
+            A dictionary containing the data.
         """
         row = self._data[idx]
         return self._process(row)
@@ -346,7 +331,7 @@ class INaturalist(Dataset):
             A string representation of the dataset including its name, version,
             and basic statistics if data is loaded.
         """
-        base_info = f"{self.info.name} (v{self.info.version})"
+        base_info = f"{self.info.name} (v{self.info.version}), split: {self.split}"
 
         return (
             f"{base_info}\n"

@@ -202,10 +202,11 @@ def test_available_sample_rates(dataset_with_transforms_from_config: Dataset) ->
     if "32khz_path" in dataset_with_transforms_from_config.columns:
         assert 32000 in sample_rates
         print("✓ 32kHz pre-resampled audio is available")
-    else:
-        # Column doesn't exist yet, so no pre-resampled rates available
-        assert len(sample_rates) == 0
-        print("Note: 32khz_path column not yet available in metadata")
+
+    # Check that 16kHz (pre-resampled) is available if the column exists
+    if "16khz_path" in dataset_with_transforms_from_config.columns:
+        assert 16000 in sample_rates
+        print("✓ 16kHz pre-resampled audio is available")
 
     # Original files are at variable rates, not pre-resampled to any specific rate
     print(f"Available pre-resampled sample rates: {sample_rates}")

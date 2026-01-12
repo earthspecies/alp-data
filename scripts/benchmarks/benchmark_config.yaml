@@ -2,12 +2,12 @@ nfs:
   dataset:
     dataset_name: beans
     split: validation
-    sample_rate: 16000
+    sample_rate: 16000 # if you want to resample, keep this line and set to desired rate else remove this line to avoid resampling
     data_root: /home/milad_earthspecies_org/data-migration/marius-highmem/mnt/foundation-model-data/audio_16k/
 
 bucket:
   dataset:
     dataset_name: beans
     split: validation
-    sample_rate: 16000
+    sample_rate: 16000 # if you want to resample, keep this line and set to desired rate else remove this line to avoid resampling
     data_root: gs://esp-ml-datasets/beans/v0.1.0/raw/
