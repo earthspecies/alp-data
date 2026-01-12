@@ -13,8 +13,6 @@ from .subsample import Subsample, SubsampleConfig
 from .uniform_sample import UniformSample, UniformSampleConfig
 
 __all__ = [
-    "AudioLanguage",
-    "AudioLanguageConfig",
     "Filter",
     "FilterConfig",
     "LabelFromFeature",
@@ -29,4 +27,6 @@ __all__ = [
     "DeduplicateConfig",
     "register_transform",
     "transform_from_config",
+    "AudioLanguage",
+    "AudioLanguageConfig",
 ]
