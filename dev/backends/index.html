@@ -922,6 +922,15 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#esp_data.backends.protocol.DataBackend.histogram" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;histogram
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#esp_data.backends.protocol.DataBackend.map_column" class="md-nav__link">
     <span class="md-ellipsis">
       <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;map_column
@@ -979,6 +988,15 @@
   <a href="#esp_data.backends.protocol.DataBackend.subsample_by_column" class="md-nav__link">
     <span class="md-ellipsis">
       <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;subsample_by_column
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#esp_data.backends.protocol.DataBackend.upsample_by_column" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;upsample_by_column
     </span>
   </a>
   
@@ -1216,6 +1234,15 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#esp_data.backends.PandasBackend.histogram" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;histogram
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#esp_data.backends.PandasBackend.map_column" class="md-nav__link">
     <span class="md-ellipsis">
       <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;map_column
@@ -1264,6 +1291,15 @@
   <a href="#esp_data.backends.PandasBackend.subsample_by_column" class="md-nav__link">
     <span class="md-ellipsis">
       <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;subsample_by_column
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#esp_data.backends.PandasBackend.upsample_by_column" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;upsample_by_column
     </span>
   </a>
   
@@ -1474,6 +1510,15 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#esp_data.backends.PolarsBackend.histogram" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;histogram
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#esp_data.backends.PolarsBackend.iter_batches" class="md-nav__link">
     <span class="md-ellipsis">
       <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;iter_batches
@@ -1531,6 +1576,15 @@
   <a href="#esp_data.backends.PolarsBackend.subsample_by_column" class="md-nav__link">
     <span class="md-ellipsis">
       <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;subsample_by_column
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#esp_data.backends.PolarsBackend.upsample_by_column" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;upsample_by_column
     </span>
   </a>
   
@@ -3083,6 +3137,78 @@ If None, check all columns, by default None</p>
 <div class="doc doc-object doc-function">
 
 
+<h3 id="esp_data.backends.protocol.DataBackend.histogram" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <code class="highlight language-python"><span class="n">histogram</span><span class="p">(</span><span class="n">column</span><span class="p">)</span></code>
+
+</h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Get value counts (histogram) for a column.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>column</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Column name</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="dict">dict</span>[<span title="typing.Any">Any</span>, <span title="int">int</span>]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Dictionary mapping unique values to their counts (nulls excluded)</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
 <h3 id="esp_data.backends.protocol.DataBackend.map_column" class="doc doc-heading">
 <code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <code class="highlight language-python"><span class="n">map_column</span><span class="p">(</span><span class="n">column</span><span class="p">,</span> <span class="n">mapping</span><span class="p">,</span> <span class="n">output_column</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
 
@@ -3603,6 +3729,8 @@ If None, check all columns, by default None</p>
         <p>Subsample rows by column values with specified ratios.</p>
 <p>For each unique value in the column, sample the specified ratio of rows.
 Special key "other" can be used to subsample all values not explicitly listed.</p>
+<p>Note: The "other" key pools all unlisted values together and samples from
+the pooled group, rather than applying the ratio per unlisted category.</p>
 
 
 <p><span class="doc-section-title">Parameters:</span></p>
@@ -3642,7 +3770,7 @@ Special key "other" can be used to subsample all values not explicitly listed.</
             <td>
               <div class="doc-md-description">
                 <p>Dictionary mapping column values to sampling ratios (0.0 to 1.0).
-Special key "other" applies to all unlisted values.</p>
+Special key "other" applies to all unlisted values (pooled together).</p>
               </div>
             </td>
             <td>
@@ -3685,6 +3813,183 @@ Special key "other" applies to all unlisted values.</p>
             <td>
               <div class="doc-md-description">
                 <p>New backend with subsampled rows</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+<p><span class="doc-section-title">Raises:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="KeyError">KeyError</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If the specified column does not exist in the DataFrame</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="ValueError">ValueError</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If any ratio is negative or greater than 1.0</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="esp_data.backends.protocol.DataBackend.upsample_by_column" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <code class="highlight language-python"><span class="n">upsample_by_column</span><span class="p">(</span><span class="n">column</span><span class="p">,</span> <span class="n">target_counts</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">42</span><span class="p">)</span></code>
+
+</h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Upsample rows by column values to target counts with replacement.</p>
+<p>For each unique value in the column, sample rows with replacement to reach
+the target count. If a category already has more rows than the target, it will
+be downsampled (without replacement) to the target count.</p>
+<p>Note: The "other" key pools all unlisted values together and samples from
+the pooled group to reach the target count, rather than applying the target
+per unlisted category.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>column</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Column name to group by</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>target_counts</code>
+            </td>
+            <td>
+                  <code><span title="dict">dict</span>[<span title="str">str</span>, <span title="int">int</span>]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Dictionary mapping column values to target sample counts.
+Special key "other" applies to all unlisted values (pooled together).</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>seed</code>
+            </td>
+            <td>
+                  <code><span title="int">int</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Random seed for reproducibility, by default 42</p>
+              </div>
+            </td>
+            <td>
+                  <code>42</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><a class="autorefs autorefs-internal" title="            esp_data.backends.protocol.DataBackend" href="#esp_data.backends.protocol.DataBackend">DataBackend</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>New backend with upsampled/downsampled rows</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+<p><span class="doc-section-title">Raises:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="KeyError">KeyError</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If the specified column does not exist in the DataFrame</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="ValueError">ValueError</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If any target count is negative</p>
               </div>
             </td>
           </tr>
@@ -5844,6 +6149,78 @@ Consider using polars backend for large parquet files.</p>
 <div class="doc doc-object doc-function">
 
 
+<h3 id="esp_data.backends.PandasBackend.histogram" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <code class="highlight language-python"><span class="n">histogram</span><span class="p">(</span><span class="n">column</span><span class="p">)</span></code>
+
+</h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Get value counts (histogram) for a column.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>column</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Column name</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="dict">dict</span>[<span title="typing.Any">Any</span>, <span title="int">int</span>]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Dictionary mapping unique values to their counts (nulls excluded)</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
 <h3 id="esp_data.backends.PandasBackend.map_column" class="doc doc-heading">
 <code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <code class="highlight language-python"><span class="n">map_column</span><span class="p">(</span><span class="n">column</span><span class="p">,</span> <span class="n">mapping</span><span class="p">,</span> <span class="n">output_column</span><span class="p">)</span></code>
 
@@ -6334,6 +6711,8 @@ If False, rows with no labels will be dropped. Default is False.</p>
         <p>Subsample rows by column values with specified ratios.</p>
 <p>For each unique value in the column, sample the specified ratio of rows.
 Special key "other" can be used to subsample all values not explicitly listed.</p>
+<p>Note: The "other" key pools all unlisted values together and samples from
+the pooled group, rather than applying the ratio per unlisted category.</p>
 
 
 <p><span class="doc-section-title">Parameters:</span></p>
@@ -6373,7 +6752,7 @@ Special key "other" can be used to subsample all values not explicitly listed.</
             <td>
               <div class="doc-md-description">
                 <p>Dictionary mapping column values to sampling ratios (0.0 to 1.0).
-Special key "other" applies to all unlisted values.</p>
+Special key "other" applies to all unlisted values (pooled together).</p>
               </div>
             </td>
             <td>
@@ -6416,6 +6795,193 @@ Special key "other" applies to all unlisted values.</p>
             <td>
               <div class="doc-md-description">
                 <p>New backend with subsampled rows</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+<p><span class="doc-section-title">Raises:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="KeyError">KeyError</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If the specified column does not exist in the DataFrame</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="ValueError">ValueError</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If any ratio is negative or greater than 1.0</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="esp_data.backends.PandasBackend.upsample_by_column" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <code class="highlight language-python"><span class="n">upsample_by_column</span><span class="p">(</span><span class="n">column</span><span class="p">,</span> <span class="n">target_counts</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">42</span><span class="p">)</span></code>
+
+</h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Upsample rows by column values to target counts with replacement.</p>
+<p>For each unique value in the column, sample rows with replacement to reach
+the target count. If a category already has more rows than the target, it will
+be downsampled (without replacement) to the target count.</p>
+<p>Note: The "other" key pools all unlisted values together and samples from
+the pooled group to reach the target count, rather than applying the target
+per unlisted category.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>column</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Column name to group by</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>target_counts</code>
+            </td>
+            <td>
+                  <code><span title="dict">dict</span>[<span title="str">str</span>, <span title="int">int</span>]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Dictionary mapping column values to target sample counts.
+Special key "other" applies to all unlisted values (pooled together).</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>seed</code>
+            </td>
+            <td>
+                  <code><span title="int">int</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Random seed for reproducibility, by default 42</p>
+              </div>
+            </td>
+            <td>
+                  <code>42</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><a class="autorefs autorefs-internal" title="            esp_data.backends.PandasBackend (esp_data.backends.pandas_backend.PandasBackend)" href="#esp_data.backends.PandasBackend">PandasBackend</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>New backend with upsampled/downsampled rows</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+<p><span class="doc-section-title">Raises:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="KeyError">KeyError</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If the specified column does not exist in the DataFrame</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="ValueError">ValueError</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If any target count is negative</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="TypeError">TypeError</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If any target count is not an integer</p>
               </div>
             </td>
           </tr>
@@ -8137,6 +8703,78 @@ Call <code>.collect()</code> to materialize the filtered result into an eager ba
 <div class="doc doc-object doc-function">
 
 
+<h3 id="esp_data.backends.PolarsBackend.histogram" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <code class="highlight language-python"><span class="n">histogram</span><span class="p">(</span><span class="n">column</span><span class="p">)</span></code>
+
+</h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Get value counts (histogram) for a column.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>column</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Column name</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="dict">dict</span>[<span title="typing.Any">Any</span>, <span title="int">int</span>]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Dictionary mapping unique values to their counts (nulls excluded)</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
 <h3 id="esp_data.backends.PolarsBackend.iter_batches" class="doc doc-heading">
 <code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <code class="highlight language-python"><span class="n">iter_batches</span><span class="p">(</span><span class="n">batch_size</span><span class="o">=</span><span class="mi">1000</span><span class="p">)</span></code>
 
@@ -8744,6 +9382,10 @@ If False, rows with no labels will be dropped. Default is True.</p>
         <p>Subsample rows by column values with specified ratios.</p>
 <p>For each unique value in the column, sample the specified ratio of rows.
 Special key "other" can be used to subsample all values not explicitly listed.</p>
+<p>If the backend is in streaming mode, a UserWarning will be issued and the
+LazyFrame will be collected since sampling requires materialization.</p>
+<p>Note: The "other" key pools all unlisted values together and samples from
+the pooled group, rather than applying the ratio per unlisted category.</p>
 
 
 <p><span class="doc-section-title">Parameters:</span></p>
@@ -8783,7 +9425,7 @@ Special key "other" can be used to subsample all values not explicitly listed.</
             <td>
               <div class="doc-md-description">
                 <p>Dictionary mapping column values to sampling ratios (0.0 to 1.0).
-Special key "other" applies to all unlisted values.</p>
+Special key "other" applies to all unlisted values (pooled together).</p>
               </div>
             </td>
             <td>
@@ -8833,12 +9475,194 @@ Special key "other" applies to all unlisted values.</p>
     </table>
 
 
-<details class="warning" open>
-  <summary>Warnings</summary>
-  <p>UserWarning
-    If backend is in streaming mode, warns that LazyFrame will be collected
-    since sampling requires materialization.</p>
-</details>
+<p><span class="doc-section-title">Raises:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="KeyError">KeyError</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If the specified column does not exist in the DataFrame</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="ValueError">ValueError</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If any ratio is negative or greater than 1.0</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="esp_data.backends.PolarsBackend.upsample_by_column" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <code class="highlight language-python"><span class="n">upsample_by_column</span><span class="p">(</span><span class="n">column</span><span class="p">,</span> <span class="n">target_counts</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">42</span><span class="p">)</span></code>
+
+</h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Upsample rows by column values to target counts with replacement.</p>
+<p>For each unique value in the column, sample rows with replacement to reach
+the target count. If a category already has more rows than the target, it will
+be downsampled (without replacement) to the target count.</p>
+<p>If the backend is in streaming mode, a UserWarning will be issued and the
+LazyFrame will be collected since sampling requires materialization.</p>
+<p>Note: The "other" key pools all unlisted values together and samples from
+the pooled group to reach the target count, rather than applying the target
+per unlisted category.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>column</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Column name to group by</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>target_counts</code>
+            </td>
+            <td>
+                  <code><span title="dict">dict</span>[<span title="str">str</span>, <span title="int">int</span>]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Dictionary mapping column values to target sample counts.
+Special key "other" applies to all unlisted values (pooled together).</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>seed</code>
+            </td>
+            <td>
+                  <code><span title="int">int</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Random seed for reproducibility, by default 42</p>
+              </div>
+            </td>
+            <td>
+                  <code>42</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><a class="autorefs autorefs-internal" title="            esp_data.backends.PolarsBackend (esp_data.backends.polars_backend.PolarsBackend)" href="#esp_data.backends.PolarsBackend">PolarsBackend</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>New backend with upsampled/downsampled rows</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+<p><span class="doc-section-title">Raises:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="KeyError">KeyError</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If the specified column does not exist in the DataFrame</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="ValueError">ValueError</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If any target count is negative</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="TypeError">TypeError</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If any target count is not an integer</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
 
     </div>
 
