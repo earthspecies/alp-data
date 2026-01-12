@@ -16,9 +16,11 @@ from typing import Dict
 
 import numpy as np
 import pandas as pd
-import requests
+from taxonomy.gbif_converter import GBIFConverter
 
 from esp_data.io import anypath, audio_stereo_to_mono, read_audio
+
+converter = GBIFConverter()
 
 ANNOTATION_INFO_FP = "gs://fewshot/evaluation/raw/Powdermill/powdermill_species.csv"
 anno_info = pd.read_csv(ANNOTATION_INFO_FP)
@@ -31,10 +33,9 @@ DEFAULT_ANNO = "Species"
 ANNOTATION_COLUMNS = ["Species"]  # default_anno needs to be last
 
 
-def _taxonomy_lookup(species_name: str, base_url: str | None) -> Dict[str, str]:
+def _taxonomy_lookup(species_name: str) -> Dict[str, str]:
     """
     Return a dict with keys: species
-    If base_url is None, returns empty values (identity mapping).
 
     Returns
     --------
@@ -42,34 +43,20 @@ def _taxonomy_lookup(species_name: str, base_url: str | None) -> Dict[str, str]:
     """
     species_name = SPECIES_LABEL_FIX.get(species_name, species_name)
 
-    if not base_url:
-        # Best-effort local mapping only for Species; leave others blank
-        return {
-            "species": species_name,
-        }
+    species_info, matched = converter(species_name)
 
-    r = requests.get(f"{base_url}/taxonomy/{species_name}")
-    if r.status_code != 200:
-        breakpoint()
-        return {
-            "species": species_name,
-        }
-    j = r.json()
-    inferred_g = j["genus"]
-    input_g = species_name.split(" ")[0]
-    if inferred_g != input_g:
-        breakpoint()
-    return {
-        "species": species_name,
-    }
+    if not matched:
+        print(species_name)
+        return {"species": species_name}
+
+    return {"species": species_info["canonicalName"]}
 
 
 def build_label_mapping(
     df: pd.DataFrame,
-    taxonomy_api_url: str | None = None,
 ) -> Dict[str, Dict[str, str]]:
     """
-    Build a mapping from default Species → GBIF Species.
+    Build a mapping from default Species → {Species}.
 
     Returns
     -----------
@@ -85,10 +72,10 @@ def build_label_mapping(
     label_mappings: Dict[str, Dict[str, str]] = {k: {} for k in ANNOTATION_COLUMNS}
 
     for i, sp in enumerate(sorted(species)):
-        if i % 10 == 0:
+        if i % 100 == 0:
             print(f"{i} / {len(species)}")
 
-        info = _taxonomy_lookup(sp, taxonomy_api_url)
+        info = _taxonomy_lookup(sp)
         # Species (possibly corrected)
         label_mappings["Species"][sp] = info["species"]
 
@@ -164,6 +151,28 @@ def iterate_qc(
                 {"idx": i, "audio_path": row.get("audio_path", ""), "issue": "events_after_audio"}
             )
 
+        species_in_st = list(st["Species"].unique())
+        for species in species_in_st:
+            if species == "Unknown":
+                continue
+            speciesinfo, success = converter(species)
+            if not success:
+                problems.append(
+                    {
+                        "idx": i,
+                        "audio_path": row.get("audio_path", ""),
+                        "issue": f"unrecognized species {species}",
+                    }
+                )
+            if not speciesinfo["canonicalName"] == species:
+                problems.append(
+                    {
+                        "idx": i,
+                        "audio_path": row.get("audio_path", ""),
+                        "issue": f"non-gbif species {species}",
+                    }
+                )
+
     return pd.DataFrame(problems)
 
 
@@ -202,7 +211,6 @@ def main() -> None:
         default="gs://fewshot/evaluation/raw/Powdermill/all_gbif.csv",
         help="Directory to write outputs",
     )
-    p.add_argument("--taxonomy-api-url", default="http://gagan-dev:8000")
     args = p.parse_args()
     data_root = anypath(args.split_csv).parent
 
@@ -210,7 +218,7 @@ def main() -> None:
 
     # 1) Build label mappings and update selection tables
     print("Building label mappings")
-    label_mappings = build_label_mapping(df, args.taxonomy_api_url)
+    label_mappings = build_label_mapping(df)
 
     df["selection_table"] = df["selection_table"].map(lambda x: update_st(x, label_mappings))
 

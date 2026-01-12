@@ -3,12 +3,13 @@ from io import StringIO
 
 import numpy as np
 import pandas as pd
-import requests
+from taxonomy.gbif_converter import GBIFConverter
 
 from esp_data.io import anypath, audio_stereo_to_mono, filesystem, read_audio
 
+converter = GBIFConverter()
+
 TARGET_FP = "gs://esp-ml-datasets/hawaiian_birds/all.csv"
-BASE_URL = "http://gagan-dev:8000"
 
 fs = filesystem("gcs")  # "gs" also works as an alias
 
@@ -26,17 +27,17 @@ for _, row in species_info.iterrows():
     if species_name == "Drepanis coccinea":
         species_name = "Vestiaria coccinea"
 
-    # check if species name is in gbif
-    r = requests.get(f"{BASE_URL}/taxonomy/{species_name}")
-    if r.status_code != 200:
-        print(species_name)
-        breakpoint()
-    j = r.json()
-    inferred_g = j["genus"]
-    input_g = species_name.split(" ")[0]
-    if inferred_g != input_g:
-        print("wrong genus")
-        breakpoint()
+    # # check if species name is in gbif
+    # r = requests.get(f"{BASE_URL}/taxonomy/{species_name}")
+    # if r.status_code != 200:
+    #     print(species_name)
+    #     breakpoint()
+    # j = r.json()
+    # inferred_g = j["genus"]
+    # input_g = species_name.split(" ")[0]
+    # if inferred_g != input_g:
+    #     print("wrong genus")
+    #     breakpoint()
 
     species_label_correction[row["Species eBird Code"]] = species_name
 
@@ -57,6 +58,27 @@ for audio_fn in audio_fns:
     )
     st["Begin Time (s)"] = st["Start Time (s)"]
     st["Species"] = st["Species eBird Code"].map(lambda x: species_label_correction[x])
+
+    labels_present = sorted(st["Species"].unique())
+    species_label_correction_part2 = {}
+
+    for species_name in labels_present:
+        if species_name == "Unknown":
+            species_label_correction_part2[species_name] = species_name
+            continue
+
+        # check if species name is in gbif
+        species_info, matched = converter(species_name)
+
+        if not matched:
+            print(species_name)
+            species_label_correction_part2[species_name] = species_name
+
+        else:
+            species_label_correction_part2[species_name] = species_info["canonicalName"]
+
+    st["Species"].map(species_label_correction_part2)
+
     st = st[["Begin Time (s)", "End Time (s)", "Species"]]
 
     info["selection_table"].append(st.to_csv(sep="\t", index=False))
@@ -138,6 +160,28 @@ def iterate_qc(
                 {"idx": i, "audio_path": row.get("audio_path", ""), "issue": "events_after_audio"}
             )
 
+        species_in_st = list(st["Species"].unique())
+        for species in species_in_st:
+            if species == "Unknown":
+                continue
+            speciesinfo, success = converter(species)
+            if not success:
+                problems.append(
+                    {
+                        "idx": i,
+                        "audio_path": row.get("audio_path", ""),
+                        "issue": f"unrecognized species {species}",
+                    }
+                )
+            if not speciesinfo["canonicalName"] == species:
+                problems.append(
+                    {
+                        "idx": i,
+                        "audio_path": row.get("audio_path", ""),
+                        "issue": f"non-gbif species {species}",
+                    }
+                )
+
     return pd.DataFrame(problems)
 
 
@@ -146,6 +190,6 @@ print("QC")
 df = pd.read_csv(TARGET_FP)
 data_root = anypath(TARGET_FP).parent
 qc_df = iterate_qc(df, data_root)
-qc_fp = "anuraset_strong_qc_report.csv"
+qc_fp = "hawaii_strong_qc_report.csv"
 qc_df.to_csv(qc_fp, index=False)
 print(f"Wrote QC report with {len(qc_df)} issues to: {qc_fp}")

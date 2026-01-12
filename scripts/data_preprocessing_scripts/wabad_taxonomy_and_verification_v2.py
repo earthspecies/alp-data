@@ -17,7 +17,7 @@ from typing import Dict
 
 import numpy as np
 import pandas as pd
-import requests
+from taxonomy.gbif_converter import GBIFConverter
 
 from esp_data.io import anypath, audio_stereo_to_mono, read_audio
 
@@ -35,16 +35,20 @@ SPECIES_LABEL_FIX = {
     "Streptopelia senegalensis": "Spilopelia senegalensis",
     "Telophorus multicolor": "Chlorophoneus multicolor",
     "Cercomacroides tyrannina": "Cercomacra tyrannina",
+    "Amazona mercenarius": "Amazona mercenaria",
+    "Dicrurus divaricatus": "Dicrurus adsimilis",
+    "Phylloscopus sibilatrix": "Phylloscopus sibillatrix",
 }
 
 ANNOTATION_COLUMNS = ["Species"]  # ["Genus", "Family", "Order", "Common", "Species"]
 DEFAULT_ANNO = "Species"
 
+converter = GBIFConverter()
 
-def _taxonomy_lookup(species_name: str, base_url: str | None) -> Dict[str, str]:
+
+def _taxonomy_lookup(species_name: str) -> Dict[str, str]:
     """
     Return a dict with keys: species
-    If base_url is None, returns empty values (identity mapping).
 
     Returns
     --------
@@ -52,43 +56,17 @@ def _taxonomy_lookup(species_name: str, base_url: str | None) -> Dict[str, str]:
     """
     species_name = SPECIES_LABEL_FIX.get(species_name, species_name)
 
-    if not base_url:
-        # Best-effort local mapping only for Species; leave others blank
-        return {
-            "genus": "",
-            "family": "",
-            "order": "",
-            "species_common": "",
-            "species": species_name,
-        }
+    species_info, matched = converter(species_name)
 
-    r = requests.get(f"{base_url}/taxonomy/{species_name}")
-    if r.status_code != 200:
-        breakpoint()
-        return {
-            "genus": "",
-            "family": "",
-            "order": "",
-            "species_common": "",
-            "species": species_name,
-        }
-    j = r.json()
-    # inferred_g = j["genus"]
-    # input_g = species_name.split(" ")[0]
-    # if inferred_g != input_g:
-    #     breakpoint()
-    return {
-        "genus": j.get("genus", "") or "",
-        "family": j.get("family", "") or "",
-        "order": j.get("order", "") or "",
-        "species_common": j.get("species_common", "") or "",
-        "species": species_name,
-    }
+    if not matched:
+        print(species_name)
+        return {"species": species_name}
+
+    return {"species": species_info["canonicalName"]}
 
 
 def build_label_mapping(
     df: pd.DataFrame,
-    taxonomy_api_url: str | None = None,
 ) -> Dict[str, Dict[str, str]]:
     """
     Build a mapping from default Species → {Species}.
@@ -110,16 +88,9 @@ def build_label_mapping(
         if i % 100 == 0:
             print(f"{i} / {len(species)}")
 
-        info = _taxonomy_lookup(sp, taxonomy_api_url)
+        info = _taxonomy_lookup(sp)
         # Species (possibly corrected)
         label_mappings["Species"][sp] = info["species"]
-        # # Hierarchy fields
-        # label_mappings["Genus"][sp] = info["genus"]
-        # label_mappings["Family"][sp] = info["family"]
-        # label_mappings["Order"][sp] = info["order"]
-        # label_mappings["Common"][sp] = (
-        #     "" if info["species_common"] is None else info["species_common"]
-        # )
 
     return label_mappings
 
@@ -179,6 +150,28 @@ def iterate_qc(
                 {"idx": i, "audio_fp": row.get("audio_fp", ""), "issue": "events_after_audio"}
             )
 
+        species_in_st = list(st["Species"].unique())
+        for species in species_in_st:
+            if species == "Unknown":
+                continue
+            speciesinfo, success = converter(species)
+            if not success:
+                problems.append(
+                    {
+                        "idx": i,
+                        "audio_path": row.get("audio_path", ""),
+                        "issue": f"unrecognized species {species}",
+                    }
+                )
+            if not speciesinfo["canonicalName"] == species:
+                problems.append(
+                    {
+                        "idx": i,
+                        "audio_path": row.get("audio_path", ""),
+                        "issue": f"non-gbif species {species}",
+                    }
+                )
+
     return pd.DataFrame(problems)
 
 
@@ -224,7 +217,6 @@ def main() -> None:
         default="gs://esp-ml-datasets/wabad/v0.1.0/raw/all_info_gbif.csv",
         help="Directory to write outputs",
     )
-    p.add_argument("--taxonomy-api-url", default="http://gagan-dev:8000")
     args = p.parse_args()
     data_root = anypath(args.split_csv).parent
 
@@ -232,7 +224,7 @@ def main() -> None:
 
     # 1) Build label mappings
     print("Building label mappings")
-    label_mappings = build_label_mapping(df, args.taxonomy_api_url)
+    label_mappings = build_label_mapping(df)
 
     df["selection_table"] = df.apply(lambda x: update_st(x, label_mappings), axis=1)
     df = df.drop(columns=["selection_table_str"])
@@ -254,6 +246,10 @@ def main() -> None:
     for col in ["Species"]:
         unique_labels = sorted(set(label_mappings[col].values()))
         print(f"{col}: {len(unique_labels)} unique labels")
+
+    # save species list
+    pd.DataFrame({"Species": unique_labels}).to_csv("gbif_labels.csv", index=False)
+    os.system("gsutil cp gbif_labels.csv gs://esp-ml-datasets/wabad/v0.1.0/raw/gbif_labels.csv")
 
 
 if __name__ == "__main__":

@@ -3,12 +3,13 @@ from io import StringIO
 
 import numpy as np
 import pandas as pd
-import requests
+from taxonomy.gbif_converter import GBIFConverter
 
 from esp_data.io import anypath, audio_stereo_to_mono, filesystem, read_audio
 
+converter = GBIFConverter()
+
 DATA_DIR = "gs://esp-ml-datasets/birdeep"
-BASE_URL = "http://gagan-dev:8000"
 
 fs = filesystem("gcs")  # "gs" also works as an alias
 
@@ -82,6 +83,28 @@ def iterate_qc(
                 {"idx": i, "audio_path": row.get("audio_path", ""), "issue": "events_after_audio"}
             )
 
+        species_in_st = list(st["Species"].unique())
+        for species in species_in_st:
+            if species == "Unknown":
+                continue
+            speciesinfo, success = converter(species)
+            if not success:
+                problems.append(
+                    {
+                        "idx": i,
+                        "audio_path": row.get("audio_path", ""),
+                        "issue": f"unrecognized species {species}",
+                    }
+                )
+            if not speciesinfo["canonicalName"] == species:
+                problems.append(
+                    {
+                        "idx": i,
+                        "audio_path": row.get("audio_path", ""),
+                        "issue": f"non-gbif species {species}",
+                    }
+                )
+
     return pd.DataFrame(problems)
 
 
@@ -111,23 +134,30 @@ for split in ["train", "val", "test", "all"]:
 
     anno = anno[~anno["specie"].isin(anno_to_drop)].reset_index(drop=True)
 
+    # create species_label_correction
+
     anno["specie"] = anno["specie"].map(lambda x: species_label_correction.get(x, x))
     labels_present = sorted(anno["specie"].unique())
 
+    species_label_correction_part2 = {}
+
     for species_name in labels_present:
         if species_name == "Unknown":
+            species_label_correction_part2[species_name] = species_name
             continue
+
         # check if species name is in gbif
-        r = requests.get(f"{BASE_URL}/taxonomy/{species_name}")
-        if r.status_code != 200:
+        species_info, matched = converter(species_name)
+
+        if not matched:
             print(species_name)
-            breakpoint()
-        j = r.json()
-        inferred_g = j["genus"]
-        input_g = species_name.split(" ")[0]
-        if inferred_g != input_g:
-            print("wrong genus")
-            breakpoint()
+            species_label_correction_part2[species_name] = species_name
+
+        else:
+            species_label_correction_part2[species_name] = species_info["canonicalName"]
+
+    anno["specie"].map(species_label_correction_part2)
+    print(anno["specie"].unique())
 
     info = {"audio_file_name": [], "audio_path": [], "selection_table": []}
 

@@ -3,12 +3,13 @@ from io import StringIO
 
 import numpy as np
 import pandas as pd
-import requests
+from taxonomy.gbif_converter import GBIFConverter
 
 from esp_data.io import anypath, audio_stereo_to_mono, filesystem, read_audio
 
 DATA_DIR = "gs://esp-ml-datasets/nocturnal_bird_migration"
-BASE_URL = "http://gagan-dev:8000"
+# BASE_URL = "http://gagan-dev:8000"
+converter = GBIFConverter()
 
 fs = filesystem("gcs")  # "gs" also works as an alias
 
@@ -221,6 +222,28 @@ def iterate_qc(
                 {"idx": i, "audio_path": row.get("audio_path", ""), "issue": "events of dur <= 0"}
             )
 
+        species_in_st = list(st["Species"].unique())
+        for species in species_in_st:
+            if species == "Unknown":
+                continue
+            speciesinfo, success = converter(species)
+            if not success:
+                problems.append(
+                    {
+                        "idx": i,
+                        "audio_path": row.get("audio_path", ""),
+                        "issue": f"unrecognized species {species}",
+                    }
+                )
+            if not speciesinfo["canonicalName"] == species:
+                problems.append(
+                    {
+                        "idx": i,
+                        "audio_path": row.get("audio_path", ""),
+                        "issue": f"non-gbif species {species}",
+                    }
+                )
+
     return pd.DataFrame(problems)
 
 
@@ -352,7 +375,6 @@ anno_to_drop = [
     "Autre anthropophonie",
     "parasite",
     "Autre biophonie Grillon",
-    "chant Luscinia megarhynchos",
     "Autre bizarrophonie je sais pas d'où vient ce"  # codespell:ignore
     + " fond en forme de vague ds les hautes freq...",  # codespell:ignore
     "Autre biophonie chat grognement",
@@ -381,8 +403,12 @@ anno_to_drop = [
     "Alytes obstetricans",
     "Oecanthus pellucens",
     "Pelophylax sp.",
+    "Burhinus burhinus",
+    "Bernicla bernicla",
 ]
 species_label_correction = {
+    "Anas platyrhyncos": "Anas platyrhynchos",
+    "Emberiza ortulana": "Emberiza hortulana",
     "Otusscops": "Otus scops",
     "Stix aluco": "Strix aluco",
     "Ardea nycticorax": "Nycticorax nycticorax",
@@ -391,8 +417,12 @@ species_label_correction = {
     "tachybaptus ruficollis": "Tachybaptus ruficollis",
     "Philloscopus collybita": "Phylloscopus collybita",
     "Numenius arquata XC570503": "Numenius arquata",
-    "Anas platyrhycos": "Anas platyrhyncos",
+    "Anas platyrhycos": "Anas platyrhynchos",
     "Melanitta nigrab": "Melanitta nigra",
+    "Motacilla alba*": "Motacilla alba",
+    "Turdus philomelus": "Turdus philomelos",
+    "Luscinia megarynchos": "Luscinia megarhynchos",
+    "chant Luscinia megarhynchos": "Luscinia megarhynchos",
 }
 
 for unk in unknowns:
@@ -433,6 +463,26 @@ for split in ["train", "train_nonxc", "train_xc", "test"]:
 
         st["Species"] = st["Species"].map(lambda x: species_label_correction.get(x, x))
         st["Species"] = st["Species"].map(lambda x: " ".join(x.split(" ")[:2]))  # remove subspecies
+        st["Species"] = st["Species"].map(lambda x: species_label_correction.get(x, x))
+
+        labels_present = st["Species"].unique()
+        species_label_correction_part2 = {}
+
+        for species_name in labels_present:
+            if species_name == "Unknown":
+                species_label_correction_part2[species_name] = species_name
+                continue
+            # check if species name is in gbif
+            species_info, matched = converter(species_name)
+
+            if not matched:
+                print(species_name)
+                species_label_correction_part2[species_name] = species_name
+
+            else:
+                species_label_correction_part2[species_name] = species_info["canonicalName"]
+
+        st["Species"].map(species_label_correction_part2)
 
         info["audio_file_name"].append(os.path.basename(audio_fp))
         info["audio_path"].append(audio_fp.split("nocturnal_bird_migration/")[-1])
@@ -457,18 +507,12 @@ for split in ["train", "train_nonxc", "train_xc", "test"]:
         if species_name == "Unknown":
             continue
         # check if species name is in gbif
-        r = requests.get(f"{BASE_URL}/taxonomy/{species_name}")
-        if r.status_code != 200:
+        species_info, matched = converter(species_name)
+
+        if not matched:
             print(species_name)
-            # errors.append(species_name)
-            # breakpoint()
         else:
-            j = r.json()
-            inferred_g = j["genus"]
-            input_g = species_name.split(" ")[0]
-            if inferred_g != input_g:
-                print("wrong genus")
-                breakpoint()
+            species_name = species_info["canonicalName"]
     print(errors)
 
     info = pd.DataFrame(info)

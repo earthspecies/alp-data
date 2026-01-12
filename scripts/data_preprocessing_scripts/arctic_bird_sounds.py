@@ -3,12 +3,13 @@ from io import StringIO
 
 import numpy as np
 import pandas as pd
-import requests
+from taxonomy.gbif_converter import GBIFConverter
 
 from esp_data.io import anypath, audio_stereo_to_mono, filesystem, read_audio
 
+converter = GBIFConverter()
+
 DATA_DIR = "gs://esp-ml-datasets/arctic_bird_sounds"
-BASE_URL = "http://gagan-dev:8000"
 
 fs = filesystem("gcs")  # "gs" also works as an alias
 
@@ -86,6 +87,28 @@ def iterate_qc(
             problems.append(
                 {"idx": i, "audio_path": row.get("audio_path", ""), "issue": "events of dur <= 0"}
             )
+
+        species_in_st = list(st["Species"].unique())
+        for species in species_in_st:
+            if species == "Unknown":
+                continue
+            speciesinfo, success = converter(species)
+            if not success:
+                problems.append(
+                    {
+                        "idx": i,
+                        "audio_path": row.get("audio_path", ""),
+                        "issue": f"unrecognized species {species}",
+                    }
+                )
+            if not speciesinfo["canonicalName"] == species:
+                problems.append(
+                    {
+                        "idx": i,
+                        "audio_path": row.get("audio_path", ""),
+                        "issue": f"non-gbif species {species}",
+                    }
+                )
 
     return pd.DataFrame(problems)
 
@@ -178,6 +201,26 @@ for split in ["all"]:
         st["Species"] = st["Species"].map(lambda x: species_label_correction.get(x, x))
         st["Species"] = st["Species"].map(lambda x: " ".join(x.split(" ")[:2]))  # remove subspecies
 
+        labels_present = sorted(st["Species"].unique())
+        species_label_correction_part2 = {}
+
+        for species_name in labels_present:
+            if species_name == "Unknown":
+                species_label_correction_part2[species_name] = species_name
+                continue
+
+            # check if species name is in gbif
+            species_info, matched = converter(species_name)
+
+            if not matched:
+                print(species_name)
+                species_label_correction_part2[species_name] = species_name
+
+            else:
+                species_label_correction_part2[species_name] = species_info["canonicalName"]
+
+        st["Species"].map(species_label_correction_part2)
+
         info["audio_file_name"].append(os.path.basename(audio_fp))
         info["audio_path"].append(audio_fp.split("arctic_bird_sounds/")[-1])
         info["selection_table"].append(st.to_csv(sep="\t", index=False))
@@ -189,24 +232,24 @@ for split in ["all"]:
         labels_present.update(set(st["Species"].unique()))
 
     print(labels_present)
-    errors = []
-    for species_name in labels_present:
-        if species_name == "Unknown":
-            continue
-        # check if species name is in gbif
-        r = requests.get(f"{BASE_URL}/taxonomy/{species_name}")
-        if r.status_code != 200:
-            print(species_name)
-            errors.append(species_name)
-            # breakpoint()
-        else:
-            j = r.json()
-            inferred_g = j["genus"]
-            input_g = species_name.split(" ")[0]
-            if inferred_g != input_g:
-                print("wrong genus")
-                breakpoint()
-    print(errors)
+    # errors = []
+    # for species_name in labels_present:
+    #     if species_name == "Unknown":
+    #         continue
+    #     # check if species name is in gbif
+    #     r = requests.get(f"{BASE_URL}/taxonomy/{species_name}")
+    #     if r.status_code != 200:
+    #         print(species_name)
+    #         errors.append(species_name)
+    #         # breakpoint()
+    #     else:
+    #         j = r.json()
+    #         inferred_g = j["genus"]
+    #         input_g = species_name.split(" ")[0]
+    #         if inferred_g != input_g:
+    #             print("wrong genus")
+    #             breakpoint()
+    # print(errors)
 
     info = pd.DataFrame(info)
     info.to_csv(f"{split}.csv")
