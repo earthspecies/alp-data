@@ -1,7 +1,6 @@
 """Benchmark loading time of datasets. Script to be run regularly to track performance over time."""
 
 import logging
-import warnings
 from pathlib import Path
 
 import click
@@ -10,6 +9,7 @@ import pandas
 from benchmark_utils import (
     Timer,
     build_raw_dataset,
+    filter_cloud_warnings,
     get_bucket_location,
     get_GCP_instance_location,
     save_results,
@@ -18,12 +18,7 @@ from benchmark_utils import (
 from memory_profiler import memory_usage
 from plot_loading_bench import plot_last_experiment_results_against_all
 
-warnings.filterwarnings(
-    "ignore",
-    message=r".*end user credentials from Google Cloud SDK without a quota project.*",
-    category=UserWarning,
-    module=r"google\.auth\._default",
-)
+filter_cloud_warnings()
 
 set_logging_config()
 

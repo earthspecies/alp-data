@@ -7,6 +7,7 @@ Note: most benchmark default functionality is currently bucket‑oriented. The e
 Contents
 --------
 - `benchmark_config.yaml` — config file listing the configuration of the experiment settings for `nfs` and `bucket` locations.
+- `job_array_exp_config.yaml` — config file for job array experiments.
 - `benchmark_dataset.py`, `benchmark_latency.py`, `loading_time.py` — main benchmark scripts to measure loading and latency characteristics.
 - `benchmark_utils.py` — shared utilities used by the benchmarks.
 - `dataset_list.txt`, `generate_list.py` — helpers for producing dataset lists used in jobs.
@@ -24,6 +25,13 @@ Quick overview
 - Plots are saved locally to `scripts/benchmarks/fig/`.
 
 You can specify a dataset configuration via a YAML file or use the default configuration.
+
+What's new ? 🚀
+--------------
+- Added support for job array experiments to run multiple experiments in parallel and explore the impact of concurrent jobs on benchmark latency. (NFS and bucket configurations supported.)
+- Added `merge_array_results.py` to merge local results from multiple array jobs into a single CSV file in the cloud.
+- Updated `benchmark_latency.py` to handle array experiments and save results accordingly.
+- Provided a sample configuration file `job_array_exp_config.yaml` for job array experiments.
 
 Cluster-first workflow (SLURM)
 ------------------------------
@@ -62,19 +70,22 @@ Job scripts are located in `jobs/` and are designed to be submitted with `sbatch
 
 Examples:
 
-- Simple way to launch a global default benchmark (might take some time)
+- Simple way to launch a global default benchmark (might take some time ~30 datasets). Loading time and dataloader latency benchmarks included.
 ```
 sbatch jobs/run_benchmark.sh
 ```
 
 - Specific benchmarks with default configuration.
 ```
-# dataloader latency over different parameters for a single dataset
+# dataloader latency over different parameters for a single dataset.
 sbatch jobs/benchmark_latency_default.sh --dataset beans
-
+# You have to specify the `--dataset` argument. But to modify the default configuration, you have to edit the script.
+```
+```
 # dataset loading time and sample access for a single dataset
 sbatch jobs/benchmark_loading_time_default.sh --dataset beans
-
+```
+```
 # loading time over every available dataset in esp-data
 sbatch jobs/multi_dataset_loading_time.sh
 ```
@@ -83,6 +94,10 @@ sbatch jobs/multi_dataset_loading_time.sh
 ```
 # dataloader latency over different parameters for a single dataset
 sbatch jobs/benchmark_latency_config.sh --config your/path/to/config --data-location nfs
+
+# Both --config and --data-location are required.
+```
+```
 
 # dataset loading time and sample access for a single dataset
 sbatch jobs/benchmark_loading_time_config.sh --config your/path/to/config --data-location bucket
@@ -98,14 +113,23 @@ info = DatasetInfo(
 )
 ```
 
+- Job array experiments (new feature):
+```
+sbatch jobs/benchmark_latency_array_exp.sh
+```
+
+You can customize the configuration by editing `scripts/benchmarks/job_array_exp_config.yaml` to specify different datasets and splits.
+You can also modify the job script to change the number of array jobs and other parameters.
+
 Collecting results and plots
 ---------------------------
 - Plots are written to `scripts/benchmarks/fig/` inside the job’s workspace; results are saved as CSV files to a GCS bucket.
 - To copy plots to your local machine via SSH:
 ```bash
-    scp -P 22 username@cluster:esp-data/scripts/benchmarks/fig/* .
+    scp -P 22 username@cluster:esp-data/scripts/benchmarks/fig/* ./your/target/directory/
 ```
 
 What you can do
 ----------------
 To adjust or expand experiments, edit the job script (for example `benchmark_latency.sh`) to change the tested parameter ranges. You can modify `--sleep` (simulated work per batch), `--batch-size`, and `--max-iterations` (total workload).
+If you want to run an experiment to debug or to test a specific configuration, and you don't want to save the results, just remove the `--save` flag in jobs scripts.

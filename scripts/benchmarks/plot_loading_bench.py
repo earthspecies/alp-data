@@ -1,23 +1,12 @@
 import logging
-import os
 
 import matplotlib.pyplot as plt
 import pandas as pd
-from benchmark_utils import set_logging_config
+from benchmark_utils import filter_cloud_warnings, save_and_log, set_logging_config
+
+filter_cloud_warnings()
 
 set_logging_config()
-
-
-def get_saved_results_from_cloud() -> pd.DataFrame:
-    """Retrieve all benchmark loading time results from a CSV file saved in a GCS bucket.
-    Returns
-    -------
-    A pandas DataFrame containing the benchmark loading time results.
-    """
-    df = pd.read_csv(
-        "gs://esp-ci-cd-tests/esp-data-tests/benchmark_dataset/benchmark_loading_time.csv"
-    )
-    return df
 
 
 def plot_last_experiment_results_against_all(results: pd.DataFrame) -> None:
@@ -30,14 +19,14 @@ def plot_last_experiment_results_against_all(results: pd.DataFrame) -> None:
     results : pandas.DataFrame
         DataFrame containing benchmark results for a specific dataset.
     """
-    logger = logging.getLogger("last_results_plotter")
 
-    df = get_saved_results_from_cloud()
+    df = pd.read_csv(
+        "gs://esp-ci-cd-tests/esp-data-tests/benchmark_dataset/benchmark_loading_time.csv"
+    )
     name = results["dataset_name"].iloc[0]
     split = results["split_name"].iloc[0]
     df = df[df["dataset_name"] == name]
     df = df[df["split_name"] == split]
-    df.fillna({"sample_rate": "default"}, inplace=True)
     sr = results["sample_rate"].iloc[0]
     if sr is None:
         sr = "default"
@@ -51,19 +40,24 @@ def plot_last_experiment_results_against_all(results: pd.DataFrame) -> None:
         bucket_location = subset["bucket_location"].iloc[-1]
         machine_location = subset["machine_location"].iloc[-1]
         fig, axs = plt.subplots(2, 3, figsize=(15, 10))
-        for i, col in enumerate(
-            subset[
-                [
-                    "loading_time",
-                    "time_for_first_sample",
-                    "time_for_10_samples",
-                    "nominal_speed",
-                    "data_memory_usage",
-                ]
-            ].columns
-        ):
+        boxplot_cols = [
+            "loading_time",
+            "time_for_first_sample",
+            "time_for_10_samples",
+            "nominal_speed",
+            "data_memory_usage",
+        ]
+        for i, col in enumerate(subset[boxplot_cols].columns):
             ax = axs[i // 3, i % 3]
-            subset.boxplot(column=col, vert=True, patch_artist=True, ax=ax)
+            filtered_subset = pd.DataFrame()
+            # Remove outliers using the IQR method
+            Q1 = subset[col].quantile(0.25)
+            Q3 = subset[col].quantile(0.75)
+            IQR = Q3 - Q1
+            filtered_subset = subset[
+                (subset[col] >= Q1 - 1.5 * IQR) & (subset[col] <= Q3 + 1.5 * IQR)
+            ]
+            filtered_subset.boxplot(column=col, vert=True, patch_artist=True, ax=ax)
             # Plot the new results as red dots
             ax.scatter(
                 [1] * len(results_subset),
@@ -75,30 +69,57 @@ def plot_last_experiment_results_against_all(results: pd.DataFrame) -> None:
                 zorder=5,
             )
             ax.set_title(f"Boxplot of {col}")
-            ax.set_ylabel(
-                [
-                    "Loading Time (s)",
-                    "Time for First Sample (s)",
-                    "Time for 10 Samples (s)",
-                    "Nominal Speed (samples/s)",
-                    "Data Memory Usage (MiB)",
-                ][i]
-            )
+            ax.set_ylabel(boxplot_cols[i])
             ax.grid(axis="y")
+
         plt.suptitle(
             f"Boxplots of {name} - Data Location: {location} "
             f"-- Bucket: {bucket_location} -- Machine: {machine_location}"
             f"\n Sample Rate: {sr}, Split: {split}"
         )
         plt.tight_layout()
-        # Ensure the fig directory exists
-        os.makedirs("scripts/benchmarks/fig/loading_time/", exist_ok=True)
+        save_and_log(f"scripts/benchmarks/fig/loading_time/boxplot_{name}_{location}.png")
 
-        plt.savefig(f"scripts/benchmarks/fig/loading_time/boxplot_{name}_{location}.png")
-        logger.info(
-            f"Saved plot: scripts/benchmarks/fig/loading_time/boxplot_{name}_{location}.png"
+        metrics = [
+            "nominal_speed",
+            "loading_time",
+        ]
+        # Plot a evolution of metrics over time
+        fig2, ax2 = plt.subplots(1, 2, figsize=(12, 4))
+
+        for i, metric in enumerate(metrics):
+            ax = ax2[i]
+            # Convert timestamp to datetime (round to day for better visualization)
+            subset["timestamp"] = pd.to_datetime(subset["timestamp"]).dt.floor("d")
+            results_subset["timestamp"] = pd.to_datetime(results_subset["timestamp"]).dt.floor("d")
+            subset_sorted = subset.sort_values(by="timestamp")
+            # if same date -> take the mean of the nominal_speed
+            subset_metric = subset_sorted.groupby("timestamp")[metric].mean().reset_index()
+
+            results_metric = results_subset.groupby("timestamp")[metric].mean().reset_index()
+
+            ax.plot(
+                subset_metric["timestamp"],
+                subset_metric[metric],
+                marker="o",
+                label="Previous Results",
+            )
+            ax.plot(
+                results_metric["timestamp"],
+                results_metric[metric],
+                marker="o",
+                color="red",
+                label="New Results",
+            )
+            ax.set_title(f"Evolution of {metric} Over Time")
+            ax.set_xlabel("Timestamp")
+            ax.set_ylabel(f"{metric}")
+            ax.legend()
+            ax.grid(True)
+        plt.tight_layout()
+        save_and_log(
+            f"scripts/benchmarks/fig/loading_time/{metric}_evolution_{name}_{location}.png"
         )
-        plt.close()
 
 
 def plot_datasets_results_comparison(
@@ -111,60 +132,52 @@ def plot_datasets_results_comparison(
     df : pandas.DataFrame
         DataFrame containing benchmark results.
     """
-    logger = logging.getLogger("datasets_comparison_plotter")
     datalocations = df["data_location"].unique()
     for location in datalocations:
         subset = df[df["data_location"] == location]
         subset = subset[subset["sample_rate"] == "default"]
-        subset = subset[subset["split"] == "default"]
-        fig, axs = plt.subplots(6, 1, figsize=(10, 35))
-        for i, col in enumerate(
-            subset[
-                [
-                    "loading_time",
-                    "time_for_first_sample",
-                    "time_for_10_samples",
-                    "nominal_speed",
-                    "data_memory_usage",
-                    "dataset_length",
-                ]
-            ].columns
-        ):
+        subset = subset[subset["split_config"] == "default"]
+        fig, axs = plt.subplots(6, 1, figsize=(12, 35))
+        boxplot_cols = [
+            "loading_time",
+            "time_for_first_sample",
+            "time_for_10_samples",
+            "nominal_speed",
+            "data_memory_usage",
+            "dataset_length",
+        ]
+        for i, col in enumerate(subset[boxplot_cols].columns):
             ax = axs[i]
-            subset.boxplot(column=col, by="dataset_name", vert=True, patch_artist=True, ax=ax)
+            # Remove outliers per dataset using the IQR method
+            filtered_subset = pd.DataFrame()
+            for dataset in subset["dataset_name"].unique():
+                ds = subset[subset["dataset_name"] == dataset]
+                Q1 = ds[col].quantile(0.25)
+                Q3 = ds[col].quantile(0.75)
+                IQR = Q3 - Q1
+                ds_filtered = ds[(ds[col] >= Q1 - 1.5 * IQR) & (ds[col] <= Q3 + 1.5 * IQR)]
+                filtered_subset = pd.concat([filtered_subset, ds_filtered], ignore_index=True)
+            filtered_subset.boxplot(
+                column=col, by="dataset_name", vert=True, patch_artist=True, ax=ax
+            )
             ax.set_title(f"{col}")
             ax.set_xlabel(None)
-            ax.set_ylabel(
-                [
-                    "Loading Time (s)",
-                    "Time for First Sample (s)",
-                    "Time for 10 Samples (s)",
-                    "Nominal Speed (samples/s)",
-                    "Data Memory Usage (MiB)",
-                    "Dataset Length (samples)",
-                ][i]
-            )
+            ax.set_ylabel(boxplot_cols[i])
             ax.grid(axis="y")
-            ax.tick_params(axis="x", labelsize=8, rotation=90)
+            ax.tick_params(axis="x", labelsize=10, rotation=90)
         plt.suptitle(
             f"Boxplots of all features - Data Location: {location} -- Sample Rate: default "
             f"-- Split: default"
         )
         plt.tight_layout()
         plt.subplots_adjust(top=0.95)
-        # Ensure the fig directory exists
-        os.makedirs("scripts/benchmarks/fig/loading_time/", exist_ok=True)
-        plt.savefig(f"scripts/benchmarks/fig/loading_time/boxplot_all_features_{location}.png")
-        logger.info(
-            f"Saved plot: scripts/benchmarks/fig/loading_time/boxplot_all_features_{location}.png"
-        )
-        plt.close()
+        save_and_log(f"scripts/benchmarks/fig/loading_time/boxplot_all_features_{location}.png")
 
 
 def main() -> None:
-    results = get_saved_results_from_cloud()
-    # Replace rows where sample_rate is NaN
-    results["sample_rate"].fillna("default", inplace=True)
+    results = pd.read_csv(
+        "gs://esp-ci-cd-tests/esp-data-tests/benchmark_dataset/benchmark_loading_time.csv"
+    )
 
     logger.info(f"\n{results.info()}")
 

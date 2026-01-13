@@ -137,10 +137,10 @@ The `Subsample` transform reduces the size of your dataset by sampling a subset 
         show_root_heading: true
         show_source: true
 
-### UniformSample Transform
-The `UniformSample` transform performs uniform sampling of the data, ensuring balanced representation across different categories.
+### BalancedSample Transform
+The `BalancedSample` transform performs balanced sampling of the data, ensuring balanced representation across different categories.
 
-::: esp_data.transforms.UniformSample
+::: esp_data.transforms.BalancedSample
     handler: python
     options:
         show_root_heading: true

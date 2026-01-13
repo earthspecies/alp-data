@@ -218,15 +218,15 @@ class TestConcatenateDatasets:
                 [dataset1_identical_columns, dataset2_identical_columns], "invalid"
             )
 
-    def test_different_sample_rates_fails(self, dataset_info1, dataset_info2):
+    def test_different_sample_rates(self, dataset_info1, dataset_info2):
         """Test different sample rates raise exception."""
         data1 = pd.DataFrame({"A": [1, 2]})
         data2 = pd.DataFrame({"A": [3, 4]})
         ds1 = MockDataset(PandasBackend(data1), dataset_info1, sample_rate=16000)
         ds2 = MockDataset(PandasBackend(data2), dataset_info2, sample_rate=22050)
 
-        with pytest.raises(MergeException, match="Sample rates must match"):
-            ConcatenatedDataset([ds1, ds2])
+        ds = ConcatenatedDataset([ds1, ds2])
+        assert ds.sample_rate is None
 
     def test_none_sample_rates(self, dataset_info1, dataset_info2):
         """Test handling of None sample rates."""
@@ -236,7 +236,7 @@ class TestConcatenateDatasets:
         ds2 = MockDataset(PandasBackend(data2), dataset_info2, sample_rate=16000)
 
         result = ConcatenatedDataset([ds1, ds2])
-        assert result.sample_rate == 16000
+        assert result.sample_rate is None
 
     def test_output_take_and_give_merge(self, dataset_info1, dataset_info2):
         """Test merging of output_take_and_give dictionaries."""
@@ -457,19 +457,6 @@ class TestIntegrationRealDatasets:
         assert animalspeak_cols.issubset(result_cols)
         assert barkley_cols.issubset(result_cols)
 
-    def test_concatenate_animalspeak_with_different_sample_rates_fails(self):
-        """Test that concatenating datasets with different sample rates fails."""
-        # Create two AnimalSpeak datasets with different sample rates
-        animalspeak1 = AnimalSpeak(
-            split="validation", sample_rate=16000, backend="pandas"
-        )
-        animalspeak2 = AnimalSpeak(
-            split="validation", sample_rate=22050, backend="pandas"
-        )
-
-        with pytest.raises(MergeException, match="Sample rates must match"):
-            ConcatenatedDataset([animalspeak1, animalspeak2])
-
     def test_concatenate_same_dataset_different_output_mappings(self):
         """Test concatenating same dataset with different output_take_and_give mappings."""
         # Create two AnimalSpeak datasets with compatible output mappings
@@ -619,8 +606,12 @@ def test_concat_from_config() -> None:
 @pytest.mark.parametrize("backend_type", ["pandas", "polars"])
 def test_dtypes_after_concat(backend_type: str) -> None:
     # Load small validation splits (should be smaller than train splits)
-    animalspeak = AnimalSpeak(split="validation", sample_rate=16000, backend=backend_type)
-    barkley_canyon = BarkleyCanyon(split="train", sample_rate=16000, backend=backend_type)
+    animalspeak = AnimalSpeak(
+        split="validation", sample_rate=16000, backend=backend_type
+    )
+    barkley_canyon = BarkleyCanyon(
+        split="train", sample_rate=16000, backend=backend_type
+    )
     # Test soft merge (should work despite different columns)
     result = ConcatenatedDataset([animalspeak, barkley_canyon], merge_level="soft")
 

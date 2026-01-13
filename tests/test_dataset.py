@@ -291,8 +291,7 @@ def test_wrong_collection_from_config():
     with pytest.raises(ValueError, match="Invalid configuration format."):
         dataset_from_config("tests/samples/test_wrong_config.yml", key="nested_collection1")
 
-    with pytest.raises(ValueError, match="Multiple / Invalid dataset configurations found. "
-                "Please provide a specific key to select one."):
+    with pytest.raises(ValueError, match="Invalid dataset configurations found. Please provide a specific key to select one."):
         dataset_from_config("tests/samples/test_wrong_config.yml", key="some_collection2")
 
     with pytest.raises(ValueError, match="Invalid configuration format."):
