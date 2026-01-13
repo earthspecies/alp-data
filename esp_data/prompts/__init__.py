@@ -1,18 +1,17 @@
 from .registry import get_prompt, list_prompts, register_prompt, register_prompt_from_config
 from .template import (
+    Conversation,
+    ConversationTemplate,
+    ConversationTemplateConfig,
     Message,
-    PromptResponsePair,
-    PromptResponseTemplate,
-    PromptResponseTemplateConfig,
 )
 
-# Default passthrough template - copies existing prompt/response fields
-_passthrough = PromptResponseTemplate(
+# Default passthrough template - copies existing messages field
+_passthrough = ConversationTemplate(
     name="passthrough",
     variants=[
-        PromptResponsePair(
+        Conversation(
             messages=[Message(role="user", content="{{ prompt }}")],
-            response="{{ response }}",
         )
     ],
 )
@@ -20,14 +19,14 @@ register_prompt(_passthrough)
 
 __all__ = [
     # Template class
-    "PromptResponseTemplate",
+    "ConversationTemplate",
     # Data classes
+    "Conversation",
+    "ConversationTemplateConfig",
     "Message",
-    "PromptResponsePair",
-    "PromptResponseTemplateConfig",
     # Registry functions
-    "register_prompt",
-    "register_prompt_from_config",
     "get_prompt",
     "list_prompts",
+    "register_prompt",
+    "register_prompt_from_config",
 ]

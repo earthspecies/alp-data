@@ -49,10 +49,10 @@ from .datasets import (
     ZebraFinchJulieElie,
 )
 from .prompts import (
+    Conversation,
+    ConversationTemplate,
+    ConversationTemplateConfig,
     Message,
-    PromptResponsePair,
-    PromptResponseTemplate,
-    PromptResponseTemplateConfig,
     get_prompt,
     list_prompts,
     register_prompt,
@@ -74,10 +74,10 @@ __all__ = [
     "register_config",
     "ConcatenatedDataset",
     "ChainedDataset",
-    # Prompt templates
-    "PromptResponseTemplate",
-    "PromptResponseTemplateConfig",
-    "PromptResponsePair",
+    # Conversation templates
+    "Conversation",
+    "ConversationTemplate",
+    "ConversationTemplateConfig",
     "Message",
     "register_prompt",
     "register_prompt_from_config",

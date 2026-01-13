@@ -1,25 +1,25 @@
-"""Prompt template registry."""
+"""Conversation template registry."""
 
 from __future__ import annotations
 
 from typing import Any
 
-from .template import PromptResponseTemplate, PromptResponseTemplateConfig
+from .template import ConversationTemplate, ConversationTemplateConfig
 
-_REGISTRY: dict[str, PromptResponseTemplate] = {}
+_REGISTRY: dict[str, ConversationTemplate] = {}
 
 
-def register_prompt(template: PromptResponseTemplate) -> PromptResponseTemplate:
-    """Register a prompt template by name.
+def register_prompt(template: ConversationTemplate) -> ConversationTemplate:
+    """Register a conversation template by name.
 
     Parameters
     ----------
-    template : PromptResponseTemplate
+    template : ConversationTemplate
         Template instance with a unique name attribute.
 
     Returns
     -------
-    PromptResponseTemplate
+    ConversationTemplate
         The registered template (for decorator use).
 
     Raises
@@ -34,29 +34,29 @@ def register_prompt(template: PromptResponseTemplate) -> PromptResponseTemplate:
 
 
 def register_prompt_from_config(
-    config: dict[str, Any] | PromptResponseTemplateConfig,
-) -> PromptResponseTemplate:
-    """Register a prompt template from a configuration dict or PromptResponseTemplateConfig.
+    config: dict[str, Any] | ConversationTemplateConfig,
+) -> ConversationTemplate:
+    """Register a conversation template from a configuration dict or ConversationTemplateConfig.
 
-    Creates a PromptResponseTemplate from the config and registers it.
+    Creates a ConversationTemplate from the config and registers it.
 
     Parameters
     ----------
-    config : dict[str, Any] | PromptResponseTemplateConfig
-        Configuration for the prompt template. If dict, must have 'name' and 'variants' keys.
+    config : dict[str, Any] | ConversationTemplateConfig
+        Configuration for the conversation template. If dict, must have 'name' and 'variants' keys.
 
     Returns
     -------
-    PromptResponseTemplate
+    ConversationTemplate
         The registered template.
     """
     if isinstance(config, dict):
-        config = PromptResponseTemplateConfig.model_validate(config)
-    return register_prompt(PromptResponseTemplate(name=config.name, variants=config.variants))
+        config = ConversationTemplateConfig.model_validate(config)
+    return register_prompt(ConversationTemplate(name=config.name, variants=config.variants))
 
 
-def get_prompt(name: str) -> PromptResponseTemplate:
-    """Retrieve a registered prompt template by name.
+def get_prompt(name: str) -> ConversationTemplate:
+    """Retrieve a registered conversation template by name.
 
     Parameters
     ----------
@@ -65,7 +65,7 @@ def get_prompt(name: str) -> PromptResponseTemplate:
 
     Returns
     -------
-    PromptResponseTemplate
+    ConversationTemplate
         The registered template.
 
     Raises
@@ -79,7 +79,7 @@ def get_prompt(name: str) -> PromptResponseTemplate:
 
 
 def list_prompts() -> list[str]:
-    """List all registered prompt template names.
+    """List all registered conversation template names.
 
     Returns
     -------
