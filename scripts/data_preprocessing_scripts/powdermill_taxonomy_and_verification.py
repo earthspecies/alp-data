@@ -22,7 +22,7 @@ from esp_data.io import anypath, audio_stereo_to_mono, read_audio
 
 converter = GBIFConverter()
 
-ANNOTATION_INFO_FP = "gs://fewshot/evaluation/raw/Powdermill/powdermill_species.csv"
+ANNOTATION_INFO_FP = "gs://esp-ml-datasets/powdermill/powdermill_species.csv"
 anno_info = pd.read_csv(ANNOTATION_INFO_FP)
 SPECIES_LABEL_FIX = {}
 for _, row in anno_info.iterrows():
@@ -203,12 +203,12 @@ def main() -> None:
     p = argparse.ArgumentParser()
     p.add_argument(
         "--split-csv",
-        default="gs://fewshot/evaluation/raw/Powdermill/all.csv",
+        default="gs://esp-ml-datasets/powdermill/all.csv",
         help="Path to split CSV (e.g., all_info.csv)",
     )
     p.add_argument(
         "--out-fp",
-        default="gs://fewshot/evaluation/raw/Powdermill/all_gbif.csv",
+        default="gs://esp-ml-datasets/powdermill/all_gbif.csv",
         help="Directory to write outputs",
     )
     args = p.parse_args()

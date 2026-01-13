@@ -244,12 +244,12 @@ def main() -> None:
     p = argparse.ArgumentParser()
     p.add_argument(
         "--split-csv",
-        default="gs://fewshot/evaluation/raw/Anuraset/anuraset_all.csv",
+        default="gs://esp-ml-datasets/anuraset/anuraset_all.csv",
         help="Path to split CSV (e.g., all_info.csv)",
     )
     p.add_argument(
         "--out-fp",
-        default="gs://fewshot/evaluation/raw/Anuraset/anuraset_all_gbif.csv",
+        default="gs://esp-ml-datasets/anuraset/anuraset_all_gbif.csv",
         help="Directory to write outputs",
     )
     args = p.parse_args()
