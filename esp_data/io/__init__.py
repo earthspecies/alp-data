@@ -17,6 +17,7 @@ __all__ = [
     "PureGSPath",
     "PureR2Path",
     "PureS3Path",
+    "PureCloudPath",
     "read_audio",
     "read_text",
     "audio_stereo_to_mono",
