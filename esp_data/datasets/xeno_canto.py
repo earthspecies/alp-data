@@ -88,12 +88,13 @@ class XenoCanto(Dataset):
         name="xeno-canto",
         owner="david; gagan",
         split_paths={
-            "train": "gs://esp-ml-datasets/xeno-canto/v0.1.0/raw/xeno_curated_train.csv",
-            "validation": "gs://esp-ml-datasets/xeno-canto/v0.1.0/raw/xeno_curated_val.csv",
-            "all": "gs://esp-ml-datasets/xeno-canto/v0.1.0/raw/xeno_curated_all.csv",
+            "train": "gs://esp-ml-datasets/xeno-canto/v0.1.0/raw/gbif_canonical/xeno_curated_train_linked_only.csv",
+            "validation": "gs://esp-ml-datasets/xeno-canto/v0.1.0/raw/gbif_canonical/xeno_curated_val_linked_only.csv",
+            "all": "gs://esp-ml-datasets/xeno-canto/v0.1.0/raw/gbif_canonical/xeno_curated_all_linked_only.csv",
         },
         version="0.1.0",
-        description="Xeno-canto audio dataset with taxonomic metadata. "
+        description="Xeno-canto audio dataset with GBIF-standardized taxonomic metadata. "
+        "All rows have canonical_name linked to GBIF backbone (species-level). "
         "Available at original (variable) sample rates and 32kHz (pre-resampled). "
         "Pre-resampled audio uses librosa's kaiser_best resampling method. "
         "Xeno-canto dump as of Oct 2025. "

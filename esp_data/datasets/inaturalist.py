@@ -90,10 +90,11 @@ class INaturalist(Dataset):
         name="inaturalist",
         owner="gagan; david",
         split_paths={
-            "train": "gs://esp-ml-datasets/inaturalist/v0.1.0/raw/metadata_2025_07_no_m4a.csv",
+            "train": "gs://esp-ml-datasets/inaturalist/v0.1.0/raw/gbif_canonical/metadata_2025_07_no_m4a_linked_only.csv",
         },
         version="0.1.0",
-        description="iNaturalist audio dataset with taxonomic metadata. "
+        description="iNaturalist audio dataset with GBIF-standardized taxonomic metadata. "
+        "All rows have canonical_name linked to GBIF backbone (species-level). "
         "Available at original (variable) sample rates and 32kHz (pre-resampled). "
         "Pre-resampled audio uses librosa's kaiser_best resampling method.",
         sources=["iNaturalist"],
