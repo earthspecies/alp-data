@@ -3,11 +3,196 @@
 This module defines the interface that all backend implementations must follow.
 It enables support for multiple data handling libraries (pandas, polars, etc.) through
 a common abstraction layer.
+
+Two protocols are defined:
+- StreamingBackend: For streaming-only data formats (e.g., WebDataset/tar files)
+  that only support iteration, not random access.
+- DataBackend: For in-memory data formats (e.g., pandas, polars DataFrames)
+  that support both random access and iteration.
 """
 
 from __future__ import annotations
 
 from typing import Any, Callable, Iterator, Literal, Protocol, overload
+
+
+class StreamingBackend(Protocol):
+    """Protocol defining the interface for streaming-only data backends.
+
+    This protocol is designed for data formats that only support sequential
+    iteration, such as WebDataset (tar files). These backends cannot support:
+    - Random access (__getitem__)
+    - Known length (__len__)
+    - Operations requiring full data scan (drop_duplicates, get_unique, histogram)
+    - Sampling operations (subsample_by_column, upsample_by_column, sample_rows)
+
+    Implementations should apply filtering and transformations lazily during iteration.
+    """
+
+    @property
+    def is_streaming(self) -> bool:
+        """Check if backend is in streaming mode.
+
+        For StreamingBackend implementations, this should always return True.
+
+        Returns
+        -------
+        bool
+            Always True for streaming backends
+        """
+        ...
+
+    def __iter__(self) -> Iterator[dict[str, Any]]:
+        """Iterate over samples as dictionaries.
+
+        This is the primary access method for streaming backends.
+
+        Yields
+        ------
+        dict[str, Any]
+            Dictionary for each sample mapping field names to values
+        """
+        ...
+
+    @property
+    def columns(self) -> list[str]:
+        """Get the list of column/field names.
+
+        Note: This may require peeking at the first sample, which could
+        have side effects depending on the implementation.
+
+        Returns
+        -------
+        list[str]
+            List of column/field names
+        """
+        ...
+
+    def column_exists(self, column: str) -> bool:
+        """Check if a column/field exists in the data.
+
+        Parameters
+        ----------
+        column : str
+            Column name to look for
+
+        Returns
+        -------
+        bool
+            True if column exists, False otherwise
+        """
+        ...
+
+    @property
+    def unwrap(self) -> Any:  # noqa ANN401
+        """Get the underlying data object.
+
+        This is useful when you need to access backend-specific functionality
+        or pass the data to functions that expect the native type.
+
+        Returns
+        -------
+        Any
+            The underlying data (e.g., wds.WebDataset)
+        """
+        ...
+
+    def filter_isin(
+        self,
+        column: str,
+        values: list[Any],
+        *,
+        negate: bool = False,
+    ) -> "StreamingBackend":
+        """Filter samples where column values are in (or not in) a list.
+
+        This filter is applied lazily during iteration.
+
+        Parameters
+        ----------
+        column : str
+            Column name to filter on
+        values : list[Any]
+            List of values to match
+        negate : bool, optional
+            If True, keep rows NOT in values list, by default False
+
+        Returns
+        -------
+        StreamingBackend
+            Self with filter configured (applied during iteration)
+        """
+        ...
+
+    def dropna(
+        self,
+        subset: list[str] | None = None,
+    ) -> "StreamingBackend":
+        """Remove samples with missing values.
+
+        This filter is applied lazily during iteration.
+
+        Parameters
+        ----------
+        subset : list[str] | None, optional
+            Column names to consider for null detection.
+            If None, check all columns, by default None
+
+        Returns
+        -------
+        StreamingBackend
+            Self with dropna configured (applied during iteration)
+        """
+        ...
+
+    def map_column(
+        self,
+        column: str,
+        mapping: dict[Any, Any],
+        output_column: str,
+        *,
+        default: Any | None = None,  # noqa ANN401
+    ) -> "StreamingBackend":
+        """Create a new column by mapping values from an existing column.
+
+        This transformation is applied lazily during iteration.
+
+        Parameters
+        ----------
+        column : str
+            Source column name
+        mapping : dict[Any, Any]
+            Dictionary mapping source values to output values
+        output_column : str
+            Name of the new column to create
+        default : Any, optional
+            Value to use for unmapped keys, by default None
+
+        Returns
+        -------
+        StreamingBackend
+            Self with mapping configured (applied during iteration)
+        """
+        ...
+
+    def apply_fn(
+        self,
+        fn: Callable[[dict[str, Any]], dict[str, Any]],
+    ) -> "StreamingBackend":
+        """Apply a custom function to each sample during iteration.
+
+        Parameters
+        ----------
+        fn : Callable[[dict[str, Any]], dict[str, Any]]
+            Function to apply. Should accept a sample dict and return
+            a transformed sample dict.
+
+        Returns
+        -------
+        StreamingBackend
+            Self with function configured (applied during iteration)
+        """
+        ...
 
 
 class DataBackend(Protocol):
