@@ -53,10 +53,6 @@ from .prompts import (
     ConversationTemplate,
     ConversationTemplateConfig,
     Message,
-    get_prompt,
-    list_prompts,
-    register_prompt,
-    register_prompt_from_config,
 )
 
 __all__ = [
@@ -79,10 +75,6 @@ __all__ = [
     "ConversationTemplate",
     "ConversationTemplateConfig",
     "Message",
-    "register_prompt",
-    "register_prompt_from_config",
-    "get_prompt",
-    "list_prompts",
     # Dataset implementations
     "AnimalSpeak",
     "AnuraSetStrong",

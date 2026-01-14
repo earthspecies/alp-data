@@ -7,7 +7,7 @@ import random
 from typing import Any, Literal
 
 from jinja2 import StrictUndefined, Template
-from pydantic import BaseModel
+from pydantic import BaseModel, PrivateAttr
 from typing_extensions import Self
 
 from esp_data.io import AnyPathT, read_yaml
@@ -18,13 +18,11 @@ class Message(BaseModel):
 
     role: Literal["system", "user", "assistant"]
     content: str
-    _compiled_template: Template | None = None
+    _compiled_template: Template | None = PrivateAttr(default=None)
 
     def model_post_init(self, __context: Any) -> None:  # noqa: ANN401
         """Pre-compile the Jinja2 template after model initialization."""
-        object.__setattr__(
-            self, "_compiled_template", Template(self.content, undefined=StrictUndefined)
-        )
+        self._compiled_template = Template(self.content, undefined=StrictUndefined)
 
     def render(self, **kwargs: Any) -> "Message":
         """Render message content with Jinja2 template substitution.
