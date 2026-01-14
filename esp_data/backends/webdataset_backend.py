@@ -275,13 +275,6 @@ class WebDatasetBackend(StreamingBackend):
     ----------
     dataset : wds.WebDataset
         The WebDataset to wrap
-
-    Examples
-    --------
-    >>> from esp_data.backends import WebDatasetBackend
-    >>> backend = WebDatasetBackend.from_path("/path/to/shards")
-    >>> for sample in backend:
-    ...     process(sample)
     """
 
     def __init__(self, dataset: wds.WebDataset) -> None:
