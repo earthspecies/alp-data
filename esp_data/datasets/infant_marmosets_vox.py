@@ -77,17 +77,26 @@ class InfantMarmosetsVox(Dataset):
         owner="eklavya",
         split_paths={
             # Single split - downstream users handle train/val/test splitting
-            "all": "gs://esp-ml-datasets/InfantMarmosetsVox/labels.csv",
+            "all": "gs://esp-ml-datasets/infant_marmosets_vox/labels.csv",
         },
         version="0.1.0",
         description=(
             "Infant marmoset vocalizations dataset. Contains 11 call types from "
             "10 individuals (5 twin pairs) recorded longitudinally over 8 months. "
-            "Approx. 73k vocalization segments after filtering silence/noise."
+            "Approx. 73k vocalization segments after filtering silence/noise. "
+            "Available at original 44.1kHz and pre-resampled 16kHz."
         ),
         sources=["Zenodo"],
         license="CC-BY-4.0",
     )
+
+    # Mapping of sample rates to audio subdirectory names
+    # CSV paths are like "data/audio_44k/twin_X/file.wav"
+    # We replace "audio_44k" with the appropriate subdirectory
+    _sample_rate_paths = {
+        44100: "audio_44k",  # Original 44.1kHz
+        16000: "audio_16k",  # Pre-resampled to 16kHz
+    }
 
     def __init__(
         self,
@@ -139,6 +148,19 @@ class InfantMarmosetsVox(Dataset):
         """Return the available splits of the dataset."""
         return list(self.info.split_paths.keys())
 
+    @property
+    def available_sample_rates(self) -> list[int]:
+        """Return the available pre-resampled sample rates.
+
+        Returns
+        -------
+        list[int]
+            List of sample rates (in Hz) for which pre-resampled audio is available.
+            Audio at these sample rates can be loaded directly without on-the-fly
+            resampling. Original audio is at 44100 Hz.
+        """
+        return list(self._sample_rate_paths.keys())
+
     def _load(self) -> None:
         """Load and preprocess the dataset.
 
@@ -159,7 +181,7 @@ class InfantMarmosetsVox(Dataset):
         df = pl.read_csv(location)
 
         # Extract twinID and per-file caller index from path
-        # path: "data/twin_1/20160907_Twin1_marmoset1.wav"
+        # path: "data/audio_44k/twin_1/20160907_Twin1_marmoset1.wav"
         # The "1" in "marmoset1" is the per-file caller (1 or 2)
         df = df.with_columns([
             pl.col("path").str.split("/").list.get(-1).str.replace(".wav", "").alias("filename"),
@@ -242,7 +264,16 @@ class InfantMarmosetsVox(Dataset):
         dict
             The processed sample with audio loaded.
         """
-        audio_path = anypath(self.data_root) / row["path"]
+        # Determine which audio directory to use based on requested sample rate
+        # CSV path is like "data/audio_44k/twin_X/file.wav"
+        rel_path = row["path"]
+
+        if self.sample_rate is not None and self.sample_rate in self._sample_rate_paths:
+            # Use pre-resampled audio - replace "audio_44k" with appropriate subdirectory
+            audio_subdir = self._sample_rate_paths[self.sample_rate]
+            rel_path = rel_path.replace("audio_44k", audio_subdir, 1)
+
+        audio_path = anypath(self.data_root) / rel_path
         start = float(row["start"])
         end = float(row["end"])
 
@@ -252,6 +283,7 @@ class InfantMarmosetsVox(Dataset):
         if max_abs > 0:
             audio = audio / max_abs
 
+        # Resample on-the-fly if requested sample rate doesn't have pre-resampled version
         if self.sample_rate is not None and sr != self.sample_rate:
             audio = librosa.resample(y=audio, orig_sr=sr, target_sr=self.sample_rate, res_type="kaiser_best")
 

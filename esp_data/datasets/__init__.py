@@ -15,7 +15,7 @@ from .esp_raincoast import ESPRaincoast
 from .geladas import Geladas
 from .giant_otters import GiantOtters
 from .gibbon_solos import GibbonSolos
-from .infantmarmosetsvox import InfantMarmosetsVox
+from .infant_marmosets_vox import InfantMarmosetsVox
 from .hawaiian_birds import HawaiianBirds
 from .inaturalist import INaturalist
 from .insectset_459 import InsectSet459
