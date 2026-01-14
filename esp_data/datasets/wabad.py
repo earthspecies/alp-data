@@ -108,16 +108,16 @@ class WABAD(Dataset):
         self.annotation_columns = ["Species"]
         self.unknown_label = "Unknown"
         self.sample_rate = sample_rate
+        self.data_root = anypath(data_root) if data_root is not None else None
 
         self.available_labels = pd.read_csv(SPECIES_INFO_PATH)["Species"].to_list()
 
         # Load split CSV
         self._load()
 
-        if data_root is None:
+        # If no explicit data_root, assume parent dir of the split path
+        if self.data_root is None:
             self.data_root = anypath(self.info.split_paths[self.split]).parent
-        else:
-            self.data_root = data_root
 
     @property
     def columns(self) -> list[str]:
