@@ -11,7 +11,7 @@ import polars as pl
 
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from esp_data.backends import BackendType, PolarsBackend
-from esp_data.io import AnyPathT, anypath
+from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
 
 
 # Call type mapping (0-10, excluding 11=silence and 12=noise)
@@ -266,19 +266,23 @@ class InfantMarmosetsVox(Dataset):
         """
         # Determine which audio directory to use based on requested sample rate
         # CSV path is like "data/audio_44k/twin_X/file.wav"
-        rel_path = row["path"]
+        audio_rel_path = row["path"]
 
         if self.sample_rate is not None and self.sample_rate in self._sample_rate_paths:
             # Use pre-resampled audio - replace "audio_44k" with appropriate subdirectory
             audio_subdir = self._sample_rate_paths[self.sample_rate]
-            rel_path = rel_path.replace("audio_44k", audio_subdir, 1)
+            audio_rel_path = audio_rel_path.replace("audio_44k", audio_subdir, 1)
 
-        audio_path = anypath(self.data_root) / rel_path
+        audio_path = anypath(self.data_root) / audio_rel_path
         start = float(row["start"])
         end = float(row["end"])
 
-        audio, sr = librosa.load(str(audio_path), sr=None, mono=True, offset=start, duration=end - start)
-
+        # Read the audio clip
+        audio, sr = read_audio(audio_path, start_time=start, end_time=end)
+        audio = audio.astype(np.float32)
+        # Stereo to mono if necessary.
+        audio = audio_stereo_to_mono(audio, mono_method="average")
+        # Normalize
         max_abs = np.max(np.abs(audio))
         if max_abs > 0:
             audio = audio / max_abs
@@ -288,6 +292,7 @@ class InfantMarmosetsVox(Dataset):
             audio = librosa.resample(y=audio, orig_sr=sr, target_sr=self.sample_rate, res_type="kaiser_best")
 
         row["audio"] = audio
+        row["path"] = audio_rel_path  # Update path to reflect actual file loaded
 
         if self.output_take_and_give:
             return {value: row[key] for key, value in self.output_take_and_give.items()}
