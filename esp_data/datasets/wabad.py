@@ -110,7 +110,6 @@ class WABAD(Dataset):
         self.sample_rate = sample_rate
         self.data_root = anypath(data_root) if data_root is not None else None
 
-
         self.available_labels = pd.read_csv(SPECIES_INFO_PATH)["Species"].to_list()
 
         # Load split CSV
