@@ -1,6 +1,6 @@
 from esp_data.io.file_utils import exists, rm
 from esp_data.io.filesystem import filesystem, filesystem_from_path
-from esp_data.io.paths import AnyPathT, PureGSPath, PureR2Path, PureS3Path, anypath
+from esp_data.io.paths import AnyPathT, PureCloudPath, PureGSPath, PureR2Path, PureS3Path, anypath
 from esp_data.io.read_utils import (
     audio_stereo_to_mono,
     get_audio_info,
@@ -16,6 +16,7 @@ __all__ = [
     "PureGSPath",
     "PureR2Path",
     "PureS3Path",
+    "PureCloudPath",
     "read_audio",
     "read_text",
     "audio_stereo_to_mono",
