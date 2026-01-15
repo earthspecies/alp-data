@@ -10,6 +10,7 @@ from .bengalese_finch_calls import BengaleseFinchCalls
 from .birdeep import Birdeep
 from .birdset import BirdSet
 from .chiffchaff_id import ChiffchaffId
+from .corvid_wascher import CorvidWascher
 from .dinardo_dolphin_whistles import DinardoDolphinWhistles
 from .esp_raincoast import ESPRaincoast
 from .geladas import Geladas
@@ -66,4 +67,5 @@ __all__ = [
     "Geladas",
     "DinardoDolphinWhistles",
     "GibbonSolos",
+    "CorvidWascher",
 ]
