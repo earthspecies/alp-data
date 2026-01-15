@@ -13,7 +13,6 @@ from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from esp_data.backends import BackendType, PolarsBackend
 from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
 
-
 # Call type mapping (0-10, excluding 11=silence and 12=noise)
 CALLTYPE_NAMES = {
     0: "Peep(Pre-Phee)",
@@ -51,13 +50,25 @@ class InfantMarmosetsVox(Dataset):
 
     Labels
     ------
-    - calltypeID: Call type (0-10, 11 classes)
-    - callerID: Caller identity (0-9, 10 individuals from 5 twin pairs)
+    - ``calltypeID``: Call type (0-10, 11 classes)
+    - ``callerID``: Caller identity (0-9, 10 individuals from 5 twin pairs)
+
+    Additional Fields
+    -----------------
+    - ``audio``: Vocalization segment waveform (numpy array).
+    - ``path``: Relative path to audio file.
+    - ``start``: Start time in seconds.
+    - ``end``: End time in seconds.
+    - ``duration``: Vocalization segment duration in seconds.
+    - ``twinID``: Marmoset twin pair (1-5).
+    - ``vocID``: Unique vocalization ID (row index).
 
     References
     ----------
-    Sarkar et al., "InfantMarmosetsVox: A Marmosets Infant Vocalization Corpus"
-    Interspeech 2023
+    Sarkar, E., Magimai.-Doss, M. (2023)
+    "Can Self-Supervised Neural Representations Pre-Trained on Human Speech
+    distinguish Animal Callers?" Proc. Interspeech 2023, 1189-1193.
+    doi: 10.21437/Interspeech.2023-1968
     https://www.isca-speech.org/archive/interspeech_2023/sarkar23_interspeech.html
 
     Examples
@@ -69,22 +80,32 @@ class InfantMarmosetsVox(Dataset):
     ...     sample_rate=16000,
     ... )
     >>> sample = dataset[0]
-    >>> sample["audio"].shape, sample["label"]
+    >>> print(dataset.info.name)
+    InfantMarmosetsVox
+    >>> print(dataset.available_sample_rates)
+    [44100, 16000]
     """
 
     info = DatasetInfo(
         name="InfantMarmosetsVox",
         owner="eklavya",
         split_paths={
-            # Single split - downstream users handle train/val/test splitting
             "all": "gs://esp-ml-datasets/infant_marmosets_vox/labels.csv",
+            "train": "gs://esp-ml-datasets/infant_marmosets_vox/labels_train.csv",
+            "validation": "gs://esp-ml-datasets/infant_marmosets_vox/labels_val.csv",
+            "test": "gs://esp-ml-datasets/infant_marmosets_vox/labels_test.csv",
         },
         version="0.1.0",
         description=(
-            "Infant marmoset vocalizations dataset. Contains 11 call types from "
-            "10 individuals (5 twin pairs) recorded longitudinally over 8 months. "
-            "Approx. 73k vocalization segments after filtering silence/noise. "
-            "Available at original 44.1kHz and pre-resampled 16kHz."
+            "InfantMarmosetsVox is a dataset for multi-class call-type and caller identification "
+            "Available at original 44.1 kHz and pre-resampled 16kHz."
+            "Pre-resampled audio uses librosa's kaiser_best resampling method. "
+            "Contains approx. 73k vocalization segments of infant marmoset vocalizations. "
+            "Each vocalization segment sample has a calltypeID and callerID label. "
+            "There are 10 total calltype classes and 10 caller identity classes. "
+            "A calltypeID index can be associated with its calltype through `CALLTYPE_NAMES`. "
+            "The train:val:test splits are randomly created following a 70:20:10 split "
+            "using `torch.utils.data.random_split()` with `torch.Generator().manual_seed(42)`."
         ),
         sources=["Zenodo"],
         license="CC-BY-4.0",
@@ -170,11 +191,15 @@ class InfantMarmosetsVox(Dataset):
         3. Filter out invalid calltypes (keep only 0-10)
         4. Compute global callerID (0-9) from twinID and per-file callerID
         5. Rename columns for consistency
+
+        Raises
+        ------
+        LookupError
+            If the requested split is not available.
         """
         if self.split not in self.info.split_paths:
             raise LookupError(
-                f"Invalid split: {self.split}. "
-                f"Expected one of {list(self.info.split_paths.keys())}"
+                f"Invalid split: {self.split}. Expected one of {list(self.info.split_paths.keys())}"
             )
 
         location = self.info.split_paths[self.split]
@@ -183,13 +208,31 @@ class InfantMarmosetsVox(Dataset):
         # Extract twinID and per-file caller index from path
         # path: "data/audio_44k/twin_1/20160907_Twin1_marmoset1.wav"
         # The "1" in "marmoset1" is the per-file caller (1 or 2)
-        df = df.with_columns([
-            pl.col("path").str.split("/").list.get(-1).str.replace(".wav", "").alias("filename"),
-        ])
-        df = df.with_columns([
-            pl.col("filename").str.split("_").list.get(1).str.slice(-1).cast(pl.Int32).alias("twinID"),
-            pl.col("filename").str.split("_").list.get(2).str.slice(-1).cast(pl.Int32).alias("_perFileCaller"),
-        ])
+        df = df.with_columns(
+            [
+                pl.col("path")
+                .str.split("/")
+                .list.get(-1)
+                .str.replace(".wav", "")
+                .alias("filename"),
+            ]
+        )
+        df = df.with_columns(
+            [
+                pl.col("filename")
+                .str.split("_")
+                .list.get(1)
+                .str.slice(-1)
+                .cast(pl.Int32)
+                .alias("twinID"),
+                pl.col("filename")
+                .str.split("_")
+                .list.get(2)
+                .str.slice(-1)
+                .cast(pl.Int32)
+                .alias("_perFileCaller"),
+            ]
+        )
         df = df.drop("filename")
 
         # Rename calltype column
@@ -202,21 +245,26 @@ class InfantMarmosetsVox(Dataset):
         # Twin 1: callers 1,2 -> callerID 0,1
         # Twin 2: callers 1,2 -> callerID 2,3
         # etc.
-        df = df.with_columns([
-            ((pl.col("twinID") - 1) * 2 + pl.col("_perFileCaller") - 1).alias("callerID"),
-        ])
+        df = df.with_columns(
+            [
+                ((pl.col("twinID") - 1) * 2 + pl.col("_perFileCaller") - 1).alias("callerID"),
+            ]
+        )
         df = df.drop("_perFileCaller")
 
         # Add row index
         df = df.with_row_index("vocID")
 
         # Reorder columns (drop original "caller" column from CSV, we computed callerID)
-        df = df.select(["path", "start", "end", "duration", "calltypeID", "callerID", "twinID", "vocID"])
+        cols = ["path", "start", "end", "duration", "calltypeID", "callerID", "twinID", "vocID"]
+        df = df.select(cols)
 
         self._data = PolarsBackend(df, streaming=self._streaming)
 
     @classmethod
-    def from_config(cls, dataset_config: DatasetConfig) -> tuple["InfantMarmosetsVox", dict[str, Any]]:
+    def from_config(
+        cls, dataset_config: DatasetConfig
+    ) -> tuple["InfantMarmosetsVox", dict[str, Any]]:
         """Create a Dataset instance from a configuration dictionary.
 
         Parameters
@@ -244,7 +292,20 @@ class InfantMarmosetsVox(Dataset):
         return ds, {}
 
     def __len__(self) -> int:
-        """Return the number of samples in the dataset."""
+        """Return the number of samples in the dataset.
+
+        Returns
+        -------
+        int
+            The number of samples.
+
+        Raises
+        ------
+        RuntimeError
+            If no split has been loaded yet.
+        NotImplementedError
+            If streaming mode is enabled.
+        """
         if self._data is None:
             raise RuntimeError("No split has been loaded yet.")
         if self._streaming:
@@ -282,14 +343,12 @@ class InfantMarmosetsVox(Dataset):
         audio = audio.astype(np.float32)
         # Stereo to mono if necessary.
         audio = audio_stereo_to_mono(audio, mono_method="average")
-        # Normalize
-        max_abs = np.max(np.abs(audio))
-        if max_abs > 0:
-            audio = audio / max_abs
 
         # Resample on-the-fly if requested sample rate doesn't have pre-resampled version
         if self.sample_rate is not None and sr != self.sample_rate:
-            audio = librosa.resample(y=audio, orig_sr=sr, target_sr=self.sample_rate, res_type="kaiser_best")
+            audio = librosa.resample(
+                y=audio, orig_sr=sr, target_sr=self.sample_rate, res_type="kaiser_best"
+            )
 
         row["audio"] = audio
         row["path"] = audio_rel_path  # Update path to reflect actual file loaded
@@ -325,7 +384,13 @@ class InfantMarmosetsVox(Dataset):
             yield self._process(row)
 
     def __str__(self) -> str:
-        """Return a string representation of the dataset."""
+        """Return a string representation of the dataset.
+
+        Returns
+        -------
+        str
+            A formatted string with dataset information.
+        """
         return (
             f"{self.info.name} (v{self.info.version}), split='{self.split}'\n"
             f"Description: {self.info.description}\n"
@@ -340,11 +405,6 @@ class InfantMarmosetsVox(Dataset):
         return CALLTYPE_NAMES
 
     @property
-    def num_calltypes(self) -> int:
-        """Return number of call types (11)."""
-        return len(CALLTYPE_NAMES)
-
-    @property
     def num_callers(self) -> int:
-        """Return number of unique callers (10)."""
-        return 10
+        """Return number of unique callers."""
+        return self._data._df["callerID"].n_unique()
