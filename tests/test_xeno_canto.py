@@ -275,7 +275,7 @@ def test_reference_item_stability() -> None:
 
     # Expected SHA256 hash of the first item's audio data
     EXPECTED_FIRST_ITEM_AUDIO_SHA256 = (
-        "66bcf85aa6b64509d0937615c8d87b32c959827bf15808f6a8da841e9893be8a"
+        "a3b5a78eb3cc628fd44d6ed64716249b0e3bdb91a7bcb8fc0c64bae839011930"
     )
 
     ds = XenoCanto(split="train")

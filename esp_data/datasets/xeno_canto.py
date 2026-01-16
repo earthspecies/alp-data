@@ -88,9 +88,9 @@ class XenoCanto(Dataset):
         name="xeno-canto",
         owner="david; gagan",
         split_paths={
-            "train": "gs://esp-ml-datasets/xeno-canto/v0.1.0/raw/xeno_curated_train.csv",
-            "validation": "gs://esp-ml-datasets/xeno-canto/v0.1.0/raw/xeno_curated_val.csv",
-            "all": "gs://esp-ml-datasets/xeno-canto/v0.1.0/raw/xeno_curated_all.csv",
+            "train": "gs://esp-ml-datasets/xeno-canto/v0.1.0/raw/xeno_curated_train_20260116.csv",
+            "validation": "gs://esp-ml-datasets/xeno-canto/v0.1.0/raw/xeno_curated_val_20260116.csv",
+            "all": "gs://esp-ml-datasets/xeno-canto/v0.1.0/raw/xeno_curated_all_20260116.csv",
         },
         version="0.1.0",
         description="Xeno-canto audio dataset with taxonomic metadata. "
