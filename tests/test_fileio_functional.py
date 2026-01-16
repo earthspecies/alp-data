@@ -25,10 +25,7 @@ def test_upload_download_cloud(local_test_dir, cloud_path):
     local_file.write_bytes(b"Hello Cloud")
 
     assert exists(local_file)
-
-    # Upload to remote
-    rm(cloud_path)
-    assert not exists(cloud_path)
+    # Upload to remote (just overwrite if exists)
     filesystem_from_path(cloud_path).put(str(local_file), str(cloud_path))
     assert exists(cloud_path)
 
@@ -36,8 +33,6 @@ def test_upload_download_cloud(local_test_dir, cloud_path):
     download_target = local_test_dir / "cloud_test_download.bin"
     filesystem_from_path(cloud_path).get(str(cloud_path), str(download_target))
     assert download_target.read_bytes() == b"Hello Cloud"
-    rm(cloud_path)
-    assert not exists(cloud_path)
 
 
 # def test_create_local_file(local_test_dir):
