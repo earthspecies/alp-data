@@ -27,7 +27,7 @@ def test_upload_download_cloud(local_test_dir, cloud_path):
     assert exists(local_file)
 
     # Upload to remote
-
+    rm(cloud_path)
     assert not exists(cloud_path)
     filesystem_from_path(cloud_path).put(str(local_file), str(cloud_path))
     assert exists(cloud_path)
@@ -168,23 +168,24 @@ def test_list_files_in_cloud(cloud_dir, local_test_dir):
     assert not exists(anypath(remote_path))
 
 
-@pytest.mark.parametrize(
-    "cloud_dir",
-    [
-        anypath("gs://esp-ci-cd-tests/esp-data-tests/delete_files_tests"),
-        anypath("r2://esp-ci-cd-tests/esp-data-tests/delete_files_tests"),
-    ],
-)
-def test_delete_files_in_cloud(cloud_dir, local_test_dir):
-    """Test deleting files in a cloud directory."""
-    test_file = local_test_dir / "file_delete_cloud.txt"
-    test_file.write_text("Delete from cloud")
+# Repeated test of delete in cloud, commented out for now
+# @pytest.mark.parametrize(
+#     "cloud_dir",
+#     [
+#         anypath("gs://esp-ci-cd-tests/esp-data-tests/delete_files_tests"),
+#         anypath("r2://esp-ci-cd-tests/esp-data-tests/delete_files_tests"),
+#     ],
+# )
+# def test_delete_files_in_cloud(cloud_dir, local_test_dir):
+#     """Test deleting files in a cloud directory."""
+#     test_file = local_test_dir / "file_delete_cloud.txt"
+#     test_file.write_text("Delete from cloud")
 
-    remote_path = cloud_dir / str(uuid4())
+#     remote_path = cloud_dir / str(uuid4())
 
-    assert not exists(remote_path)
-    filesystem_from_path(remote_path).put(str(test_file), str(remote_path))
+#     assert not exists(remote_path)
+#     filesystem_from_path(remote_path).put(str(test_file), str(remote_path))
 
-    assert exists(remote_path)
-    rm(remote_path)
-    assert not exists(remote_path)
+#     assert exists(remote_path)
+#     rm(remote_path)
+#     assert not exists(remote_path)
