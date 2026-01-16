@@ -15,44 +15,30 @@ def local_test_dir(tmp_path):
 @pytest.mark.parametrize(
     "cloud_path",
     [
-        anypath("gs://esp-ci-cd-tests/esp-data-tests/test_upload_file.bin"),
-        anypath("r2://esp-ci-cd-tests/esp-data-tests/test_upload_file.bin"),
+        anypath(f"gs://esp-ci-cd-tests/esp-data-tests/{str(uuid4())}.bin"),
+        anypath(f"r2://esp-ci-cd-tests/esp-data-tests/{str(uuid4())}.bin"),
     ],
 )
 def test_upload_download_cloud(local_test_dir, cloud_path):
     """Test uploading to and downloading from cloud buckets."""
     local_file = local_test_dir / "cloud_test.bin"
     local_file.write_bytes(b"Hello Cloud")
-
     assert exists(local_file)
-    # Upload to remote (just overwrite if exists)
+
+    # Upload to remote
+    assert not exists(cloud_path)
     filesystem_from_path(cloud_path).put(str(local_file), str(cloud_path))
     assert exists(cloud_path)
+    # Clean up local file
+    local_file.unlink()
+    assert not exists(local_file)
 
     # Download back to a different local file
     download_target = local_test_dir / "cloud_test_download.bin"
     filesystem_from_path(cloud_path).get(str(cloud_path), str(download_target))
     assert download_target.read_bytes() == b"Hello Cloud"
-
-
-# def test_create_local_file(local_test_dir):
-#     """Test creating a local file."""
-#     test_file = local_test_dir / "test_create.txt"
-#     assert create_file(str(test_file), data=b"Hello") is True
-#     assert test_file.exists()
-#     assert test_file.read_bytes() == b"Hello"
-
-
-# def test_create_and_delete_file_cloud(local_test_dir):
-#     """Test creating a file in a cloud bucket."""
-#     test_file = "gs://esp-ci-cd-tests/esp-data-tests/test_create_cloud.txt"
-#     assert create_file(test_file, data=b"Hello") is True
-#     assert exists(test_file) is True
-#     assert download(test_file, str(local_test_dir / "test_create_cloud.txt")) is True
-#     assert (local_test_dir / "test_create_cloud.txt").read_bytes() == b"Hello"
-#     # delete remote file
-#     assert delete_file(test_file) is True
-#     assert exists(test_file) is False
+    # Clean up remote file
+    rm(cloud_path)
 
 
 def test_open_file_read_write(local_test_dir):
