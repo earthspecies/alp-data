@@ -39,6 +39,7 @@ def test_upload_download_cloud(local_test_dir, cloud_path):
     assert download_target.read_bytes() == b"Hello Cloud"
     # Clean up remote file
     rm(cloud_path)
+    assert not exists(cloud_path)
 
 
 def test_open_file_read_write(local_test_dir):
