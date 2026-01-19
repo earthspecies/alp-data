@@ -427,11 +427,6 @@ class TestEdgeCases:
         path = PureGSPath("gs://bucket/folder/文件.txt")
         assert str(path) == "gs://bucket/folder/文件.txt"
 
-    def test_cloud_path_with_glob_patterns(self):
-        """Test cloud path with glob patterns raises ValueError."""
-        with pytest.raises(ValueError, match="Glob patterns are not supported"):
-            PureGSPath("gs://bucket/folder/*.txt")
-
     def test_cloud_path_with_name_invalid(self):
         """Test with_name with invalid name."""
         path = PureGSPath("gs://bucket/folder/file.txt")

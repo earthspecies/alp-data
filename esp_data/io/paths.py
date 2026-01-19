@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import fnmatch
 import os
-import re
 from pathlib import Path
 from typing import TypeAlias
 
@@ -88,38 +87,17 @@ class PureCloudPath:
             self._validate_path(result)
             self._path = self._normalize(result)
 
-    def _unescape_path(self, path: str) -> str:
-        """Remove escape sequences from glob pattern characters.
-
-        Args:
-            path: The path string with potential escape sequences.
-
-        Returns:
-            The path with backslash escapes removed from glob characters.
-        """
-        return re.sub(r"\\([*?\[\]])", r"\1", path)
-
     def _validate_path(self, path: str) -> None:
         """Validate that a path is appropriate for this cloud type.
 
         Args:
-            path: The path string to validate. Glob pattern characters (*, ?, [, ])
-                  can be escaped with backslash to include them literally.
+            path: The path string to validate.
 
         Raises:
             ValueError: If the path is invalid for this cloud type.
         """
         if not path:
             raise ValueError("Path is empty")
-
-        # Remove escaped glob characters, then check for unescaped patterns
-        path_without_escaped = re.sub(r"\\([*?\[\]])", "", path)
-        is_pattern = any(c in path_without_escaped for c in ["*", "?", "[", "]"])
-        if is_pattern:
-            raise ValueError(
-                f"Glob patterns are not supported: {path}. "
-                f"Use backslash to escape literal glob characters (e.g., \\*, \\?, \\[)"
-            )
 
         # Reject absolute POSIX paths (starting with /) from direct construction.
         # They are still used internally for "absolute within bucket" path joining.
@@ -136,13 +114,10 @@ class PureCloudPath:
             path: The path to normalize.
 
         Returns:
-            The normalized path with escape sequences removed.
+            The normalized path.
         """
         if not path:
             return path
-
-        # Unescape glob pattern characters
-        path = self._unescape_path(path)
 
         # Remember if path ends with /
         ends_with_slash = path.endswith("/") and len(path) > 1
