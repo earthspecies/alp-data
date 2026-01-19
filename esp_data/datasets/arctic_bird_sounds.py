@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from io import StringIO
-from typing import Any, Iterator
+from typing import Any, Iterator, List
 
 import librosa
 import numpy as np
@@ -257,51 +257,20 @@ class ArcticBirdSounds(Dataset):
 
         return ds, {}
 
-    def get_available_labels(self) -> list[str]:
+    def get_available_labels(self, anno_column: str = "Species") -> List[str]:
         """
         Return all possible labels for a given annotation column
-        anno_column is included as an optional argument for consistency
-        with other detection datasets.
 
         Returns
         ---------
         A list of all the available labels for anno_column
         """
-        available_labels = [
-            "Calcarius lapponicus",
-            "Gavia stellata",
-            "Calidris melanotos",
-            "Anser caerulescens",  # codespell:ignore
-            "Larus argentatus",
-            "Anser albifrons",  # codespell:ignore
-            "Pluvialis dominica",
-            "Phalaropus fulicarius",
-            "Limosa lapponica",
-            "Xema sabini",
-            "Calidris alba",
-            "Somateria spectabilis",
-            "Calidris maritima",
-            "Corvus corax",
-            "Cygnus columbianus",
-            "Stercorarius longicaudus",
-            "Charadrius semipalmatus",
-            "Somateria fischeri",
-            "Stercorarius pomarinus",
-            "Calidris pusilla",
-            "Sterna paradisaea",
-            "Limnodromus scolopaceus",
-            "Branta canadensis",
-            "Calidris fuscicollis",
-            "Pluvialis squatarola",
-            "Plectrophenax nivalis",
-            "Calidris alpina",
-            "Gavia pacifica",
-            "Calidris bairdii",
-            "Arenaria interpres",
-            "Branta bernicla",
-            "Clangula hyemalis",
-        ]
-        return sorted(set(available_labels))
+        available_labels = set()
+        for _, row in self._data.iterrows():
+            st = pd.read_csv(StringIO(row["selection_table"]), sep="\t")
+            available_labels.update(st[anno_column].astype(str).tolist())
+
+        return sorted(available_labels)
 
     def __str__(self) -> str:
         base = f"{self.info.name} (v{self.info.version})"

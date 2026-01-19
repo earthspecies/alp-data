@@ -1,9 +1,9 @@
-"""Anuraset dataset"""
+"""Corvid dataset from Claudia Wascher"""
 
 from __future__ import annotations
 
 from io import StringIO
-from typing import Any, Iterator, List
+from typing import Any, Dict, Iterator, List
 
 import librosa
 import numpy as np
@@ -15,71 +15,48 @@ from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
 
 
 @register_dataset
-class AnuraSetStrong(Dataset):
-    """AnuraSetStrong Dataset
+class CorvidWascher(Dataset):
+    """Corvid Dataset from Clausia Wascher
 
     Description
     -----------
-    This is the strongly labeled portion of AnuraSet, i.e. the portion with
-    start- and stop-times annotated.
+    This dataset consists of recordings of corvids, taken from Xeno-canto.
+    Claudia Wascher provided annotations of vocalization boundaries. Annotations
+    should not be considered exhaustive within a file, i.e. there may exist non-
+    boxed vocalizations.
 
-    Description from "AnuraSet: A dataset for benchmarking Neotropical anuran
-    calls identification in passive acoustic monitoring" by Canas et al. (2023)
-
-    "We introduce a large-scale multi-species dataset of anuran amphibians
-    calls recorded by PAM, that comprises 27 hours of expert annotations
-    for 42 different species from two Brazilian biomes.
-
-    To provide precise annotations, we identified bouts of advertisement
-    calls within each audio file and generated strong labels for them (step 1).
-    Using Audacity 3.2 software, we conducted a detailed visual and aural
-    inspection of the spectrogram to identify temporal limits (beginning and end)
-    of audio segments containing species-specific calls with an inter-call interval
-    of less than 1 second. These annotations ensured fine-scale specificity (Figure 3).
-    For longer intervals, we split the calls into different time boxes and labeled
-    them independently. Detailed labels assigned to time boxes were composed of (i)
-    the species ID, tagged with a unique 6-letter code built from the scientific
-    name of each identified species (Table 2), and (ii) the perceived quality of the
-    recorded signal, included as a single letter indicating a Low ('L'), Medium ('M'),
-    or High ('H') quality (Figure 4). To ensure consistency among the perceptual quality
-    labels, we set up the following criteria: A high-quality call has a high signal-to-noise
-    ratio, no overlap with other sounds, has a well-identifiable structure on the spectrogram,
-    and can be easily visualized on the oscillogram. A medium-quality call can be
-    visually identified on the spectrogram but may overlap with other sounds that can be
-    difficult to identify in the oscillogram. A low-quality call shows a low signal-to-noise
-    ratio, is partially masked by other sounds, appears with low intensity on the spectrogram,
-    and cannot be easily identified on the oscillogram. This information was used to increase
-    the usability of the data and improve the error analysis of the learning model."
-
-    Note that we omitted the quality assessments.
+    This data was originally provided, with an MOU, for work on comparison
+    between vocal repertoires of different corvid species.
 
     Each entry consists of:
     - an audio recording
-    - a selection table (Raven format), with Species labels
+    - a selection table with start- and stop-times of vocalizations
+    - file-level metadata columns
 
     References
     ----------
-    https://arxiv.org/pdf/2307.06860
+    https://www.biorxiv.org/content/biorxiv/early/2024/07/17/2024.07.15.603339.full.pdf
+
 
     """
 
     info = DatasetInfo(
-        name="anuraset_strong",
+        name="corvid_wascher",
         owner="benjamin",
         split_paths={
-            "all": "gs://esp-ml-datasets/anuraset/anuraset_all_gbif.csv",
+            "all": "gs://esp-ml-datasets/wascher_corvid_comparison/all.csv",
         },
         version="0.1.0",
         description="[MISSING]",
-        sources="Zenodo",
-        license="CC BY 1.0",
+        sources="XenoCanto, Claudia Wascher",
+        license="private",
     )
 
     def __init__(
         self,
         split: str = "all",
-        output_take_and_give: dict[str, str] | None = None,
-        sample_rate: int | None = None,
+        output_take_and_give: Dict[str, str] | None = None,
+        sample_rate: int | None = 16000,
         data_root: str | AnyPathT | None = None,
         backend: BackendType = "polars",
         streaming: bool = False,
@@ -102,11 +79,11 @@ class AnuraSetStrong(Dataset):
         """
         super().__init__(output_take_and_give, backend=backend, streaming=streaming)
         self.split = split
+        self._data = None
         self.annotation_columns = ["Species"]
 
         self.sample_rate = sample_rate
         self.data_root = anypath(data_root) if data_root is not None else None
-        self._data = None
 
         # Load split CSV
         self._load()
@@ -117,7 +94,7 @@ class AnuraSetStrong(Dataset):
 
     @property
     def columns(self) -> list[str]:
-        return self._data.columns
+        return list(self._data.columns)
 
     @property
     def available_splits(self) -> list[str]:
@@ -155,8 +132,11 @@ class AnuraSetStrong(Dataset):
         dict[str, Any]
             The processed row.
         """
+
         # Resolve audio path
-        audio_path = self.data_root / row["audio_path"]
+        audio_path = (
+            (self.data_root / row["audio_path"]) if self.data_root else anypath(row["audio_path"])
+        )
 
         # Read audio
         audio, sr = read_audio(audio_path)
@@ -221,7 +201,7 @@ class AnuraSetStrong(Dataset):
             yield self._process(row)
 
     @classmethod
-    def from_config(cls, dataset_config: DatasetConfig) -> tuple["AnuraSetStrong", dict[str, Any]]:
+    def from_config(cls, dataset_config: DatasetConfig) -> tuple["CorvidWascher", dict[str, Any]]:
         cfg = dataset_config.model_dump(exclude={"dataset_name", "transformations"})
         ds = cls(
             split=cfg["split"],
@@ -236,7 +216,7 @@ class AnuraSetStrong(Dataset):
             return ds, meta
         return ds, {}
 
-    def get_available_labels(self, anno_column: str = "Species") -> List[str]:
+    def get_available_labels(self, anno_column: str) -> List[str]:
         """
         Return all possible labels for a given annotation column
 
@@ -245,10 +225,9 @@ class AnuraSetStrong(Dataset):
         A list of all the available labels for anno_column
         """
         available_labels = set()
-        for _, row in self._data.iterrows():
+        for row in self._data:
             st = pd.read_csv(StringIO(row["selection_table"]), sep="\t")
             available_labels.update(st[anno_column].astype(str).tolist())
-
         return sorted(available_labels)
 
     def __str__(self) -> str:

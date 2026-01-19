@@ -10,6 +10,7 @@ from .bengalese_finch_calls import BengaleseFinchCalls
 from .birdeep import Birdeep
 from .birdset import BirdSet
 from .chiffchaff_id import ChiffchaffId
+from .corvid_wascher import CorvidWascher
 from .dinardo_dolphin_whistles import DinardoDolphinWhistles
 from .esp_raincoast import ESPRaincoast
 from .geladas import Geladas
@@ -17,6 +18,7 @@ from .giant_otters import GiantOtters
 from .gibbon_solos import GibbonSolos
 from .hawaiian_birds import HawaiianBirds
 from .inaturalist import INaturalist
+from .infant_marmosets_vox import InfantMarmosetsVox
 from .insectset_459 import InsectSet459
 from .littleowl_id import LittleOwlId
 from .macaques_coo_calls import MacaquesCooCalls
@@ -66,4 +68,6 @@ __all__ = [
     "Geladas",
     "DinardoDolphinWhistles",
     "GibbonSolos",
+    "InfantMarmosetsVox",
+    "CorvidWascher",
 ]

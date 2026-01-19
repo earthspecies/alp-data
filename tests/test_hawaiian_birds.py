@@ -18,12 +18,12 @@ import pytest
 from esp_data.datasets import HawaiianBirds
 
 
-# --- Dataset snapshot ---
+# # --- Dataset snapshot ---
 
 # # Code to generate snapshot:
 # import hashlib
 # from esp_data.datasets import HawaiianBirds
-# ds = HawaiianBirds(split="all", sample_rate=16000)
+# ds = HawaiianBirds(split="all", sample_rate=16000, backend="pandas")
 
 # print("len(ds) =", len(ds))
 
@@ -33,7 +33,12 @@ from esp_data.datasets import HawaiianBirds
 # h = hashlib.sha256(audio0.tobytes()).hexdigest()
 # print("sha256:", h)
 
-# csv_bytes = ds._data.sort_index(axis=0).sort_index(axis=1).to_csv(index=True).encode("utf-8")
+# csv_bytes = (
+#         ds._data.unwrap.sort_index(axis=0)
+#         .sort_index(axis=1)
+#         .to_csv(index=True)
+#         .encode("utf-8")
+#     )
 # h = hashlib.sha256(csv_bytes).hexdigest()
 
 # print("annotations sha256:", h)
