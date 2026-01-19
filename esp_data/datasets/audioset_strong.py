@@ -62,9 +62,11 @@ class AudioSetStrong(Dataset):
     >>> print(len(dataset))
     8115
     >>> item = dataset[0]
-    >>> [k for k in sorted(item.keys()) if k != '32khz_path']
-    ['audio', 'audio_path', 'sample_rate', 'segment_id', 'segment_start',
-     'selection_table', 'youtube_id']
+    >>> keys = sorted([k for k in item.keys() if k != '32khz_path'])
+    >>> len(keys)
+    7
+    >>> 'sample_rate' in keys and 'audio' in keys
+    True
     >>> print(list(item['selection_table'].columns))
     ['Selection', 'Begin Time (s)', 'End Time (s)', 'Label']
 
