@@ -245,6 +245,7 @@ class ESPRaincoast(Dataset):
             audio, sr = read_audio(audio_path, start_time=start_time, end_time=end_time)
         else:
             audio, sr = read_audio(audio_path)
+        sample_rate = sr
         audio = audio.astype(np.float32)
 
         # Stereo to mono if necessary.
@@ -259,9 +260,10 @@ class ESPRaincoast(Dataset):
                 scale=True,
                 res_type="kaiser_best",
             )
+            sample_rate = self.sample_rate
 
         row["audio"] = audio
-        row["sample_rate"] = self.sample_rate or sr
+        row["sample_rate"] = sample_rate
 
         if self.output_take_and_give:
             item = {}

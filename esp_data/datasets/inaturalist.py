@@ -280,6 +280,7 @@ class INaturalist(Dataset):
 
         if use_presampled:
             audio, sr = read_audio(audio_path)
+            sample_rate = sr
             audio = audio.astype(np.float32)
             audio = audio_stereo_to_mono(audio, mono_method="average")
             # Audio is already at the correct sample rate, no resampling needed
@@ -287,6 +288,7 @@ class INaturalist(Dataset):
             # Use original variable-rate files and resample on-the-fly if needed
             audio_path = anypath(self.data_root) / row[self._originals_path_column]
             audio, sr = read_audio(audio_path)
+            sample_rate = sr
             audio = audio.astype(np.float32)
             audio = audio_stereo_to_mono(audio, mono_method="average")
 
@@ -298,8 +300,10 @@ class INaturalist(Dataset):
                     scale=True,
                     res_type="kaiser_best",
                 )
+                sample_rate = self.sample_rate
 
         row["audio"] = audio
+        row["sample_rate"] = sample_rate
 
         if self.output_take_and_give:
             item = {}

@@ -198,6 +198,7 @@ class AudioSetStrong(Dataset):
                 presampled_path = self.data_root / str(row[path_column])
                 try:
                     audio, sr = read_audio(presampled_path)
+                    sample_rate = sr
                     audio = audio_stereo_to_mono(audio, mono_method="average").astype(np.float32)
                     # Validate audio length (corrupt files may be very short)
                     if len(audio) < self.sample_rate:
@@ -213,6 +214,7 @@ class AudioSetStrong(Dataset):
                 else anypath(row[self._originals_path_column])
             )
             audio, sr = read_audio(audio_path)
+            sample_rate = sr
             audio = audio_stereo_to_mono(audio, mono_method="average").astype(np.float32)
 
             # Resample if necessary
@@ -225,7 +227,7 @@ class AudioSetStrong(Dataset):
                     scale=True,
                     res_type="kaiser_best",
                 )
-                sr = target_sr
+                sample_rate = target_sr
 
         # Selection table (using polars for ~5x faster parsing)
         selection_table_blob = row.get("selection_table", "")
@@ -235,12 +237,13 @@ class AudioSetStrong(Dataset):
             st = pl.read_csv(StringIO(selection_table_blob), separator="\t")
 
         # Clip events outside audio (keep only events that begin before audio end)
-        audio_dur = len(audio) / float(sr)
+        audio_dur = len(audio) / float(sample_rate)
         if "Begin Time (s)" in st.columns:
             st = st.filter(pl.col("Begin Time (s)") < audio_dur)
 
         # Build output
         row["audio"] = audio
+        row["sample_rate"] = sample_rate
         row["selection_table"] = (
             st.to_pandas()
         )  # to adhere to the rest of the selection_table datasets

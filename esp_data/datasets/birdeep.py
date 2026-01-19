@@ -160,6 +160,7 @@ class Birdeep(Dataset):
 
         # Read audio
         audio, sr = read_audio(audio_path)
+        sample_rate = sr
         audio = audio_stereo_to_mono(audio, mono_method="average").astype(np.float32)
 
         # Resample if necessary
@@ -172,17 +173,18 @@ class Birdeep(Dataset):
                 scale=True,
                 res_type="kaiser_best",
             )
-            sr = target_sr
+            sample_rate = target_sr
 
         # Selection table
         st = pd.read_csv(StringIO(row["selection_table"]), sep="\t")
 
         # Clip events outside audio (keep only events that begin before audio end)
-        audio_dur = len(audio) / float(sr)
+        audio_dur = len(audio) / float(sample_rate)
         st = st[st["Begin Time (s)"] < audio_dur].copy()
 
         # Build output
         row["audio"] = audio
+        row["sample_rate"] = sample_rate
         row["selection_table"] = st
 
         if self.output_take_and_give:

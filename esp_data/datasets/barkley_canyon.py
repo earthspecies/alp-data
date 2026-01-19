@@ -224,6 +224,7 @@ class BarkleyCanyon(Dataset):
             frames=frames_to_read,
             start=start_frame,
         )
+        sample_rate = sr
         audio = audio.astype(np.float32)
         # Stereo to mono if necessary.
         audio = audio_stereo_to_mono(audio, mono_method="average")
@@ -236,8 +237,10 @@ class BarkleyCanyon(Dataset):
                 scale=True,
                 res_type="kaiser_best",
             )
+            sample_rate = self.sample_rate
 
         row["audio"] = audio
+        row["sample_rate"] = sample_rate
 
         if self.output_take_and_give:
             item = {}
@@ -469,6 +472,7 @@ class BarkleyCanyonDetection(Dataset):
         # Find the channel dimension (typically the smaller dimension)
         audio = audio_stereo_to_mono(audio, mono_method="average")
 
+        sample_rate = sr
         audio = audio.astype(np.float32)
 
         if self.sample_rate is not None and sr != self.sample_rate:
@@ -479,8 +483,10 @@ class BarkleyCanyonDetection(Dataset):
                 scale=True,
                 res_type="kaiser_best",
             )
+            sample_rate = self.sample_rate
 
         row["audio"] = audio
+        row["sample_rate"] = sample_rate
 
         if self.output_take_and_give:
             item = {}

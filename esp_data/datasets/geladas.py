@@ -205,6 +205,7 @@ class Geladas(Dataset):
 
         # Read the audio clip
         audio, sr = read_audio(audio_path)
+        sample_rate = sr
         audio = audio.astype(np.float32)
         # Stereo to mono if necessary.
         audio = audio_stereo_to_mono(audio, mono_method="average")
@@ -217,8 +218,10 @@ class Geladas(Dataset):
                 scale=True,
                 res_type="kaiser_best",
             )
+            sample_rate = self.sample_rate
 
         row["audio"] = audio
+        row["sample_rate"] = sample_rate
 
         if self.output_take_and_give:
             item = {}

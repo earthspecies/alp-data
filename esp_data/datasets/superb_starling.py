@@ -129,6 +129,7 @@ class SuperbStarling(Dataset):
 
         # Read audio
         audio, sr = read_audio(audio_path)
+        sample_rate = sr
         audio = audio_stereo_to_mono(audio, mono_method="average").astype(np.float32)
 
         # Resample if necessary
@@ -141,11 +142,11 @@ class SuperbStarling(Dataset):
                 scale=True,
                 res_type="kaiser_best",
             )
-            sr = target_sr
+            sample_rate = target_sr
 
         # Add audio and sample rate to output
         row["audio"] = audio
-        row["sample_rate"] = sr
+        row["sample_rate"] = sample_rate
 
         # Calculate duration from audio
         row["duration_secs"] = len(audio) / float(sr)

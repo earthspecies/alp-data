@@ -384,6 +384,7 @@ class Voxaboxen(Dataset):
         # Ensure audio path is valid
         audio_path = anypath(self.data_root) / row["audio_fp"]
         audio, sr = read_audio(audio_path)
+        sample_rate = sr
         audio = audio.astype(np.float32)
 
         if self.mono_method:
@@ -397,8 +398,10 @@ class Voxaboxen(Dataset):
                 scale=True,
                 res_type="kaiser_best",
             )
+            sample_rate = self.sample_rate
 
         row["audio"] = audio
+        row["sample_rate"] = sample_rate
 
         # read selection table
         row["selection_table"] = pd.read_csv(StringIO(row["selection_table_str"]), sep="\t")

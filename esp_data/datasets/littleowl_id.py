@@ -169,6 +169,7 @@ class LittleOwlId(Dataset):
         audio_path = anypath(self.data_root) / row["local_path"]
 
         audio, sr = read_audio(audio_path)
+        sample_rate = sr
         audio = audio.astype(np.float32)
         audio = audio_stereo_to_mono(audio, mono_method="average")
         if self.sample_rate and sr != self.sample_rate:
@@ -179,7 +180,9 @@ class LittleOwlId(Dataset):
                 scale=True,
                 res_type="kaiser_best",
             )
+            sample_rate = self.sample_rate
         row["audio"] = audio
+        row["sample_rate"] = sample_rate
         if self.output_take_and_give:
             return {new: row[old] for old, new in self.output_take_and_give.items()}
         return row
