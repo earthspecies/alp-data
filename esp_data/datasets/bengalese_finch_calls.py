@@ -31,7 +31,7 @@ Examples
 >>> ds = BengaleseFinchCalls(split="Bird0", sample_rate=16000)
 >>> first = ds[0]
 >>> first.keys()
-dict_keys(['local_path', 'call_type', 'individual_id', 'audio'])
+dict_keys(['local_path', 'call_type', 'individual_id', 'audio', 'sample_rate'])
 
 # Bird2 training split
 >>> train_ds = BengaleseFinchCalls(split="Bird2_train", sample_rate=16000)
