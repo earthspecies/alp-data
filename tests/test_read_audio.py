@@ -233,3 +233,12 @@ def test_get_audio_info_troublesome_xc_file() -> None:
 
     assert info["sr"] == 48000
     assert info["num_frames"] == 2807470  # FIXME: Info gives more frames
+
+
+#Issue 215: Glob pattern fix
+def test_read_audio_with_glob() -> None:
+    """Test reading audio file using glob pattern."""
+    path = "gs://esp-ci-cd-tests/esp-data-tests/test_glob_pattern_audio/test_audio[1].wav"
+    data, sr = read_audio(path)
+    assert sr == 16000
+    assert data.shape == (16000,)

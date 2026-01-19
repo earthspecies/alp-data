@@ -18,6 +18,7 @@ from .giant_otters import GiantOtters
 from .gibbon_solos import GibbonSolos
 from .hawaiian_birds import HawaiianBirds
 from .inaturalist import INaturalist
+from .infant_marmosets_vox import InfantMarmosetsVox
 from .insectset_459 import InsectSet459
 from .littleowl_id import LittleOwlId
 from .macaques_coo_calls import MacaquesCooCalls
@@ -67,5 +68,6 @@ __all__ = [
     "Geladas",
     "DinardoDolphinWhistles",
     "GibbonSolos",
+    "InfantMarmosetsVox",
     "CorvidWascher",
 ]
