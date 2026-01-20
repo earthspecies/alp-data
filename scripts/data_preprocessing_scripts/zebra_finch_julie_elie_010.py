@@ -24,7 +24,7 @@ CALL_TYPES_1 = {
     "DC": "contact",
     "Di": "distress",
     "LT": "contact",
-    "Te": "contact",
+    "Te": "contact",  # codespell:ignore
     "Th": "alarm",
     "Tu": "alarm",
     "Wh": "nest",
