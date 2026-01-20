@@ -98,6 +98,7 @@ def test_length(dataset: Dataset) -> None:
 def test_getitem(dataset: Dataset) -> None:
     sample = dataset[0]
     assert "audio" in sample
+    assert "sample_rate" in sample
     assert "call_type" in sample
     assert "individual_id" in sample
     # Audio should be mono
