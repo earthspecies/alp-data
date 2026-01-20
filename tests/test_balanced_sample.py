@@ -5,8 +5,6 @@ import pytest
 from esp_data.backends import PandasBackend, PolarsBackend
 from esp_data.transforms import BalancedSample, BalancedSampleConfig
 
-# TODO (milad) add tests for returned metadata
-
 
 @pytest.mark.parametrize("backend_type", ["pandas", "polars"])
 def test_balanced_sample(backend_type: str) -> None:
@@ -66,9 +64,6 @@ def test_balanced_sample(backend_type: str) -> None:
         assert birds_count == 100
         assert mammals_count == 100
         assert amphibians_count == 100
-        # Verify balanced distribution
-        counts = [birds_count, mammals_count, amphibians_count]
-        assert max(counts) - min(counts) < 10
 
 
 @pytest.mark.parametrize("backend_type", ["pandas", "polars"])
@@ -97,6 +92,7 @@ def test_balanced_sample_unequal_counts(backend_type: str) -> None:
     config = BalancedSampleConfig(
         type="balanced_sample",
         property="class",
+        strategy="min",
         seed=42,
     )
     balanced_sample_transform = BalancedSample.from_config(config)
@@ -192,40 +188,36 @@ def test_balanced_sample_manual_vs_config(backend_type: str) -> None:
 
 
 @pytest.mark.parametrize("backend_type", ["pandas", "polars"])
-def test_balanced_sample_upsampling(backend_type: str) -> None:
-    """Test that balanced sampling upsamples categories with fewer samples."""
-    # Create test data with very unequal distribution: birds=10, mammals=5, amphibians=50
-    # Balanced sampling should upsample birds and mammals to 5 (min_count)
+def test_balanced_sample_strategy_max(backend_type: str) -> None:
+    """Test balanced sampling with max strategy."""
+    # Create test data: birds=50, mammals=100, amphibians=200
+    # Max strategy should upsample all to 200
     if backend_type == "pandas":
         df = pd.DataFrame(
             {
-                "class": ["birds"] * 10 + ["mammals"] * 5 + ["amphibians"] * 50,
-                "value": range(65),
+                "class": ["birds"] * 50 + ["mammals"] * 100 + ["amphibians"] * 200,
+                "value": range(350),
             }
         )
         backend = PandasBackend(df)
     else:
         df = pl.DataFrame(
             {
-                "class": ["birds"] * 10 + ["mammals"] * 5 + ["amphibians"] * 50,
-                "value": range(65),
+                "class": ["birds"] * 50 + ["mammals"] * 100 + ["amphibians"] * 200,
+                "value": range(350),
             }
         )
         backend = PolarsBackend(df)
 
-    # Test balanced sampling
     config = BalancedSampleConfig(
         type="balanced_sample",
         property="class",
+        strategy="max",
         seed=42,
     )
     balanced_sample_transform = BalancedSample.from_config(config)
     sampled_backend, _ = balanced_sample_transform(backend)
 
-    # Check that all categories have min_count (5) after balancing
-    # Birds should be upsampled from 10 to 5 (downsampled actually, since 10 > 5)
-    # Mammals should stay at 5 (already at min_count)
-    # Amphibians should be downsampled from 50 to 5
     if backend_type == "pandas":
         sampled_df = sampled_backend.unwrap
         class_counts = sampled_df["class"].value_counts()
@@ -241,51 +233,208 @@ def test_balanced_sample_upsampling(backend_type: str) -> None:
         mammals_count = class_counts.filter(pl.col("class") == "mammals")["len"][0]
         amphibians_count = class_counts.filter(pl.col("class") == "amphibians")["len"][0]
 
-    # All should have min_count (5)
-    assert birds_count == 5, f"Birds should be 5, got {birds_count}"
-    assert mammals_count == 5, f"Mammals should be 5, got {mammals_count}"
-    assert amphibians_count == 5, f"Amphibians should be 5, got {amphibians_count}"
+    # All should have max_count (200)
+    assert birds_count == 200, f"Birds should be 200, got {birds_count}"
+    assert mammals_count == 200, f"Mammals should be 200, got {mammals_count}"
+    assert amphibians_count == 200, f"Amphibians should be 200, got {amphibians_count}"
 
-    # Test with a case that actually requires upsampling
-    # birds=2, mammals=5, amphibians=20 -> min_count=2, so mammals and amphibians need upsampling
+
+@pytest.mark.parametrize("backend_type", ["pandas", "polars"])
+def test_balanced_sample_strategy_median(backend_type: str) -> None:
+    """Test balanced sampling with median strategy."""
+    # Create test data: birds=50, mammals=100, amphibians=200
+    # Median of [50, 100, 200] = 100
     if backend_type == "pandas":
-        df2 = pd.DataFrame(
+        df = pd.DataFrame(
             {
-                "class": ["birds"] * 2 + ["mammals"] * 5 + ["amphibians"] * 20,
-                "value": range(27),
+                "class": ["birds"] * 50 + ["mammals"] * 100 + ["amphibians"] * 200,
+                "value": range(350),
             }
         )
-        backend2 = PandasBackend(df2)
+        backend = PandasBackend(df)
     else:
-        df2 = pl.DataFrame(
+        df = pl.DataFrame(
             {
-                "class": ["birds"] * 2 + ["mammals"] * 5 + ["amphibians"] * 20,
-                "value": range(27),
+                "class": ["birds"] * 50 + ["mammals"] * 100 + ["amphibians"] * 200,
+                "value": range(350),
             }
         )
-        backend2 = PolarsBackend(df2)
+        backend = PolarsBackend(df)
 
-    sampled_backend2, _ = balanced_sample_transform(backend2)
+    config = BalancedSampleConfig(
+        type="balanced_sample",
+        property="class",
+        strategy="median",
+        seed=42,
+    )
+    balanced_sample_transform = BalancedSample.from_config(config)
+    sampled_backend, _ = balanced_sample_transform(backend)
 
     if backend_type == "pandas":
-        sampled_df2 = sampled_backend2.unwrap
-        class_counts2 = sampled_df2["class"].value_counts()
-        birds_count2 = class_counts2["birds"]
-        mammals_count2 = class_counts2["mammals"]
-        amphibians_count2 = class_counts2["amphibians"]
+        sampled_df = sampled_backend.unwrap
+        class_counts = sampled_df["class"].value_counts()
+        birds_count = class_counts["birds"]
+        mammals_count = class_counts["mammals"]
+        amphibians_count = class_counts["amphibians"]
     else:
-        sampled_df2 = sampled_backend2.unwrap
-        if isinstance(sampled_df2, pl.LazyFrame):
-            sampled_df2 = sampled_df2.collect()
-        class_counts2 = sampled_df2.group_by("class").len()
-        birds_count2 = class_counts2.filter(pl.col("class") == "birds")["len"][0]
-        mammals_count2 = class_counts2.filter(pl.col("class") == "mammals")["len"][0]
-        amphibians_count2 = class_counts2.filter(pl.col("class") == "amphibians")["len"][0]
+        sampled_df = sampled_backend.unwrap
+        if isinstance(sampled_df, pl.LazyFrame):
+            sampled_df = sampled_df.collect()
+        class_counts = sampled_df.group_by("class").len()
+        birds_count = class_counts.filter(pl.col("class") == "birds")["len"][0]
+        mammals_count = class_counts.filter(pl.col("class") == "mammals")["len"][0]
+        amphibians_count = class_counts.filter(pl.col("class") == "amphibians")["len"][0]
 
-    # All should have min_count (2)
-    # Birds stays at 2, mammals and amphibians are upsampled to 2
-    assert birds_count2 == 2, f"Birds should be 2, got {birds_count2}"
-    assert mammals_count2 == 2, f"Mammals should be 2 (upsampled from 5), got {mammals_count2}"
-    assert (
-        amphibians_count2 == 2
-    ), f"Amphibians should be 2 (upsampled from 20), got {amphibians_count2}"
+    # All should have median_count (100)
+    assert birds_count == 100, f"Birds should be 100, got {birds_count}"
+    assert mammals_count == 100, f"Mammals should be 100, got {mammals_count}"
+    assert amphibians_count == 100, f"Amphibians should be 100, got {amphibians_count}"
+
+
+@pytest.mark.parametrize("backend_type", ["pandas", "polars"])
+def test_balanced_sample_strategy_mean(backend_type: str) -> None:
+    """Test balanced sampling with mean strategy."""
+    # Create test data: birds=60, mammals=90, amphibians=150
+    # Mean of [60, 90, 150] = 100
+    if backend_type == "pandas":
+        df = pd.DataFrame(
+            {
+                "class": ["birds"] * 60 + ["mammals"] * 90 + ["amphibians"] * 150,
+                "value": range(300),
+            }
+        )
+        backend = PandasBackend(df)
+    else:
+        df = pl.DataFrame(
+            {
+                "class": ["birds"] * 60 + ["mammals"] * 90 + ["amphibians"] * 150,
+                "value": range(300),
+            }
+        )
+        backend = PolarsBackend(df)
+
+    config = BalancedSampleConfig(
+        type="balanced_sample",
+        property="class",
+        strategy="mean",
+        seed=42,
+    )
+    balanced_sample_transform = BalancedSample.from_config(config)
+    sampled_backend, _ = balanced_sample_transform(backend)
+
+    if backend_type == "pandas":
+        sampled_df = sampled_backend.unwrap
+        class_counts = sampled_df["class"].value_counts()
+        birds_count = class_counts["birds"]
+        mammals_count = class_counts["mammals"]
+        amphibians_count = class_counts["amphibians"]
+    else:
+        sampled_df = sampled_backend.unwrap
+        if isinstance(sampled_df, pl.LazyFrame):
+            sampled_df = sampled_df.collect()
+        class_counts = sampled_df.group_by("class").len()
+        birds_count = class_counts.filter(pl.col("class") == "birds")["len"][0]
+        mammals_count = class_counts.filter(pl.col("class") == "mammals")["len"][0]
+        amphibians_count = class_counts.filter(pl.col("class") == "amphibians")["len"][0]
+
+    # All should have mean_count (100)
+    assert birds_count == 100, f"Birds should be 100, got {birds_count}"
+    assert mammals_count == 100, f"Mammals should be 100, got {mammals_count}"
+    assert amphibians_count == 100, f"Amphibians should be 100, got {amphibians_count}"
+
+
+@pytest.mark.parametrize("backend_type", ["pandas", "polars"])
+def test_balanced_sample_strategy_median_with_range(backend_type: str) -> None:
+    """Test balanced sampling with median_with_range strategy."""
+    # Create test data: birds=50, mammals=100, amphibians=200
+    # Median = 100, with range_fraction=0.2, bounds are [80, 120]
+    # birds (50) -> 80 (below lower bound, upsample)
+    # mammals (100) -> 100 (within range, keep)
+    # amphibians (200) -> 120 (above upper bound, downsample)
+    if backend_type == "pandas":
+        df = pd.DataFrame(
+            {
+                "class": ["birds"] * 50 + ["mammals"] * 100 + ["amphibians"] * 200,
+                "value": range(350),
+            }
+        )
+        backend = PandasBackend(df)
+    else:
+        df = pl.DataFrame(
+            {
+                "class": ["birds"] * 50 + ["mammals"] * 100 + ["amphibians"] * 200,
+                "value": range(350),
+            }
+        )
+        backend = PolarsBackend(df)
+
+    config = BalancedSampleConfig(
+        type="balanced_sample",
+        property="class",
+        strategy="median_with_range",
+        range_fraction=0.2,
+        seed=42,
+    )
+    balanced_sample_transform = BalancedSample.from_config(config)
+    sampled_backend, _ = balanced_sample_transform(backend)
+
+    if backend_type == "pandas":
+        sampled_df = sampled_backend.unwrap
+        class_counts = sampled_df["class"].value_counts()
+        birds_count = class_counts["birds"]
+        mammals_count = class_counts["mammals"]
+        amphibians_count = class_counts["amphibians"]
+    else:
+        sampled_df = sampled_backend.unwrap
+        if isinstance(sampled_df, pl.LazyFrame):
+            sampled_df = sampled_df.collect()
+        class_counts = sampled_df.group_by("class").len()
+        birds_count = class_counts.filter(pl.col("class") == "birds")["len"][0]
+        mammals_count = class_counts.filter(pl.col("class") == "mammals")["len"][0]
+        amphibians_count = class_counts.filter(pl.col("class") == "amphibians")["len"][0]
+
+    # birds should be clamped to lower_bound (80)
+    assert birds_count == 80, f"Birds should be 80, got {birds_count}"
+    # mammals should stay at 100 (within range)
+    assert mammals_count == 100, f"Mammals should be 100, got {mammals_count}"
+    # amphibians should be clamped to upper_bound (120)
+    assert amphibians_count == 120, f"Amphibians should be 120, got {amphibians_count}"
+
+
+def test_balanced_sample_range_fraction_validation() -> None:
+    """Test that range_fraction is validated for median_with_range strategy."""
+    # Valid range_fraction
+    config = BalancedSampleConfig(
+        type="balanced_sample",
+        property="class",
+        strategy="median_with_range",
+        range_fraction=0.5,
+    )
+    assert config.range_fraction == 0.5
+
+    # Invalid range_fraction (>= 1)
+    with pytest.raises(ValueError, match="range_fraction must be between 0 and 1"):
+        BalancedSampleConfig(
+            type="balanced_sample",
+            property="class",
+            strategy="median_with_range",
+            range_fraction=1.0,
+        )
+
+    # Invalid range_fraction (<= 0)
+    with pytest.raises(ValueError, match="range_fraction must be between 0 and 1"):
+        BalancedSampleConfig(
+            type="balanced_sample",
+            property="class",
+            strategy="median_with_range",
+            range_fraction=0.0,
+        )
+
+    # range_fraction not validated for other strategies
+    config2 = BalancedSampleConfig(
+        type="balanced_sample",
+        property="class",
+        strategy="min",
+        range_fraction=2.0,  # This should be allowed for non-median_with_range
+    )
+    assert config2.range_fraction == 2.0
