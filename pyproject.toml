@@ -16,7 +16,6 @@ dependencies = [
     "pyyaml>=6.0.2",
     "resampy",
     "s3fs>=2024.9.0",
-    "scipy>=1.15.3",
     "semver",
     "soundfile>=0.13.1",
 ]

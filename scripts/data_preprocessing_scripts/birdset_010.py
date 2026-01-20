@@ -4,32 +4,38 @@
 # ...
 # (License text continues)
 
-import os
+import argparse
 import csv
 import json
-import argparse
+import os
+
 import soundfile as sf
-from datasets import load_dataset, Audio
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from random import shuffle
-import re
+from datasets import Audio, load_dataset
 
 """
 Download EbiRd taxonomy and set csv path.
 """
 
-def load_ebird_taxonomy(csv_path="../BirdSet/resources/ebird_codes/eBird_taxonomy_v2024.csv"):
-    """
-    Loads the eBird taxonomy CSV and returns a dict mapping:
-        eBird code (e.g., 'amepip') -> {
-            'common_name': ...,
-            'sci_name': ...,
-            'family': ...,
-            'phylum': ...,
-            'class': ...,
-            'order': ...,
-            'species': ...
-        }
+
+def load_ebird_taxonomy(
+    csv_path: str = "../BirdSet/resources/ebird_codes/eBird_taxonomy_v2024.csv",
+) -> dict:
+    """Loads the eBird taxonomy CSV and returns a dict mapping.
+
+    eBird code (e.g., 'amepip') -> {
+        'common_name': ...,
+        'sci_name': ...,
+        'family': ...,
+        'phylum': ...,
+        'class': ...,
+        'order': ...,
+        'species': ...
+    }
+
+    Returns
+    -------
+    dict
+        Mapping of eBird codes to taxonomy information
     """
     code_to_taxonomy = {}
     with open(csv_path, mode="r", encoding="utf-8") as file:
@@ -40,7 +46,7 @@ def load_ebird_taxonomy(csv_path="../BirdSet/resources/ebird_codes/eBird_taxonom
                 family_name = row["FAMILY"]
                 if family_name:
                     # remove any trailing text after the first word
-                    family_name = family_name.split()[0]  
+                    family_name = family_name.split()[0]
                 code_to_taxonomy[species_code] = {
                     "common_name": row["PRIMARY_COM_NAME"],
                     "sci_name": row["SCI_NAME"],
@@ -49,15 +55,24 @@ def load_ebird_taxonomy(csv_path="../BirdSet/resources/ebird_codes/eBird_taxonom
                 }
     return code_to_taxonomy
 
-def save_formatted_jsonl(data, filepath):
+
+def save_formatted_jsonl(data: list, filepath: str) -> None:
     """Utility to save a list of JSON objects to a JSONL file."""
     with open(filepath, "w", encoding="utf-8") as f:
         for row in data:
             f.write(json.dumps(row) + "\n")
 
-def download_and_save_birdset_with_labels(dataset_name="HSN", is_train: bool = False, save_audio = True, download_path="audio", output_path="../foundation-model-data/data", taxonomy_path="../BirdSet/resources/ebird_codes/eBird_taxonomy_v2024.csv"):
+
+def download_and_save_birdset_with_labels(
+    dataset_name: str = "HSN",
+    is_train: bool = False,
+    save_audio: bool = True,
+    download_path: str = "audio",
+    output_path: str = "../foundation-model-data/data",
+    taxonomy_path: str = "../BirdSet/resources/ebird_codes/eBird_taxonomy_v2024.csv",
+) -> None:
     split = "train" if is_train else "test"
-    
+
     # 1) Load the dataset from Hugging Face
     dataset = load_dataset("DBD-research-group/BirdSet", dataset_name)
 
@@ -89,11 +104,11 @@ def download_and_save_birdset_with_labels(dataset_name="HSN", is_train: bool = F
     sci_skip_path = os.path.join(formatted_dir, f"{dataset_name}_sci_skip.jsonl")
     taxonomic_skip_path = os.path.join(formatted_dir, f"{dataset_name}_taxonomic_skip.jsonl")
 
-    # 4) Retrieve the ClassLabel objects for ebird_code and ebird_code_multilabel
-    single_label_feature = test_5s_dataset.features["ebird_code"]
+    # 4) Retrieve the ClassLabel object for ebird_code_multilabel
     multi_label_feature = test_5s_dataset.features["ebird_code_multilabel"].feature
 
-    # 5) Load local eBird taxonomy CSV to map codes -> (common_name, sci_name, family, phylum, class, order, species)
+    # 5) Load local eBird taxonomy CSV to map codes -> taxonomy info
+    # (common_name, sci_name, family, phylum, class, order, species)
     code_to_taxonomy = load_ebird_taxonomy(csv_path=taxonomy_path)
 
     # Track unique labels
@@ -111,7 +126,7 @@ def download_and_save_birdset_with_labels(dataset_name="HSN", is_train: bool = F
 
     # 6) Write out audio + metadata
     with open(metadata_path, "w", encoding="utf-8") as meta_file:
-        for idx, sample in enumerate(test_5s_dataset):
+        for _idx, sample in enumerate(test_5s_dataset):
             extension = sample["filepath"].split(".")[-1]
             filename = sample["filepath"].split("/")[-1].replace(f".{extension}", ".flac")
             audio_filename = os.path.join(audio_dir, filename)
@@ -120,7 +135,7 @@ def download_and_save_birdset_with_labels(dataset_name="HSN", is_train: bool = F
             if save_audio:
                 audio_array = sample["audio"]["array"]
                 sample_rate = sample["audio"]["sampling_rate"]
-                sf.write(audio_filename, audio_array, sample_rate, format='FLAC')
+                sf.write(audio_filename, audio_array, sample_rate, format="FLAC")
 
             # Build metadata dictionary (excluding raw audio array)
             metadata = {k: v for k, v in sample.items() if k != "audio"}
@@ -163,75 +178,89 @@ def download_and_save_birdset_with_labels(dataset_name="HSN", is_train: bool = F
                 # -----------------------------------------------------------------
                 # Common
                 common_label_str = ", ".join(common_names) if common_names else "None"
-                formatted_common.append({
-                    "local_path": audio_filename,
-                    "label": common_label_str,
-                    "text": common_label_str,
-                    "prompt": (
-                        "<Audio><AudioHere></Audio> "
-                        "What are the common names for the focal species in the audio, if any?"
-                    ),
-                })
+                formatted_common.append(
+                    {
+                        "local_path": audio_filename,
+                        "label": common_label_str,
+                        "text": common_label_str,
+                        "prompt": (
+                            "<Audio><AudioHere></Audio> "
+                            "What are the common names for the focal species in the audio, if any?"
+                        ),
+                    }
+                )
 
                 # Scientific
                 sci_label_str = ", ".join(sci_names) if sci_names else "None"
-                formatted_sci.append({
-                    "local_path": audio_filename,
-                    "label": sci_label_str,
-                    "text": sci_label_str,
-                    "prompt": (
-                        "<Audio><AudioHere></Audio> "
-                        "What are the scientific names for the focal species in the audio, if any?"
-                    ),
-                })
+                formatted_sci.append(
+                    {
+                        "local_path": audio_filename,
+                        "label": sci_label_str,
+                        "text": sci_label_str,
+                        "prompt": (
+                            "<Audio><AudioHere></Audio> "
+                            "What are the scientific names for the focal species in "
+                            "the audio, if any?"
+                        ),
+                    }
+                )
 
                 # Taxonomic
                 taxonomic_label_str = ", ".join(taxonomic_names) if taxonomic_names else "None"
-                formatted_taxonomic.append({
-                    "local_path": audio_filename,
-                    "label": taxonomic_label_str,
-                    "text": taxonomic_label_str,
-                    "prompt": (
-                        "<Audio><AudioHere></Audio> "
-                        "What are the taxonomic names for the focal species in the audio, if any?"
-                    ),
-                })
+                formatted_taxonomic.append(
+                    {
+                        "local_path": audio_filename,
+                        "label": taxonomic_label_str,
+                        "text": taxonomic_label_str,
+                        "prompt": (
+                            "<Audio><AudioHere></Audio> "
+                            "What are the taxonomic names for the focal species in "
+                            "the audio, if any?"
+                        ),
+                    }
+                )
 
                 # -----------------------------------------------------------------
                 # CLASSIFICATION prompts (skip): unchanged (no "" -> "None")
                 # -----------------------------------------------------------------
                 if common_names:
-                    formatted_common_skip.append({
-                        "local_path": audio_filename,
-                        "label": ", ".join(common_names),
-                        "text": ", ".join(common_names),
-                        "prompt": (
-                            "<Audio><AudioHere></Audio> "
-                            "What is the common name for the focal species in the audio?"
-                        ),
-                    })
+                    formatted_common_skip.append(
+                        {
+                            "local_path": audio_filename,
+                            "label": ", ".join(common_names),
+                            "text": ", ".join(common_names),
+                            "prompt": (
+                                "<Audio><AudioHere></Audio> "
+                                "What is the common name for the focal species in the audio?"
+                            ),
+                        }
+                    )
 
                 if sci_names:
-                    formatted_sci_skip.append({
-                        "local_path": audio_filename,
-                        "label": ", ".join(sci_names),
-                        "text": ", ".join(sci_names),
-                        "prompt": (
-                            "<Audio><AudioHere></Audio> "
-                            "What is the scientific name for the focal species in the audio?"
-                        ),
-                    })
+                    formatted_sci_skip.append(
+                        {
+                            "local_path": audio_filename,
+                            "label": ", ".join(sci_names),
+                            "text": ", ".join(sci_names),
+                            "prompt": (
+                                "<Audio><AudioHere></Audio> "
+                                "What is the scientific name for the focal species in the audio?"
+                            ),
+                        }
+                    )
 
                 if taxonomic_names:
-                    formatted_taxonomic_skip.append({
-                        "path": audio_filename,
-                        "label": ", ".join(taxonomic_names),
-                        "text": ", ".join(taxonomic_names),
-                        "prompt": (
-                            "<Audio><AudioHere></Audio> "
-                            "What is the taxonomic name for the focal species in the audio?"
-                        ),
-                    })
+                    formatted_taxonomic_skip.append(
+                        {
+                            "path": audio_filename,
+                            "label": ", ".join(taxonomic_names),
+                            "text": ", ".join(taxonomic_names),
+                            "prompt": (
+                                "<Audio><AudioHere></Audio> "
+                                "What is the taxonomic name for the focal species in the audio?"
+                            ),
+                        }
+                    )
 
             # Save this metadata row
             meta_file.write(json.dumps(metadata) + "\n")
@@ -258,30 +287,55 @@ def download_and_save_birdset_with_labels(dataset_name="HSN", is_train: bool = F
     print(f"Saved scientific names (skipped empty) JSONL: {sci_skip_path}")
     print(f"Saved taxonomic names (skipped empty) JSONL: {taxonomic_skip_path}")
 
-def main():
+
+def main() -> None:
     parser = argparse.ArgumentParser(description="Download and preprocess BirdSet dataset.")
-    parser.add_argument("--dataset", type=str, default="HSN", 
-                        help="Name of the dataset to download (e.g., UHH, SNE, SSW, VOX, NES, HSN, POW, NBP, PER). Use 'all' to process all datasets.")
-    parser.add_argument("--split", type=str, choices=["train", "test", "all"], default="test",
-                        help="Which split to download: train, test, or all (both train and test)")
-    parser.add_argument("--download-path", type=str, default="/mnt/home/marius_miron_earthspecies_org/data/BirdSet/audio", 
-                        help="Directory to save audio clips")
-    parser.add_argument("--output-path", type=str, default="/mnt/home/marius_miron_earthspecies_org/data/BirdSet/data", 
-                        help="Directory to save formatted data")
-    parser.add_argument("--taxonomy-path", type=str, default="/mnt/home/marius_miron_earthspecies_org/data/BirdSet/eBird_taxonomy_v2024.csv",
-                        help="Path to the eBird taxonomy CSV file")
+    parser.add_argument(
+        "--dataset",
+        type=str,
+        default="HSN",
+        help=(
+            "Name of the dataset to download (e.g., UHH, SNE, SSW, VOX, NES, "
+            "HSN, POW, NBP, PER). Use 'all' to process all datasets."
+        ),
+    )
+    parser.add_argument(
+        "--split",
+        type=str,
+        choices=["train", "test", "all"],
+        default="test",
+        help="Which split to download: train, test, or all (both train and test)",
+    )
+    parser.add_argument(
+        "--download-path",
+        type=str,
+        default="/mnt/home/marius_miron_earthspecies_org/data/BirdSet/audio",
+        help="Directory to save audio clips",
+    )
+    parser.add_argument(
+        "--output-path",
+        type=str,
+        default="/mnt/home/marius_miron_earthspecies_org/data/BirdSet/data",
+        help="Directory to save formatted data",
+    )
+    parser.add_argument(
+        "--taxonomy-path",
+        type=str,
+        default="/mnt/home/marius_miron_earthspecies_org/data/BirdSet/eBird_taxonomy_v2024.csv",
+        help="Path to the eBird taxonomy CSV file",
+    )
 
     args = parser.parse_args()
 
     # Define all available datasets
     all_datasets = ["UHH", "SNE", "SSW", "VOX", "NES", "HSN", "POW", "NBP", "PER"]
-    
+
     # Determine which datasets to process
     if args.dataset.lower() == "all":
         datasets_to_process = all_datasets
     else:
         datasets_to_process = [args.dataset]
-    
+
     # Determine which splits to process
     splits_to_process = []
     if args.split == "all":
@@ -290,7 +344,7 @@ def main():
         splits_to_process = [True]
     else:  # test
         splits_to_process = [False]
-    
+
     # Process each dataset and split combination
     for dataset_name in datasets_to_process:
         for is_train in splits_to_process:
@@ -301,8 +355,9 @@ def main():
                 save_audio=True,
                 download_path=args.download_path,
                 output_path=args.output_path,
-                taxonomy_path=args.taxonomy_path
+                taxonomy_path=args.taxonomy_path,
             )
+
 
 if __name__ == "__main__":
     main()
