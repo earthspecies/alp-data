@@ -49,4 +49,4 @@ echo "Splits: $SPLITS"
 mkdir -p "$TARGET_DIR"
 
 # Run the resampling script
-srun $CMD 
+srun $CMD
