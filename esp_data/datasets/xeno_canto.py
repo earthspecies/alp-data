@@ -274,6 +274,7 @@ class XenoCanto(Dataset):
         """
         # Determine which path column to use based on requested sample rate
         # If a pre-resampled version is available, use it; otherwise resample on-the-fly
+        # TODO (gagan): this logic is a bit convoluted - can we simplify it?
         use_presampled = False
         if self.sample_rate is not None and self.sample_rate in self._sample_rate_paths:
             path_column = self._sample_rate_paths[self.sample_rate]
@@ -287,8 +288,7 @@ class XenoCanto(Dataset):
                 use_presampled = True
 
         if use_presampled:
-            audio, sr = read_audio(audio_path)
-            sample_rate = sr
+            audio, sample_rate = read_audio(audio_path)
             audio = audio.astype(np.float32)
             audio = audio_stereo_to_mono(audio, mono_method="average")
             # Audio is already at the correct sample rate, no resampling needed
@@ -300,15 +300,14 @@ class XenoCanto(Dataset):
                 audio_path = anypath(self.data_root) / "audio" / rel_path
             else:
                 audio_path = anypath(self.data_root) / rel_path
-            audio, sr = read_audio(audio_path)
-            sample_rate = sr
+            audio, sample_rate = read_audio(audio_path)
             audio = audio.astype(np.float32)
             audio = audio_stereo_to_mono(audio, mono_method="average")
 
-            if self.sample_rate is not None and sr != self.sample_rate:
+            if self.sample_rate is not None and sample_rate != self.sample_rate:
                 audio = librosa.resample(
                     y=audio,
-                    orig_sr=sr,
+                    orig_sr=sample_rate,
                     target_sr=self.sample_rate,
                     scale=True,
                     res_type="kaiser_best",

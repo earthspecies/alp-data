@@ -216,21 +216,19 @@ class AudioSetStrong(Dataset):
                 if self.data_root
                 else anypath(row[self._originals_path_column])
             )
-            audio, sr = read_audio(audio_path)
-            sample_rate = sr
+            audio, sample_rate = read_audio(audio_path)
             audio = audio_stereo_to_mono(audio, mono_method="average").astype(np.float32)
 
             # Resample if necessary
-            target_sr = self.sample_rate
-            if target_sr is not None and sr != target_sr:
+            if self.sample_rate is not None and sample_rate != self.sample_rate:
                 audio = librosa.resample(
                     y=audio,
-                    orig_sr=sr,
-                    target_sr=target_sr,
+                    orig_sr=sample_rate,
+                    target_sr=self.sample_rate,
                     scale=True,
                     res_type="kaiser_best",
                 )
-                sample_rate = target_sr
+                sample_rate = self.sample_rate
 
         # Selection table (using polars for ~5x faster parsing)
         selection_table_blob = row.get("selection_table", "")

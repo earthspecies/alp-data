@@ -273,17 +273,16 @@ class InfantMarmosetsVox(Dataset):
         end = float(row["end"])
 
         # Read the audio clip
-        audio, sr = read_audio(audio_path, start_time=start, end_time=end)
-        sample_rate = sr
+        audio, sample_rate = read_audio(audio_path, start_time=start, end_time=end)
         audio = audio.astype(np.float32)
         # Stereo to mono if necessary.
         audio = audio_stereo_to_mono(audio, mono_method="average")
 
         # Resample on-the-fly if requested sample rate doesn't have pre-resampled version
-        if self.sample_rate is not None and sr != self.sample_rate:
+        if self.sample_rate is not None and sample_rate != self.sample_rate:
             audio = librosa.resample(
                 y=audio,
-                orig_sr=sr,
+                orig_sr=sample_rate,
                 target_sr=self.sample_rate,
                 res_type="kaiser_best",
             )

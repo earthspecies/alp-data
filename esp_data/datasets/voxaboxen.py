@@ -383,17 +383,16 @@ class Voxaboxen(Dataset):
     def _process(self, row: dict[str, Any]) -> dict[str, Any]:
         # Ensure audio path is valid
         audio_path = anypath(self.data_root) / row["audio_fp"]
-        audio, sr = read_audio(audio_path)
-        sample_rate = sr
+        audio, sample_rate = read_audio(audio_path)
         audio = audio.astype(np.float32)
 
         if self.mono_method:
             audio = audio_stereo_to_mono(audio, mono_method="average")
 
-        if self.sample_rate is not None and sr != self.sample_rate:
+        if self.sample_rate is not None and sample_rate != self.sample_rate:
             audio = librosa.resample(
                 y=audio,
-                orig_sr=sr,
+                orig_sr=sample_rate,
                 target_sr=self.sample_rate,
                 scale=True,
                 res_type="kaiser_best",
