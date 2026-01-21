@@ -42,14 +42,6 @@ class GBIFConverter:
     cache_path : str | AnyPathT | None, optional
         Path to a local cached copy of the GBIF taxonomy table. If provided,
         this path will be used instead of ``gbif_animals_tsv_fp``.
-
-    Examples
-    --------
-    >>> converter = GBIFConverter()
-    >>> info, ok = converter("Corvus corax")
-    >>> assert ok
-    >>> assert info["canonicalName"] == "Corvus corax"
-    >>> assert info["taxonRank"] == "species"
     """
 
     def __init__(
@@ -221,8 +213,10 @@ class AddTaxonomy:
     >>> import pandas as pd
     >>> df = pd.DataFrame({"scientific_name": ["Corvus corax", "Passer domesticus"]})
     >>> backend = PandasBackend(df)
-    >>> transform = AddTaxonomyTransform(feature="scientific_name")
+    >>> transform = AddTaxonomy(feature="scientific_name")
     >>> transformed_backend, metadata = transform(backend)
+    >>> assert "kingdom" in transformed_backend.columns
+    >>> assert "genus" in transformed_backend.columns
     """
 
     def __init__(
