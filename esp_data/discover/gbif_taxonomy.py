@@ -6,6 +6,7 @@ downloadable from Google Cloud Storage, but can be cached
 """
 
 import logging
+from pathlib import Path
 from typing import Any, Literal
 
 import numpy as np
@@ -20,9 +21,12 @@ logger = logging.getLogger("esp_data")
 
 
 TAXONOMY_RANKS = ["kingdom", "phylum", "class", "order", "family", "genus"]
-# TODO: need a more managed location for this file
-DEFAULT_LOCATION = "gs://sound-event-detection/taxonomy/gbif_animals.tsv"
-CACHE_PATH = None  # TODO: what's the right place for a default cache?
+# TODO: need a better versioning system
+VERSION = "0.1.0"
+DEFAULT_LOCATION = "gs://esp-ml-datasets/gbif_taxonomy/v0.1.0/gbif_animals.tsv"
+# Use current script directory for cache
+this_dir = Path(__file__).parent.resolve()
+CACHE_PATH = str(this_dir / "gbif_animals.tsv")
 
 
 class GBIFConverter:
@@ -197,8 +201,9 @@ class AddTaxonomy:
     Uses GBIFConverter to resolve scientific names in a specified column
     to their accepted species-level taxonomic records. New columns are added
     for each taxonomy rank: 'kingdom', 'phylum', 'class', 'order', 'family', 'genus'.
-    An extra column 'taxonomic_name' is also added containing the resolved
-    canonical species name.
+    An extra column 'taxonomic_name' is also added, which concatenates
+    the higher ranks with the canonical name e.g.
+    "Animalia Chordata Aves Passeriformes Corvidae Corvus corax".
 
     Parameters
     ----------
@@ -246,6 +251,9 @@ class AddTaxonomy:
         str | None
             Full taxonomic name (including higher ranks) or None if unavailable.
         """
+        if not info:
+            return None
+
         taxonomic_name = ""
         for rank in TAXONOMY_RANKS[:-1]:  # Exclude genus
             rank_value = info.get(rank)
@@ -253,6 +261,7 @@ class AddTaxonomy:
                 if taxonomic_name:
                     taxonomic_name += " "
                 taxonomic_name += rank_value
+
         # Add canonicalName
         canonical_name = info.get("canonicalName")
         if canonical_name:
@@ -320,7 +329,6 @@ class AddTaxonomy:
 
         metadata = {
             "feature": self.feature,
-            "unique_names": len(unique_names),
             "resolved": success_count,
             "failed": failure_count,
             "taxonomy_columns_added": EXTENDED_RANKS,

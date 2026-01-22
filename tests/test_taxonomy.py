@@ -59,7 +59,7 @@ def test_get_accepted_species_info_no_match(tmp_path: Path) -> None:
             }
         ],
     )
-    converter = GBIFConverter(gbif_animals_tsv_fp=fp)
+    converter = GBIFConverter(gbif_animals_tsv_fp=fp, cache_path=None)
 
     out, ok = converter("Does not exist")
     assert out == {}
@@ -80,7 +80,7 @@ def test_get_accepted_species_info_accepts_species(tmp_path: Path) -> None:
             }
         ],
     )
-    converter = GBIFConverter(gbif_animals_tsv_fp=fp)
+    converter = GBIFConverter(gbif_animals_tsv_fp=fp, cache_path=None)
 
     out, ok = converter("Corvus corax")
     assert ok is True
@@ -114,7 +114,7 @@ def test_get_accepted_species_info_resolves_synonym_to_accepted(tmp_path: Path) 
             },
         ],
     )
-    converter = GBIFConverter(gbif_animals_tsv_fp=fp)
+    converter = GBIFConverter(gbif_animals_tsv_fp=fp, cache_path=None)
 
     out, ok = converter("Felis concolor")
     assert ok is True
@@ -148,7 +148,7 @@ def test_get_accepted_species_info_walks_up_from_lower_rank(tmp_path: Path) -> N
             },
         ],
     )
-    converter = GBIFConverter(gbif_animals_tsv_fp=fp)
+    converter = GBIFConverter(gbif_animals_tsv_fp=fp, cache_path=None)
 
     out, ok = converter("Canis lupus familiaris")
     assert ok is True
@@ -182,7 +182,7 @@ def test_get_accepted_species_info_duplicate_canonical_prefers_accepted(tmp_path
             },
         ],
     )
-    converter = GBIFConverter(gbif_animals_tsv_fp=fp)
+    converter = GBIFConverter(gbif_animals_tsv_fp=fp, cache_path=None)
 
     out, ok = converter("Dup name")
     assert ok is True
@@ -207,7 +207,7 @@ def test_get_accepted_species_info_cycle_is_detected(tmp_path: Path) -> None:
             }
         ],
     )
-    converter = GBIFConverter(gbif_animals_tsv_fp=fp)
+    converter = GBIFConverter(gbif_animals_tsv_fp=fp, cache_path=None)
 
     out, ok = converter("Cycle name")
     assert out == {}
@@ -382,7 +382,6 @@ def test_add_taxonomy_metadata(tmp_path: Path) -> None:
     _, metadata = transform(backend)
 
     assert metadata["feature"] == "scientific_name"
-    assert metadata["unique_names"] == 3  # 3 unique names
     assert metadata["resolved"] == 2  # 2 resolved
     assert metadata["failed"] == 1  # 1 failed
 
@@ -422,10 +421,12 @@ def test_add_taxonomy_with_add_taxonomic_name(tmp_path: Path) -> None:
     df = pd.DataFrame({"scientific_name": ["Corvus corax"]})
     backend = PandasBackend(df)
 
-    _, metadata = transform(backend)
+    backend, metadata = transform(backend)
 
     # Check that taxonomic_name is in the added columns
     assert "taxonomic_name" in metadata["taxonomy_columns_added"]
+    assert backend[0]["taxonomic_name"] == "Animalia Chordata Aves "
+    "Passeriformes Corvidae Corvus corax"
 
 
 def test_add_taxonomy_make_taxonomic_name(tmp_path: Path) -> None:
@@ -487,7 +488,6 @@ def test_add_taxonomy_empty_dataframe(tmp_path: Path) -> None:
     result_backend, metadata = transform(backend)
 
     assert len(result_backend) == 0
-    assert metadata["unique_names"] == 0
     assert metadata["resolved"] == 0
     assert metadata["failed"] == 0
 
@@ -506,15 +506,13 @@ def test_add_taxonomy_integration_with_beanszero() -> None:
     # Get the first 100 rows for testing
     sample_backend = dataset._data[:100]
 
-    # iNaturalist has 'canonical_name' column with scientific names
     transform = AddTaxonomy(
         feature="output",  # 'output' column has the canonical names in BeansZero
         add_taxonomic_name=True,
-        # Uses default GCS path: gs://sound-event-detection/taxonomy/gbif_animals.tsv
+        # Uses cache if present
     )
 
     result_backend, metadata = transform(sample_backend)
-
     result_df = result_backend.unwrap
 
     # Check that taxonomy columns were added
@@ -524,7 +522,6 @@ def test_add_taxonomy_integration_with_beanszero() -> None:
 
     # Check metadata
     assert metadata["feature"] == "output"
-    assert metadata["unique_names"] > 0
     assert metadata["resolved"] >= 0
 
     # At least some names should have resolved successfully
@@ -536,3 +533,10 @@ def test_add_taxonomy_integration_with_beanszero() -> None:
     if len(resolved_rows) > 0:
         # All resolved rows should have "Animalia" as kingdom (iNaturalist animal sounds)
         assert (resolved_rows["kingdom"] == "Animalia").all()
+
+    # Taxonomic names should be present
+    assert "taxonomic_name" in result_df.columns
+    for idx, row in resolved_rows.iterrows():
+        taxonomic_name = row["taxonomic_name"]
+        assert taxonomic_name is not None
+        assert "Animalia" in taxonomic_name
