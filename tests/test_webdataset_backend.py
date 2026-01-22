@@ -680,6 +680,69 @@ class TestWebDatasetBackend:
         for sample in samples:
             assert sample["class_name"] in ["class_A", "class_B"]
 
+    def test_immutability_filter_returns_new_backend(self, json_tar_dir: Path) -> None:
+        """Test that filter operations return new backends, leaving original unchanged."""
+        base_backend = WebDatasetBackend.from_path(
+            json_tar_dir,
+            data_processor=json_decoder,
+        )
+
+        # Create two independent filtered views from the same base
+        cats_backend = base_backend.filter_isin("category", ["cat_0"])
+        dogs_backend = base_backend.filter_isin("category", ["cat_1"])
+
+        # Verify they are different objects
+        assert base_backend is not cats_backend
+        assert base_backend is not dogs_backend
+        assert cats_backend is not dogs_backend
+
+        # Verify base_backend has no filters applied
+        assert len(base_backend._filter_funcs) == 0
+
+        # Verify each filtered backend has exactly one filter
+        assert len(cats_backend._filter_funcs) == 1
+        assert len(dogs_backend._filter_funcs) == 1
+
+        # Verify the filters work independently
+        cats_samples = list(cats_backend)
+        dogs_samples = list(dogs_backend)
+        all_samples = list(base_backend)
+
+        assert len(all_samples) == 5  # Original has all samples
+        assert len(cats_samples) == 2  # cat_0 appears for ids 0, 3
+        assert len(dogs_samples) == 2  # cat_1 appears for ids 1, 4
+
+        # Verify correct filtering
+        for sample in cats_samples:
+            assert sample["category"] == "cat_0"
+        for sample in dogs_samples:
+            assert sample["category"] == "cat_1"
+
+    def test_immutability_map_returns_new_backend(self, json_tar_dir: Path) -> None:
+        """Test that map operations return new backends, leaving original unchanged."""
+        base_backend = WebDatasetBackend.from_path(
+            json_tar_dir,
+            data_processor=json_decoder,
+        )
+
+        # Create mapped backend
+        mapping = {"cat_0": "A", "cat_1": "B", "cat_2": "C"}
+        mapped_backend = base_backend.map_column("category", mapping, "letter")
+
+        # Verify they are different objects
+        assert base_backend is not mapped_backend
+
+        # Verify base_backend has no map functions
+        assert len(base_backend._map_funcs) == 0
+        assert len(mapped_backend._map_funcs) == 1
+
+        # Verify mapping only applies to mapped_backend
+        base_sample = next(iter(base_backend))
+        mapped_sample = next(iter(mapped_backend))
+
+        assert "letter" not in base_sample
+        assert "letter" in mapped_sample
+
 
 class TestWebDatasetBackendWithAudio:
     """Tests for WebDatasetBackend with audio data."""
