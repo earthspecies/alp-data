@@ -288,7 +288,24 @@ class WebDatasetBackend(StreamingBackend):
         self._dataset = dataset
         self._columns: list[str] | None = None
         self._filter_funcs: list[Callable[[dict[str, Any]], bool]] = []
-        self._dropna_funcs: list[Callable[[dict[str, Any]], bool]] = []
+        self._map_funcs: list[Callable[[dict[str, Any]], dict[str, Any]]] = []
+
+    def _copy(self) -> "WebDatasetBackend":
+        """Create a shallow copy of this backend with copied operation lists.
+
+        The underlying WebDataset is shared (not copied), but the filter and
+        map function lists are copied so modifications don't affect the original.
+
+        Returns
+        -------
+        WebDatasetBackend
+            A new backend instance with copied operation lists
+        """
+        new_backend = WebDatasetBackend(self._dataset)
+        new_backend._filter_funcs = self._filter_funcs.copy()
+        new_backend._map_funcs = self._map_funcs.copy()
+        new_backend._columns = self._columns
+        return new_backend
 
     @classmethod
     def from_path(
@@ -358,12 +375,12 @@ class WebDatasetBackend(StreamingBackend):
             Dictionary for each sample mapping field names to values
         """
         for sample in self._dataset:
-            if self._filter_funcs:
-                if not all(fn(sample) for fn in self._filter_funcs):
-                    continue
-            if self._dropna_funcs:
-                if not all(fn(sample) for fn in self._dropna_funcs):
-                    continue
+            # Apply map functions first
+            for map_fn in self._map_funcs:
+                sample = map_fn(sample)
+            # Then apply filters
+            if self._filter_funcs and not all(fn(sample) for fn in self._filter_funcs):
+                continue
             yield sample
 
     @property
@@ -433,6 +450,8 @@ class WebDatasetBackend(StreamingBackend):
         This filter is applied lazily during iteration. Chaining multiple filters
         will combine them with logical AND.
 
+        Returns a new WebDatasetBackend instance, leaving the original unchanged.
+
         Parameters
         ----------
         column : str
@@ -445,9 +464,9 @@ class WebDatasetBackend(StreamingBackend):
         Returns
         -------
         WebDatasetBackend
-            Self with filter configured (applied during iteration)
+            New backend with filter configured (applied during iteration)
         """
-        # build a set for faster lookup
+        new_backend = self._copy()
         value_set = set(values)
 
         def filter_fn(sample: dict[str, Any]) -> bool:
@@ -456,8 +475,8 @@ class WebDatasetBackend(StreamingBackend):
             in_values = sample[column] in value_set
             return not in_values if negate else in_values
 
-        self._filter_funcs.append(filter_fn)
-        return self
+        new_backend._filter_funcs.append(filter_fn)
+        return new_backend
 
     def dropna(
         self,
@@ -466,6 +485,8 @@ class WebDatasetBackend(StreamingBackend):
         """Remove samples with missing values.
 
         This filter is applied lazily during iteration.
+
+        Returns a new WebDatasetBackend instance, leaving the original unchanged.
 
         Parameters
         ----------
@@ -476,18 +497,18 @@ class WebDatasetBackend(StreamingBackend):
         Returns
         -------
         WebDatasetBackend
-            Self with dropna configured (applied during iteration)
+            New backend with dropna configured (applied during iteration)
         """
+        new_backend = self._copy()
 
         def dropna_fn(sample: dict[str, Any]) -> bool:
             if subset is None:
-                # Check all columns
                 return all(sample.get(col) is not None for col in sample)
             else:
                 return all(sample.get(col) is not None for col in subset)
 
-        self._dropna_funcs.append(dropna_fn)
-        return self
+        new_backend._filter_funcs.append(dropna_fn)
+        return new_backend
 
     def map_column(
         self,
@@ -499,8 +520,9 @@ class WebDatasetBackend(StreamingBackend):
     ) -> "WebDatasetBackend":
         """Create a new column by mapping values from an existing column.
 
-        This transformation is applied lazily during iteration via the
-        underlying WebDataset's map function.
+        This transformation is applied lazily during iteration.
+
+        Returns a new WebDatasetBackend instance, leaving the original unchanged.
 
         Parameters
         ----------
@@ -516,26 +538,27 @@ class WebDatasetBackend(StreamingBackend):
         Returns
         -------
         WebDatasetBackend
-            Self with mapping configured (applied during iteration)
+            New backend with mapping configured (applied during iteration)
         """
+        new_backend = self._copy()
 
         def map_fn(sample: dict[str, Any]) -> dict[str, Any]:
             if column not in sample:
-                # Safer to set to default if source column is missing
-                # for downstream consistency
                 sample[output_column] = default
             else:
                 sample[output_column] = mapping.get(sample[column], default)
             return sample
 
-        self._dataset = self._dataset.map(map_fn)
-        return self
+        new_backend._map_funcs.append(map_fn)
+        return new_backend
 
     def apply_fn(
         self,
         fn: Callable[[dict[str, Any]], dict[str, Any]],
-    ) -> None:
+    ) -> "WebDatasetBackend":
         """Apply a custom function to each sample during iteration.
+
+        Returns a new WebDatasetBackend instance, leaving the original unchanged.
 
         Parameters
         ----------
@@ -546,10 +569,11 @@ class WebDatasetBackend(StreamingBackend):
         Returns
         -------
         WebDatasetBackend
-            Self with function configured (applied during iteration)
+            New backend with function configured (applied during iteration)
         """
-        self._dataset = self._dataset.map(fn)
-        return self
+        new_backend = self._copy()
+        new_backend._map_funcs.append(fn)
+        return new_backend
 
     def __repr__(self) -> str:
         """Return string representation of the backend.
