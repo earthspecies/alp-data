@@ -202,7 +202,7 @@ def load_webdataset(
     shard_shuffle_size: int = 1000,
     split_by_worker: bool = False,
     batch_collate_fn: Callable | None = None,
-    seed: int | None = 42,
+    seed: int | None = None,
 ) -> wds.WebDataset:
     """Create a pipeline for loading the dataset.
 
@@ -254,8 +254,8 @@ def load_webdataset(
 
     webds = wds.WebDataset(shard_files, **webds_kwargs)
 
-    if shuffle_size:
-        webds = webds.shuffle(shuffle_size, seed=seed if seed is not None else 42)
+    if shuffle_size is not None and seed is not None:
+        webds = webds.shuffle(shuffle_size, seed=seed)
     if data_processor:
         webds = webds.map(data_processor)
     if batch_size is not None:
@@ -287,8 +287,8 @@ class WebDatasetBackend(StreamingBackend):
         """
         self._dataset = dataset
         self._columns: list[str] | None = None
-        self._filter_fn: Callable[[dict[str, Any]], bool] | None = None
-        self._dropna_fn: Callable[[dict[str, Any]], bool] | None = None
+        self._filter_funcs: list[Callable[[dict[str, Any]], bool]] = []
+        self._dropna_funcs: list[Callable[[dict[str, Any]], bool]] = []
 
     @classmethod
     def from_path(
@@ -358,10 +358,12 @@ class WebDatasetBackend(StreamingBackend):
             Dictionary for each sample mapping field names to values
         """
         for sample in self._dataset:
-            if self._filter_fn and not self._filter_fn(sample):
-                continue
-            if self._dropna_fn and not self._dropna_fn(sample):
-                continue
+            if self._filter_funcs:
+                if not all(fn(sample) for fn in self._filter_funcs):
+                    continue
+            if self._dropna_funcs:
+                if not all(fn(sample) for fn in self._dropna_funcs):
+                    continue
             yield sample
 
     @property
@@ -428,7 +430,8 @@ class WebDatasetBackend(StreamingBackend):
     ) -> "WebDatasetBackend":
         """Filter samples where column values are in (or not in) a list.
 
-        This filter is applied lazily during iteration.
+        This filter is applied lazily during iteration. Chaining multiple filters
+        will combine them with logical AND.
 
         Parameters
         ----------
@@ -453,7 +456,7 @@ class WebDatasetBackend(StreamingBackend):
             in_values = sample[column] in value_set
             return not in_values if negate else in_values
 
-        self._filter_fn = filter_fn
+        self._filter_funcs.append(filter_fn)
         return self
 
     def dropna(
@@ -483,7 +486,7 @@ class WebDatasetBackend(StreamingBackend):
             else:
                 return all(sample.get(col) is not None for col in subset)
 
-        self._dropna_fn = dropna_fn
+        self._dropna_funcs.append(dropna_fn)
         return self
 
     def map_column(
@@ -518,6 +521,8 @@ class WebDatasetBackend(StreamingBackend):
 
         def map_fn(sample: dict[str, Any]) -> dict[str, Any]:
             if column not in sample:
+                # Safer to set to default if source column is missing
+                # for downstream consistency
                 sample[output_column] = default
             else:
                 sample[output_column] = mapping.get(sample[column], default)
@@ -529,7 +534,7 @@ class WebDatasetBackend(StreamingBackend):
     def apply_fn(
         self,
         fn: Callable[[dict[str, Any]], dict[str, Any]],
-    ) -> "WebDatasetBackend":
+    ) -> None:
         """Apply a custom function to each sample during iteration.
 
         Parameters
