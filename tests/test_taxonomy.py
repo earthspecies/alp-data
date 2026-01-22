@@ -425,8 +425,7 @@ def test_add_taxonomy_with_add_taxonomic_name(tmp_path: Path) -> None:
 
     # Check that taxonomic_name is in the added columns
     assert "taxonomic_name" in metadata["taxonomy_columns_added"]
-    assert backend[0]["taxonomic_name"] == "Animalia Chordata Aves "
-    "Passeriformes Corvidae Corvus corax"
+    assert backend[0]["taxonomic_name"] == "Animalia Chordata Aves Passeriformes Corvidae Corvus corax"
 
 
 def test_add_taxonomy_make_taxonomic_name(tmp_path: Path) -> None:
