@@ -199,21 +199,23 @@ class AnimalSpeak(Dataset):
 
         audio_path = anypath(self.data_root) / relative_path
 
-        audio, sr = read_audio(audio_path)
+        audio, sample_rate = read_audio(audio_path)
         audio = audio.astype(np.float32)
         audio = audio_stereo_to_mono(audio, mono_method="average")
 
-        if self.sample_rate is not None and sr != self.sample_rate:
+        if self.sample_rate is not None and sample_rate != self.sample_rate:
             audio = librosa.resample(
                 y=audio,
-                orig_sr=sr,
+                orig_sr=sample_rate,
                 target_sr=self.sample_rate,
                 scale=True,
                 res_type="kaiser_best",
             )
+            sample_rate = self.sample_rate
 
         # AnimalSpeak likes to call this 'raw_wav'
         row["audio"] = audio
+        row["sample_rate"] = sample_rate
 
         if self.output_take_and_give:
             item = {}
