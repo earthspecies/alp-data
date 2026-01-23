@@ -11,15 +11,13 @@ import pytest
 import soundfile as sf
 import webdataset as wds
 
-from esp_data.backends import (
-    WebDatasetBackend,
+from esp_data.backends import get_backend
+from esp_data.backends.webdataset_backend import WebDatasetBackend, _load_webdataset
+from esp_data.backends.webdataset_utils import (
     audio_decoder,
     audio_encoder,
-    get_backend,
     json_decoder,
     json_encoder,
-    load_webdataset,
-    make_file_opener_for_wds,
 )
 from esp_data.dataset import (
     Dataset,
@@ -280,17 +278,12 @@ class TestJsonDecoder:
             json_decoder(data)
 
 
-# ---------------------------------------------------------------------------
-# Unit Tests for load_webdataset
-# ---------------------------------------------------------------------------
-
-
 class TestLoadWebdataset:
-    """Tests for the load_webdataset function."""
+    """Tests for the _load_webdataset function."""
 
     def test_load_basic(self, json_tar_dir: Path) -> None:
         """Test basic loading of WebDataset."""
-        dataset = load_webdataset(
+        dataset = _load_webdataset(
             json_tar_dir,
             file_pattern="shard*tar",
             data_processor=json_decoder,
@@ -302,7 +295,7 @@ class TestLoadWebdataset:
 
     def test_load_with_shuffle(self, json_tar_dir: Path) -> None:
         """Test loading with shuffle."""
-        dataset = load_webdataset(
+        dataset = _load_webdataset(
             json_tar_dir,
             data_processor=json_decoder,
             shuffle_size=10,
@@ -314,7 +307,7 @@ class TestLoadWebdataset:
 
     def test_load_with_batch(self, json_tar_dir: Path) -> None:
         """Test loading with batching."""
-        dataset = load_webdataset(
+        dataset = _load_webdataset(
             json_tar_dir,
             data_processor=json_decoder,
             batch_size=2,
@@ -328,7 +321,7 @@ class TestLoadWebdataset:
 
     def test_load_multi_shard(self, multi_shard_dir: Path) -> None:
         """Test loading from multiple shards."""
-        dataset = load_webdataset(
+        dataset = _load_webdataset(
             multi_shard_dir,
             data_processor=json_decoder,
         )
@@ -339,38 +332,7 @@ class TestLoadWebdataset:
     def test_load_nonexistent_raises(self, tmp_path: Path) -> None:
         """Test that loading from empty directory raises FileNotFoundError."""
         with pytest.raises(FileNotFoundError, match="No shard files found"):
-            load_webdataset(tmp_path)
-
-
-# ---------------------------------------------------------------------------
-# Unit Tests for make_file_opener_for_wds
-# ---------------------------------------------------------------------------
-
-
-class TestMakeFileOpenerForWds:
-    """Tests for the make_file_opener_for_wds function."""
-
-    def test_local_file_opener(self, tmp_path: Path) -> None:
-        """Test creating file opener for local path."""
-        file_path = tmp_path / "test.tar"
-
-        opener = make_file_opener_for_wds(str(file_path), mode="wb")
-
-        assert opener is not None
-        # Write some data to verify it works
-        opener.write(b"test content")
-        opener.close()
-
-        assert file_path.exists()
-
-    def test_local_creates_parent_dirs(self, tmp_path: Path) -> None:
-        """Test that local opener creates parent directories."""
-        nested_path = tmp_path / "nested" / "dir" / "test.tar"
-
-        opener = make_file_opener_for_wds(str(nested_path))
-        opener.close()
-
-        assert nested_path.parent.exists()
+            _load_webdataset(tmp_path)
 
 
 class TestWebDatasetBackend:
@@ -378,7 +340,7 @@ class TestWebDatasetBackend:
 
     def test_init(self, json_tar_dir: Path) -> None:
         """Test initialization with a WebDataset."""
-        dataset = load_webdataset(json_tar_dir, data_processor=json_decoder)
+        dataset = _load_webdataset(json_tar_dir, data_processor=json_decoder)
         backend = WebDatasetBackend(dataset)
 
         assert backend._dataset is not None
