@@ -12,15 +12,7 @@ from .backends import BackendType, get_backend
 from .pandas_backend import PandasBackend
 from .polars_backend import PolarsBackend
 from .protocol import DataBackend, StreamingBackend
-from .webdataset_backend import (
-    WebDatasetBackend,
-    audio_decoder,
-    audio_encoder,
-    json_decoder,
-    json_encoder,
-    load_webdataset,
-    make_file_opener_for_wds,
-)
+from .webdataset_backend import WebDatasetBackend
 
 __all__ = [
     # Protocols
@@ -31,13 +23,6 @@ __all__ = [
     "PolarsBackend",
     # StreamingBackend implementations
     "WebDatasetBackend",
-    # WebDataset utilities
-    "audio_decoder",
-    "audio_encoder",
-    "json_decoder",
-    "json_encoder",
-    "load_webdataset",
-    "make_file_opener_for_wds",
     # Registry
     "BackendType",
     "get_backend",
