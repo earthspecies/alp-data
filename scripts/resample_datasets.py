@@ -5,9 +5,9 @@ This script provides multiple resampling methods:
 2. torchaudio: PyTorch-based resampling with efficient tensor operations
 3. scipy: SciPy signal processing based resampling
 
-All resampler arguments are exposed as CLI arguments for full control.
-Resampled audio is exported to a GCS bucket with sample rate prefixes and
-the new paths are added to the metadata.
+The script supports two modes of operation:
+1. CLI mode: Pass all arguments via command line flags (for quick one-off tasks)
+2. YAML config mode: Load configuration from a YAML file (for reproducible pipelines)
 
 Dependencies
 ------------
@@ -16,8 +16,8 @@ Dependencies
 - torchaudio backend: Requires torchaudio, which is NOT included in the default
   dependencies. Use `uv run --with torchaudio` to temporarily add it.
 
-Example Usage
--------------
+CLI Mode Usage
+--------------
 Using librosa (default backend, no extra dependencies needed):
 
     uv run python scripts/resample_datasets.py --dataset birdset --split train \\
@@ -50,6 +50,58 @@ Using torchaudio (requires --with torchaudio flag):
         --torchaudio-resampling-method sinc_interp_kaiser \\
         --torchaudio-lowpass-filter-width 6 --torchaudio-beta 14.77
 
+YAML Config Mode Usage
+----------------------
+Using YAML configuration files for reproducible pipelines:
+
+    uv run python scripts/resample_datasets.py \
+        --config scripts/configs/resample_birdset_librosa.yaml
+
+Example YAML configurations:
+
+**Librosa backend (scripts/configs/resample_birdset_librosa.yaml):**
+
+    dataset_name: birdset
+    split: train
+    export_path: gs://esp-ml-datasets/birdset/v0.1.0/audio
+    target_sr: 16000
+    resampler:
+      backend: librosa
+      res_type: kaiser_best
+      scale: true
+      fix: true
+    max_workers: 8
+    skip_existing: true
+
+**Torchaudio backend (scripts/configs/resample_inaturalist_torchaudio.yaml):**
+
+    dataset_name: inaturalist
+    split: train
+    export_path: gs://esp-ml-datasets/inaturalist/v0.1.0/audio
+    target_sr: 32000
+    resampler:
+      backend: torchaudio
+      lowpass_filter_width: 64
+      rolloff: 0.99
+      resampling_method: sinc_interp_kaiser
+      beta: 14.769656459379492
+    max_workers: 16
+    skip_existing: true
+
+**Scipy backend (scripts/configs/resample_beans_scipy.yaml):**
+
+    dataset_name: beans
+    split: train
+    export_path: gs://esp-ml-datasets/beans/v0.1.0/audio
+    target_sr: 16000
+    resampler:
+      backend: scipy
+      window: hann
+      domain: poly
+      padtype: constant
+    max_workers: 4
+    skip_existing: true
+
 List available datasets:
 
     uv run python scripts/resample_datasets.py --list-datasets
@@ -66,34 +118,26 @@ the script will:
 import argparse
 import threading
 import time
-from dataclasses import dataclass
-from enum import Enum
 from io import BytesIO
 from pathlib import Path
-from typing import Any, Callable
+from typing import Annotated, Any, Callable, Literal
 
 import numpy as np
 import soundfile as sf
+from pydantic import BaseModel, ConfigDict, Field
 from tqdm import tqdm
 
 from esp_data import dataset_class_from_name, list_registered_datasets
 from esp_data.io import anypath, exists, filesystem_from_path
 
 
-class ResampleBackend(str, Enum):
-    """Available resampling backends."""
-
-    LIBROSA = "librosa"
-    TORCHAUDIO = "torchaudio"
-    SCIPY = "scipy"
-
-
-@dataclass
-class LibrosaResamplerConfig:
+class LibrosaResamplerConfig(BaseModel):
     """Configuration for librosa resampler.
 
     Attributes
     ----------
+    backend : Literal["librosa"]
+        Backend type discriminator.
     res_type : str
         Resampling filter type. Options include:
         - 'kaiser_best': High-quality Kaiser window (default)
@@ -116,25 +160,32 @@ class LibrosaResamplerConfig:
         If True, fix the length of the output signal. Default True.
     """
 
-    res_type: str = "kaiser_best"
-    scale: bool = True
-    fix: bool = True
+    model_config = ConfigDict(validate_assignment=True, str_strip_whitespace=True, extra="forbid")
+
+    backend: Literal["librosa"] = Field(default="librosa", description="Backend type discriminator")
+    res_type: str = Field(
+        default="kaiser_best",
+        description="Resampling filter type (e.g., kaiser_best, kaiser_fast, fft, polyphase)",
+    )
+    scale: bool = Field(default=True, description="Scale output to preserve RMS energy")
+    fix: bool = Field(default=True, description="Fix the length of the output signal")
 
 
-@dataclass
-class TorchaudioResamplerConfig:
+class TorchaudioResamplerConfig(BaseModel):
     """Configuration for torchaudio resampler.
 
     Attributes
     ----------
+    backend : Literal["torchaudio"]
+        Backend type discriminator.
     lowpass_filter_width : int
         Controls the width of the lowpass filter. A larger width gives a
         sharper transition band but is more computationally expensive.
-        Default is 6.
+        Default is 64.
     rolloff : float
         The roll-off frequency of the filter as a fraction of the Nyquist
         frequency. Lower values reduce aliasing but may attenuate high
-        frequencies. Default is 0.99.
+        frequencies. Default is 0.9475937167399596.
     resampling_method : str
         The resampling method to use. Options are:
         - 'sinc_interp_hann': Sinc interpolation with Hann window
@@ -147,22 +198,43 @@ class TorchaudioResamplerConfig:
         Options: 'float32', 'float64', None.
     """
 
+    model_config = ConfigDict(validate_assignment=True, str_strip_whitespace=True, extra="forbid")
+
+    backend: Literal["torchaudio"] = Field(
+        default="torchaudio", description="Backend type discriminator"
+    )
     # Default values match librosa's kaiser_best settings
     # see https://docs.pytorch.org/audio/stable/tutorials/audio_resampling_tutorial.html#kaiser-best
-    lowpass_filter_width: int = 64
-    rolloff: float = 0.9475937167399596
-    resampling_method: str = "sinc_interp_kaiser"
-    beta: float | None = 14.769656459379492
-    dtype: str | None = None
+    lowpass_filter_width: int = Field(
+        default=64,
+        description="Width of the lowpass filter (larger = sharper but more expensive)",
+    )
+    rolloff: float = Field(
+        default=0.9475937167399596,
+        description="Roll-off frequency as fraction of Nyquist frequency",
+    )
+    resampling_method: str = Field(
+        default="sinc_interp_kaiser",
+        description="Resampling method (sinc_interp_hann or sinc_interp_kaiser)",
+    )
+    beta: float | None = Field(
+        default=14.769656459379492,
+        description="Beta parameter for Kaiser window (only for sinc_interp_kaiser)",
+    )
+    dtype: str | None = Field(
+        default=None,
+        description="Internal computation dtype (float32, float64, or None for input dtype)",
+    )
 
 
-@dataclass
-class ScipyResamplerConfig:
+class ScipyResamplerConfig(BaseModel):
     """Configuration for scipy resampler.
 
     Attributes
     ----------
-    window : str | tuple | array_like
+    backend : Literal["scipy"]
+        Backend type discriminator.
+    window : str
         The window to use for the FIR filter. Default is 'hann'.
         Options include: 'hann', 'hamming', 'blackman', 'bartlett',
         'boxcar', 'triang', 'parzen', etc.
@@ -178,9 +250,81 @@ class ScipyResamplerConfig:
         Default is 'constant'.
     """
 
-    window: str = "hann"
-    domain: str = "time"
-    padtype: str = "constant"
+    model_config = ConfigDict(validate_assignment=True, str_strip_whitespace=True, extra="forbid")
+
+    backend: Literal["scipy"] = Field(default="scipy", description="Backend type discriminator")
+    window: str = Field(
+        default="hann",
+        description="Window function for FIR filter (hann, hamming, blackman, etc.)",
+    )
+    domain: str = Field(
+        default="time",
+        description="Resampling domain (time for FFT-based, poly for polyphase)",
+    )
+    padtype: str = Field(
+        default="constant",
+        description="Padding type for polyphase filtering (only used with domain='poly')",
+    )
+
+
+# Discriminated union type for all resampler configs
+ResamplerConfig = Annotated[
+    LibrosaResamplerConfig | TorchaudioResamplerConfig | ScipyResamplerConfig,
+    Field(discriminator="backend"),
+]
+
+
+class ResampleTaskConfig(BaseModel):
+    """Complete configuration for a resampling task.
+
+    Attributes
+    ----------
+    dataset_name : str
+        Name of the dataset (lowercase, as in DatasetInfo.name).
+    split : str
+        Dataset split to process (e.g., train, val, test).
+    export_path : str
+        GCS bucket path for exporting resampled audio.
+    target_sr : int
+        Target sample rate in Hz.
+    resampler : ResamplerConfig
+        Configuration for the resampling backend.
+    data_root : str | None
+        Optional data root override.
+    max_workers : int
+        Number of parallel workers.
+    path_column : str | None
+        Name of the column containing audio paths (auto-detected if None).
+    output_metadata_path : str | None
+        Path to write the updated metadata file (derived from export_path if None).
+    skip_existing : bool
+        If True, skip files that already exist at the destination.
+    """
+
+    model_config = ConfigDict(validate_assignment=True, str_strip_whitespace=True, extra="forbid")
+
+    dataset_name: str = Field(description="Name of the dataset to process")
+    split: str = Field(description="Dataset split to process (e.g., train, val, test)")
+    export_path: str = Field(description="GCS bucket path for exporting resampled audio")
+    target_sr: int = Field(description="Target sample rate in Hz")
+    resampler: ResamplerConfig = Field(
+        default=LibrosaResamplerConfig(),
+        description="Configuration for the resampling backend",
+    )
+    data_root: str | None = Field(default=None, description="Optional data root override")
+    max_workers: int = Field(default=4, description="Number of parallel workers")
+    path_column: str | None = Field(
+        default=None,
+        description="Name of the column containing audio paths (auto-detected if None)",
+    )
+    output_metadata_path: str | None = Field(
+        default=None,
+        description="Path to write the updated metadata file (derived from export_path if None)",
+    )
+    skip_existing: bool = Field(
+        default=True,
+        description="If True, skip files that already exist at the destination",
+    )
 
 
 def create_librosa_resampler(config: LibrosaResamplerConfig) -> Callable:
@@ -296,24 +440,13 @@ def create_scipy_resampler(config: ScipyResamplerConfig) -> Callable:
     return resample
 
 
-def get_resampler(
-    backend: ResampleBackend,
-    librosa_config: LibrosaResamplerConfig | None = None,
-    torchaudio_config: TorchaudioResamplerConfig | None = None,
-    scipy_config: ScipyResamplerConfig | None = None,
-) -> Callable:
-    """Get a resampler function based on the specified backend.
+def get_resampler(config: ResamplerConfig) -> Callable:
+    """Get a resampler function based on the specified config.
 
     Parameters
     ----------
-    backend : ResampleBackend
-        The resampling backend to use.
-    librosa_config : LibrosaResamplerConfig | None
-        Configuration for librosa backend. Uses defaults if None.
-    torchaudio_config : TorchaudioResamplerConfig | None
-        Configuration for torchaudio backend. Uses defaults if None.
-    scipy_config : ScipyResamplerConfig | None
-        Configuration for scipy backend. Uses defaults if None.
+    config : ResamplerConfig
+        Configuration for the resampling backend (discriminated union).
 
     Returns
     -------
@@ -323,19 +456,16 @@ def get_resampler(
     Raises
     ------
     ValueError
-        If an unknown backend is specified.
+        If an unknown config type is provided.
     """
-    if backend == ResampleBackend.LIBROSA:
-        config = librosa_config or LibrosaResamplerConfig()
+    if isinstance(config, LibrosaResamplerConfig):
         return create_librosa_resampler(config)
-    elif backend == ResampleBackend.TORCHAUDIO:
-        config = torchaudio_config or TorchaudioResamplerConfig()
+    elif isinstance(config, TorchaudioResamplerConfig):
         return create_torchaudio_resampler(config)
-    elif backend == ResampleBackend.SCIPY:
-        config = scipy_config or ScipyResamplerConfig()
+    elif isinstance(config, ScipyResamplerConfig):
         return create_scipy_resampler(config)
     else:
-        raise ValueError(f"Unknown backend: {backend}")
+        raise ValueError(f"Unknown resampler config type: {type(config)}")
 
 
 def write_wav_to_gcs(
@@ -583,6 +713,25 @@ def process_dataset(
     }
 
 
+def load_config_from_yaml(config_path: str) -> ResampleTaskConfig:
+    """Load resampling task configuration from a YAML file.
+
+    Parameters
+    ----------
+    config_path : str
+        Path to the YAML configuration file.
+
+    Returns
+    -------
+    ResampleTaskConfig
+        The validated configuration object.
+    """
+    from esp_data.io import read_yaml
+
+    config_dict = read_yaml(config_path)
+    return ResampleTaskConfig.model_validate(config_dict)
+
+
 def main() -> None:
     """Main entry point for the resampling script."""
     parser = argparse.ArgumentParser(
@@ -614,6 +763,12 @@ Examples:
         "--list-datasets",
         action="store_true",
         help="List all available registered datasets and exit",
+    )
+    parser.add_argument(
+        "--config",
+        type=str,
+        default=None,
+        help="Path to YAML configuration file. If provided, other arguments are ignored.",
     )
 
     # Required arguments
@@ -776,74 +931,82 @@ Examples:
             print(f"  {name}")
         return
 
-    # Validate required arguments
-    if not args.dataset:
-        parser.error("--dataset is required")
-    if not args.split:
-        parser.error("--split is required")
-    if not args.export_path:
-        parser.error("--export-path is required")
-    if not args.target_sr:
-        parser.error("--target-sr is required")
+    # Load configuration from YAML or CLI arguments
+    if args.config:
+        print(f"Loading configuration from: {args.config}")
+        config = load_config_from_yaml(args.config)
+    else:
+        # Validate required arguments for CLI mode
+        if not args.dataset:
+            parser.error("--dataset is required")
+        if not args.split:
+            parser.error("--split is required")
+        if not args.export_path:
+            parser.error("--export-path is required")
+        if not args.target_sr:
+            parser.error("--target-sr is required")
 
-    # Build configuration based on backend
-    backend = ResampleBackend(args.backend)
+        # Build resampler config based on backend
+        backend = args.backend
+        if backend == "librosa":
+            resampler_config = LibrosaResamplerConfig(
+                res_type=args.librosa_res_type,
+                scale=args.librosa_scale,
+                fix=args.librosa_fix,
+            )
+            print(f"Using librosa backend with res_type={resampler_config.res_type}")
+        elif backend == "torchaudio":
+            resampler_config = TorchaudioResamplerConfig(
+                lowpass_filter_width=args.torchaudio_lowpass_filter_width,
+                rolloff=args.torchaudio_rolloff,
+                resampling_method=args.torchaudio_resampling_method,
+                beta=args.torchaudio_beta,
+                dtype=args.torchaudio_dtype,
+            )
+            print(
+                f"Using torchaudio backend with method={resampler_config.resampling_method}, "
+                f"rolloff={resampler_config.rolloff}"
+            )
+        elif backend == "scipy":
+            resampler_config = ScipyResamplerConfig(
+                window=args.scipy_window,
+                domain=args.scipy_domain,
+                padtype=args.scipy_padtype,
+            )
+            print(
+                f"Using scipy backend with domain={resampler_config.domain}, "
+                f"window={resampler_config.window}"
+            )
+        else:
+            parser.error(f"Unknown backend: {backend}")
 
-    librosa_config = None
-    torchaudio_config = None
-    scipy_config = None
-
-    if backend == ResampleBackend.LIBROSA:
-        librosa_config = LibrosaResamplerConfig(
-            res_type=args.librosa_res_type,
-            scale=args.librosa_scale,
-            fix=args.librosa_fix,
+        # Build task config
+        config = ResampleTaskConfig(
+            dataset_name=args.dataset,
+            split=args.split,
+            export_path=args.export_path,
+            target_sr=args.target_sr,
+            resampler=resampler_config,
+            data_root=args.data_root,
+            max_workers=args.workers,
+            path_column=args.path_column,
+            output_metadata_path=args.output_metadata,
+            skip_existing=not args.no_skip_existing,
         )
-        print(f"Using librosa backend with res_type={librosa_config.res_type}")
 
-    elif backend == ResampleBackend.TORCHAUDIO:
-        torchaudio_config = TorchaudioResamplerConfig(
-            lowpass_filter_width=args.torchaudio_lowpass_filter_width,
-            rolloff=args.torchaudio_rolloff,
-            resampling_method=args.torchaudio_resampling_method,
-            beta=args.torchaudio_beta,
-            dtype=args.torchaudio_dtype,
-        )
-        print(
-            f"Using torchaudio backend with method={torchaudio_config.resampling_method}, "
-            f"rolloff={torchaudio_config.rolloff}"
-        )
-
-    elif backend == ResampleBackend.SCIPY:
-        scipy_config = ScipyResamplerConfig(
-            window=args.scipy_window,
-            domain=args.scipy_domain,
-            padtype=args.scipy_padtype,
-        )
-        print(
-            f"Using scipy backend with domain={scipy_config.domain}, window={scipy_config.window}"
-        )
-
-    # Create resampler
-    resample_fn = get_resampler(
-        backend=backend,
-        librosa_config=librosa_config,
-        torchaudio_config=torchaudio_config,
-        scipy_config=scipy_config,
-    )
-
-    # Process dataset
+    # Create resampler and process dataset
+    resample_fn = get_resampler(config.resampler)
     result = process_dataset(
-        dataset_name=args.dataset,
-        split=args.split,
-        export_path=args.export_path,
-        target_sr=args.target_sr,
+        dataset_name=config.dataset_name,
+        split=config.split,
+        export_path=config.export_path,
+        target_sr=config.target_sr,
         resample_fn=resample_fn,
-        data_root=args.data_root,
-        max_workers=args.workers,
-        path_column=args.path_column,
-        output_metadata_path=args.output_metadata,
-        skip_existing=not args.no_skip_existing,
+        data_root=config.data_root,
+        max_workers=config.max_workers,
+        path_column=config.path_column,
+        output_metadata_path=config.output_metadata_path,
+        skip_existing=config.skip_existing,
     )
 
     print(f"\nMetadata exported to: {result['metadata_path']}")
