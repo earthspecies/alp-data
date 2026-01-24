@@ -31,7 +31,7 @@ Examples
 >>> ds = BengaleseFinchCalls(split="Bird0", sample_rate=16000)
 >>> first = ds[0]
 >>> first.keys()
-dict_keys(['local_path', 'call_type', 'individual_id', 'audio'])
+dict_keys(['local_path', 'call_type', 'individual_id', 'audio', 'sample_rate'])
 
 # Bird2 training split
 >>> train_ds = BengaleseFinchCalls(split="Bird2_train", sample_rate=16000)
@@ -233,21 +233,23 @@ class BengaleseFinchCalls(Dataset):
         audio_path = anypath(self.data_root) / row["local_path"]
 
         # Load the audio file
-        audio, sr = read_audio(audio_path)
+        audio, sample_rate = read_audio(audio_path)
         audio = audio.astype(np.float32)
         audio = audio_stereo_to_mono(audio, mono_method="average")
 
         # Resample if the user requested a specific sample-rate
-        if self.sample_rate is not None and sr != self.sample_rate:
+        if self.sample_rate is not None and sample_rate != self.sample_rate:
             audio = librosa.resample(
                 y=audio,
-                orig_sr=sr,
+                orig_sr=sample_rate,
                 target_sr=self.sample_rate,
                 scale=True,
                 res_type="kaiser_best",
             )
+            sample_rate = self.sample_rate
 
         row["audio"] = audio
+        row["sample_rate"] = sample_rate
 
         # Apply output mapping if requested
         if self.output_take_and_give:
