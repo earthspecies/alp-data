@@ -118,7 +118,7 @@ max-complexity = 10
 allow-star-arg-any = true # suppress ANN401 for *args and **kwargs arguments
 
 [tool.codespell]
-skip = "*.csv"
+skip = "*.csv, *.ipynb"
 
 [[tool.uv.index]]
 name = "esp-pypi"
