@@ -13,21 +13,21 @@ def local_test_dir(tmp_path):
 
 
 @pytest.mark.parametrize(
-    "cloud_path",
+    "cloud_dir",
     [
-        anypath("gs://esp-ci-cd-tests/esp-data-tests/test_upload_file.bin"),
-        anypath("r2://esp-ci-cd-tests/esp-data-tests/test_upload_file.bin"),
+        anypath("gs://esp-ci-cd-tests/esp-data-tests"),
+        anypath("r2://esp-ci-cd-tests/esp-data-tests"),
     ],
 )
-def test_upload_download_cloud(local_test_dir, cloud_path):
+def test_upload_download_cloud(local_test_dir, cloud_dir):
     """Test uploading to and downloading from cloud buckets."""
     local_file = local_test_dir / "cloud_test.bin"
     local_file.write_bytes(b"Hello Cloud")
 
     assert exists(local_file)
 
-    # Upload to remote
-
+    # Upload to remote with unique path to avoid conflicts from previous runs
+    cloud_path = cloud_dir / f"test_upload_{uuid4()}.bin"
     assert not exists(cloud_path)
     filesystem_from_path(cloud_path).put(str(local_file), str(cloud_path))
     assert exists(cloud_path)

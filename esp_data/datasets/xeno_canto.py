@@ -91,6 +91,9 @@ class XenoCanto(Dataset):
             "train": "gs://esp-ml-datasets/xeno-canto/v0.1.0/raw/xeno_curated_train_20260116.csv",
             "validation": "gs://esp-ml-datasets/xeno-canto/v0.1.0/raw/xeno_curated_val_20260116.csv",
             "all": "gs://esp-ml-datasets/xeno-canto/v0.1.0/raw/xeno_curated_all_20260116.csv",
+            "train_filtered": "gs://esp-ml-datasets/xeno-canto/v0.1.0/raw/xeno_curated_train_20260116_filtered.csv",
+            "validation_filtered": "gs://esp-ml-datasets/xeno-canto/v0.1.0/raw/xeno_curated_val_20260116_filtered.csv",
+            "all_filtered": "gs://esp-ml-datasets/xeno-canto/v0.1.0/raw/xeno_curated_all_20260116_filtered.csv",
         },
         version="0.1.0",
         description="Xeno-canto audio dataset with taxonomic metadata. "
