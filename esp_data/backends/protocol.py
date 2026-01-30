@@ -417,6 +417,31 @@ class DataBackend(Protocol):
         """
         ...
 
+    def get_dtype(self, column: str) -> str:
+        """Return the dtype of a column as a normalized string.
+
+        The returned dtype is normalized to one of:
+        - "str": string/text types
+        - "int": integer types (Int64, Int32, etc.)
+        - "float": floating point types (Float64, Float32, etc.)
+        - "bool": boolean type
+        - "datetime": datetime types
+        - "list[str]": list of strings
+        - "list[int]": list of integers
+        - "list[float]": list of floats
+
+        Parameters
+        ----------
+        column : str
+            Column name
+
+        Returns
+        -------
+        str
+            Normalized dtype string
+        """
+        ...
+
     @property
     def unwrap(self) -> Any:  # noqa ANN401
         """Get the underlying data object.
