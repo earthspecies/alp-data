@@ -90,7 +90,9 @@ class INaturalist(Dataset):
         name="inaturalist",
         owner="gagan; david",
         split_paths={
-            "train": "gs://esp-ml-datasets/inaturalist/v0.1.0/raw/metadata_2025_07_no_m4a.csv",
+            "train": "gs://esp-ml-datasets/inaturalist/v0.1.0/raw/train_20260131.csv",
+            "val": "gs://esp-ml-datasets/inaturalist/v0.1.0/raw/val_20260131.csv",
+            "all": "gs://esp-ml-datasets/inaturalist/v0.1.0/raw/all_20260131.csv",
         },
         version="0.1.0",
         description="iNaturalist audio dataset with taxonomic metadata. "
