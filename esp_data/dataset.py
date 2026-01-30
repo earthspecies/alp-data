@@ -7,6 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, field_validator
 
 from esp_data.backends import BackendType, get_backend
 from esp_data.io import AnyPathT, read_yaml
+from esp_data.schema import DatasetSchema
 from esp_data.transforms import transform_from_config
 from esp_data.transforms.registry import RegisteredTransformConfigs
 
@@ -297,6 +298,9 @@ class Dataset(ABC):
     info : DatasetInfo
         Required attribute containing metadata about the dataset.
         Must be defined by all implementing classes.
+    schema : DatasetSchema | None
+        Optional attribute defining the expected schema for the dataset.
+        If defined, schema validation is performed after data load.
 
     Methods
     -------
@@ -311,6 +315,7 @@ class Dataset(ABC):
     """
 
     info: DatasetInfo
+    schema: DatasetSchema | None = None
 
     def __init__(
         self,
@@ -491,6 +496,23 @@ class Dataset(ABC):
             transform_metadata[cfg.type] = metadata
 
         return transform_metadata
+
+    def _validate_schema(self) -> None:
+        """Validate loaded data against schema if defined.
+
+        This method checks that the loaded data matches the expected schema
+        defined in the class-level `schema` attribute. If no schema is defined,
+        this method does nothing.
+
+        Raises
+        ------
+        RuntimeError
+            If called before data is loaded
+        """
+        if self.schema is not None:
+            if self._data is None:
+                raise RuntimeError("Cannot validate schema: no data loaded")
+            self.schema.validate_backend(self._data)
 
 
 # Global registry instance

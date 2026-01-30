@@ -583,6 +583,56 @@ class PandasBackend(DataBackend):
         """
         return column in self._df.columns
 
+    def get_dtype(self, column: str) -> str:
+        """Return the dtype of a column as a normalized string.
+
+        Parameters
+        ----------
+        column : str
+            Column name
+
+        Returns
+        -------
+        str
+            Normalized dtype string
+        """
+        import numpy as np
+
+        self._ensure_not_streaming("get_dtype")
+        dtype = self._df[column].dtype
+
+        # Check for object dtype which could contain lists
+        if dtype == np.object_:
+            # Sample first non-null value to check if it's a list
+            non_null = self._df[column].dropna()
+            first_valid = non_null.iloc[0] if len(non_null) > 0 else None
+            if isinstance(first_valid, list):
+                if len(first_valid) > 0:
+                    inner_type = type(first_valid[0])
+                    if inner_type is str:
+                        return "list[str]"
+                    elif inner_type in (int, np.integer):
+                        return "list[int]"
+                    elif inner_type in (float, np.floating):
+                        return "list[float]"
+                return "list[str]"  # Default for empty lists
+            return "str"
+
+        # Map pandas/numpy dtypes to normalized strings
+        dtype_str = str(dtype)
+        if "int" in dtype_str.lower():
+            return "int"
+        elif "float" in dtype_str.lower():
+            return "float"
+        elif dtype_str == "bool" or "bool" in dtype_str.lower():
+            return "bool"
+        elif "datetime" in dtype_str.lower() or "date" in dtype_str.lower():
+            return "datetime"
+        elif dtype_str in ("object", "string", "str"):
+            return "str"
+        else:
+            return dtype_str
+
     @property
     def unwrap(self) -> pd.DataFrame:
         """Get the underlying DataFrame object.
