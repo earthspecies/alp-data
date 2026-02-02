@@ -1,5 +1,6 @@
 """This file offers functionalities necessary to read input streams, like audio."""
 
+import json
 import logging
 import tempfile
 from typing import Any, BinaryIO, Literal
@@ -109,6 +110,40 @@ def read_yaml(path: str | AnyPathT) -> object:
 
     if result is None:
         raise ValueError(f"YAML file '{path}' is empty")
+
+    return result
+
+
+def read_json(path: str | AnyPathT) -> object:
+    """Read a JSON file and return its contents.
+
+    Parameters
+    ----------
+    path : str or AnyPathT
+        The path string or path object pointing to the JSON file.
+
+    Returns
+    -------
+    object
+        The contents of the JSON file.
+
+    Raises
+    ------
+    json.JSONDecodeError
+        If there is an error parsing the JSON file.
+    ValueError
+        If the JSON file is empty.
+    """
+    try:
+        with filesystem_from_path(path).open(str(path), "r") as fp:
+            result = json.load(fp)
+    except json.JSONDecodeError as e:
+        raise json.JSONDecodeError(
+            f"Error parsing JSON file '{path}': {e.msg}", e.doc, e.pos
+        ) from e
+
+    if result is None:
+        raise ValueError(f"JSON file '{path}' is empty")
 
     return result
 
