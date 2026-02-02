@@ -1,6 +1,8 @@
+import json
+
 import pytest
 import yaml
-from esp_data.io.read_utils import read_text, read_yaml
+from esp_data.io.read_utils import read_json, read_text, read_yaml
 from esp_data.io import AnyPathT, anypath, filesystem_from_path
 
 
@@ -66,6 +68,52 @@ def test_read_yaml_failure(tmp_path):
     empty_file.write_text("")
     with pytest.raises(ValueError):
         read_yaml(empty_file)
+
+
+def test_read_json(tmp_path):
+    """Test reading JSON files."""
+    test_file = tmp_path / "test_read.json"
+    test_file.write_text('{"key1": "value1", "key2": ["item1", "item2"]}')
+
+    content = read_json(test_file)
+    assert content == {"key1": "value1", "key2": ["item1", "item2"]}
+
+    # Test when json only has a list at the top level
+    list_file = tmp_path / "list_read.json"
+    list_file.write_text('["elem1", "elem2"]')
+    content = read_json(list_file)
+    assert content == ["elem1", "elem2"]
+
+
+def test_read_json_failure(tmp_path):
+    """Test reading invalid JSON files."""
+    test_file = tmp_path / "invalid_read.json"
+    test_file.write_text("{key1: value1}")
+    with pytest.raises(json.JSONDecodeError):
+        read_json(test_file)
+
+    # Also test empty file
+    empty_file = tmp_path / "empty.json"
+    empty_file.write_text("")
+    with pytest.raises(json.JSONDecodeError):
+        read_json(empty_file)
+
+    # Test null value
+    null_file = tmp_path / "null.json"
+    null_file.write_text("null")
+    with pytest.raises(ValueError):
+        read_json(null_file)
+
+
+def test_reading_json_from_cloud_storage(cloud_test_dir):
+    """Test reading JSON files from cloud storage."""
+    test_file = cloud_test_dir / "test_read.json"
+    fs = filesystem_from_path(test_file)
+    with fs.open(str(test_file), "w") as f:
+        f.write('{"keyA": "valueA", "keyB": ["itemA", "itemB"]}')
+
+    content = read_json(test_file)
+    assert content == {"keyA": "valueA", "keyB": ["itemA", "itemB"]}
 
 
 def test_reading_yaml_from_cloud_storage(cloud_test_dir):
