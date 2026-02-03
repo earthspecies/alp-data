@@ -4,7 +4,7 @@ from typing import Any, Callable, Iterator
 
 import webdataset as wds
 
-from esp_data.io import AnyPathT, anypath
+from esp_data.io import AnyPathT, anypath, filesystem_from_path
 
 from .protocol import StreamingBackend
 from .webdataset_utils import audio_decoder
@@ -59,7 +59,8 @@ def _load_webdataset(
         If no shard files are found in the specified path.
     """
     path = anypath(path)
-    shard_files = list([str(s) for s in path.glob(file_pattern)])
+    fs = filesystem_from_path(path)
+    shard_files = list([str(s) for s in fs.glob(str(path / file_pattern))])
 
     if not shard_files:
         raise FileNotFoundError(f"No shard files found in {path}")
