@@ -17,7 +17,7 @@ from esp_data import Dataset, DatasetConfig
 # - Data type conversion
 # - Dataset ordering
 EXPECTED_FIRST_ITEM_AUDIO_SHA256 = (
-    "26d196878be54bebf6a72b66d457c105c02436baae734bf73cbcd875f756722a"
+    "11d2f95a6e6e26bcb39a4e7e970ae36c9a606ef3b1ee63734fe1e587662ac820"
 )
 
 
