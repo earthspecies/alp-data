@@ -95,7 +95,7 @@ def test_columns_property(dataset: Dataset) -> None:
 def test_available_splits(dataset: Dataset) -> None:
     """Test if available_splits returns correct split names."""
     # Available splits should contain train
-    expected_splits = ["train", "all", "validation", "train_filtered", "all_filtered", "validation_filtered"]
+    expected_splits = ["train", "all", "validation", "train_unseen", "all_unseen", "validation_unseen"]
     assert set(dataset.available_splits) == set(expected_splits)
 
 
@@ -275,7 +275,7 @@ def test_reference_item_stability() -> None:
 
     # Expected SHA256 hash of the first item's audio data
     EXPECTED_FIRST_ITEM_AUDIO_SHA256 = (
-        "a3b5a78eb3cc628fd44d6ed64716249b0e3bdb91a7bcb8fc0c64bae839011930"
+        "5261ef93bf35cec9a9ed4f091193746e2753100bdd985fe111b54f5da072dd8e"
     )
 
     ds = XenoCanto(split="train")

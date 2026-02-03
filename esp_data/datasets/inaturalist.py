@@ -51,7 +51,9 @@ class INaturalist(Dataset):
     **Rights & Attribution:**
         - ``recordist``: Person who made the recording
         - ``rightsHolder``: Copyright holder
-        - ``license``: License information (e.g., CC BY)
+        - ``license``, ``license_url``: Observation license (CC BY-NC 4.0, CC BY 4.0, or CC0 1.0)
+        - ``media_license``, ``media_license_url``: Media-specific license
+            (CC BY-NC 4.0, CC BY 4.0, or CC0 1.0)
         - ``url``: Original iNaturalist sound URL
 
     **Captions (from AnimalSpeak):**
@@ -62,6 +64,22 @@ class INaturalist(Dataset):
         - ``fieldNotes``: Observer's notes about the recording
         - ``source``, ``data_source``: Origin of the data
         - ``identifier``: iNaturalist observation identifier
+
+    Available Splits
+    ----------------
+    - ``train``: Training set (random split)
+    - ``val``: Validation set (random split)
+    - ``all``: Complete dataset (train + val)
+    - ``train_unseen``: Training set excluding unseen taxa evaluated in BEANS-Zero benchmark
+    - ``validation_unseen``: Validation set excluding unseen taxa evaluated in BEANS-Zero benchmark
+    - ``all_unseen``: Complete dataset excluding BEANS-Zero unseen taxa
+
+    The ``_unseen`` splits are designed for training models that will be evaluated
+    on BEANS-Zero's unseen taxa benchmark, ensuring no test taxa leak into the training data.
+
+    Note that all splits exclude examples overlapping with the following benchmark datasets:
+    - BEANS-Zero captioning test set (See the beans_zero dataset)
+
 
     References
     ----------
@@ -90,16 +108,19 @@ class INaturalist(Dataset):
         name="inaturalist",
         owner="gagan; david",
         split_paths={
-            "train": "gs://esp-ml-datasets/inaturalist/v0.1.0/raw/train_20260131.csv",
-            "val": "gs://esp-ml-datasets/inaturalist/v0.1.0/raw/val_20260131.csv",
-            "all": "gs://esp-ml-datasets/inaturalist/v0.1.0/raw/all_20260131.csv",
+            "train": "gs://esp-ml-datasets/inaturalist/v0.1.0/raw/train_20260201.csv",
+            "train_unseen": "gs://esp-ml-datasets/inaturalist/v0.1.0/raw/train_unseen_20260201.csv",
+            "val": "gs://esp-ml-datasets/inaturalist/v0.1.0/raw/val_20260201.csv",
+            "val_unseen": "gs://esp-ml-datasets/inaturalist/v0.1.0/raw/val_unseen_20260201.csv",
+            "all": "gs://esp-ml-datasets/inaturalist/v0.1.0/raw/all_20260201.csv",
+            "all_unseen": "gs://esp-ml-datasets/inaturalist/v0.1.0/raw/all_unseen_20260201.csv",
         },
         version="0.1.0",
         description="iNaturalist audio dataset with taxonomic metadata. "
         "Available at original (variable) sample rates and 32kHz (pre-resampled). "
         "Pre-resampled audio uses librosa's kaiser_best resampling method.",
         sources=["iNaturalist"],
-        license="CC BY",
+        license="multiple (mostly CC BY-NC 4.0, CC BY 4.0, CC0 1.0)",
     )
 
     # Mapping of sample rates to their corresponding path columns

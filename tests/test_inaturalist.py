@@ -17,7 +17,7 @@ from esp_data import Dataset, DatasetConfig
 # - Data type conversion
 # - Dataset ordering
 EXPECTED_FIRST_ITEM_AUDIO_SHA256 = (
-    "804d45aafc783c3e08d25c716d299c338ced073245dd07a92d62b2797c105303"
+    "26d196878be54bebf6a72b66d457c105c02436baae734bf73cbcd875f756722a"
 )
 
 
@@ -79,8 +79,8 @@ def test_columns_property(dataset_with_transforms_from_config: Dataset) -> None:
 
 def test_available_splits(dataset_with_transforms_from_config: Dataset) -> None:
     """Test if available_splits returns correct split names."""
-    # Available splits should contain train
-    expected_splits = ["train"]
+    # Available splits should contain train, val, all, and unseen variants
+    expected_splits = ["train", "val", "all", "train_unseen", "val_unseen", "all_unseen"]
     assert set(dataset_with_transforms_from_config.available_splits) == set(
         expected_splits
     )
