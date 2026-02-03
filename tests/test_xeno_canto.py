@@ -115,6 +115,7 @@ def test_getitem(dataset: Dataset) -> None:
     sample = dataset[0]
     assert isinstance(sample, dict)
     assert "audio" in sample
+    assert "sample_rate" in sample
     assert "relative_path" in sample
 
     # Check audio properties
@@ -128,6 +129,7 @@ def test_iteration(dataset: Dataset) -> None:
         assert isinstance(sample, dict)
         # Ensure we can access expected keys
         assert "audio" in sample
+        assert "sample_rate" in sample
         assert "relative_path" in sample
         if i >= 2:  # Only test first few samples
             break

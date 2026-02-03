@@ -102,6 +102,7 @@ def test_getitem(dataset_with_transforms_from_config: Dataset) -> None:
     sample = dataset_with_transforms_from_config[0]
     assert isinstance(sample, dict)
     assert "audio" in sample
+    assert "sample_rate" in sample
     assert "originals_path" in sample
 
     # Check audio properties
@@ -116,6 +117,7 @@ def test_iteration(dataset_with_transforms_from_config: Dataset) -> None:
         assert isinstance(sample, dict)
         # Ensure we can access expected keys
         assert "audio" in sample
+        assert "sample_rate" in sample
         assert "originals_path" in sample
         if i >= 2:  # Only test first few samples
             break

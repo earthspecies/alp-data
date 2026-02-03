@@ -119,6 +119,7 @@ def test_getitem(dataset: Dataset) -> None:
     assert "sex" in sample
     assert "weight_kg" in sample
     assert "audio" in sample
+    assert "sample_rate" in sample
     assert "local_path" in sample
 
     # Verify audio properties
@@ -211,11 +212,13 @@ def test_sample_rate_resampling() -> None:
 
     sample = dataset[0]
 
-    # Test that audio is loaded correctly
+    # Test that audio and sample_rate are loaded correctly
     assert "audio" in sample
+    assert "sample_rate" in sample
     audio = sample["audio"]
     assert audio is not None
     assert len(audio.shape) == 1, "Audio should be mono after resampling"
+    assert sample["sample_rate"] == target_sr
 
 
 def test_data_root_parameter() -> None:

@@ -320,7 +320,7 @@ def get_audio_info(
     file_path = anypath(file_path)
     extension = file_path.suffix
 
-    if extension not in _AUDIO_FORMATS:
+    if extension.lower() not in _AUDIO_FORMATS:
         raise ValueError(f"Unsupported audio format: {extension}")
 
     try:
@@ -391,7 +391,7 @@ def read_audio_by_time(
     extension = file_path.suffix
     format = extension.lstrip(".").upper()
 
-    if extension not in _AUDIO_FORMATS:
+    if extension.lower() not in _AUDIO_FORMATS:
         raise ValueError(f"Unsupported audio format: {extension}")
 
     try:

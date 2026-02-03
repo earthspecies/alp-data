@@ -166,30 +166,30 @@ class WABAD(Dataset):
         audio_fp = self.data_root / row["audio_fp"]
 
         # Read audio
-        audio, sr = read_audio(audio_fp)
+        audio, sample_rate = read_audio(audio_fp)
         audio = audio_stereo_to_mono(audio, mono_method="average").astype(np.float32)
 
         # Resample if necessary
-        target_sr = self.sample_rate
-        if target_sr is not None and sr != target_sr:
+        if self.sample_rate is not None and sample_rate != self.sample_rate:
             audio = librosa.resample(
                 y=audio,
-                orig_sr=sr,
-                target_sr=target_sr,
+                orig_sr=sample_rate,
+                target_sr=self.sample_rate,
                 scale=True,
                 res_type="kaiser_best",
             )
-            sr = target_sr
+            sample_rate = self.sample_rate
 
         # Selection table
         st = pd.read_csv(StringIO(row["selection_table"]), sep="\t")
 
         # Clip events outside audio (keep only events that begin before audio end)
-        audio_dur = len(audio) / float(sr)
+        audio_dur = len(audio) / float(sample_rate)
         st = st[st["Begin Time (s)"] < audio_dur].copy()
 
         # Build output
         row["audio"] = audio
+        row["sample_rate"] = sample_rate
         row["selection_table"] = st
 
         if self.output_take_and_give:
