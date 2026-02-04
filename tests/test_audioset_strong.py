@@ -48,6 +48,12 @@ def test_ds_not_empty(ds: AudioSetStrong):
     assert len(ds) > 0, "Dataset appears empty"
 
 
+def test_get_available_labels(ds: AudioSetStrong):
+    """Dataset should provide available labels"""
+    labels = ds.get_available_labels()
+    assert len(labels) > 0, "Dataset has no labels"
+
+
 def test_dataset_length_matches_expected(ds: AudioSetStrong):
     """The dataset length should match the known, version-controlled expectation."""
     assert len(ds) == EXPECTED_LEN_TRAIN, (

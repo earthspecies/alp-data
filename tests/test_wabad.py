@@ -78,6 +78,12 @@ def test_ds_not_empty(ds: WABAD):
     assert len(ds) > 0, "Dataset appears empty"
 
 
+def test_get_available_labels(ds: WABAD):
+    """Dataset should provide available labels"""
+    labels = ds.get_available_labels()
+    assert len(labels) > 0, "Dataset has no labels"
+
+
 def test_check_audio(ds_polars: WABAD, sample_indices: List[int]):
     """Basic audio integrity checks on a few random items."""
     for idx in sample_indices:

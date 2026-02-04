@@ -65,6 +65,10 @@ def ds_pandas() -> AnuraSetStrong:
     """Load AnuraSetStrong dataset for testing with pandas backend."""
     return AnuraSetStrong(split="all", sample_rate=16000, backend="pandas")
 
+def test_get_available_labels(ds: AnuraSetStrong):
+    """Dataset should provide available labels"""
+    labels = ds.get_available_labels()
+    assert len(labels) > 0, "Dataset has no labels"
 
 @pytest.fixture(scope="module")
 def sample_indices(ds: AnuraSetStrong) -> List[int]:
