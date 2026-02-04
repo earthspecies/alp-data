@@ -269,6 +269,8 @@ class ArcticBirdSounds(Dataset):
         for row in self._data:
             st = pd.read_csv(StringIO(row["selection_table"]), sep="\t")
             available_labels.update(st[anno_column].astype(str).tolist())
+        if self.unknown_label in available_labels:
+            available_labels.remove(self.unknown_label)
 
         return sorted(available_labels)
 
