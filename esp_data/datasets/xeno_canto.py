@@ -27,11 +27,12 @@ class XenoCanto(Dataset):
     Available Metadata Fields
     -------------------------
     **Taxonomic Information:**
-        - ``canonical_name``: Canonical species name (primary identifier)
+        - ``canonical_name``: Canonical species name (primary identifier).
+            Linked to the GBIF backbone taxonomy.
         - ``species_common``: Common/vernacular species name
         - ``species``: Species scientific name
         - ``scientificName``: Scientific species name with author (legacy field)
-        - ``scientific_name_unified``: Unified scientific name
+        - ``scientific_name_unified``: Scientific name (before GBIF standardization)
         - ``genus``, ``family``, ``order``, ``class``, ``phylum``, ``kingdom``: Taxonomic hierarchy
         - ``gbifID``, ``taxonKey``, ``speciesKey``: GBIF identifiers
         - ``xc_clade``: Xeno-canto clade classification (e.g., "aves")
@@ -65,7 +66,7 @@ class XenoCanto(Dataset):
         - ``recordedBy``: Name of the recordist
         - ``license``, ``license_text``, ``license_url``: License information (e.g., CC BY-SA 4.0)
         - ``media_license``, ``media_license_url``: Media-specific license
-        - ``url``, ``media_url``, ``associatedMedia``: Original Xeno-canto sound URL
+        - ``media_url``: Direct audio file URL
 
     **Additional Fields:**
         - ``fieldNotes``, ``description``: Observer's notes about the recording
@@ -132,7 +133,7 @@ class XenoCanto(Dataset):
         "Xeno-canto dump as of Oct 2025. "
         "Train/val split is 90%/10% with random seed 42.",
         sources=["Xeno-canto"],
-        license="multiple (mostly CC BY-NC-SA 4.0, CC BY-NC 4.0, CC BY-SA, CC0)",
+        license="CC BY-NC-SA 4.0, CC BY-NC 4.0, CC BY-SA, CC0",
     )
 
     # Mapping of sample rates to their corresponding path columns

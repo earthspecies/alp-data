@@ -71,7 +71,7 @@ class INaturalist(Dataset):
     - ``val``: Validation set (random split)
     - ``all``: Complete dataset (train + val)
     - ``train_unseen``: Training set excluding unseen taxa evaluated in BEANS-Zero benchmark
-    - ``validation_unseen``: Validation set excluding unseen taxa evaluated in BEANS-Zero benchmark
+    - ``val_unseen``: Validation set excluding unseen taxa evaluated in BEANS-Zero benchmark
     - ``all_unseen``: Complete dataset excluding BEANS-Zero unseen taxa
 
     The ``_unseen`` splits are designed for training models that will be evaluated
@@ -120,7 +120,7 @@ class INaturalist(Dataset):
         "Available at original (variable) sample rates and 32kHz (pre-resampled). "
         "Pre-resampled audio uses librosa's kaiser_best resampling method.",
         sources=["iNaturalist"],
-        license="multiple (mostly CC BY-NC 4.0, CC BY 4.0, CC0 1.0)",
+        license="CC BY-NC 4.0, CC BY 4.0, CC0 1.0",
     )
 
     # Mapping of sample rates to their corresponding path columns
