@@ -9,6 +9,7 @@ import pandas as pd
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from esp_data.backends import BackendType
 from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
+from esp_data.schema import ColumnSchema, DatasetSchema
 
 
 @register_dataset
@@ -47,6 +48,80 @@ class GiantOtters(Dataset):
         description="Giant Otters vocal repertoire dataset",
         sources=["PLOS ONE"],
         license="CC-BY-4.0, CC0",
+    )
+
+    schema = DatasetSchema(
+        columns=[
+            ColumnSchema(name="path", dtype="str", required=True),
+            ColumnSchema(name="Call_ID", dtype="str", required=False),
+            ColumnSchema(name="Individual", dtype="str", required=False),
+            ColumnSchema(name="Origin", dtype="str", required=False),
+            ColumnSchema(name="Sex", dtype="str", required=False),
+            ColumnSchema(name="Age", dtype="str", required=False),
+            ColumnSchema(name="SamplingRate", dtype="str", required=False),
+            ColumnSchema(name="vocalization", dtype="str", required=False),
+            ColumnSchema(name="Context_rough", dtype="str", required=False),
+            ColumnSchema(name="Context_detail", dtype="str", required=False),
+            ColumnSchema(name="E_dur", dtype="float", required=False),
+            ColumnSchema(name="E_Fmin", dtype="float", required=False),
+            ColumnSchema(name="E_Fma", dtype="float", required=False),
+            ColumnSchema(name="E_Fpeak", dtype="float", required=False),
+            ColumnSchema(name="E_timeFpeak", dtype="float", required=False),
+            ColumnSchema(name="E_timePeakAmp", dtype="float", required=False),
+            ColumnSchema(name="E_aggEntropy", dtype="float", required=False),
+            ColumnSchema(name="E_avgEntropy", dtype="float", required=False),
+            ColumnSchema(name="C1_Freq", dtype="float", required=False),
+            ColumnSchema(name="C2_Freq", dtype="float", required=False),
+            ColumnSchema(name="C3_Freq", dtype="float", required=False),
+            ColumnSchema(name="C4_Freq", dtype="float", required=False),
+            ColumnSchema(name="C5_Freq", dtype="float", required=False),
+            ColumnSchema(name="C6_Freq", dtype="float", required=False),
+            ColumnSchema(name="C7_Freq", dtype="float", required=False),
+            ColumnSchema(name="C8_Freq", dtype="float", required=False),
+            ColumnSchema(name="C9_Freq", dtype="float", required=False),
+            ColumnSchema(name="C2_time", dtype="float", required=False),
+            ColumnSchema(name="C3_time", dtype="float", required=False),
+            ColumnSchema(name="C4_time", dtype="float", required=False),
+            ColumnSchema(name="C5_time", dtype="float", required=False),
+            ColumnSchema(name="C6_time", dtype="float", required=False),
+            ColumnSchema(name="C7_time", dtype="float", required=False),
+            ColumnSchema(name="C8_time", dtype="float", required=False),
+            ColumnSchema(name="p1_Fmin", dtype="float", required=False),
+            ColumnSchema(name="p1_Fma", dtype="float", required=False),
+            ColumnSchema(name="p1_Fpeak", dtype="float", required=False),
+            ColumnSchema(name="p1_timeFpeak", dtype="float", required=False),
+            ColumnSchema(name="p1_percPeakAmp", dtype="float", required=False),
+            ColumnSchema(name="p1_timePeakAmp", dtype="float", required=False),
+            ColumnSchema(name="p1_aggEntropy", dtype="float", required=False),
+            ColumnSchema(name="p1_avgEntropy", dtype="float", required=False),
+            ColumnSchema(name="p2_Fmin", dtype="float", required=False),
+            ColumnSchema(name="p2_Fma", dtype="float", required=False),
+            ColumnSchema(name="p2_Fpeak", dtype="float", required=False),
+            ColumnSchema(name="p2_timeFpeak", dtype="float", required=False),
+            ColumnSchema(name="p2_percPeakAmp", dtype="float", required=False),
+            ColumnSchema(name="p2_timePeakAmp", dtype="float", required=False),
+            ColumnSchema(name="p2_aggEntropy", dtype="float", required=False),
+            ColumnSchema(name="p2_avgEntropy", dtype="float", required=False),
+            ColumnSchema(name="p3_Fmin", dtype="float", required=False),
+            ColumnSchema(name="p3_Fma", dtype="float", required=False),
+            ColumnSchema(name="p3_Fpeak", dtype="float", required=False),
+            ColumnSchema(name="p3_timeFpeak", dtype="float", required=False),
+            ColumnSchema(name="p3_percPeakAmp", dtype="float", required=False),
+            ColumnSchema(name="p3_timePeakAmp", dtype="float", required=False),
+            ColumnSchema(name="p3_aggEntropy", dtype="float", required=False),
+            ColumnSchema(name="p3_avgEntropy", dtype="float", required=False),
+            ColumnSchema(name="p4_Fmin", dtype="float", required=False),
+            ColumnSchema(name="p4_Fma", dtype="float", required=False),
+            ColumnSchema(name="p4_Fpeak", dtype="float", required=False),
+            ColumnSchema(name="p4_timeFpeak", dtype="float", required=False),
+            ColumnSchema(name="p4_percPeakAmp", dtype="float", required=False),
+            ColumnSchema(name="p4_timePeakAmp", dtype="float", required=False),
+            ColumnSchema(name="p4_aggEntropy", dtype="float", required=False),
+            ColumnSchema(name="p4_avgEntropy", dtype="float", required=False),
+            ColumnSchema(name="NLP_bipho", dtype="float", required=False),
+            ColumnSchema(name="NLP_chaos", dtype="float", required=False),
+            ColumnSchema(name="NLP_subh", dtype="float", required=False),
+        ]
     )
 
     def __init__(

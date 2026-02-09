@@ -8,6 +8,7 @@ import numpy as np
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from esp_data.backends import BackendType
 from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
+from esp_data.schema import ColumnSchema, DatasetSchema
 
 
 @register_dataset
@@ -108,6 +109,77 @@ class INaturalist(Dataset):
 
     # Column name for original variable-rate audio files
     _originals_path_column = "originals_path"
+
+    schema = DatasetSchema(
+        columns=[
+            ColumnSchema(name="Associated Taxa", dtype="str", required=False),
+            ColumnSchema(name="species_scientific_original", dtype="str", required=False),
+            ColumnSchema(name="audiocap_id", dtype="str", required=False),
+            ColumnSchema(name="background_family", dtype="str", required=False),
+            ColumnSchema(name="background_genus", dtype="str", required=False),
+            ColumnSchema(name="background_species_common", dtype="str", required=False),
+            ColumnSchema(name="background_species_sci", dtype="str", required=False),
+            ColumnSchema(name="background_taxonomic", dtype="str", required=False),
+            ColumnSchema(name="behavior", dtype="str", required=False),
+            ColumnSchema(name="canonical_name", dtype="str", required=False),
+            ColumnSchema(name="raw_canonical_name", dtype="str", required=False),
+            ColumnSchema(name="caption", dtype="str", required=False),
+            ColumnSchema(name="caption2", dtype="str", required=False),
+            ColumnSchema(name="caption3", dtype="str", required=False),
+            ColumnSchema(name="class", dtype="str", required=False),
+            # TODO(#232): eventDate should be datetime, not str
+            ColumnSchema(name="eventDate", dtype="str", required=False),
+            ColumnSchema(name="eventTime", dtype="str", required=False),
+            ColumnSchema(name="family", dtype="str", required=False),
+            ColumnSchema(name="fieldNotes", dtype="str", required=False),
+            # TODO(#232): gbifID should be int, not float
+            ColumnSchema(name="gbifID", dtype="float", required=False),
+            ColumnSchema(name="genus", dtype="str", required=False),
+            ColumnSchema(name="identifier", dtype="str", required=False),
+            # TODO(#232): latitudeDecimal should be float, not str
+            ColumnSchema(name="latitudeDecimal", dtype="str", required=False),
+            ColumnSchema(name="license", dtype="str", required=False),
+            ColumnSchema(name="lifeStage", dtype="str", required=False),
+            ColumnSchema(name="originals_path", dtype="str", required=True),
+            # TODO(#232): longitudeDecimal should be float, not str
+            ColumnSchema(name="longitudeDecimal", dtype="str", required=False),
+            ColumnSchema(name="order", dtype="str", required=False),
+            ColumnSchema(name="path", dtype="str", required=False),
+            ColumnSchema(name="phylum", dtype="str", required=False),
+            ColumnSchema(name="recordist", dtype="str", required=False),
+            ColumnSchema(name="rightsHolder", dtype="str", required=False),
+            ColumnSchema(name="sex", dtype="str", required=False),
+            ColumnSchema(name="source", dtype="str", required=False),
+            ColumnSchema(name="species_common", dtype="str", required=False),
+            ColumnSchema(name="species_scientific", dtype="str", required=False),
+            ColumnSchema(name="species_scientific_normalized", dtype="str", required=False),
+            ColumnSchema(name="start_time", dtype="str", required=False),
+            ColumnSchema(name="subspecies", dtype="str", required=False),
+            ColumnSchema(name="taxonomic_name", dtype="str", required=False),
+            ColumnSchema(name="url", dtype="str", required=False),
+            ColumnSchema(name="youtube_id", dtype="str", required=False),
+            ColumnSchema(name="country", dtype="str", required=False),
+            ColumnSchema(name="locality", dtype="str", required=False),
+            ColumnSchema(name="verbatimElevation", dtype="str", required=False),
+            ColumnSchema(name="extracted_name", dtype="str", required=False),
+            ColumnSchema(name="cluster_path", dtype="str", required=False),
+            ColumnSchema(name="file_name", dtype="str", required=False),
+            ColumnSchema(name="sound_id", dtype="int", required=False),
+            ColumnSchema(name="data_source", dtype="str", required=False),
+            ColumnSchema(name="old_local_path", dtype="str", required=False),
+            ColumnSchema(name="32khz_path", dtype="str", required=False),
+            ColumnSchema(name="gbiid_2", dtype="float", required=False),
+            ColumnSchema(name="gbif2_match_type", dtype="str", required=False),
+            ColumnSchema(name="gbif2_confidence", dtype="float", required=False),
+            ColumnSchema(name="gbif2_rank", dtype="str", required=False),
+            ColumnSchema(name="gbif2_status", dtype="str", required=False),
+            ColumnSchema(name="binomial_name", dtype="str", required=False),
+            ColumnSchema(name="_dataset", dtype="str", required=False),
+            ColumnSchema(name="16khz_path", dtype="str", required=False),
+            ColumnSchema(name="gbif_link_ok", dtype="bool", required=False),
+            ColumnSchema(name="gbif_link_transform", dtype="str", required=False),
+        ]
+    )
 
     def __init__(
         self,

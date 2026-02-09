@@ -15,6 +15,7 @@ from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from esp_data.backends import BackendType
 from esp_data.dataset import register_config
 from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio, read_text
+from esp_data.schema import ColumnSchema, DatasetSchema
 
 LABEL_SETS = {
     "Anuraset_train": [
@@ -251,6 +252,16 @@ class Voxaboxen(Dataset):
             "Powdermill",
         ],
         license="CC BY",
+    )
+
+    schema = DatasetSchema(
+        columns=[
+            ColumnSchema(name="fn", dtype="str", required=True),
+            ColumnSchema(name="audio_fp", dtype="str", required=True),
+            ColumnSchema(name="selection_table_fp", dtype="str", required=False),
+            ColumnSchema(name="selection_table_str", dtype="str", required=True),
+            ColumnSchema(name="audio_duration", dtype="float", required=True),
+        ]
     )
 
     def __init__(
@@ -634,6 +645,16 @@ class VoxaboxenEvents(Dataset):
             "Powdermill",
         ],
         license="CC BY",
+    )
+
+    schema = DatasetSchema(
+        columns=[
+            ColumnSchema(name="fn", dtype="str", required=True),
+            ColumnSchema(name="audio_fp", dtype="str", required=True),
+            ColumnSchema(name="selection_table_fp", dtype="str", required=False),
+            ColumnSchema(name="selection_table_str", dtype="str", required=True),
+            ColumnSchema(name="audio_duration", dtype="float", required=True),
+        ]
     )
 
     def __init__(

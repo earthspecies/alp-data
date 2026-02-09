@@ -11,6 +11,7 @@ import pandas as pd
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from esp_data.backends import BackendType
 from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
+from esp_data.schema import ColumnSchema, DatasetSchema
 
 
 @register_dataset
@@ -50,6 +51,32 @@ class SuperbStarling(Dataset):
         description="superb starling flight calls with individual ID and group ID annotations",
         sources="Kenya field recordings",
         license="CC0 1.0",  # https://datadryad.org/dataset/doi:10.5061/dryad.p1n88
+    )
+
+    schema = DatasetSchema(
+        columns=[
+            ColumnSchema(name="Selection", dtype="int", required=True),
+            ColumnSchema(name="View", dtype="str", required=False),
+            ColumnSchema(name="Channel", dtype="int", required=False),
+            ColumnSchema(name="Begin Time (s)", dtype="float", required=True),
+            ColumnSchema(name="End Time (s)", dtype="float", required=True),
+            ColumnSchema(name="Low Freq (Hz)", dtype="int", required=False),
+            ColumnSchema(name="High Freq (Hz)", dtype="int", required=False),
+            ColumnSchema(name="Begin File", dtype="str", required=False),
+            ColumnSchema(name="Begin Path", dtype="str", required=True),
+            ColumnSchema(name="File Offset (s)", dtype="float", required=False),
+            ColumnSchema(name="file_dur", dtype="float", required=False),
+            ColumnSchema(name="cum_dur", dtype="float", required=False),
+            ColumnSchema(name="signal_dur", dtype="float", required=False),
+            ColumnSchema(name="begin_in_file", dtype="float", required=False),
+            ColumnSchema(name="end_in_file", dtype="float", required=False),
+            ColumnSchema(name="Species", dtype="str", required=False),
+            ColumnSchema(name="bird", dtype="int", required=True),
+            ColumnSchema(name="group", dtype="str", required=False),
+            ColumnSchema(name="sex", dtype="str", required=False),
+            ColumnSchema(name="ring", dtype="int", required=False),
+            ColumnSchema(name="timestamp", dtype="str", required=False),
+        ]
     )
 
     def __init__(

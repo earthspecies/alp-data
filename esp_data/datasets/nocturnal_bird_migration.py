@@ -12,6 +12,7 @@ import pandas as pd
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from esp_data.backends import BackendType
 from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
+from esp_data.schema import ColumnSchema, DatasetSchema
 
 
 @register_dataset
@@ -79,6 +80,17 @@ class NocturnalBirdMigration(Dataset):
         description="[MISSING]",
         sources="Zenodo, xeno-canto",
         license="CC BY-ND 3.0",
+    )
+
+    # TODO(#231): Dataset has an empty column name (unnamed index column)
+    schema = DatasetSchema(
+        columns=[
+            ColumnSchema(name="", dtype="int", required=False),
+            ColumnSchema(name="audio_file_name", dtype="str", required=True),
+            ColumnSchema(name="audio_path", dtype="str", required=True),
+            ColumnSchema(name="selection_table", dtype="str", required=True),
+            ColumnSchema(name="xeno_canto_id", dtype="str", required=False),
+        ]
     )
 
     def __init__(

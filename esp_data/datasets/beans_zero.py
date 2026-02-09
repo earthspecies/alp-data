@@ -9,6 +9,7 @@ import pandas as pd
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from esp_data.backends import BackendType
 from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
+from esp_data.schema import ColumnSchema, DatasetSchema
 
 
 @register_dataset
@@ -107,6 +108,24 @@ class BeansZero(Dataset):
 
     # Column name for original variable-rate audio files
     _originals_path_column = "audio_path_original_sample_rate"
+
+    schema = DatasetSchema(
+        columns=[
+            ColumnSchema(name="source_dataset", dtype="str", required=False),
+            ColumnSchema(name="dataset_name", dtype="str", required=False),
+            ColumnSchema(name="output", dtype="str", required=False),
+            ColumnSchema(name="instruction_text", dtype="str", required=False),
+            ColumnSchema(name="instruction", dtype="str", required=False),
+            ColumnSchema(name="task", dtype="str", required=False),
+            ColumnSchema(name="file_name", dtype="str", required=False),
+            ColumnSchema(name="license", dtype="str", required=False),
+            ColumnSchema(name="id", dtype="str", required=False),
+            ColumnSchema(name="metadata", dtype="str", required=False),
+            ColumnSchema(name="audio_path_original_sample_rate", dtype="str", required=True),
+            ColumnSchema(name="audio_path_16KHz", dtype="str", required=False),
+            ColumnSchema(name="audio_path_32KHz", dtype="str", required=False),
+        ]
+    )
 
     def __init__(
         self,

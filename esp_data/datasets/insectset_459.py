@@ -9,6 +9,7 @@ import pandas as pd
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from esp_data.backends import BackendType
 from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
+from esp_data.schema import ColumnSchema, DatasetSchema
 
 
 @register_dataset
@@ -53,6 +54,28 @@ class InsectSet459(Dataset):
         description="InsectSet459 dataset",
         sources=["Xeno-canto", "iNaturalist", "Bioacoustica"],
         license="CC-BY-4.0, CC0",
+    )
+
+    schema = DatasetSchema(
+        columns=[
+            ColumnSchema(name="file_name", dtype="str", required=False),
+            ColumnSchema(name="license", dtype="str", required=False),
+            ColumnSchema(name="contributor", dtype="str", required=False),
+            ColumnSchema(name="observation", dtype="str", required=False),
+            ColumnSchema(name="file", dtype="str", required=False),
+            ColumnSchema(name="background", dtype="str", required=False),
+            ColumnSchema(name="species_scientific", dtype="str", required=False),
+            ColumnSchema(name="gbifID", dtype="int", required=False),
+            ColumnSchema(name="kingdom", dtype="str", required=False),
+            ColumnSchema(name="phylum", dtype="str", required=False),
+            ColumnSchema(name="class", dtype="str", required=False),
+            ColumnSchema(name="order", dtype="str", required=False),
+            ColumnSchema(name="family", dtype="str", required=False),
+            ColumnSchema(name="genus", dtype="str", required=False),
+            ColumnSchema(name="species_common", dtype="str", required=False),
+            ColumnSchema(name="local_path", dtype="str", required=True),
+            ColumnSchema(name="taxonomic_name", dtype="str", required=False),
+        ]
     )
 
     def __init__(

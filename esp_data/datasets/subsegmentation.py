@@ -12,6 +12,7 @@ import pandas as pd
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from esp_data.backends import BackendType
 from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
+from esp_data.schema import ColumnSchema, DatasetSchema
 
 
 @register_dataset
@@ -63,6 +64,19 @@ class Subsegmentation(Dataset):
         description="[MISSING]",
         sources="Logan James",
         license="private",
+    )
+
+    schema = DatasetSchema(
+        columns=[
+            ColumnSchema(name="audio_file_name", dtype="str", required=True),
+            ColumnSchema(name="audio_path", dtype="str", required=True),
+            ColumnSchema(name="selection_table", dtype="str", required=True),
+            ColumnSchema(name="pass_qc", dtype="bool", required=False),
+            ColumnSchema(name="Species", dtype="str", required=False),
+            ColumnSchema(name="Genus", dtype="str", required=False),
+            ColumnSchema(name="Order", dtype="str", required=False),
+            ColumnSchema(name="Family", dtype="str", required=False),
+        ]
     )
 
     def __init__(

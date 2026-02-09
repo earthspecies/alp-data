@@ -11,6 +11,7 @@ import numpy as np
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from esp_data.backends import BackendType
 from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
+from esp_data.schema import ColumnSchema, DatasetSchema
 
 # Call type mapping (0-10, excluding 11=silence and 12=noise)
 CALLTYPE_NAMES = {
@@ -111,6 +112,19 @@ class InfantMarmosetsVox(Dataset):
         44100: "audio_44k",  # Original 44.1kHz
         16000: "audio_16k",  # Pre-resampled to 16kHz
     }
+
+    schema = DatasetSchema(
+        columns=[
+            ColumnSchema(name="path", dtype="str", required=True),
+            ColumnSchema(name="start", dtype="float", required=True),
+            ColumnSchema(name="end", dtype="float", required=True),
+            ColumnSchema(name="duration", dtype="float", required=False),
+            ColumnSchema(name="calltypeID", dtype="int", required=True),
+            ColumnSchema(name="callerID", dtype="int", required=True),
+            ColumnSchema(name="twinID", dtype="int", required=False),
+            ColumnSchema(name="vocID", dtype="int", required=False),
+        ]
+    )
 
     def __init__(
         self,

@@ -8,6 +8,7 @@ import numpy as np
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from esp_data.backends import BackendType
 from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
+from esp_data.schema import ColumnSchema, DatasetSchema
 
 
 @register_dataset
@@ -49,6 +50,18 @@ class MacaquesCooCalls(Dataset):
         ),
         sources=["archive.org"],
         license="CC0 1.0 Universal",
+    )
+
+    schema = DatasetSchema(
+        columns=[
+            ColumnSchema(name="class", dtype="str", required=False),
+            ColumnSchema(name="split", dtype="str", required=False),
+            ColumnSchema(name="filename", dtype="str", required=False),
+            ColumnSchema(name="sex", dtype="str", required=False),
+            ColumnSchema(name="weight_kg", dtype="float", required=False),
+            ColumnSchema(name="id", dtype="str", required=True),
+            ColumnSchema(name="local_path", dtype="str", required=True),
+        ]
     )
 
     def __init__(

@@ -20,6 +20,7 @@ from esp_data.io import (
     read_audio,
     read_text,
 )
+from esp_data.schema import ColumnSchema, DatasetSchema
 
 
 @register_config
@@ -82,6 +83,35 @@ class ESPRaincoast(Dataset):
         description="Orca vocal repertoire dataset",
         sources=["esp-raincoast"],
         license="private",
+    )
+
+    schema = DatasetSchema(
+        columns=[
+            ColumnSchema(name="Selection", dtype="int", required=True),
+            ColumnSchema(name="View", dtype="str", required=False),
+            ColumnSchema(name="Channel", dtype="int", required=False),
+            ColumnSchema(name="Begin Time (s)", dtype="float", required=True),
+            ColumnSchema(name="End Time (s)", dtype="float", required=True),
+            ColumnSchema(name="Begin Date", dtype="str", required=False),
+            ColumnSchema(name="Begin Clock Time", dtype="str", required=False),
+            ColumnSchema(name="Begin Path", dtype="str", required=False),
+            ColumnSchema(name="Begin File", dtype="str", required=False),
+            ColumnSchema(name="File Offset (s)", dtype="float", required=False),
+            ColumnSchema(name="Delta Time (s)", dtype="float", required=False),
+            ColumnSchema(name="Low Freq (Hz)", dtype="float", required=False),
+            ColumnSchema(name="High Freq (Hz)", dtype="float", required=False),
+            ColumnSchema(name="Sound Source", dtype="str", required=False),
+            ColumnSchema(name="Sound Type", dtype="str", required=False),
+            ColumnSchema(name="Tentative Sound Source", dtype="str", required=False),
+            ColumnSchema(name="Tentative Sound Type", dtype="str", required=False),
+            ColumnSchema(name="Call Quality", dtype="str", required=False),
+            ColumnSchema(name="Call Overlap", dtype="str", required=False),
+            ColumnSchema(name="Batch Annotation", dtype="str", required=False),
+            ColumnSchema(name="Dylan Calls to Review", dtype="float", required=False),
+            ColumnSchema(name="Vessel Noise Start", dtype="str", required=False),
+            ColumnSchema(name="Comments", dtype="str", required=False),
+            ColumnSchema(name="local_path", dtype="str", required=True),
+        ]
     )
 
     def __init__(
