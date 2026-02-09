@@ -59,7 +59,7 @@ def test_get_accepted_species_info_no_match(tmp_path: Path) -> None:
             }
         ],
     )
-    converter = GBIFConverter(gbif_animals_tsv_fp=fp, cache_path=None)
+    converter = GBIFConverter(gbif_animals_tsv_fp=fp, use_precomputed_outputs=False, cache_path=None)
 
     out, ok = converter("Does not exist")
     assert out == {}
@@ -80,7 +80,7 @@ def test_get_accepted_species_info_accepts_species(tmp_path: Path) -> None:
             }
         ],
     )
-    converter = GBIFConverter(gbif_animals_tsv_fp=fp, cache_path=None)
+    converter = GBIFConverter(gbif_animals_tsv_fp=fp, use_precomputed_outputs = False, cache_path=None)
 
     out, ok = converter("Corvus corax")
     assert ok is True
@@ -114,7 +114,7 @@ def test_get_accepted_species_info_resolves_synonym_to_accepted(tmp_path: Path) 
             },
         ],
     )
-    converter = GBIFConverter(gbif_animals_tsv_fp=fp, cache_path=None)
+    converter = GBIFConverter(gbif_animals_tsv_fp=fp, use_precomputed_outputs=False, cache_path=None)
 
     out, ok = converter("Felis concolor")
     assert ok is True
@@ -148,7 +148,7 @@ def test_get_accepted_species_info_walks_up_from_lower_rank(tmp_path: Path) -> N
             },
         ],
     )
-    converter = GBIFConverter(gbif_animals_tsv_fp=fp, cache_path=None)
+    converter = GBIFConverter(gbif_animals_tsv_fp=fp, use_precomputed_outputs=False, cache_path=None)
 
     out, ok = converter("Canis lupus familiaris")
     assert ok is True
@@ -182,7 +182,7 @@ def test_get_accepted_species_info_duplicate_canonical_prefers_accepted(tmp_path
             },
         ],
     )
-    converter = GBIFConverter(gbif_animals_tsv_fp=fp, cache_path=None)
+    converter = GBIFConverter(gbif_animals_tsv_fp=fp, use_precomputed_outputs=False, cache_path=None)
 
     out, ok = converter("Dup name")
     assert ok is True
@@ -207,7 +207,7 @@ def test_get_accepted_species_info_cycle_is_detected(tmp_path: Path) -> None:
             }
         ],
     )
-    converter = GBIFConverter(gbif_animals_tsv_fp=fp, cache_path=None)
+    converter = GBIFConverter(gbif_animals_tsv_fp=fp, use_precomputed_outputs=False, cache_path=None)
 
     out, ok = converter("Cycle name")
     assert out == {}
@@ -306,7 +306,7 @@ def test_add_taxonomy_basic(tmp_path: Path) -> None:
     backend = PandasBackend(df)
 
     # Apply transform
-    transform = AddTaxonomy(feature="scientific_name", gbif_taxonomy_path=gbif_path)
+    transform = AddTaxonomy(feature="scientific_name", gbif_taxonomy_path=gbif_path, use_precomputed_outputs=False)
     result_backend, metadata = transform(backend)
 
     # Check that taxonomy columns were added
@@ -333,6 +333,7 @@ def test_add_taxonomy_from_config(tmp_path: Path) -> None:
         type="add_taxonomy",
         feature="species",
         gbif_taxonomy_path=gbif_path,
+        use_precomputed_outputs=False,
     )
     transform = AddTaxonomy.from_config(config)
 
@@ -355,7 +356,7 @@ def test_add_taxonomy_missing_feature_column(tmp_path: Path) -> None:
     df = pd.DataFrame({"wrong_column": ["Corvus corax"]})
     backend = PandasBackend(df)
 
-    transform = AddTaxonomy(feature="scientific_name", gbif_taxonomy_path=gbif_path)
+    transform = AddTaxonomy(feature="scientific_name", gbif_taxonomy_path=gbif_path, use_precomputed_outputs=False)
 
     with pytest.raises(ValueError, match="Feature column 'scientific_name' not found in data"):
         transform(backend)
@@ -378,7 +379,7 @@ def test_add_taxonomy_metadata(tmp_path: Path) -> None:
     )
     backend = PandasBackend(df)
 
-    transform = AddTaxonomy(feature="scientific_name", gbif_taxonomy_path=gbif_path)
+    transform = AddTaxonomy(feature="scientific_name", gbif_taxonomy_path=gbif_path, use_precomputed_outputs=False)
     _, metadata = transform(backend)
 
     assert metadata["feature"] == "scientific_name"
@@ -393,7 +394,7 @@ def test_add_taxonomy_unresolvable_names(tmp_path: Path) -> None:
     df = pd.DataFrame({"scientific_name": ["Unknown species", "Another unknown"]})
     backend = PandasBackend(df)
 
-    transform = AddTaxonomy(feature="scientific_name", gbif_taxonomy_path=gbif_path)
+    transform = AddTaxonomy(feature="scientific_name", gbif_taxonomy_path=gbif_path, use_precomputed_outputs=False)
     result_backend, metadata = transform(backend)
 
     result_df = result_backend.unwrap
@@ -415,6 +416,7 @@ def test_add_taxonomy_with_add_taxonomic_name(tmp_path: Path) -> None:
         feature="scientific_name",
         gbif_taxonomy_path=gbif_path,
         add_taxonomic_name=True,
+        use_precomputed_outputs=False,
     )
     transform = AddTaxonomy.from_config(config)
 
@@ -432,7 +434,7 @@ def test_add_taxonomy_make_taxonomic_name(tmp_path: Path) -> None:
     """Test the _make_taxonomic_name method."""
     gbif_path = _create_gbif_tsv_with_taxonomy(tmp_path)
 
-    transform = AddTaxonomy(feature="scientific_name", gbif_taxonomy_path=gbif_path)
+    transform = AddTaxonomy(feature="scientific_name", gbif_taxonomy_path=gbif_path, use_precomputed_outputs=False)
 
     info = {
         "kingdom": "Animalia",
@@ -459,7 +461,7 @@ def test_add_taxonomy_make_taxonomic_name_empty(tmp_path: Path) -> None:
     """Test _make_taxonomic_name with empty info."""
     gbif_path = _create_gbif_tsv_with_taxonomy(tmp_path)
 
-    transform = AddTaxonomy(feature="scientific_name", gbif_taxonomy_path=gbif_path)
+    transform = AddTaxonomy(feature="scientific_name", gbif_taxonomy_path=gbif_path, use_precomputed_outputs=False)
 
     result = transform._make_taxonomic_name({})
 
@@ -473,6 +475,7 @@ def test_add_taxonomy_config_validation(tmp_path: Path) -> None:
             type="add_taxonomy",
             feature="scientific_name",
             gbif_taxonomy_path="/nonexistent/path/to/file.tsv",
+            use_precomputed_outputs=False,
         )
 
 
@@ -483,7 +486,7 @@ def test_add_taxonomy_empty_dataframe(tmp_path: Path) -> None:
     df = pd.DataFrame({"scientific_name": []})
     backend = PandasBackend(df)
 
-    transform = AddTaxonomy(feature="scientific_name", gbif_taxonomy_path=gbif_path)
+    transform = AddTaxonomy(feature="scientific_name", gbif_taxonomy_path=gbif_path, use_precomputed_outputs=False)
     result_backend, metadata = transform(backend)
 
     assert len(result_backend) == 0
@@ -508,6 +511,7 @@ def test_add_taxonomy_integration_with_beanszero() -> None:
     transform = AddTaxonomy(
         feature="output",  # 'output' column has the canonical names in BeansZero
         add_taxonomic_name=True,
+        use_precomputed_outputs=False,
         # Uses cache if present
     )
 
@@ -539,3 +543,51 @@ def test_add_taxonomy_integration_with_beanszero() -> None:
         taxonomic_name = row["taxonomic_name"]
         assert taxonomic_name is not None
         assert "Animalia" in taxonomic_name
+
+def test_precomputed_vs_tsv_call_paths_consistent_on_10_lookupdict_keys(tmp_path: Path) -> None:
+    """
+    Consistency of results across the two __call__ pathways:
+
+    - Build precomputed converter (fast path) using default gs:// JSON, and take 10 keys from lookupdict.keys().
+    - Build TSV-backed converter (slow path) using default gs:// TSV.
+    - For each of the 10 keys, ensure __call__ returns identical (info, ok) tuples.
+    """
+
+    # Put caches in tmp so CI doesn't attempt to write into the package directory.
+    tsv_cache = tmp_path / "gbif_animals_cache.tsv"
+    json_cache = tmp_path / "gbif_animals_converter_cache.json"
+
+    c_pre = GBIFConverter(
+        use_precomputed_outputs=True,
+        precomputed_cache_path=str(json_cache),
+    )
+
+    assert c_pre.lookupdict is not None
+    keys = sorted(c_pre.lookupdict.keys())[:10]
+    assert len(keys) == 10, "Expected at least 10 keys in lookupdict from precomputed cache"
+
+    c_tsv = GBIFConverter(
+        use_precomputed_outputs=False,
+        cache_path=str(tsv_cache),
+    )
+
+    def _normalize_missing(d: dict) -> dict:
+        """
+        convert nan values to None
+
+        Returns
+        --------
+        Dict with modified values
+        """
+        return {
+            k: (None if pd.isna(v) else v)
+            for k, v in d.items()
+        }
+
+    for name in keys:
+        info_pre, ok_pre = c_pre(name)
+        info_tsv, ok_tsv = c_tsv(name)
+
+        assert ok_pre is True
+        assert ok_tsv is True
+        assert _normalize_missing(info_pre) == _normalize_missing(info_tsv)
