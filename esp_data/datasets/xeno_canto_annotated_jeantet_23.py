@@ -12,6 +12,7 @@ import pandas as pd
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from esp_data.backends import BackendType
 from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
+from esp_data.schema import ColumnSchema, DatasetSchema
 
 
 @register_dataset
@@ -70,6 +71,15 @@ class XenoCantoAnnotatedJeantet23(Dataset):
         description="[MISSING]",
         sources="XenoCanto",
         license="CC-BY-4.0",
+    )
+
+    schema = DatasetSchema(
+        columns=[
+            ColumnSchema(name="audio_file_name", dtype="str", required=True),
+            ColumnSchema(name="audio_path", dtype="str", required=True),
+            ColumnSchema(name="selection_table", dtype="str", required=True),
+            ColumnSchema(name="xeno_canto_id", dtype="str", required=False),
+        ]
     )
 
     def __init__(

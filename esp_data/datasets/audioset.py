@@ -10,6 +10,7 @@ from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from esp_data.backends import BackendType
 from esp_data.dataset import register_config
 from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
+from esp_data.schema import ColumnSchema, DatasetSchema
 
 
 @register_config
@@ -150,6 +151,22 @@ class AudioSet(Dataset):
 
     # Column name for original variable-rate audio files
     _originals_path_column = "local_path"
+
+    # Schema for v0.2.0 (superset of v0.1.0)
+    schema = DatasetSchema(
+        columns=[
+            ColumnSchema(name="youtube_id", dtype="str", required=True),
+            ColumnSchema(name="start", dtype="float", required=True),
+            ColumnSchema(name="end", dtype="float", required=True),
+            ColumnSchema(name="labels", dtype="str", required=True),
+            ColumnSchema(name="local_path", dtype="str", required=True),
+            ColumnSchema(name="caption", dtype="str", required=False),
+            ColumnSchema(name="file_existed", dtype="bool", required=False),
+            ColumnSchema(name="32khz_path", dtype="str", required=False),
+            ColumnSchema(name="16khz_path", dtype="str", required=False),
+            ColumnSchema(name="audiosetcaps_caption", dtype="str", required=False),
+        ]
+    )
 
     def __init__(
         self,

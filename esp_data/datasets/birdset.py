@@ -9,6 +9,7 @@ import pandas as pd
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from esp_data.backends import BackendType
 from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
+from esp_data.schema import ColumnSchema, DatasetSchema
 
 
 @register_dataset
@@ -76,6 +77,16 @@ class BirdSet(Dataset):
         description="BirdSet dataset",
         sources=["HSN", "NBP", "NES", "PER", "POW"],
         license="CC-BY-4.0, CC0",
+    )
+
+    schema = DatasetSchema(
+        columns=[
+            ColumnSchema(name="path", dtype="str", required=True),
+            ColumnSchema(name="label", dtype="str", required=True),
+            ColumnSchema(name="text", dtype="str", required=False),
+            ColumnSchema(name="prompt", dtype="str", required=False),
+            ColumnSchema(name="labels_as_list", dtype="list[str]", required=False),
+        ]
     )
 
     def __init__(

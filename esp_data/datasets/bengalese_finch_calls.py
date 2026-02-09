@@ -60,6 +60,7 @@ import numpy as np
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from esp_data.backends import BackendType
 from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
+from esp_data.schema import ColumnSchema, DatasetSchema
 
 
 @register_dataset
@@ -145,6 +146,14 @@ class BengaleseFinchCalls(Dataset):
         ),
         sources=["BanglaJp_whistle"],
         license="CC-BY-4.0, CC0",
+    )
+
+    schema = DatasetSchema(
+        columns=[
+            ColumnSchema(name="local_path", dtype="str", required=True),
+            ColumnSchema(name="call_type", dtype="int", required=True),
+            ColumnSchema(name="individual_id", dtype="str", required=True),
+        ]
     )
 
     def __init__(

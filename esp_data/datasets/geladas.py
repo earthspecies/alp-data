@@ -9,6 +9,7 @@ import pandas as pd
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from esp_data.backends import BackendType
 from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
+from esp_data.schema import ColumnSchema, DatasetSchema
 
 
 @register_dataset
@@ -71,6 +72,35 @@ class Geladas(Dataset):
         description="Gelada vocal sequences dataset, Gustison et al 2016",
         sources=["PNAS"],
         license="CC-BY-4.0",
+    )
+
+    schema = DatasetSchema(
+        columns=[
+            ColumnSchema(name="focal_sample", dtype="str", required=False),
+            ColumnSchema(name="focal_date", dtype="str", required=False),
+            ColumnSchema(name="focal_time", dtype="str", required=False),
+            ColumnSchema(name="focal_male", dtype="str", required=False),
+            ColumnSchema(name="file_name", dtype="str", required=False),
+            ColumnSchema(name="wav_time", dtype="str", required=False),
+            ColumnSchema(name="wav_state", dtype="str", required=False),
+            ColumnSchema(name="caller_sex", dtype="str", required=False),
+            ColumnSchema(name="caller_age", dtype="str", required=False),
+            ColumnSchema(name="caller_id", dtype="str", required=False),
+            ColumnSchema(name="vocal_type", dtype="str", required=False),
+            ColumnSchema(name="vocal_onset", dtype="float", required=False),
+            ColumnSchema(name="vocal_offset", dtype="float", required=False),
+            ColumnSchema(name="vocal_type_description", dtype="str", required=False),
+            ColumnSchema(name="local_path", dtype="str", required=True),
+            ColumnSchema(name="kingdom", dtype="str", required=False),
+            ColumnSchema(name="phylum", dtype="str", required=False),
+            ColumnSchema(name="class", dtype="str", required=False),
+            ColumnSchema(name="order", dtype="str", required=False),
+            ColumnSchema(name="family", dtype="str", required=False),
+            ColumnSchema(name="genus", dtype="str", required=False),
+            ColumnSchema(name="species_scientific", dtype="str", required=False),
+            ColumnSchema(name="species_common", dtype="str", required=False),
+            ColumnSchema(name="taxonomic_name", dtype="str", required=False),
+        ]
     )
 
     def __init__(

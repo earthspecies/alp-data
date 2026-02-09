@@ -8,6 +8,7 @@ import numpy as np
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from esp_data.backends import BackendType
 from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
+from esp_data.schema import ColumnSchema, DatasetSchema
 
 
 @register_dataset
@@ -144,6 +145,65 @@ class XenoCanto(Dataset):
 
     # Column name for original variable-rate audio files
     _originals_path_column = "relative_path"
+
+    schema = DatasetSchema(
+        columns=[
+            ColumnSchema(name="xc_id", dtype="float", required=False),
+            ColumnSchema(name="scientific_name_unified_original", dtype="str", required=False),
+            ColumnSchema(name="source_version", dtype="str", required=False),
+            ColumnSchema(name="gcs_path", dtype="str", required=False),
+            ColumnSchema(name="relative_path", dtype="str", required=True),
+            ColumnSchema(name="species_common", dtype="str", required=False),
+            ColumnSchema(name="scientific_name_unified", dtype="str", required=False),
+            ColumnSchema(name="scientificName", dtype="str", required=False),
+            ColumnSchema(name="vernacularName", dtype="str", required=False),
+            ColumnSchema(name="caption", dtype="str", required=False),
+            ColumnSchema(name="caption2", dtype="str", required=False),
+            ColumnSchema(name="description", dtype="str", required=False),
+            ColumnSchema(name="kingdom", dtype="str", required=False),
+            ColumnSchema(name="phylum", dtype="str", required=False),
+            ColumnSchema(name="class", dtype="str", required=False),
+            ColumnSchema(name="order", dtype="str", required=False),
+            ColumnSchema(name="family", dtype="str", required=False),
+            ColumnSchema(name="genus", dtype="str", required=False),
+            # TODO(#232): gbifID should be int, not float
+            ColumnSchema(name="gbifID", dtype="float", required=False),
+            ColumnSchema(name="behavior", dtype="str", required=False),
+            ColumnSchema(name="sex", dtype="str", required=False),
+            ColumnSchema(name="lifeStage", dtype="str", required=False),
+            # TODO(#232): eventDate should be datetime, not str
+            ColumnSchema(name="eventDate", dtype="str", required=False),
+            ColumnSchema(name="eventTime", dtype="str", required=False),
+            ColumnSchema(name="latitudeDecimal", dtype="float", required=False),
+            ColumnSchema(name="longitudeDecimal", dtype="float", required=False),
+            ColumnSchema(name="locality", dtype="str", required=False),
+            ColumnSchema(name="location", dtype="str", required=False),
+            ColumnSchema(name="license", dtype="str", required=False),
+            ColumnSchema(name="license_text", dtype="str", required=False),
+            ColumnSchema(name="rightsHolder", dtype="str", required=False),
+            ColumnSchema(name="fieldNotes", dtype="str", required=False),
+            ColumnSchema(name="Associated Taxa", dtype="str", required=False),
+            ColumnSchema(name="url", dtype="str", required=False),
+            ColumnSchema(name="file_name", dtype="str", required=False),
+            ColumnSchema(name="path", dtype="str", required=False),
+            ColumnSchema(name="associatedMedia", dtype="str", required=False),
+            ColumnSchema(name="dataset", dtype="str", required=False),
+            ColumnSchema(name="canonical_name", dtype="str", required=False),
+            ColumnSchema(name="raw_canonical_name", dtype="str", required=False),
+            ColumnSchema(name="32khz_path", dtype="str", required=False),
+            ColumnSchema(name="16khz_path", dtype="str", required=False),
+            ColumnSchema(name="gbiid_2", dtype="float", required=False),
+            ColumnSchema(name="gbif2_match_type", dtype="str", required=False),
+            ColumnSchema(name="gbif2_confidence", dtype="float", required=False),
+            ColumnSchema(name="gbif2_rank", dtype="str", required=False),
+            ColumnSchema(name="gbif2_status", dtype="str", required=False),
+            ColumnSchema(name="binomial_name", dtype="str", required=False),
+            ColumnSchema(name="_dataset", dtype="str", required=False),
+            ColumnSchema(name="gbif_link_ok", dtype="bool", required=False),
+            ColumnSchema(name="gbif_link_transform", dtype="str", required=False),
+            ColumnSchema(name="background_species_gbif", dtype="str", required=False),
+        ]
+    )
 
     def __init__(
         self,

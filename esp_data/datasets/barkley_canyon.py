@@ -14,6 +14,7 @@ from esp_data.io import (
     filesystem_from_path,
     read_audio,
 )
+from esp_data.schema import ColumnSchema, DatasetSchema
 
 
 @register_dataset
@@ -57,6 +58,30 @@ class BarkleyCanyon(Dataset):
         description="BarkleyCanyon dataset",
         sources=["BarkleyCanyon"],
         license="unknown",
+    )
+
+    schema = DatasetSchema(
+        columns=[
+            ColumnSchema(name="Soundfile", dtype="str", required=True),
+            ColumnSchema(name="Top freq (Hz)", dtype="float", required=False),
+            ColumnSchema(name="Bottom freq (Hz)", dtype="float", required=False),
+            ColumnSchema(name="Species", dtype="str", required=False),
+            ColumnSchema(name="Call Type", dtype="str", required=False),
+            ColumnSchema(name="Ecotype", dtype="str", required=False),
+            ColumnSchema(name="gbifID", dtype="str", required=False),
+            ColumnSchema(name="kingdom", dtype="str", required=False),
+            ColumnSchema(name="phylum", dtype="str", required=False),
+            ColumnSchema(name="class", dtype="str", required=False),
+            ColumnSchema(name="order", dtype="str", required=False),
+            ColumnSchema(name="family", dtype="str", required=False),
+            ColumnSchema(name="genus", dtype="str", required=False),
+            ColumnSchema(name="species_common", dtype="str", required=False),
+            ColumnSchema(name="species_scientific", dtype="str", required=False),
+            ColumnSchema(name="taxonomic_name", dtype="str", required=False),
+            ColumnSchema(name="local_path", dtype="str", required=True),
+            ColumnSchema(name="start_times(sec)", dtype="float", required=False),
+            ColumnSchema(name="end_times(sec)", dtype="float", required=False),
+        ]
     )
 
     def __init__(
@@ -330,6 +355,24 @@ class BarkleyCanyonDetection(Dataset):
         """,
         sources=["BarkleyCanyon"],
         license="unknown",
+    )
+
+    schema = DatasetSchema(
+        columns=[
+            ColumnSchema(name="instruction", dtype="str", required=False),
+            ColumnSchema(name="local_path", dtype="str", required=True),
+            ColumnSchema(name="species_common", dtype="str", required=False),
+            ColumnSchema(name="gbifID", dtype="str", required=False),
+            ColumnSchema(name="kingdom", dtype="str", required=False),
+            ColumnSchema(name="phylum", dtype="str", required=False),
+            ColumnSchema(name="class", dtype="str", required=False),
+            ColumnSchema(name="order", dtype="str", required=False),
+            ColumnSchema(name="family", dtype="str", required=False),
+            ColumnSchema(name="genus", dtype="str", required=False),
+            ColumnSchema(name="taxonomic_name", dtype="str", required=False),
+            ColumnSchema(name="species_scientific", dtype="str", required=False),
+            ColumnSchema(name="file_name", dtype="str", required=False),
+        ]
     )
 
     def __init__(

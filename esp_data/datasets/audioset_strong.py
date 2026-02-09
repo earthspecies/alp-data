@@ -12,6 +12,7 @@ import polars as pl
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from esp_data.backends import BackendType
 from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
+from esp_data.schema import ColumnSchema, DatasetSchema
 
 
 @register_dataset
@@ -86,6 +87,17 @@ class AudioSetStrong(Dataset):
         description="AudioSet Strong: Strongly-labeled subset with temporal annotations",
         sources=["YouTube"],
         license="CC BY 4.0",
+    )
+
+    schema = DatasetSchema(
+        columns=[
+            ColumnSchema(name="segment_id", dtype="str", required=True),
+            ColumnSchema(name="youtube_id", dtype="str", required=True),
+            ColumnSchema(name="segment_start", dtype="float", required=True),
+            ColumnSchema(name="audio_path", dtype="str", required=True),
+            ColumnSchema(name="selection_table", dtype="str", required=True),
+            ColumnSchema(name="32khz_path", dtype="str", required=False),
+        ]
     )
 
     _sample_rate_paths = {
@@ -170,6 +182,9 @@ class AudioSetStrong(Dataset):
         self._data = self._backend_class.from_csv(
             location, streaming=self._streaming, keep_default_na=False, na_values=[""]
         )
+
+        # Validate schema after load
+        self._validate_schema()
 
     def __len__(self) -> int:
         return len(self._data)

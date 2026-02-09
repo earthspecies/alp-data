@@ -9,6 +9,7 @@ import pandas as pd
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from esp_data.backends import BackendType
 from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
+from esp_data.schema import ColumnSchema, DatasetSchema
 
 
 @register_dataset
@@ -57,6 +58,17 @@ class ZebraFinchJulieElie(Dataset):
         ),
         sources=["Julie Elie"],
         license="CC-BY-4.0, CC0",
+    )
+
+    schema = DatasetSchema(
+        columns=[
+            ColumnSchema(name="id", dtype="str", required=True),
+            ColumnSchema(name="call_type_id", dtype="str", required=False),
+            ColumnSchema(name="call_type_1", dtype="str", required=False),
+            ColumnSchema(name="call_type_2", dtype="str", required=False),
+            ColumnSchema(name="age", dtype="str", required=False),
+            ColumnSchema(name="local_path", dtype="str", required=True),
+        ]
     )
 
     def __init__(
