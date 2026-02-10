@@ -79,9 +79,13 @@ def test_ds_not_empty(ds: XenoCantoAnnotatedJeantet23):
 
 
 def test_get_available_labels(ds: XenoCantoAnnotatedJeantet23):
-    """Dataset should provide available labels"""
-    labels = ds.get_available_labels()
-    assert len(labels) > 0, "Dataset has no labels"
+    """Test get_available_labels for bird ID column."""
+    labels = ds.get_available_labels(anno_column="Species")
+    assert isinstance(labels, list), "get_available_labels should return a list"
+    assert len(labels) > 0, "Should have at least one bird ID"
+    # Check that all labels can be converted to strings
+    for label in labels:
+        assert isinstance(label, str), f"Species label for {label} should be string"
 
 
 def test_check_audio(ds: XenoCantoAnnotatedJeantet23, sample_indices: List[int]):
