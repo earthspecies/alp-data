@@ -9,9 +9,8 @@ import logging
 from pathlib import Path
 from typing import Any, Literal
 
-import numpy as np
 import pandas as pd
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator
 
 from esp_data.backends import DataBackend
 from esp_data.io import AnyPathT, exists, filesystem_from_path
@@ -19,18 +18,15 @@ from esp_data.transforms import register_transform
 
 logger = logging.getLogger("esp_data")
 
-
 TAXONOMY_RANKS = ["kingdom", "phylum", "class", "order", "family", "genus"]
 # TODO: need a better versioning system
 VERSION = "0.1.0"
-DEFAULT_LOCATION = "gs://esp-ml-datasets/gbif_taxonomy/v0.1.0/gbif_animals.tsv"
-# location of precomputed outputs for speedup
+# location of precomputed outputs
 DEFAULT_PRECOMPUTED_LOCATION = (
     "gs://esp-ml-datasets/gbif_taxonomy/v0.1.0/gbif_animals_converter_cache.json"
 )
 # Use current script directory for cache
 this_dir = Path(__file__).parent.resolve()
-CACHE_PATH = str(this_dir / "gbif_animals_0.1.0.tsv")
 PRECOMPUTED_CACHE_PATH = str(this_dir / "gbif_animals_converter_cache_0.1.0.json")
 
 
@@ -44,20 +40,18 @@ class GBIFConverter:
 
     Parameters
     ----------
-    gbif_animals_tsv_fp : str, optional
-        Path to a TSV file containing animal GBIF taxonomy records,
-        preprocessed via scripts/v2_source_to_tsv.py
+    precomputed_fp : str, optional
+        Path to a json file containing animal GBIF taxonomy records,
+        preprocessed via scripts/taxonomy_v2_source_to_tsv.py and
+        scripts/data_preprocessing_scripts/cache_gbif_taxonomy_conversion.py
 
-    cache_path : str | AnyPathT | None, optional
-        Path to a local cached copy of the GBIF taxonomy table. If provided,
-        this path will be used instead of ``gbif_animals_tsv_fp``.
+    precomputed_cache_path : str | AnyPathT | None, optional
+        Path to a local cached copy of the GBIF taxonomy json. If provided,
+        this path will be used instead of ``precomputed_fp``.
     """
 
     def __init__(
         self,
-        gbif_animals_tsv_fp: str | AnyPathT = DEFAULT_LOCATION,
-        cache_path: str | AnyPathT | None = CACHE_PATH,
-        use_precomputed_outputs: bool = True,
         precomputed_fp: str | AnyPathT = DEFAULT_PRECOMPUTED_LOCATION,
         precomputed_cache_path: str | AnyPathT | None = PRECOMPUTED_CACHE_PATH,
     ) -> None:
@@ -66,15 +60,6 @@ class GBIFConverter:
 
         Parameters
         ----------
-        gbif_animals_tsv_fp : str, optional
-            Path to a TSV file containing animal GBIF taxonomy records,
-            preprocessed via scripts/v2_source_to_tsv.py
-        cache_path : str | AnyPathT | None, optional
-            Path to a local cached copy of the GBIF taxonomy table. If provided,
-            this path will be used instead of ``gbif_animals_tsv_fp``.
-        use_precomputed_outputs : bool
-            Whether to use precomputed outputs from scripts/cache_gbif_taxonomy_conversion.py,
-            which shortcuts the search operations that are implemented in this class
         precomputed_fp : str, optional
             Path to a json file containing precomputed outputs from
             scripts/cache_gbif_taxonomy_conversion.py, which shortcuts the
@@ -84,60 +69,27 @@ class GBIFConverter:
             this path will be used instead of ``gbif_animals_converter_cache.json``.
         """
 
-        self.use_precomputed_outputs = use_precomputed_outputs
-
-        if self.use_precomputed_outputs:
-            _save_json = False
-            if precomputed_cache_path is not None:
-                if not exists(precomputed_cache_path):
-                    logger.warning(
-                        f"GBIFConverter: precomputed_cache_path {precomputed_cache_path}"
-                        "does not exist but has been set"
-                        ", so we'll download and save the data to it."
-                    )
-                    _save_json = True
-                else:
-                    precomputed_fp = precomputed_cache_path
-
-            fs = filesystem_from_path(precomputed_fp)
-
-            with fs.open(precomputed_fp, "rb") as f:
-                self.lookupdict = pd.read_json(f).to_dict(orient="index")
-
-            if _save_json:
-                pd.DataFrame.from_dict(self.lookupdict, orient="index").to_json(
-                    precomputed_cache_path, indent=2
+        _save_json = False
+        if precomputed_cache_path is not None:
+            if not exists(precomputed_cache_path):
+                logger.warning(
+                    f"GBIFConverter: precomputed_cache_path {precomputed_cache_path}"
+                    "does not exist but has been set"
+                    ", so we'll download and save the data to it."
                 )
+                _save_json = True
+            else:
+                precomputed_fp = precomputed_cache_path
 
-            self.df = None
-            self.df_by_canonical_name = None
+        fs = filesystem_from_path(precomputed_fp)
 
-        else:
-            _save_tsv = False
-            if cache_path is not None:
-                if not exists(cache_path):
-                    logger.warning(
-                        f"GBIFConverter: cache_path {cache_path} does not exist but has been set"
-                        ", so we'll download and save the data to it."
-                    )
-                    _save_tsv = True
-                else:
-                    gbif_animals_tsv_fp = cache_path
+        with fs.open(precomputed_fp, "rb") as f:
+            self.lookupdict = pd.read_json(f).to_dict(orient="index")
 
-            fs = filesystem_from_path(gbif_animals_tsv_fp)
-            with fs.open(gbif_animals_tsv_fp, "rb") as f:
-                self.df = pd.read_csv(f, sep="\t")
-
-            if _save_tsv:
-                self.df.to_csv(cache_path, sep="\t", index=False)
-
-            # Ensure unique integer taxonID index for O(1)-ish label lookups
-            self.df["taxonID"] = self.df["taxonID"].astype(np.int64)
-            self.df = self.df.set_index("taxonID", verify_integrity=True, drop=False)
-
-            # Canonical name index may be non-unique but with low-dup rate
-            self.df_by_canonical_name = self.df.set_index("canonicalName", drop=False)
-            self.lookupdict = None
+        if _save_json:
+            pd.DataFrame.from_dict(self.lookupdict, orient="index").to_json(
+                precomputed_cache_path, indent=2
+            )
 
     def __call__(self, lookup_name: str) -> tuple[dict[str, Any], bool]:
         """
@@ -163,67 +115,10 @@ class GBIFConverter:
             boolean indicating whether resolution succeeded.
         """
 
-        if self.use_precomputed_outputs:
-            out = self.lookupdict.get(lookup_name, False)
-            if not out:
-                return {}, False
-            else:
-                return out, True
-
-        visited: set[str] = set()
-
-        while True:
-            # Protect against pathological cycles / corrupted pointers
-            if lookup_name in visited:
-                return {}, False
-            visited.add(lookup_name)
-
-            try:
-                looked_up = self.df_by_canonical_name.loc[lookup_name]
-            except KeyError:
-                return {}, False
-
-            # Resolve duplicates: prefer an accepted usage if present; else take first.
-            if isinstance(looked_up, pd.DataFrame):
-                accepted_mask = looked_up["taxonomicStatus"].to_numpy() == "accepted"
-                if accepted_mask.any():
-                    looked_up = looked_up.iloc[int(accepted_mask.argmax())]
-                else:
-                    looked_up = looked_up.iloc[0]
-
-            # Resolve lower taxa (walk up to species)
-            if looked_up["taxonRank"] != "species":
-                parent_id = looked_up["parentNameUsageID"]
-                if pd.isna(parent_id):
-                    return {}, False
-                parent_id = int(parent_id)
-
-                try:
-                    lookup_name = self.df.loc[parent_id, "canonicalName"]
-                except KeyError:
-                    return {}, False
-
-                continue
-
-            # Resolve unaccepted names (walk to accepted/doubtful)
-            # We allow doubtful names for completeness because they don't have synonyms.
-            # e.g. Aegithalos caudatus is considered doubtful but is widely recognized.
-            if looked_up["taxonomicStatus"] not in ["accepted", "doubtful"]:
-                accepted_id = looked_up["acceptedNameUsageID"]
-                if pd.isna(accepted_id):
-                    return {}, False
-                accepted_id = int(accepted_id)
-
-                try:
-                    lookup_name = self.df.loc[accepted_id, "canonicalName"]
-                except KeyError:
-                    return {}, False
-
-                continue
-
-            # Return info as dict
-            out = looked_up.to_dict()
-            out["canonicalName"] = lookup_name
+        out = self.lookupdict.get(lookup_name, False)
+        if not out:
+            return {}, False
+        else:
             return out, True
 
 
@@ -235,34 +130,20 @@ class AddTaxonomyConfig(BaseModel):
         description="Column name containing scientific names to look up.",
         default="scientific_name",
     )
-    gbif_taxonomy_path: str = Field(
-        description="Path to GBIF taxonomy TSV file.",
-        default=DEFAULT_LOCATION,
-    )
     gbif_precomputed_taxonomy_path: str = Field(
         description="Path to GBIF taxonomy json file.",
         default=DEFAULT_PRECOMPUTED_LOCATION,
-    )
-    use_precomputed_outputs: bool = Field(
-        description="Whether to use precomputed (fast) json",
-        default=True,
     )
     add_taxonomic_name: bool = Field(
         description="Whether to add a 'taxonomic_name' column with the full taxonomic name.",
         default=False,
     )
 
-    @model_validator(mode="after")
-    def check_required_files(self) -> None:
-        if self.use_precomputed_outputs:
-            if not exists(self.gbif_precomputed_taxonomy_path):
-                raise ValueError(
-                    f"Precomputed GBIF data file does not exist: "
-                    f"{self.gbif_precomputed_taxonomy_path}"
-                )
-        else:
-            if not exists(self.gbif_taxonomy_path):
-                raise ValueError(f"GBIF data file does not exist: {self.gbif_taxonomy_path}")
+    @field_validator("gbif_precomputed_taxonomy_path")
+    def check_file_exists(cls, v: str) -> str:
+        if not exists(v):
+            raise ValueError(f"GBIF data file does not exist: {v}")
+        return v
 
 
 class AddTaxonomy:
@@ -280,12 +161,8 @@ class AddTaxonomy:
     ----------
     feature : str
         Column name containing scientific names to look up.
-    gbif_taxonomy_path : str | AnyPathT
-        Path to GBIF taxonomy TSV file.
     precomputed_fp : str | AnyPathT
         Path to precomputed GBIF taxonomy json file.
-    use_precomputed_outputs : bool
-        Whether to use precomputed (fast) json.
 
     Examples
     --------
@@ -302,15 +179,11 @@ class AddTaxonomy:
     def __init__(
         self,
         feature: str = "scientific_name",
-        gbif_taxonomy_path: str | AnyPathT = DEFAULT_LOCATION,
         gbif_precomputed_taxonomy_path: str | AnyPathT = DEFAULT_PRECOMPUTED_LOCATION,
-        use_precomputed_outputs: bool = True,
         add_taxonomic_name: bool = False,
     ) -> None:
         self.feature = feature
         self.converter = GBIFConverter(
-            gbif_animals_tsv_fp=gbif_taxonomy_path,
-            use_precomputed_outputs=use_precomputed_outputs,
             precomputed_cache_path=gbif_precomputed_taxonomy_path,
         )
         self.add_taxonomic_name = add_taxonomic_name
