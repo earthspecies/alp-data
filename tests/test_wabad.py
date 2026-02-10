@@ -80,7 +80,7 @@ def test_ds_not_empty(ds: WABAD):
 
 def test_get_available_labels(ds: WABAD):
     """Test get_available_labels for bird ID column."""
-    labels = ds.get_available_labels(anno_column="Species")
+    labels = ds.get_available_labels()
     assert isinstance(labels, list), "get_available_labels should return a list"
     assert len(labels) > 0, "Should have at least one bird ID"
     # Check that all labels can be converted to strings
