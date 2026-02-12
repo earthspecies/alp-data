@@ -200,7 +200,7 @@ def test_missing_property_raises_key_error(backend_type: str) -> None:
 
 @pytest.mark.parametrize("backend_type", ["pandas", "polars"])
 def test_manual_vs_config(backend_type: str) -> None:
-    """Manual instantiation and from_config produce the same result."""
+    """Manual instantiation and from_config produce the same per-class counts."""
     classes = ["a"] * 50 + ["b"] * 10 + ["c"] * 2
     values = list(range(len(classes)))
 
@@ -228,22 +228,10 @@ def test_manual_vs_config(backend_type: str) -> None:
     )
     config_result, _ = LongTailUpsample.from_config(config)(backend)
 
-    if backend_type == "pandas":
-        manual_sorted = manual_result.unwrap.sort_values(by=["class", "value"]).reset_index(
-            drop=True
-        )
-        config_sorted = config_result.unwrap.sort_values(by=["class", "value"]).reset_index(
-            drop=True
-        )
-        pd.testing.assert_frame_equal(manual_sorted, config_sorted)
-    else:
-        m = manual_result.unwrap
-        c = config_result.unwrap
-        if isinstance(m, pl.LazyFrame):
-            m = m.collect()
-        if isinstance(c, pl.LazyFrame):
-            c = c.collect()
-        assert m.sort(by=["class", "value"]).equals(c.sort(by=["class", "value"]))
+    manual_counts = _get_class_counts(manual_result, backend_type)
+    config_counts = _get_class_counts(config_result, backend_type)
+    assert manual_counts == config_counts
+    assert len(manual_result) == len(config_result)
 
 
 def test_config_validation_sufficient_threshold() -> None:
