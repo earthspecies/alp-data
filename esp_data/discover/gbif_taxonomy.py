@@ -163,17 +163,6 @@ class AddTaxonomy:
         Column name containing scientific names to look up.
     precomputed_fp : str | AnyPathT
         Path to precomputed GBIF taxonomy json file.
-
-    Examples
-    --------
-    >>> from esp_data.backends import PandasBackend
-    >>> import pandas as pd
-    >>> df = pd.DataFrame({"scientific_name": ["Corvus corax", "Passer domesticus"]})
-    >>> backend = PandasBackend(df)
-    >>> transform = AddTaxonomy(feature="scientific_name")
-    >>> transformed_backend, metadata = transform(backend)
-    >>> assert "kingdom" in transformed_backend.columns
-    >>> assert "genus" in transformed_backend.columns
     """
 
     def __init__(
