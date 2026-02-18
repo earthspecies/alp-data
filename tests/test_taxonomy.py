@@ -76,8 +76,9 @@ def _create_gbif_json_with_taxonomy(tmp_path: Path) -> str:
     pd.DataFrame.from_dict(lookupdict, orient="index").to_json(fp, indent=2)
     return str(fp)
 
-def test_gbif_converter() -> None:
-    converter = GBIFConverter()
+def test_gbif_converter(tmp_path: Path) -> None:
+    gbif_path = _create_gbif_json_with_taxonomy(tmp_path)
+    converter = GBIFConverter(precomputed_fp = gbif_path)
     info, ok = converter("Puma concolor")
     assert ok
 
