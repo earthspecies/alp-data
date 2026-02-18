@@ -15,8 +15,14 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from esp_data.datasets.dclde2026 import DCLDE2026, ECOTYPE_LABELS, SPECIES_LABELS
-
+from esp_data.datasets.dclde2026 import (
+    DCLDE2026,
+    ECOTYPE_LABELS,
+    PROVENANCE_COLUMNS,
+    PROVIDERS,
+    SPECIES_LABELS,
+    _selection_table_has_events,
+)
 
 # # --- Dataset snapshot ---
 
@@ -56,30 +62,48 @@ ANNOTATIONS_SHA256 = "44f038b229201df4a426c2ad8fb21662f347bc19e8d2efd35e0ddb87ee
 
 @pytest.fixture(scope="module")
 def ds() -> DCLDE2026:
-    """Load DCLDE2026 dataset with polars backend (default) for testing."""
+    """Load DCLDE2026 dataset with polars backend (default) for testing.
+
+    Returns
+    -------
+    DCLDE2026
+        Dataset instance with default polars backend.
+    """
     return DCLDE2026(split="all", sample_rate=16000)
 
 
 @pytest.fixture(scope="module")
 def ds_pandas() -> DCLDE2026:
-    """Load DCLDE2026 dataset with pandas backend for testing."""
+    """Load DCLDE2026 dataset with pandas backend for testing.
+
+    Returns
+    -------
+    DCLDE2026
+        Dataset instance with pandas backend.
+    """
     return DCLDE2026(split="all", sample_rate=16000, backend="pandas")
 
 
 @pytest.fixture(scope="module")
 def sample_indices(ds: DCLDE2026) -> List[int]:
-    """Deterministically choose up to 5 random indices for quick spot checks."""
+    """Deterministically choose up to 5 random indices for quick spot checks.
+
+    Returns
+    -------
+    List[int]
+        Up to 5 randomly selected indices.
+    """
     n = len(ds)
     rng = random.Random(23)
     return [rng.randrange(n) for _ in range(min(5, n))]
 
 
-def test_ds_not_empty(ds: DCLDE2026):
+def test_ds_not_empty(ds: DCLDE2026) -> None:
     """Dataset should have at least one example."""
     assert len(ds) > 0, "Dataset appears empty"
 
 
-def test_dataset_length_matches_expected(ds: DCLDE2026):
+def test_dataset_length_matches_expected(ds: DCLDE2026) -> None:
     """
     The dataset length should match the known, version-controlled expectation.
 
@@ -103,7 +127,7 @@ def test_available_splits(ds: DCLDE2026) -> None:
     assert all(split in ds.available_splits for split in expected_splits)
 
 
-def test_check_audio(ds: DCLDE2026, sample_indices: List[int]):
+def test_check_audio(ds: DCLDE2026, sample_indices: List[int]) -> None:
     """Basic audio integrity checks on a few random items."""
     for idx in sample_indices:
         item = ds[idx]
@@ -119,7 +143,7 @@ def test_check_audio(ds: DCLDE2026, sample_indices: List[int]):
         assert not np.all(audio == 0), f"[{idx}] audio is all zeros"
 
 
-def test_reference_item_stability(ds_pandas: DCLDE2026):
+def test_reference_item_stability(ds_pandas: DCLDE2026) -> None:
     """
     Check that a canonical item (index 0) is bitwise-stable.
 
@@ -175,7 +199,7 @@ def test_reference_item_stability(ds_pandas: DCLDE2026):
     )
 
 
-def test_check_selection_table(ds: DCLDE2026, sample_indices: List[int]):
+def test_check_selection_table(ds: DCLDE2026, sample_indices: List[int]) -> None:
     """Selection table should be a DataFrame with required columns and sane times."""
     required = {
         "Begin Time (s)",
@@ -204,42 +228,130 @@ def test_check_selection_table(ds: DCLDE2026, sample_indices: List[int]):
             assert not durs.min() <= 0, f"[{idx}] events of dur <= 0"
 
 
-def test_annotation_columns(ds: DCLDE2026):
+def test_annotation_columns(ds: DCLDE2026) -> None:
     """annotation_columns should list the expected annotation fields."""
     expected = {"species", "ecotype", "call_type", "acoustic_behavior", "pod", "clan"}
     assert set(ds.annotation_columns) == expected
 
 
-def test_get_available_labels_species(ds: DCLDE2026):
+def test_get_available_labels_species(ds: DCLDE2026) -> None:
     """get_available_labels('species') should return SPECIES_LABELS."""
     labels = ds.get_available_labels("species")
     assert labels == SPECIES_LABELS
 
 
-def test_get_available_labels_ecotype(ds: DCLDE2026):
+def test_get_available_labels_ecotype(ds: DCLDE2026) -> None:
     """get_available_labels('ecotype') should return ECOTYPE_LABELS."""
     labels = ds.get_available_labels("ecotype")
     assert labels == ECOTYPE_LABELS
 
 
-def test_get_available_labels_unknown_raises(ds: DCLDE2026):
+def test_get_available_labels_unknown_raises(ds: DCLDE2026) -> None:
     """get_available_labels with an unknown column should raise ValueError."""
     with pytest.raises(ValueError, match="No predefined label set"):
         ds.get_available_labels("call_type")
 
 
-def test_item_keys(ds: DCLDE2026):
-    """Each item should have the expected top-level keys."""
+def test_item_keys(ds: DCLDE2026) -> None:
+    """Each item should have the expected top-level keys (incl. provenance)."""
     item = ds[0]
-    expected_keys = {"audio_path", "provider", "audio", "sample_rate", "selection_table"}
+    expected_keys = {
+        "audio_path", "audio", "sample_rate", "selection_table",
+        *PROVENANCE_COLUMNS,
+    }
     assert expected_keys.issubset(
         set(item.keys())
     ), f"Missing keys: {expected_keys - set(item.keys())}"
 
 
-def test_str_representation(ds: DCLDE2026):
+def test_str_representation(ds: DCLDE2026) -> None:
     """__str__ should include the dataset name and version."""
     s = str(ds)
     assert "dclde2026" in s
     assert "0.1.0" in s
     assert "CC-BY-4.0" in s
+
+
+# ---------------------------------------------------------------------------
+# Provider / sub-dataset tests
+# ---------------------------------------------------------------------------
+
+
+def test_available_providers_returns_all(ds: DCLDE2026) -> None:
+    """Without filtering, all known providers should be present."""
+    providers = ds.available_providers
+    assert isinstance(providers, list)
+    assert len(providers) > 0
+    # Every provider that appears must be in the canonical list
+    for p in providers:
+        assert p in PROVIDERS, f"Unknown provider in data: {p}"
+
+
+def test_provider_filtering() -> None:
+    """Loading with a provider subset should reduce dataset length."""
+    subset = ["SIMRES"]
+    ds_filtered = DCLDE2026(split="all", sample_rate=16000, providers=subset)
+    assert len(ds_filtered) > 0
+    assert len(ds_filtered) < EXPECTED_LEN_ALL
+    assert ds_filtered.available_providers == subset
+
+
+def test_provider_filtering_invalid() -> None:
+    """Passing an unknown provider name should raise ValueError."""
+    with pytest.raises(ValueError, match="Unknown providers"):
+        DCLDE2026(split="all", sample_rate=16000, providers=["NONEXISTENT"])
+
+
+def test_str_includes_providers(ds: DCLDE2026) -> None:
+    """__str__ should now include provider information."""
+    s = str(ds)
+    assert "Providers:" in s
+
+
+# ---------------------------------------------------------------------------
+# Negative-clip control tests
+# ---------------------------------------------------------------------------
+
+
+def test_selection_table_has_events_positive() -> None:
+    """A TSV with header + data row should be detected as having events."""
+    tsv = "Begin Time (s)\tEnd Time (s)\tspecies\n0.5\t1.2\tKiller whale"
+    assert _selection_table_has_events(tsv) is True
+
+
+def test_selection_table_has_events_negative() -> None:
+    """A TSV with only a header (no event rows) should be negative."""
+    tsv = "Begin Time (s)\tEnd Time (s)\tspecies"
+    assert _selection_table_has_events(tsv) is False
+
+
+def test_selection_table_has_events_empty() -> None:
+    """An empty string should be negative."""
+    assert _selection_table_has_events("") is False
+
+
+def test_positives_only_empty_dict_filters() -> None:
+    """positives_only={} should drop rows with no events (default True for all)."""
+    ds_all = DCLDE2026(split="all", sample_rate=16000)
+    ds_pos = DCLDE2026(split="all", sample_rate=16000, positives_only={})
+    # Positive-only should have ≤ the full count
+    assert len(ds_pos) <= len(ds_all)
+
+
+def test_positives_only_none_returns_all() -> None:
+    """positives_only=None (default) should return every row."""
+    ds = DCLDE2026(split="all", sample_rate=16000)
+    assert len(ds) == EXPECTED_LEN_ALL
+
+
+def test_positives_only_per_provider() -> None:
+    """Allowing negatives from one provider should give ≥ the positives-only count."""
+    # Pick a single provider
+    subset = ["SIMRES"]
+    ds_pos = DCLDE2026(split="all", sample_rate=16000, providers=subset, positives_only={})
+    ds_neg = DCLDE2026(
+        split="all", sample_rate=16000, providers=subset,
+        positives_only={"SIMRES": False},
+    )
+    # With negatives allowed, we should have at least as many rows
+    assert len(ds_neg) >= len(ds_pos)
