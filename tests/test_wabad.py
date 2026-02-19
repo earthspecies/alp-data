@@ -58,6 +58,11 @@ def ds() -> WABAD:
     """Load WABAD dataset for testing."""
     return WABAD(split="all", sample_rate=16000, backend="pandas")
 
+@pytest.fixture(scope="module")
+def ds_sub() -> WABAD:
+    """Load WABAD subdataset for testing."""
+    return WABAD(split="CAT", sample_rate=16000, backend="pandas")
+
 
 @pytest.fixture(scope="module", autouse=True)
 def ds_polars() -> WABAD:
@@ -99,6 +104,24 @@ def test_available_splits(ds: WABAD) -> None:
     # Available splits should contain these
     expected_splits = ["all"]
     assert all(split in ds.available_splits for split in expected_splits)
+
+def test_get_available_labels(ds: WABAD, ds_sub: WABAD):
+    """Test get_available_labels for bird ID column."""
+    labels = ds.get_available_labels(anno_column="Species")
+    assert isinstance(labels, list), "get_available_labels should return a list"
+    assert len(labels) > 0, "Should have at least one bird ID"
+    # Check that all labels can be converted to strings
+    for label in labels:
+        assert isinstance(label, str), f"Species label for {label} should be string"
+
+
+    labels_sub = ds_sub.get_available_labels(anno_column="Species")
+    assert isinstance(labels_sub, list), "get_available_labels should return a list"
+    assert len(labels_sub) > 0, "Should have at least one bird ID"
+    # Check that all labels can be converted to strings
+    for label in labels_sub:
+        assert isinstance(label, str), f"Species label for {label} should be string"
+    assert len(labels_sub) < len(labels), "Subdataset should have fewer classes than all"
 
 
 def test_reference_item_stability(ds: WABAD):
