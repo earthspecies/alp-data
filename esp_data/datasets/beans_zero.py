@@ -111,19 +111,75 @@ class BeansZero(Dataset):
 
     schema = DatasetSchema(
         columns=[
-            ColumnSchema(name="source_dataset", dtype="str", required=False),
-            ColumnSchema(name="dataset_name", dtype="str", required=False),
-            ColumnSchema(name="output", dtype="str", required=False),
-            ColumnSchema(name="instruction_text", dtype="str", required=False),
-            ColumnSchema(name="instruction", dtype="str", required=False),
-            ColumnSchema(name="task", dtype="str", required=False),
-            ColumnSchema(name="file_name", dtype="str", required=False),
-            ColumnSchema(name="license", dtype="str", required=False),
-            ColumnSchema(name="id", dtype="str", required=False),
-            ColumnSchema(name="metadata", dtype="str", required=False),
-            ColumnSchema(name="audio_path_original_sample_rate", dtype="str", required=True),
-            ColumnSchema(name="audio_path_16KHz", dtype="str", required=False),
-            ColumnSchema(name="audio_path_32KHz", dtype="str", required=False),
+            ColumnSchema(
+                name="source_dataset",
+                dtype="str",
+                required=False,
+                description="Name of the source sub-dataset",
+            ),
+            ColumnSchema(
+                name="dataset_name",
+                dtype="str",
+                required=False,
+                description="Name of the benchmark task dataset",
+            ),
+            ColumnSchema(
+                name="output",
+                dtype="str",
+                required=False,
+                description="Expected text output (ground truth answer)",
+            ),
+            ColumnSchema(
+                name="instruction_text",
+                dtype="str",
+                required=False,
+                description="Text instruction for the zero-shot task",
+            ),
+            ColumnSchema(
+                name="instruction",
+                dtype="str",
+                required=False,
+                description="Alternative text instruction field",
+            ),
+            ColumnSchema(
+                name="task",
+                dtype="str",
+                required=False,
+                description="Task type (e.g. species ID, call type, captioning)",
+            ),
+            ColumnSchema(
+                name="file_name", dtype="str", required=False, description="Original file name"
+            ),
+            ColumnSchema(
+                name="license", dtype="str", required=False, description="License of the recording"
+            ),
+            ColumnSchema(
+                name="id", dtype="str", required=False, description="Unique sample identifier"
+            ),
+            ColumnSchema(
+                name="metadata",
+                dtype="str",
+                required=False,
+                description="Additional metadata as JSON string",
+            ),
+            ColumnSchema(
+                name="audio_path_original_sample_rate",
+                dtype="str",
+                required=True,
+                description="Path to audio at original sample rate",
+            ),
+            ColumnSchema(
+                name="audio_path_16KHz",
+                dtype="str",
+                required=False,
+                description="Path to pre-resampled 16kHz audio file",
+            ),
+            ColumnSchema(
+                name="audio_path_32KHz",
+                dtype="str",
+                required=False,
+                description="Path to pre-resampled 32kHz audio file",
+            ),
         ]
     )
 

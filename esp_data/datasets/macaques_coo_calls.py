@@ -54,13 +54,35 @@ class MacaquesCooCalls(Dataset):
 
     schema = DatasetSchema(
         columns=[
-            ColumnSchema(name="class", dtype="str", required=False),
-            ColumnSchema(name="split", dtype="str", required=False),
-            ColumnSchema(name="filename", dtype="str", required=False),
-            ColumnSchema(name="sex", dtype="str", required=False),
-            ColumnSchema(name="weight_kg", dtype="float", required=False),
-            ColumnSchema(name="id", dtype="str", required=True),
-            ColumnSchema(name="local_path", dtype="str", required=True),
+            ColumnSchema(name="class", dtype="str", required=False, description="Call class label"),
+            ColumnSchema(
+                name="split",
+                dtype="str",
+                required=False,
+                description="Data split assignment (train, val, test)",
+            ),
+            ColumnSchema(
+                name="filename", dtype="str", required=False, description="Name of the audio file"
+            ),
+            ColumnSchema(name="sex", dtype="str", required=False, description="Sex of the macaque"),
+            ColumnSchema(
+                name="weight_kg",
+                dtype="float",
+                required=False,
+                description="Weight of the macaque in kilograms",
+            ),
+            ColumnSchema(
+                name="id",
+                dtype="str",
+                required=True,
+                description="Identifier of the individual macaque",
+            ),
+            ColumnSchema(
+                name="local_path",
+                dtype="str",
+                required=True,
+                description="Relative path to the audio file",
+            ),
         ]
     )
 

@@ -155,16 +155,66 @@ class AudioSet(Dataset):
     # Schema for v0.2.0 (superset of v0.1.0)
     schema = DatasetSchema(
         columns=[
-            ColumnSchema(name="youtube_id", dtype="str", required=True),
-            ColumnSchema(name="start", dtype="float", required=True),
-            ColumnSchema(name="end", dtype="float", required=True),
-            ColumnSchema(name="labels", dtype="str", required=True),
-            ColumnSchema(name="local_path", dtype="str", required=True),
-            ColumnSchema(name="caption", dtype="str", required=False),
-            ColumnSchema(name="file_existed", dtype="bool", required=False),
-            ColumnSchema(name="32khz_path", dtype="str", required=False),
-            ColumnSchema(name="16khz_path", dtype="str", required=False),
-            ColumnSchema(name="audiosetcaps_caption", dtype="str", required=False),
+            ColumnSchema(
+                name="youtube_id",
+                dtype="str",
+                required=True,
+                description="YouTube video identifier",
+            ),
+            ColumnSchema(
+                name="start",
+                dtype="float",
+                required=True,
+                description="Start time of the audio segment in seconds",
+            ),
+            ColumnSchema(
+                name="end",
+                dtype="float",
+                required=True,
+                description="End time of the audio segment in seconds",
+            ),
+            ColumnSchema(
+                name="labels",
+                dtype="str",
+                required=True,
+                description="JSON-encoded list of audio event labels",
+            ),
+            ColumnSchema(
+                name="local_path",
+                dtype="str",
+                required=True,
+                description="Relative path to the audio file",
+            ),
+            ColumnSchema(
+                name="caption",
+                dtype="str",
+                required=False,
+                description="Text caption from AudioSetCaps",
+            ),
+            ColumnSchema(
+                name="file_existed",
+                dtype="bool",
+                required=False,
+                description="Whether the audio file was successfully downloaded",
+            ),
+            ColumnSchema(
+                name="32khz_path",
+                dtype="str",
+                required=False,
+                description="Path to pre-resampled 32kHz audio file",
+            ),
+            ColumnSchema(
+                name="16khz_path",
+                dtype="str",
+                required=False,
+                description="Path to pre-resampled 16kHz audio file",
+            ),
+            ColumnSchema(
+                name="audiosetcaps_caption",
+                dtype="str",
+                required=False,
+                description="Caption from the AudioSetCaps dataset",
+            ),
         ]
     )
 

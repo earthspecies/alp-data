@@ -62,25 +62,93 @@ class BarkleyCanyon(Dataset):
 
     schema = DatasetSchema(
         columns=[
-            ColumnSchema(name="Soundfile", dtype="str", required=True),
-            ColumnSchema(name="Top freq (Hz)", dtype="float", required=False),
-            ColumnSchema(name="Bottom freq (Hz)", dtype="float", required=False),
-            ColumnSchema(name="Species", dtype="str", required=False),
-            ColumnSchema(name="Call Type", dtype="str", required=False),
-            ColumnSchema(name="Ecotype", dtype="str", required=False),
-            ColumnSchema(name="gbifID", dtype="str", required=False),
-            ColumnSchema(name="kingdom", dtype="str", required=False),
-            ColumnSchema(name="phylum", dtype="str", required=False),
-            ColumnSchema(name="class", dtype="str", required=False),
-            ColumnSchema(name="order", dtype="str", required=False),
-            ColumnSchema(name="family", dtype="str", required=False),
-            ColumnSchema(name="genus", dtype="str", required=False),
-            ColumnSchema(name="species_common", dtype="str", required=False),
-            ColumnSchema(name="species_scientific", dtype="str", required=False),
-            ColumnSchema(name="taxonomic_name", dtype="str", required=False),
-            ColumnSchema(name="local_path", dtype="str", required=True),
-            ColumnSchema(name="start_times(sec)", dtype="float", required=False),
-            ColumnSchema(name="end_times(sec)", dtype="float", required=False),
+            ColumnSchema(
+                name="Soundfile", dtype="str", required=True, description="Name of the sound file"
+            ),
+            ColumnSchema(
+                name="Top freq (Hz)",
+                dtype="float",
+                required=False,
+                description="Upper frequency bound of the annotation in Hz",
+            ),
+            ColumnSchema(
+                name="Bottom freq (Hz)",
+                dtype="float",
+                required=False,
+                description="Lower frequency bound of the annotation in Hz",
+            ),
+            ColumnSchema(
+                name="Species",
+                dtype="str",
+                required=False,
+                description="Species identified in the annotation",
+            ),
+            ColumnSchema(
+                name="Call Type",
+                dtype="str",
+                required=False,
+                description="Type of vocalization (e.g. call, click, whistle)",
+            ),
+            ColumnSchema(
+                name="Ecotype",
+                dtype="str",
+                required=False,
+                description="Orca ecotype or pod information",
+            ),
+            ColumnSchema(
+                name="gbifID",
+                dtype="str",
+                required=False,
+                description="GBIF occurrence record identifier",
+            ),
+            ColumnSchema(
+                name="kingdom", dtype="str", required=False, description="Taxonomic kingdom"
+            ),
+            ColumnSchema(
+                name="phylum", dtype="str", required=False, description="Taxonomic phylum"
+            ),
+            ColumnSchema(name="class", dtype="str", required=False, description="Taxonomic class"),
+            ColumnSchema(name="order", dtype="str", required=False, description="Taxonomic order"),
+            ColumnSchema(
+                name="family", dtype="str", required=False, description="Taxonomic family"
+            ),
+            ColumnSchema(name="genus", dtype="str", required=False, description="Taxonomic genus"),
+            ColumnSchema(
+                name="species_common",
+                dtype="str",
+                required=False,
+                description="Common name of the species",
+            ),
+            ColumnSchema(
+                name="species_scientific",
+                dtype="str",
+                required=False,
+                description="Scientific name of the species",
+            ),
+            ColumnSchema(
+                name="taxonomic_name",
+                dtype="str",
+                required=False,
+                description="Full taxonomic name from GBIF",
+            ),
+            ColumnSchema(
+                name="local_path",
+                dtype="str",
+                required=True,
+                description="Relative path to the audio file",
+            ),
+            ColumnSchema(
+                name="start_times(sec)",
+                dtype="float",
+                required=False,
+                description="Start time of the annotation in seconds",
+            ),
+            ColumnSchema(
+                name="end_times(sec)",
+                dtype="float",
+                required=False,
+                description="End time of the annotation in seconds",
+            ),
         ]
     )
 
@@ -359,19 +427,57 @@ class BarkleyCanyonDetection(Dataset):
 
     schema = DatasetSchema(
         columns=[
-            ColumnSchema(name="instruction", dtype="str", required=False),
-            ColumnSchema(name="local_path", dtype="str", required=True),
-            ColumnSchema(name="species_common", dtype="str", required=False),
-            ColumnSchema(name="gbifID", dtype="str", required=False),
-            ColumnSchema(name="kingdom", dtype="str", required=False),
-            ColumnSchema(name="phylum", dtype="str", required=False),
-            ColumnSchema(name="class", dtype="str", required=False),
-            ColumnSchema(name="order", dtype="str", required=False),
-            ColumnSchema(name="family", dtype="str", required=False),
-            ColumnSchema(name="genus", dtype="str", required=False),
-            ColumnSchema(name="taxonomic_name", dtype="str", required=False),
-            ColumnSchema(name="species_scientific", dtype="str", required=False),
-            ColumnSchema(name="file_name", dtype="str", required=False),
+            ColumnSchema(
+                name="instruction",
+                dtype="str",
+                required=False,
+                description="Text instruction for the detection task",
+            ),
+            ColumnSchema(
+                name="local_path",
+                dtype="str",
+                required=True,
+                description="Relative path to the audio file",
+            ),
+            ColumnSchema(
+                name="species_common",
+                dtype="str",
+                required=False,
+                description="Common name of the species",
+            ),
+            ColumnSchema(
+                name="gbifID",
+                dtype="str",
+                required=False,
+                description="GBIF occurrence record identifier",
+            ),
+            ColumnSchema(
+                name="kingdom", dtype="str", required=False, description="Taxonomic kingdom"
+            ),
+            ColumnSchema(
+                name="phylum", dtype="str", required=False, description="Taxonomic phylum"
+            ),
+            ColumnSchema(name="class", dtype="str", required=False, description="Taxonomic class"),
+            ColumnSchema(name="order", dtype="str", required=False, description="Taxonomic order"),
+            ColumnSchema(
+                name="family", dtype="str", required=False, description="Taxonomic family"
+            ),
+            ColumnSchema(name="genus", dtype="str", required=False, description="Taxonomic genus"),
+            ColumnSchema(
+                name="taxonomic_name",
+                dtype="str",
+                required=False,
+                description="Full taxonomic name from GBIF",
+            ),
+            ColumnSchema(
+                name="species_scientific",
+                dtype="str",
+                required=False,
+                description="Scientific name of the species",
+            ),
+            ColumnSchema(
+                name="file_name", dtype="str", required=False, description="Original file name"
+            ),
         ]
     )
 

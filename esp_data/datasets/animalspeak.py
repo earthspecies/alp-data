@@ -53,54 +53,240 @@ class AnimalSpeak(Dataset):
 
     schema = DatasetSchema(
         columns=[
-            ColumnSchema(name="Associated Taxa", dtype="str", required=False),
-            ColumnSchema(name="audiocap_id", dtype="float", required=False),
-            ColumnSchema(name="background_family", dtype="str", required=False),
-            ColumnSchema(name="background_genus", dtype="str", required=False),
-            ColumnSchema(name="background_species_common", dtype="str", required=False),
-            ColumnSchema(name="background_species_sci", dtype="str", required=False),
-            ColumnSchema(name="background_taxonomic", dtype="str", required=False),
-            ColumnSchema(name="behavior", dtype="str", required=False),
-            ColumnSchema(name="canonical_name", dtype="str", required=False),
-            ColumnSchema(name="caption", dtype="str", required=True),
-            ColumnSchema(name="caption2", dtype="str", required=False),
-            ColumnSchema(name="caption3", dtype="str", required=False),
-            ColumnSchema(name="class", dtype="str", required=False),
-            ColumnSchema(name="eventDate", dtype="str", required=False),
-            ColumnSchema(name="eventTime", dtype="str", required=False),
-            ColumnSchema(name="family", dtype="str", required=False),
-            ColumnSchema(name="fieldNotes", dtype="str", required=False),
-            ColumnSchema(name="gbifID", dtype="float", required=False),
-            ColumnSchema(name="genus", dtype="str", required=False),
-            ColumnSchema(name="identifier", dtype="str", required=False),
+            ColumnSchema(
+                name="Associated Taxa",
+                dtype="str",
+                required=False,
+                description="Associated taxa from GBIF occurrence record",
+            ),
+            ColumnSchema(
+                name="audiocap_id",
+                dtype="float",
+                required=False,
+                description="AudioCaps dataset identifier",
+            ),
+            ColumnSchema(
+                name="background_family",
+                dtype="str",
+                required=False,
+                description="Taxonomic family of background species",
+            ),
+            ColumnSchema(
+                name="background_genus",
+                dtype="str",
+                required=False,
+                description="Taxonomic genus of background species",
+            ),
+            ColumnSchema(
+                name="background_species_common",
+                dtype="str",
+                required=False,
+                description="Common name of background species",
+            ),
+            ColumnSchema(
+                name="background_species_sci",
+                dtype="str",
+                required=False,
+                description="Scientific name of background species",
+            ),
+            ColumnSchema(
+                name="background_taxonomic",
+                dtype="str",
+                required=False,
+                description="Taxonomic classification of background species",
+            ),
+            ColumnSchema(
+                name="behavior",
+                dtype="str",
+                required=False,
+                description="Behavioral context of the vocalization",
+            ),
+            ColumnSchema(
+                name="canonical_name",
+                dtype="str",
+                required=False,
+                description="Canonical species name from GBIF",
+            ),
+            ColumnSchema(
+                name="caption",
+                dtype="str",
+                required=True,
+                description="Primary text caption describing the audio",
+            ),
+            ColumnSchema(
+                name="caption2", dtype="str", required=False, description="Secondary text caption"
+            ),
+            ColumnSchema(
+                name="caption3", dtype="str", required=False, description="Tertiary text caption"
+            ),
+            ColumnSchema(name="class", dtype="str", required=False, description="Taxonomic class"),
+            ColumnSchema(
+                name="eventDate",
+                dtype="str",
+                required=False,
+                description="Date the recording was made",
+            ),
+            ColumnSchema(
+                name="eventTime",
+                dtype="str",
+                required=False,
+                description="Time the recording was made",
+            ),
+            ColumnSchema(
+                name="family", dtype="str", required=False, description="Taxonomic family"
+            ),
+            ColumnSchema(
+                name="fieldNotes",
+                dtype="str",
+                required=False,
+                description="Field notes from the recording session",
+            ),
+            ColumnSchema(
+                name="gbifID",
+                dtype="float",
+                required=False,
+                description="GBIF occurrence record identifier",
+            ),
+            ColumnSchema(name="genus", dtype="str", required=False, description="Taxonomic genus"),
+            ColumnSchema(
+                name="identifier",
+                dtype="str",
+                required=False,
+                description="Record identifier from source dataset",
+            ),
             # TODO(#232): latitudeDecimal should be float, not str
-            ColumnSchema(name="latitudeDecimal", dtype="str", required=False),
-            ColumnSchema(name="license", dtype="str", required=False),
-            ColumnSchema(name="lifeStage", dtype="str", required=False),
-            ColumnSchema(name="local_path", dtype="str", required=True),
+            ColumnSchema(
+                name="latitudeDecimal",
+                dtype="str",
+                required=False,
+                description="Decimal latitude of recording location",
+            ),
+            ColumnSchema(
+                name="license", dtype="str", required=False, description="License of the recording"
+            ),
+            ColumnSchema(
+                name="lifeStage",
+                dtype="str",
+                required=False,
+                description="Life stage of the animal (e.g. adult, juvenile)",
+            ),
+            ColumnSchema(
+                name="local_path",
+                dtype="str",
+                required=True,
+                description="Relative path to the audio file",
+            ),
             # TODO(#232): longitudeDecimal should be float, not str
-            ColumnSchema(name="longitudeDecimal", dtype="str", required=False),
-            ColumnSchema(name="order", dtype="str", required=False),
-            ColumnSchema(name="path", dtype="str", required=False),
-            ColumnSchema(name="phylum", dtype="str", required=False),
-            ColumnSchema(name="recordist", dtype="str", required=False),
-            ColumnSchema(name="rightsHolder", dtype="str", required=False),
-            ColumnSchema(name="sex", dtype="str", required=False),
-            ColumnSchema(name="source", dtype="str", required=False),
-            ColumnSchema(name="species_common", dtype="str", required=True),
-            ColumnSchema(name="species_scientific", dtype="str", required=True),
-            ColumnSchema(name="species_scientific_normalized", dtype="str", required=False),
-            ColumnSchema(name="start_time", dtype="float", required=False),
-            ColumnSchema(name="subspecies", dtype="str", required=False),
-            ColumnSchema(name="taxonomic_name", dtype="str", required=False),
-            ColumnSchema(name="url", dtype="str", required=False),
-            ColumnSchema(name="youtube_id", dtype="str", required=False),
-            ColumnSchema(name="country", dtype="str", required=False),
-            ColumnSchema(name="locality", dtype="str", required=False),
-            ColumnSchema(name="verbatimElevation", dtype="str", required=False),
-            ColumnSchema(name="extracted_name", dtype="str", required=False),
-            ColumnSchema(name="cluster_path", dtype="str", required=False),
-            ColumnSchema(name="file_name", dtype="str", required=False),
+            ColumnSchema(
+                name="longitudeDecimal",
+                dtype="str",
+                required=False,
+                description="Decimal longitude of recording location",
+            ),
+            ColumnSchema(name="order", dtype="str", required=False, description="Taxonomic order"),
+            ColumnSchema(
+                name="path",
+                dtype="str",
+                required=False,
+                description="Alternative path to the audio file",
+            ),
+            ColumnSchema(
+                name="phylum", dtype="str", required=False, description="Taxonomic phylum"
+            ),
+            ColumnSchema(
+                name="recordist",
+                dtype="str",
+                required=False,
+                description="Name of the person who made the recording",
+            ),
+            ColumnSchema(
+                name="rightsHolder",
+                dtype="str",
+                required=False,
+                description="Rights holder of the recording",
+            ),
+            ColumnSchema(name="sex", dtype="str", required=False, description="Sex of the animal"),
+            ColumnSchema(
+                name="source",
+                dtype="str",
+                required=False,
+                description="Source dataset (e.g. Xeno-canto, iNaturalist)",
+            ),
+            ColumnSchema(
+                name="species_common",
+                dtype="str",
+                required=True,
+                description="Common name of the species",
+            ),
+            ColumnSchema(
+                name="species_scientific",
+                dtype="str",
+                required=True,
+                description="Scientific name of the species",
+            ),
+            ColumnSchema(
+                name="species_scientific_normalized",
+                dtype="str",
+                required=False,
+                description="Normalized scientific name",
+            ),
+            ColumnSchema(
+                name="start_time",
+                dtype="float",
+                required=False,
+                description="Start time offset within the audio file in seconds",
+            ),
+            ColumnSchema(
+                name="subspecies", dtype="str", required=False, description="Subspecies name"
+            ),
+            ColumnSchema(
+                name="taxonomic_name",
+                dtype="str",
+                required=False,
+                description="Full taxonomic name from GBIF",
+            ),
+            ColumnSchema(
+                name="url", dtype="str", required=False, description="URL to the original recording"
+            ),
+            ColumnSchema(
+                name="youtube_id",
+                dtype="str",
+                required=False,
+                description="YouTube video identifier",
+            ),
+            ColumnSchema(
+                name="country",
+                dtype="str",
+                required=False,
+                description="Country where the recording was made",
+            ),
+            ColumnSchema(
+                name="locality",
+                dtype="str",
+                required=False,
+                description="Locality where the recording was made",
+            ),
+            ColumnSchema(
+                name="verbatimElevation",
+                dtype="str",
+                required=False,
+                description="Elevation as recorded in the original data",
+            ),
+            ColumnSchema(
+                name="extracted_name",
+                dtype="str",
+                required=False,
+                description="Species name extracted from metadata",
+            ),
+            ColumnSchema(
+                name="cluster_path",
+                dtype="str",
+                required=False,
+                description="Path to cluster assignment data",
+            ),
+            ColumnSchema(
+                name="file_name", dtype="str", required=False, description="Original file name"
+            ),
         ]
     )
 

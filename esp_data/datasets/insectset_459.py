@@ -58,23 +58,75 @@ class InsectSet459(Dataset):
 
     schema = DatasetSchema(
         columns=[
-            ColumnSchema(name="file_name", dtype="str", required=False),
-            ColumnSchema(name="license", dtype="str", required=False),
-            ColumnSchema(name="contributor", dtype="str", required=False),
-            ColumnSchema(name="observation", dtype="str", required=False),
-            ColumnSchema(name="file", dtype="str", required=False),
-            ColumnSchema(name="background", dtype="str", required=False),
-            ColumnSchema(name="species_scientific", dtype="str", required=False),
-            ColumnSchema(name="gbifID", dtype="int", required=False),
-            ColumnSchema(name="kingdom", dtype="str", required=False),
-            ColumnSchema(name="phylum", dtype="str", required=False),
-            ColumnSchema(name="class", dtype="str", required=False),
-            ColumnSchema(name="order", dtype="str", required=False),
-            ColumnSchema(name="family", dtype="str", required=False),
-            ColumnSchema(name="genus", dtype="str", required=False),
-            ColumnSchema(name="species_common", dtype="str", required=False),
-            ColumnSchema(name="local_path", dtype="str", required=True),
-            ColumnSchema(name="taxonomic_name", dtype="str", required=False),
+            ColumnSchema(
+                name="file_name", dtype="str", required=False, description="Name of the audio file"
+            ),
+            ColumnSchema(
+                name="license", dtype="str", required=False, description="License of the recording"
+            ),
+            ColumnSchema(
+                name="contributor",
+                dtype="str",
+                required=False,
+                description="Name of the contributor",
+            ),
+            ColumnSchema(
+                name="observation",
+                dtype="str",
+                required=False,
+                description="Observation identifier or notes",
+            ),
+            ColumnSchema(
+                name="file", dtype="str", required=False, description="Original file reference"
+            ),
+            ColumnSchema(
+                name="background",
+                dtype="str",
+                required=False,
+                description="Description of background sounds",
+            ),
+            ColumnSchema(
+                name="species_scientific",
+                dtype="str",
+                required=False,
+                description="Scientific name of the species",
+            ),
+            ColumnSchema(
+                name="gbifID",
+                dtype="int",
+                required=False,
+                description="GBIF occurrence record identifier",
+            ),
+            ColumnSchema(
+                name="kingdom", dtype="str", required=False, description="Taxonomic kingdom"
+            ),
+            ColumnSchema(
+                name="phylum", dtype="str", required=False, description="Taxonomic phylum"
+            ),
+            ColumnSchema(name="class", dtype="str", required=False, description="Taxonomic class"),
+            ColumnSchema(name="order", dtype="str", required=False, description="Taxonomic order"),
+            ColumnSchema(
+                name="family", dtype="str", required=False, description="Taxonomic family"
+            ),
+            ColumnSchema(name="genus", dtype="str", required=False, description="Taxonomic genus"),
+            ColumnSchema(
+                name="species_common",
+                dtype="str",
+                required=False,
+                description="Common name of the species",
+            ),
+            ColumnSchema(
+                name="local_path",
+                dtype="str",
+                required=True,
+                description="Relative path to the audio file",
+            ),
+            ColumnSchema(
+                name="taxonomic_name",
+                dtype="str",
+                required=False,
+                description="Full taxonomic name from GBIF",
+            ),
         ]
     )
 

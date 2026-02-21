@@ -87,30 +87,141 @@ class ESPRaincoast(Dataset):
 
     schema = DatasetSchema(
         columns=[
-            ColumnSchema(name="Selection", dtype="int", required=True),
-            ColumnSchema(name="View", dtype="str", required=False),
-            ColumnSchema(name="Channel", dtype="int", required=False),
-            ColumnSchema(name="Begin Time (s)", dtype="float", required=True),
-            ColumnSchema(name="End Time (s)", dtype="float", required=True),
-            ColumnSchema(name="Begin Date", dtype="str", required=False),
-            ColumnSchema(name="Begin Clock Time", dtype="str", required=False),
-            ColumnSchema(name="Begin Path", dtype="str", required=False),
-            ColumnSchema(name="Begin File", dtype="str", required=False),
-            ColumnSchema(name="File Offset (s)", dtype="float", required=False),
-            ColumnSchema(name="Delta Time (s)", dtype="float", required=False),
-            ColumnSchema(name="Low Freq (Hz)", dtype="float", required=False),
-            ColumnSchema(name="High Freq (Hz)", dtype="float", required=False),
-            ColumnSchema(name="Sound Source", dtype="str", required=False),
-            ColumnSchema(name="Sound Type", dtype="str", required=False),
-            ColumnSchema(name="Tentative Sound Source", dtype="str", required=False),
-            ColumnSchema(name="Tentative Sound Type", dtype="str", required=False),
-            ColumnSchema(name="Call Quality", dtype="str", required=False),
-            ColumnSchema(name="Call Overlap", dtype="str", required=False),
-            ColumnSchema(name="Batch Annotation", dtype="str", required=False),
-            ColumnSchema(name="Dylan Calls to Review", dtype="float", required=False),
-            ColumnSchema(name="Vessel Noise Start", dtype="str", required=False),
-            ColumnSchema(name="Comments", dtype="str", required=False),
-            ColumnSchema(name="local_path", dtype="str", required=True),
+            ColumnSchema(
+                name="Selection", dtype="int", required=True, description="Raven selection number"
+            ),
+            ColumnSchema(
+                name="View",
+                dtype="str",
+                required=False,
+                description="Raven spectrogram view identifier",
+            ),
+            ColumnSchema(
+                name="Channel", dtype="int", required=False, description="Audio channel number"
+            ),
+            ColumnSchema(
+                name="Begin Time (s)",
+                dtype="float",
+                required=True,
+                description="Start time of the annotation in seconds",
+            ),
+            ColumnSchema(
+                name="End Time (s)",
+                dtype="float",
+                required=True,
+                description="End time of the annotation in seconds",
+            ),
+            ColumnSchema(
+                name="Begin Date",
+                dtype="str",
+                required=False,
+                description="Date of the annotation start",
+            ),
+            ColumnSchema(
+                name="Begin Clock Time",
+                dtype="str",
+                required=False,
+                description="Clock time of the annotation start",
+            ),
+            ColumnSchema(
+                name="Begin Path",
+                dtype="str",
+                required=False,
+                description="Path to the audio file containing the annotation start",
+            ),
+            ColumnSchema(
+                name="Begin File",
+                dtype="str",
+                required=False,
+                description="File name containing the annotation start",
+            ),
+            ColumnSchema(
+                name="File Offset (s)",
+                dtype="float",
+                required=False,
+                description="Time offset from the start of the file in seconds",
+            ),
+            ColumnSchema(
+                name="Delta Time (s)",
+                dtype="float",
+                required=False,
+                description="Duration of the annotation in seconds",
+            ),
+            ColumnSchema(
+                name="Low Freq (Hz)",
+                dtype="float",
+                required=False,
+                description="Lower frequency bound of the annotation in Hz",
+            ),
+            ColumnSchema(
+                name="High Freq (Hz)",
+                dtype="float",
+                required=False,
+                description="Upper frequency bound of the annotation in Hz",
+            ),
+            ColumnSchema(
+                name="Sound Source",
+                dtype="str",
+                required=False,
+                description="Identified sound source (e.g. orca, humpback)",
+            ),
+            ColumnSchema(
+                name="Sound Type",
+                dtype="str",
+                required=False,
+                description="Type of sound (e.g. call, click)",
+            ),
+            ColumnSchema(
+                name="Tentative Sound Source",
+                dtype="str",
+                required=False,
+                description="Uncertain sound source identification",
+            ),
+            ColumnSchema(
+                name="Tentative Sound Type",
+                dtype="str",
+                required=False,
+                description="Uncertain sound type classification",
+            ),
+            ColumnSchema(
+                name="Call Quality",
+                dtype="str",
+                required=False,
+                description="Quality rating of the vocalization",
+            ),
+            ColumnSchema(
+                name="Call Overlap",
+                dtype="str",
+                required=False,
+                description="Whether the call overlaps with other sounds",
+            ),
+            ColumnSchema(
+                name="Batch Annotation",
+                dtype="str",
+                required=False,
+                description="Batch annotation label",
+            ),
+            ColumnSchema(
+                name="Dylan Calls to Review",
+                dtype="float",
+                required=False,
+                description="Flag for calls needing review",
+            ),
+            ColumnSchema(
+                name="Vessel Noise Start",
+                dtype="str",
+                required=False,
+                description="Start time of vessel noise",
+            ),
+            ColumnSchema(
+                name="Comments", dtype="str", required=False, description="Annotator comments"
+            ),
+            ColumnSchema(
+                name="local_path",
+                dtype="str",
+                required=True,
+                description="Relative path to the audio file",
+            ),
         ]
     )
 

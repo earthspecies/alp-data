@@ -55,27 +55,110 @@ class SuperbStarling(Dataset):
 
     schema = DatasetSchema(
         columns=[
-            ColumnSchema(name="Selection", dtype="int", required=True),
-            ColumnSchema(name="View", dtype="str", required=False),
-            ColumnSchema(name="Channel", dtype="int", required=False),
-            ColumnSchema(name="Begin Time (s)", dtype="float", required=True),
-            ColumnSchema(name="End Time (s)", dtype="float", required=True),
-            ColumnSchema(name="Low Freq (Hz)", dtype="int", required=False),
-            ColumnSchema(name="High Freq (Hz)", dtype="int", required=False),
-            ColumnSchema(name="Begin File", dtype="str", required=False),
-            ColumnSchema(name="Begin Path", dtype="str", required=True),
-            ColumnSchema(name="File Offset (s)", dtype="float", required=False),
-            ColumnSchema(name="file_dur", dtype="float", required=False),
-            ColumnSchema(name="cum_dur", dtype="float", required=False),
-            ColumnSchema(name="signal_dur", dtype="float", required=False),
-            ColumnSchema(name="begin_in_file", dtype="float", required=False),
-            ColumnSchema(name="end_in_file", dtype="float", required=False),
-            ColumnSchema(name="Species", dtype="str", required=False),
-            ColumnSchema(name="bird", dtype="int", required=True),
-            ColumnSchema(name="group", dtype="str", required=False),
-            ColumnSchema(name="sex", dtype="str", required=False),
-            ColumnSchema(name="ring", dtype="int", required=False),
-            ColumnSchema(name="timestamp", dtype="str", required=False),
+            ColumnSchema(
+                name="Selection", dtype="int", required=True, description="Raven selection number"
+            ),
+            ColumnSchema(
+                name="View",
+                dtype="str",
+                required=False,
+                description="Raven spectrogram view identifier",
+            ),
+            ColumnSchema(
+                name="Channel", dtype="int", required=False, description="Audio channel number"
+            ),
+            ColumnSchema(
+                name="Begin Time (s)",
+                dtype="float",
+                required=True,
+                description="Start time of the annotation in seconds",
+            ),
+            ColumnSchema(
+                name="End Time (s)",
+                dtype="float",
+                required=True,
+                description="End time of the annotation in seconds",
+            ),
+            ColumnSchema(
+                name="Low Freq (Hz)",
+                dtype="int",
+                required=False,
+                description="Lower frequency bound of the annotation in Hz",
+            ),
+            ColumnSchema(
+                name="High Freq (Hz)",
+                dtype="int",
+                required=False,
+                description="Upper frequency bound of the annotation in Hz",
+            ),
+            ColumnSchema(
+                name="Begin File",
+                dtype="str",
+                required=False,
+                description="File name containing the annotation start",
+            ),
+            ColumnSchema(
+                name="Begin Path",
+                dtype="str",
+                required=True,
+                description="Path to the audio file containing the annotation start",
+            ),
+            ColumnSchema(
+                name="File Offset (s)",
+                dtype="float",
+                required=False,
+                description="Time offset from the start of the file in seconds",
+            ),
+            ColumnSchema(
+                name="file_dur",
+                dtype="float",
+                required=False,
+                description="Total duration of the audio file in seconds",
+            ),
+            ColumnSchema(
+                name="cum_dur",
+                dtype="float",
+                required=False,
+                description="Cumulative duration across files in seconds",
+            ),
+            ColumnSchema(
+                name="signal_dur",
+                dtype="float",
+                required=False,
+                description="Duration of the signal in seconds",
+            ),
+            ColumnSchema(
+                name="begin_in_file",
+                dtype="float",
+                required=False,
+                description="Start time within the file in seconds",
+            ),
+            ColumnSchema(
+                name="end_in_file",
+                dtype="float",
+                required=False,
+                description="End time within the file in seconds",
+            ),
+            ColumnSchema(name="Species", dtype="str", required=False, description="Species name"),
+            ColumnSchema(
+                name="bird", dtype="int", required=True, description="Numeric bird identifier"
+            ),
+            ColumnSchema(
+                name="group", dtype="str", required=False, description="Social group identifier"
+            ),
+            ColumnSchema(name="sex", dtype="str", required=False, description="Sex of the bird"),
+            ColumnSchema(
+                name="ring",
+                dtype="int",
+                required=False,
+                description="Ring (band) number for identification",
+            ),
+            ColumnSchema(
+                name="timestamp",
+                dtype="str",
+                required=False,
+                description="Timestamp of the recording",
+            ),
         ]
     )
 

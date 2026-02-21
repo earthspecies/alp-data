@@ -72,18 +72,51 @@ class GibbonSolos(Dataset):
 
     schema = DatasetSchema(
         columns=[
-            ColumnSchema(name="file_name", dtype="str", required=True),
-            ColumnSchema(name="selection_table", dtype="str", required=True),
-            ColumnSchema(name="local_path", dtype="str", required=True),
-            ColumnSchema(name="kingdom", dtype="str", required=False),
-            ColumnSchema(name="phylum", dtype="str", required=False),
-            ColumnSchema(name="class", dtype="str", required=False),
-            ColumnSchema(name="order", dtype="str", required=False),
-            ColumnSchema(name="family", dtype="str", required=False),
-            ColumnSchema(name="genus", dtype="str", required=False),
-            ColumnSchema(name="species_scientific", dtype="str", required=False),
-            ColumnSchema(name="species_common", dtype="str", required=False),
-            ColumnSchema(name="taxonomic_name", dtype="str", required=False),
+            ColumnSchema(
+                name="file_name", dtype="str", required=True, description="Name of the audio file"
+            ),
+            ColumnSchema(
+                name="selection_table",
+                dtype="str",
+                required=True,
+                description="Raven-format selection table with temporal annotations",
+            ),
+            ColumnSchema(
+                name="local_path",
+                dtype="str",
+                required=True,
+                description="Relative path to the audio file",
+            ),
+            ColumnSchema(
+                name="kingdom", dtype="str", required=False, description="Taxonomic kingdom"
+            ),
+            ColumnSchema(
+                name="phylum", dtype="str", required=False, description="Taxonomic phylum"
+            ),
+            ColumnSchema(name="class", dtype="str", required=False, description="Taxonomic class"),
+            ColumnSchema(name="order", dtype="str", required=False, description="Taxonomic order"),
+            ColumnSchema(
+                name="family", dtype="str", required=False, description="Taxonomic family"
+            ),
+            ColumnSchema(name="genus", dtype="str", required=False, description="Taxonomic genus"),
+            ColumnSchema(
+                name="species_scientific",
+                dtype="str",
+                required=False,
+                description="Scientific name of the species",
+            ),
+            ColumnSchema(
+                name="species_common",
+                dtype="str",
+                required=False,
+                description="Common name of the species",
+            ),
+            ColumnSchema(
+                name="taxonomic_name",
+                dtype="str",
+                required=False,
+                description="Full taxonomic name from GBIF",
+            ),
         ]
     )
 

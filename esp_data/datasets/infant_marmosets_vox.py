@@ -115,14 +115,54 @@ class InfantMarmosetsVox(Dataset):
 
     schema = DatasetSchema(
         columns=[
-            ColumnSchema(name="path", dtype="str", required=True),
-            ColumnSchema(name="start", dtype="float", required=True),
-            ColumnSchema(name="end", dtype="float", required=True),
-            ColumnSchema(name="duration", dtype="float", required=False),
-            ColumnSchema(name="calltypeID", dtype="int", required=True),
-            ColumnSchema(name="callerID", dtype="int", required=True),
-            ColumnSchema(name="twinID", dtype="int", required=False),
-            ColumnSchema(name="vocID", dtype="int", required=False),
+            ColumnSchema(
+                name="path",
+                dtype="str",
+                required=True,
+                description="Relative path to the audio file",
+            ),
+            ColumnSchema(
+                name="start",
+                dtype="float",
+                required=True,
+                description="Start time of the vocalization in seconds",
+            ),
+            ColumnSchema(
+                name="end",
+                dtype="float",
+                required=True,
+                description="End time of the vocalization in seconds",
+            ),
+            ColumnSchema(
+                name="duration",
+                dtype="float",
+                required=False,
+                description="Duration of the vocalization in seconds",
+            ),
+            ColumnSchema(
+                name="calltypeID",
+                dtype="int",
+                required=True,
+                description="Numeric call type identifier",
+            ),
+            ColumnSchema(
+                name="callerID",
+                dtype="int",
+                required=True,
+                description="Numeric identifier of the individual caller",
+            ),
+            ColumnSchema(
+                name="twinID",
+                dtype="int",
+                required=False,
+                description="Numeric twin pair identifier",
+            ),
+            ColumnSchema(
+                name="vocID",
+                dtype="int",
+                required=False,
+                description="Numeric vocalization identifier",
+            ),
         ]
     )
 

@@ -62,12 +62,34 @@ class ZebraFinchJulieElie(Dataset):
 
     schema = DatasetSchema(
         columns=[
-            ColumnSchema(name="id", dtype="str", required=True),
-            ColumnSchema(name="call_type_id", dtype="str", required=False),
-            ColumnSchema(name="call_type_1", dtype="str", required=False),
-            ColumnSchema(name="call_type_2", dtype="str", required=False),
-            ColumnSchema(name="age", dtype="str", required=False),
-            ColumnSchema(name="local_path", dtype="str", required=True),
+            ColumnSchema(
+                name="id", dtype="str", required=True, description="Unique vocalization identifier"
+            ),
+            ColumnSchema(
+                name="call_type_id",
+                dtype="str",
+                required=False,
+                description="Numeric call type identifier",
+            ),
+            ColumnSchema(
+                name="call_type_1",
+                dtype="str",
+                required=False,
+                description="Primary call type label",
+            ),
+            ColumnSchema(
+                name="call_type_2",
+                dtype="str",
+                required=False,
+                description="Secondary call type label",
+            ),
+            ColumnSchema(name="age", dtype="str", required=False, description="Age of the bird"),
+            ColumnSchema(
+                name="local_path",
+                dtype="str",
+                required=True,
+                description="Relative path to the audio file",
+            ),
         ]
     )
 

@@ -55,18 +55,61 @@ class CorvidWascher(Dataset):
 
     schema = DatasetSchema(
         columns=[
-            ColumnSchema(name="audio_file_name", dtype="int", required=True),
-            ColumnSchema(name="audio_path", dtype="str", required=True),
-            ColumnSchema(name="selection_table", dtype="str", required=True),
-            ColumnSchema(name="species", dtype="str", required=False),
-            ColumnSchema(name="xeno_canto_id", dtype="int", required=False),
-            ColumnSchema(name="stage", dtype="str", required=False),
-            ColumnSchema(name="lat", dtype="float", required=False),
-            ColumnSchema(name="lng", dtype="float", required=False),
-            ColumnSchema(name="type", dtype="str", required=False),
-            ColumnSchema(name="cnt", dtype="str", required=False),
-            ColumnSchema(name="sex", dtype="str", required=False),
-            ColumnSchema(name="method", dtype="str", required=False),
+            ColumnSchema(
+                name="audio_file_name",
+                dtype="int",
+                required=True,
+                description="Xeno-canto recording identifier",
+            ),
+            ColumnSchema(
+                name="audio_path",
+                dtype="str",
+                required=True,
+                description="Relative path to the audio file",
+            ),
+            ColumnSchema(
+                name="selection_table",
+                dtype="str",
+                required=True,
+                description="Raven-format selection table with temporal annotations",
+            ),
+            ColumnSchema(
+                name="species", dtype="str", required=False, description="Corvid species name"
+            ),
+            ColumnSchema(
+                name="xeno_canto_id",
+                dtype="int",
+                required=False,
+                description="Xeno-canto recording identifier",
+            ),
+            ColumnSchema(
+                name="stage", dtype="str", required=False, description="Life stage of the bird"
+            ),
+            ColumnSchema(
+                name="lat",
+                dtype="float",
+                required=False,
+                description="Latitude of the recording location",
+            ),
+            ColumnSchema(
+                name="lng",
+                dtype="float",
+                required=False,
+                description="Longitude of the recording location",
+            ),
+            ColumnSchema(
+                name="type", dtype="str", required=False, description="Type of vocalization"
+            ),
+            ColumnSchema(
+                name="cnt",
+                dtype="str",
+                required=False,
+                description="Country where the recording was made",
+            ),
+            ColumnSchema(name="sex", dtype="str", required=False, description="Sex of the bird"),
+            ColumnSchema(
+                name="method", dtype="str", required=False, description="Recording method used"
+            ),
         ]
     )
 
