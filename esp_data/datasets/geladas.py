@@ -76,30 +76,117 @@ class Geladas(Dataset):
 
     schema = DatasetSchema(
         columns=[
-            ColumnSchema(name="focal_sample", dtype="str", required=False),
-            ColumnSchema(name="focal_date", dtype="str", required=False),
-            ColumnSchema(name="focal_time", dtype="str", required=False),
-            ColumnSchema(name="focal_male", dtype="str", required=False),
-            ColumnSchema(name="file_name", dtype="str", required=False),
-            ColumnSchema(name="wav_time", dtype="str", required=False),
-            ColumnSchema(name="wav_state", dtype="str", required=False),
-            ColumnSchema(name="caller_sex", dtype="str", required=False),
-            ColumnSchema(name="caller_age", dtype="str", required=False),
-            ColumnSchema(name="caller_id", dtype="str", required=False),
-            ColumnSchema(name="vocal_type", dtype="str", required=False),
-            ColumnSchema(name="vocal_onset", dtype="float", required=False),
-            ColumnSchema(name="vocal_offset", dtype="float", required=False),
-            ColumnSchema(name="vocal_type_description", dtype="str", required=False),
-            ColumnSchema(name="local_path", dtype="str", required=True),
-            ColumnSchema(name="kingdom", dtype="str", required=False),
-            ColumnSchema(name="phylum", dtype="str", required=False),
-            ColumnSchema(name="class", dtype="str", required=False),
-            ColumnSchema(name="order", dtype="str", required=False),
-            ColumnSchema(name="family", dtype="str", required=False),
-            ColumnSchema(name="genus", dtype="str", required=False),
-            ColumnSchema(name="species_scientific", dtype="str", required=False),
-            ColumnSchema(name="species_common", dtype="str", required=False),
-            ColumnSchema(name="taxonomic_name", dtype="str", required=False),
+            ColumnSchema(
+                name="focal_sample",
+                dtype="str",
+                required=False,
+                description="Focal sampling session identifier",
+            ),
+            ColumnSchema(
+                name="focal_date",
+                dtype="str",
+                required=False,
+                description="Date of the focal observation",
+            ),
+            ColumnSchema(
+                name="focal_time",
+                dtype="str",
+                required=False,
+                description="Time of the focal observation",
+            ),
+            ColumnSchema(
+                name="focal_male",
+                dtype="str",
+                required=False,
+                description="Identifier of the focal male",
+            ),
+            ColumnSchema(
+                name="file_name", dtype="str", required=False, description="Name of the audio file"
+            ),
+            ColumnSchema(
+                name="wav_time",
+                dtype="str",
+                required=False,
+                description="Timestamp within the WAV file",
+            ),
+            ColumnSchema(
+                name="wav_state",
+                dtype="str",
+                required=False,
+                description="Recording state of the WAV file",
+            ),
+            ColumnSchema(
+                name="caller_sex", dtype="str", required=False, description="Sex of the caller"
+            ),
+            ColumnSchema(
+                name="caller_age",
+                dtype="str",
+                required=False,
+                description="Age class of the caller",
+            ),
+            ColumnSchema(
+                name="caller_id",
+                dtype="str",
+                required=False,
+                description="Identifier of the individual caller",
+            ),
+            ColumnSchema(
+                name="vocal_type", dtype="str", required=False, description="Type of vocalization"
+            ),
+            ColumnSchema(
+                name="vocal_onset",
+                dtype="float",
+                required=False,
+                description="Start time of the vocalization in seconds",
+            ),
+            ColumnSchema(
+                name="vocal_offset",
+                dtype="float",
+                required=False,
+                description="End time of the vocalization in seconds",
+            ),
+            ColumnSchema(
+                name="vocal_type_description",
+                dtype="str",
+                required=False,
+                description="Description of the vocalization type",
+            ),
+            ColumnSchema(
+                name="local_path",
+                dtype="str",
+                required=True,
+                description="Relative path to the audio file",
+            ),
+            ColumnSchema(
+                name="kingdom", dtype="str", required=False, description="Taxonomic kingdom"
+            ),
+            ColumnSchema(
+                name="phylum", dtype="str", required=False, description="Taxonomic phylum"
+            ),
+            ColumnSchema(name="class", dtype="str", required=False, description="Taxonomic class"),
+            ColumnSchema(name="order", dtype="str", required=False, description="Taxonomic order"),
+            ColumnSchema(
+                name="family", dtype="str", required=False, description="Taxonomic family"
+            ),
+            ColumnSchema(name="genus", dtype="str", required=False, description="Taxonomic genus"),
+            ColumnSchema(
+                name="species_scientific",
+                dtype="str",
+                required=False,
+                description="Scientific name of the species",
+            ),
+            ColumnSchema(
+                name="species_common",
+                dtype="str",
+                required=False,
+                description="Common name of the species",
+            ),
+            ColumnSchema(
+                name="taxonomic_name",
+                dtype="str",
+                required=False,
+                description="Full taxonomic name from GBIF",
+            ),
         ]
     )
 

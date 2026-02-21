@@ -35,6 +35,8 @@ class ColumnSchema(BaseModel):
         Expected data type
     required : bool
         Whether column must be present (default True)
+    description : str
+        Human-readable description of what the column contains
     """
 
     model_config = ConfigDict(frozen=True)
@@ -42,6 +44,7 @@ class ColumnSchema(BaseModel):
     name: str = Field(description="Column name")
     dtype: DType = Field(description="Expected data type")
     required: bool = Field(default=True, description="Whether column must be present")
+    description: str = Field(default="", description="Human-readable description of the column")
 
 
 class DatasetSchema(BaseModel):

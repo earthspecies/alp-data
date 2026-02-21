@@ -108,11 +108,33 @@ class Beans(Dataset):
 
     schema = DatasetSchema(
         columns=[
-            ColumnSchema(name="label", dtype="str", required=True),
-            ColumnSchema(name="file_name", dtype="str", required=False),
-            ColumnSchema(name="local_path", dtype="str", required=True),
-            ColumnSchema(name="labels_as_list", dtype="str", required=False),
-            ColumnSchema(name="source_dataset", dtype="str", required=False),
+            ColumnSchema(
+                name="label",
+                dtype="str",
+                required=True,
+                description="Classification label for the audio sample",
+            ),
+            ColumnSchema(
+                name="file_name", dtype="str", required=False, description="Original file name"
+            ),
+            ColumnSchema(
+                name="local_path",
+                dtype="str",
+                required=True,
+                description="Relative path to the audio file",
+            ),
+            ColumnSchema(
+                name="labels_as_list",
+                dtype="str",
+                required=False,
+                description="Multi-label classification labels as a string list",
+            ),
+            ColumnSchema(
+                name="source_dataset",
+                dtype="str",
+                required=False,
+                description="Name of the source sub-dataset",
+            ),
         ]
     )
 

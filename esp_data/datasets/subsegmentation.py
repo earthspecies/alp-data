@@ -68,14 +68,36 @@ class Subsegmentation(Dataset):
 
     schema = DatasetSchema(
         columns=[
-            ColumnSchema(name="audio_file_name", dtype="str", required=True),
-            ColumnSchema(name="audio_path", dtype="str", required=True),
-            ColumnSchema(name="selection_table", dtype="str", required=True),
-            ColumnSchema(name="pass_qc", dtype="bool", required=False),
-            ColumnSchema(name="Species", dtype="str", required=False),
-            ColumnSchema(name="Genus", dtype="str", required=False),
-            ColumnSchema(name="Order", dtype="str", required=False),
-            ColumnSchema(name="Family", dtype="str", required=False),
+            ColumnSchema(
+                name="audio_file_name",
+                dtype="str",
+                required=True,
+                description="Name of the audio file",
+            ),
+            ColumnSchema(
+                name="audio_path",
+                dtype="str",
+                required=True,
+                description="Relative path to the audio file",
+            ),
+            ColumnSchema(
+                name="selection_table",
+                dtype="str",
+                required=True,
+                description="Raven-format selection table with temporal annotations",
+            ),
+            ColumnSchema(
+                name="pass_qc",
+                dtype="bool",
+                required=False,
+                description="Whether the recording passed quality control",
+            ),
+            ColumnSchema(name="Species", dtype="str", required=False, description="Species name"),
+            ColumnSchema(name="Genus", dtype="str", required=False, description="Taxonomic genus"),
+            ColumnSchema(name="Order", dtype="str", required=False, description="Taxonomic order"),
+            ColumnSchema(
+                name="Family", dtype="str", required=False, description="Taxonomic family"
+            ),
         ]
     )
 

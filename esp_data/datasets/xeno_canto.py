@@ -114,60 +114,273 @@ class XenoCanto(Dataset):
 
     schema = DatasetSchema(
         columns=[
-            ColumnSchema(name="xc_id", dtype="float", required=False),
-            ColumnSchema(name="scientific_name_unified_original", dtype="str", required=False),
-            ColumnSchema(name="source_version", dtype="str", required=False),
-            ColumnSchema(name="gcs_path", dtype="str", required=False),
-            ColumnSchema(name="relative_path", dtype="str", required=True),
-            ColumnSchema(name="species_common", dtype="str", required=False),
-            ColumnSchema(name="scientific_name_unified", dtype="str", required=False),
-            ColumnSchema(name="scientificName", dtype="str", required=False),
-            ColumnSchema(name="vernacularName", dtype="str", required=False),
-            ColumnSchema(name="caption", dtype="str", required=False),
-            ColumnSchema(name="caption2", dtype="str", required=False),
-            ColumnSchema(name="description", dtype="str", required=False),
-            ColumnSchema(name="kingdom", dtype="str", required=False),
-            ColumnSchema(name="phylum", dtype="str", required=False),
-            ColumnSchema(name="class", dtype="str", required=False),
-            ColumnSchema(name="order", dtype="str", required=False),
-            ColumnSchema(name="family", dtype="str", required=False),
-            ColumnSchema(name="genus", dtype="str", required=False),
+            ColumnSchema(
+                name="xc_id",
+                dtype="float",
+                required=False,
+                description="Xeno-canto recording identifier",
+            ),
+            ColumnSchema(
+                name="scientific_name_unified_original",
+                dtype="str",
+                required=False,
+                description="Original unified scientific name",
+            ),
+            ColumnSchema(
+                name="source_version",
+                dtype="str",
+                required=False,
+                description="Version of the source data",
+            ),
+            ColumnSchema(
+                name="gcs_path",
+                dtype="str",
+                required=False,
+                description="Google Cloud Storage path to the audio",
+            ),
+            ColumnSchema(
+                name="relative_path",
+                dtype="str",
+                required=True,
+                description="Relative path to the audio file",
+            ),
+            ColumnSchema(
+                name="species_common",
+                dtype="str",
+                required=False,
+                description="Common name of the species",
+            ),
+            ColumnSchema(
+                name="scientific_name_unified",
+                dtype="str",
+                required=False,
+                description="Unified scientific name after normalization",
+            ),
+            ColumnSchema(
+                name="scientificName",
+                dtype="str",
+                required=False,
+                description="Scientific name from GBIF",
+            ),
+            ColumnSchema(
+                name="vernacularName",
+                dtype="str",
+                required=False,
+                description="Vernacular (common) name from GBIF",
+            ),
+            ColumnSchema(
+                name="caption",
+                dtype="str",
+                required=False,
+                description="Primary text caption describing the audio",
+            ),
+            ColumnSchema(
+                name="caption2", dtype="str", required=False, description="Secondary text caption"
+            ),
+            ColumnSchema(
+                name="description",
+                dtype="str",
+                required=False,
+                description="Recording description from Xeno-canto",
+            ),
+            ColumnSchema(
+                name="kingdom", dtype="str", required=False, description="Taxonomic kingdom"
+            ),
+            ColumnSchema(
+                name="phylum", dtype="str", required=False, description="Taxonomic phylum"
+            ),
+            ColumnSchema(name="class", dtype="str", required=False, description="Taxonomic class"),
+            ColumnSchema(name="order", dtype="str", required=False, description="Taxonomic order"),
+            ColumnSchema(
+                name="family", dtype="str", required=False, description="Taxonomic family"
+            ),
+            ColumnSchema(name="genus", dtype="str", required=False, description="Taxonomic genus"),
             # TODO(#232): gbifID should be int, not float
-            ColumnSchema(name="gbifID", dtype="float", required=False),
-            ColumnSchema(name="behavior", dtype="str", required=False),
-            ColumnSchema(name="sex", dtype="str", required=False),
-            ColumnSchema(name="lifeStage", dtype="str", required=False),
+            ColumnSchema(
+                name="gbifID",
+                dtype="float",
+                required=False,
+                description="GBIF occurrence record identifier",
+            ),
+            ColumnSchema(
+                name="behavior",
+                dtype="str",
+                required=False,
+                description="Behavioral context of the vocalization",
+            ),
+            ColumnSchema(name="sex", dtype="str", required=False, description="Sex of the bird"),
+            ColumnSchema(
+                name="lifeStage", dtype="str", required=False, description="Life stage of the bird"
+            ),
             # TODO(#232): eventDate should be datetime, not str
-            ColumnSchema(name="eventDate", dtype="str", required=False),
-            ColumnSchema(name="eventTime", dtype="str", required=False),
-            ColumnSchema(name="latitudeDecimal", dtype="float", required=False),
-            ColumnSchema(name="longitudeDecimal", dtype="float", required=False),
-            ColumnSchema(name="locality", dtype="str", required=False),
-            ColumnSchema(name="location", dtype="str", required=False),
-            ColumnSchema(name="license", dtype="str", required=False),
-            ColumnSchema(name="license_text", dtype="str", required=False),
-            ColumnSchema(name="rightsHolder", dtype="str", required=False),
-            ColumnSchema(name="fieldNotes", dtype="str", required=False),
-            ColumnSchema(name="Associated Taxa", dtype="str", required=False),
-            ColumnSchema(name="url", dtype="str", required=False),
-            ColumnSchema(name="file_name", dtype="str", required=False),
-            ColumnSchema(name="path", dtype="str", required=False),
-            ColumnSchema(name="associatedMedia", dtype="str", required=False),
-            ColumnSchema(name="dataset", dtype="str", required=False),
-            ColumnSchema(name="canonical_name", dtype="str", required=False),
-            ColumnSchema(name="raw_canonical_name", dtype="str", required=False),
-            ColumnSchema(name="32khz_path", dtype="str", required=False),
-            ColumnSchema(name="16khz_path", dtype="str", required=False),
-            ColumnSchema(name="gbiid_2", dtype="float", required=False),
-            ColumnSchema(name="gbif2_match_type", dtype="str", required=False),
-            ColumnSchema(name="gbif2_confidence", dtype="float", required=False),
-            ColumnSchema(name="gbif2_rank", dtype="str", required=False),
-            ColumnSchema(name="gbif2_status", dtype="str", required=False),
-            ColumnSchema(name="binomial_name", dtype="str", required=False),
-            ColumnSchema(name="_dataset", dtype="str", required=False),
-            ColumnSchema(name="gbif_link_ok", dtype="bool", required=False),
-            ColumnSchema(name="gbif_link_transform", dtype="str", required=False),
-            ColumnSchema(name="background_species_gbif", dtype="str", required=False),
+            ColumnSchema(
+                name="eventDate",
+                dtype="str",
+                required=False,
+                description="Date the recording was made",
+            ),
+            ColumnSchema(
+                name="eventTime",
+                dtype="str",
+                required=False,
+                description="Time the recording was made",
+            ),
+            ColumnSchema(
+                name="latitudeDecimal",
+                dtype="float",
+                required=False,
+                description="Decimal latitude of recording location",
+            ),
+            ColumnSchema(
+                name="longitudeDecimal",
+                dtype="float",
+                required=False,
+                description="Decimal longitude of recording location",
+            ),
+            ColumnSchema(
+                name="locality",
+                dtype="str",
+                required=False,
+                description="Locality where the recording was made",
+            ),
+            ColumnSchema(
+                name="location", dtype="str", required=False, description="Location description"
+            ),
+            ColumnSchema(
+                name="license", dtype="str", required=False, description="License of the recording"
+            ),
+            ColumnSchema(
+                name="license_text",
+                dtype="str",
+                required=False,
+                description="Full text of the license",
+            ),
+            ColumnSchema(
+                name="rightsHolder",
+                dtype="str",
+                required=False,
+                description="Rights holder of the recording",
+            ),
+            ColumnSchema(
+                name="fieldNotes",
+                dtype="str",
+                required=False,
+                description="Field notes from the recording session",
+            ),
+            ColumnSchema(
+                name="Associated Taxa",
+                dtype="str",
+                required=False,
+                description="Associated taxa from GBIF occurrence record",
+            ),
+            ColumnSchema(
+                name="url",
+                dtype="str",
+                required=False,
+                description="URL to the original recording on Xeno-canto",
+            ),
+            ColumnSchema(
+                name="file_name", dtype="str", required=False, description="Original file name"
+            ),
+            ColumnSchema(
+                name="path",
+                dtype="str",
+                required=False,
+                description="Alternative path to the audio file",
+            ),
+            ColumnSchema(
+                name="associatedMedia",
+                dtype="str",
+                required=False,
+                description="URL to associated media on GBIF",
+            ),
+            ColumnSchema(
+                name="dataset", dtype="str", required=False, description="Source dataset identifier"
+            ),
+            ColumnSchema(
+                name="canonical_name",
+                dtype="str",
+                required=False,
+                description="Canonical species name from GBIF",
+            ),
+            ColumnSchema(
+                name="raw_canonical_name",
+                dtype="str",
+                required=False,
+                description="Raw canonical name before processing",
+            ),
+            ColumnSchema(
+                name="32khz_path",
+                dtype="str",
+                required=False,
+                description="Path to pre-resampled 32kHz audio file",
+            ),
+            ColumnSchema(
+                name="16khz_path",
+                dtype="str",
+                required=False,
+                description="Path to pre-resampled 16kHz audio file",
+            ),
+            ColumnSchema(
+                name="gbiid_2",
+                dtype="float",
+                required=False,
+                description="Secondary GBIF identifier from re-matching",
+            ),
+            ColumnSchema(
+                name="gbif2_match_type",
+                dtype="str",
+                required=False,
+                description="GBIF re-match type (exact, fuzzy, etc.)",
+            ),
+            ColumnSchema(
+                name="gbif2_confidence",
+                dtype="float",
+                required=False,
+                description="Confidence score of GBIF re-match",
+            ),
+            ColumnSchema(
+                name="gbif2_rank",
+                dtype="str",
+                required=False,
+                description="Taxonomic rank of GBIF re-match",
+            ),
+            ColumnSchema(
+                name="gbif2_status",
+                dtype="str",
+                required=False,
+                description="Taxonomic status of GBIF re-match",
+            ),
+            ColumnSchema(
+                name="binomial_name",
+                dtype="str",
+                required=False,
+                description="Binomial species name",
+            ),
+            ColumnSchema(
+                name="_dataset",
+                dtype="str",
+                required=False,
+                description="Internal dataset source tag",
+            ),
+            ColumnSchema(
+                name="gbif_link_ok",
+                dtype="bool",
+                required=False,
+                description="Whether GBIF linkage was successful",
+            ),
+            ColumnSchema(
+                name="gbif_link_transform",
+                dtype="str",
+                required=False,
+                description="Transform applied to link to GBIF",
+            ),
+            ColumnSchema(
+                name="background_species_gbif",
+                dtype="str",
+                required=False,
+                description="GBIF-linked background species names",
+            ),
         ]
     )
 

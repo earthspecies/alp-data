@@ -80,11 +80,33 @@ class WABAD(Dataset):
 
     schema = DatasetSchema(
         columns=[
-            ColumnSchema(name="fn", dtype="str", required=True),
-            ColumnSchema(name="audio_fp", dtype="str", required=True),
-            ColumnSchema(name="audio_duration", dtype="float", required=True),
-            ColumnSchema(name="subdataset", dtype="str", required=False),
-            ColumnSchema(name="selection_table", dtype="str", required=True),
+            ColumnSchema(
+                name="fn", dtype="str", required=True, description="Base file name identifier"
+            ),
+            ColumnSchema(
+                name="audio_fp",
+                dtype="str",
+                required=True,
+                description="File path to the audio recording",
+            ),
+            ColumnSchema(
+                name="audio_duration",
+                dtype="float",
+                required=True,
+                description="Duration of the audio recording in seconds",
+            ),
+            ColumnSchema(
+                name="subdataset",
+                dtype="str",
+                required=False,
+                description="Name of the sub-dataset",
+            ),
+            ColumnSchema(
+                name="selection_table",
+                dtype="str",
+                required=True,
+                description="Raven-format selection table with temporal annotations",
+            ),
         ]
     )
 

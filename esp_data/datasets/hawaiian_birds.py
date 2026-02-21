@@ -92,9 +92,24 @@ class HawaiianBirds(Dataset):
 
     schema = DatasetSchema(
         columns=[
-            ColumnSchema(name="audio_file_name", dtype="str", required=True),
-            ColumnSchema(name="audio_path", dtype="str", required=True),
-            ColumnSchema(name="selection_table", dtype="str", required=True),
+            ColumnSchema(
+                name="audio_file_name",
+                dtype="str",
+                required=True,
+                description="Name of the audio file",
+            ),
+            ColumnSchema(
+                name="audio_path",
+                dtype="str",
+                required=True,
+                description="Relative path to the audio file",
+            ),
+            ColumnSchema(
+                name="selection_table",
+                dtype="str",
+                required=True,
+                description="Raven-format selection table with temporal annotations",
+            ),
         ]
     )
 

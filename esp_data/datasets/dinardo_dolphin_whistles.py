@@ -67,19 +67,57 @@ class DinardoDolphinWhistles(Dataset):
 
     schema = DatasetSchema(
         columns=[
-            ColumnSchema(name="local_path", dtype="str", required=True),
-            ColumnSchema(name="file_name", dtype="str", required=False),
-            ColumnSchema(name="gbifID", dtype="int", required=False),
-            ColumnSchema(name="species_common", dtype="str", required=False),
-            ColumnSchema(name="species_scientific", dtype="str", required=False),
-            ColumnSchema(name="kingdom", dtype="str", required=False),
-            ColumnSchema(name="phylum", dtype="str", required=False),
-            ColumnSchema(name="order", dtype="str", required=False),
-            ColumnSchema(name="class", dtype="str", required=False),
-            ColumnSchema(name="family", dtype="str", required=False),
-            ColumnSchema(name="genus", dtype="str", required=False),
-            ColumnSchema(name="taxonomic_name", dtype="str", required=False),
-            ColumnSchema(name="call_type", dtype="str", required=False),
+            ColumnSchema(
+                name="local_path",
+                dtype="str",
+                required=True,
+                description="Relative path to the audio file",
+            ),
+            ColumnSchema(
+                name="file_name", dtype="str", required=False, description="Original file name"
+            ),
+            ColumnSchema(
+                name="gbifID",
+                dtype="int",
+                required=False,
+                description="GBIF occurrence record identifier",
+            ),
+            ColumnSchema(
+                name="species_common",
+                dtype="str",
+                required=False,
+                description="Common name of the species",
+            ),
+            ColumnSchema(
+                name="species_scientific",
+                dtype="str",
+                required=False,
+                description="Scientific name of the species",
+            ),
+            ColumnSchema(
+                name="kingdom", dtype="str", required=False, description="Taxonomic kingdom"
+            ),
+            ColumnSchema(
+                name="phylum", dtype="str", required=False, description="Taxonomic phylum"
+            ),
+            ColumnSchema(name="order", dtype="str", required=False, description="Taxonomic order"),
+            ColumnSchema(name="class", dtype="str", required=False, description="Taxonomic class"),
+            ColumnSchema(
+                name="family", dtype="str", required=False, description="Taxonomic family"
+            ),
+            ColumnSchema(name="genus", dtype="str", required=False, description="Taxonomic genus"),
+            ColumnSchema(
+                name="taxonomic_name",
+                dtype="str",
+                required=False,
+                description="Full taxonomic name from GBIF",
+            ),
+            ColumnSchema(
+                name="call_type",
+                dtype="str",
+                required=False,
+                description="Type of dolphin emission (whistle, click, or burst pulse)",
+            ),
         ]
     )
 

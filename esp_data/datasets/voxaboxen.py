@@ -256,11 +256,33 @@ class Voxaboxen(Dataset):
 
     schema = DatasetSchema(
         columns=[
-            ColumnSchema(name="fn", dtype="str", required=True),
-            ColumnSchema(name="audio_fp", dtype="str", required=True),
-            ColumnSchema(name="selection_table_fp", dtype="str", required=False),
-            ColumnSchema(name="selection_table_str", dtype="str", required=True),
-            ColumnSchema(name="audio_duration", dtype="float", required=True),
+            ColumnSchema(
+                name="fn", dtype="str", required=True, description="Base file name identifier"
+            ),
+            ColumnSchema(
+                name="audio_fp",
+                dtype="str",
+                required=True,
+                description="File path to the audio recording",
+            ),
+            ColumnSchema(
+                name="selection_table_fp",
+                dtype="str",
+                required=False,
+                description="File path to the selection table",
+            ),
+            ColumnSchema(
+                name="selection_table_str",
+                dtype="str",
+                required=True,
+                description="Selection table contents as a string",
+            ),
+            ColumnSchema(
+                name="audio_duration",
+                dtype="float",
+                required=True,
+                description="Duration of the audio recording in seconds",
+            ),
         ]
     )
 
@@ -649,11 +671,33 @@ class VoxaboxenEvents(Dataset):
 
     schema = DatasetSchema(
         columns=[
-            ColumnSchema(name="fn", dtype="str", required=True),
-            ColumnSchema(name="audio_fp", dtype="str", required=True),
-            ColumnSchema(name="selection_table_fp", dtype="str", required=False),
-            ColumnSchema(name="selection_table_str", dtype="str", required=True),
-            ColumnSchema(name="audio_duration", dtype="float", required=True),
+            ColumnSchema(
+                name="fn", dtype="str", required=True, description="Base file name identifier"
+            ),
+            ColumnSchema(
+                name="audio_fp",
+                dtype="str",
+                required=True,
+                description="File path to the audio recording",
+            ),
+            ColumnSchema(
+                name="selection_table_fp",
+                dtype="str",
+                required=False,
+                description="File path to the selection table",
+            ),
+            ColumnSchema(
+                name="selection_table_str",
+                dtype="str",
+                required=True,
+                description="Selection table contents as a string",
+            ),
+            ColumnSchema(
+                name="audio_duration",
+                dtype="float",
+                required=True,
+                description="Duration of the audio recording in seconds",
+            ),
         ]
     )
 

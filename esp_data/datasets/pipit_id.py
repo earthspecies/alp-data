@@ -62,8 +62,18 @@ class PipitId(Dataset):
 
     schema = DatasetSchema(
         columns=[
-            ColumnSchema(name="local_path", dtype="str", required=True),
-            ColumnSchema(name="individual_id", dtype="int", required=True),
+            ColumnSchema(
+                name="local_path",
+                dtype="str",
+                required=True,
+                description="Relative path to the audio file",
+            ),
+            ColumnSchema(
+                name="individual_id",
+                dtype="int",
+                required=True,
+                description="Numeric identifier of the individual pipit",
+            ),
         ]
     )
 

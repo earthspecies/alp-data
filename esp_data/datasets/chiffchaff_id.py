@@ -63,8 +63,18 @@ class ChiffchaffId(Dataset):
 
     schema = DatasetSchema(
         columns=[
-            ColumnSchema(name="local_path", dtype="str", required=True),
-            ColumnSchema(name="individual_id", dtype="str", required=True),
+            ColumnSchema(
+                name="local_path",
+                dtype="str",
+                required=True,
+                description="Relative path to the audio file",
+            ),
+            ColumnSchema(
+                name="individual_id",
+                dtype="str",
+                required=True,
+                description="Identifier of the individual bird",
+            ),
         ]
     )
 

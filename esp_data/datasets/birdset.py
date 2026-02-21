@@ -81,11 +81,36 @@ class BirdSet(Dataset):
 
     schema = DatasetSchema(
         columns=[
-            ColumnSchema(name="path", dtype="str", required=True),
-            ColumnSchema(name="label", dtype="str", required=True),
-            ColumnSchema(name="text", dtype="str", required=False),
-            ColumnSchema(name="prompt", dtype="str", required=False),
-            ColumnSchema(name="labels_as_list", dtype="list[str]", required=False),
+            ColumnSchema(
+                name="path",
+                dtype="str",
+                required=True,
+                description="Relative path to the audio file",
+            ),
+            ColumnSchema(
+                name="label",
+                dtype="str",
+                required=True,
+                description="Classification label for the audio sample",
+            ),
+            ColumnSchema(
+                name="text",
+                dtype="str",
+                required=False,
+                description="Text description of the audio content",
+            ),
+            ColumnSchema(
+                name="prompt",
+                dtype="str",
+                required=False,
+                description="Text prompt for the classification task",
+            ),
+            ColumnSchema(
+                name="labels_as_list",
+                dtype="list[str]",
+                required=False,
+                description="Multi-label classification labels as a list",
+            ),
         ]
     )
 

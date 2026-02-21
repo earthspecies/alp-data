@@ -80,10 +80,25 @@ class ArcticBirdSounds(Dataset):
     # TODO(#231): Dataset has an empty column name (unnamed index column)
     schema = DatasetSchema(
         columns=[
-            ColumnSchema(name="", dtype="int", required=False),
-            ColumnSchema(name="audio_file_name", dtype="str", required=True),
-            ColumnSchema(name="audio_path", dtype="str", required=True),
-            ColumnSchema(name="selection_table", dtype="str", required=True),
+            ColumnSchema(name="", dtype="int", required=False, description="Unnamed index column"),
+            ColumnSchema(
+                name="audio_file_name",
+                dtype="str",
+                required=True,
+                description="Name of the audio file",
+            ),
+            ColumnSchema(
+                name="audio_path",
+                dtype="str",
+                required=True,
+                description="Relative path to the audio file",
+            ),
+            ColumnSchema(
+                name="selection_table",
+                dtype="str",
+                required=True,
+                description="Raven-format selection table with temporal annotations",
+            ),
         ]
     )
 
