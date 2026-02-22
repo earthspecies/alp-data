@@ -13,6 +13,8 @@ from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from esp_data.backends import BackendType
 from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
 
+_SAMPLE_RATE_PATHS: dict[int, str] = {16000: "16khz_path", 32000: "32khz_path"}
+
 
 @register_dataset
 class NocturnalBirdMigration(Dataset):
@@ -58,6 +60,13 @@ class NocturnalBirdMigration(Dataset):
     - an audio recording
     - a selection table (Raven format), with Species labels
     - xeno-canto id, if applicable (else, empty string)
+
+    Pre-resampled Audio
+    -------------------
+    Pre-resampled audio is available at 16 kHz and 32 kHz. When
+    ``sample_rate`` matches one of these rates, the pre-resampled files are
+    loaded directly (no on-the-fly resampling). For any other target rate,
+    audio is resampled on-the-fly using librosa's ``kaiser_best`` method.
 
     References
     ----------
@@ -122,6 +131,9 @@ class NocturnalBirdMigration(Dataset):
         if self.data_root is None:
             self.data_root = anypath(self.info.split_paths[self.split]).parent
 
+        self._data_root_16k = self.data_root / "audio_16k"
+        self._data_root_32k = self.data_root / "audio_32k"
+
     @property
     def columns(self) -> list[str]:
         return list(self._data.columns) if self._data is not None else []
@@ -129,6 +141,17 @@ class NocturnalBirdMigration(Dataset):
     @property
     def available_splits(self) -> list[str]:
         return list(self.info.split_paths.keys())
+
+    def _resolve_audio_path(self, row: dict[str, Any]) -> tuple[AnyPathT, bool]:
+        if self.sample_rate is not None and self.sample_rate in _SAMPLE_RATE_PATHS:
+            col = _SAMPLE_RATE_PATHS[self.sample_rate]
+            if col in row and row[col] is not None and str(row[col]).strip():
+                root = self._data_root_16k if self.sample_rate == 16000 else self._data_root_32k
+                return root / row[col], True
+        path = (
+            (self.data_root / row["audio_path"]) if self.data_root else anypath(row["audio_path"])
+        )
+        return path, False
 
     def _load(self) -> None:
         if self.split not in self.info.split_paths:
@@ -163,36 +186,31 @@ class NocturnalBirdMigration(Dataset):
             The processed row.
         """
 
-        # Resolve audio path
-        audio_path = (
-            (self.data_root / row["audio_path"]) if self.data_root else anypath(row["audio_path"])
-        )
+        audio_path, is_presampled = self._resolve_audio_path(row)
 
         # Read audio
-        audio, sample_rate = read_audio(audio_path)
+        audio, sr = read_audio(audio_path)
         audio = audio_stereo_to_mono(audio, mono_method="average").astype(np.float32)
 
-        # Resample if necessary
-        if self.sample_rate is not None and sample_rate != self.sample_rate:
+        if not is_presampled and self.sample_rate is not None and sr != self.sample_rate:
             audio = librosa.resample(
                 y=audio,
-                orig_sr=sample_rate,
+                orig_sr=sr,
                 target_sr=self.sample_rate,
                 scale=True,
                 res_type="kaiser_best",
             )
-            sample_rate = self.sample_rate
+            sr = self.sample_rate
 
         # Selection table
         st = pd.read_csv(StringIO(row["selection_table"]), sep="\t")
 
         # Clip events outside audio (keep only events that begin before audio end)
-        audio_dur = len(audio) / float(sample_rate)
+        audio_dur = len(audio) / float(sr)
         st = st[st["Begin Time (s)"] < audio_dur].copy()
 
         # Build output
         row["audio"] = audio
-        row["sample_rate"] = sample_rate
         row["selection_table"] = st
 
         if self.output_take_and_give:

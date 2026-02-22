@@ -167,6 +167,22 @@ def test_reference_item_stability(ds_pandas: XenoCantoAnnotatedJeantet23):
     )
 
 
+def test_presampled_columns_exist(ds: XenoCantoAnnotatedJeantet23):
+    """Pre-resampled path columns should be present in the loaded data."""
+    assert "16khz_path" in ds.columns
+    assert "32khz_path" in ds.columns
+
+
+def test_load_presampled_32khz():
+    """Loading with sample_rate=32000 should use pre-resampled 32kHz audio."""
+    ds = XenoCantoAnnotatedJeantet23(split="all", sample_rate=32000)
+    item = ds[0]
+    audio = item["audio"]
+    assert isinstance(audio, np.ndarray)
+    assert audio.dtype == np.float32
+    assert audio.size >= 10
+
+
 def test_check_selection_table(
     ds: XenoCantoAnnotatedJeantet23, sample_indices: List[int]
 ):

@@ -169,6 +169,22 @@ def test_reference_item_stability(ds_pandas: AnuraSetStrong):
     )
 
 
+def test_presampled_columns_exist(ds: AnuraSetStrong):
+    """Pre-resampled path columns should be present in the loaded data."""
+    assert "16khz_path" in ds.columns
+    assert "32khz_path" in ds.columns
+
+
+def test_load_presampled_32khz():
+    """Loading with sample_rate=32000 should use pre-resampled 32kHz audio."""
+    ds = AnuraSetStrong(split="all", sample_rate=32000)
+    item = ds[0]
+    audio = item["audio"]
+    assert isinstance(audio, np.ndarray)
+    assert audio.dtype == np.float32
+    assert audio.size >= 10
+
+
 def test_check_selection_table(ds: AnuraSetStrong, sample_indices: List[int]):
     """Selection table should be a DataFrame with required columns and sane times."""
     required = {

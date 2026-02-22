@@ -167,6 +167,11 @@ def test_reference_item_stability(ds_pandas: Birdeep):
     )
 
 
+def test_presampled_columns_exist(ds: Birdeep):
+    """Pre-resampled path columns should be present in the loaded data."""
+    assert "16khz_path" in ds.columns
+
+
 def test_check_selection_table(ds: Birdeep, sample_indices: List[int]):
     """Selection table should be a DataFrame with required columns and sane times."""
     required = {
