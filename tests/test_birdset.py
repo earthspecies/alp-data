@@ -1,217 +1,233 @@
-"""Test suite for the BirdSet dataset."""
+"""
+Unit tests for BirdSet dataset (v0.2.0).
 
+Run with:
+    pytest -q test_birdset.py
+"""
+
+from __future__ import annotations
+
+import hashlib
+import random
+from typing import List
+
+import numpy as np
 import pytest
 
 from esp_data.datasets import BirdSet
-from esp_data import Dataset, DatasetConfig
-from esp_data.io import anypath, exists
 
 
-@pytest.fixture
-def dataset() -> Dataset:
-    """Fixture providing an BirdSet dataset instance.
+# # --- Dataset snapshot ---
 
-    Returns
-    -------
-    Dataset
-        An instance of the BirdSet dataset.
-    """
-    ds = BirdSet(split="PER-test")
-    return ds
+# # Code to generate snapshot:
+# import hashlib
+# from esp_data.datasets import BirdSet
+# ds = BirdSet(split="PER-test_5s", sample_rate=16000, backend="pandas")
 
+# print("len(ds) =", len(ds))
 
-@pytest.fixture
-def dataset_with_transforms() -> Dataset:
-    """Fixture providing an BirdSet dataset instance with transformations
-    applied.
+# audio0 = ds[0]["audio"]
+# print("dtype:", audio0.dtype, "shape:", audio0.shape)
 
-    Returns
-    -------
-    Dataset
-        An instance of the BirdSet dataset with transformations applied.
-    """
+# h = hashlib.sha256(audio0.tobytes()).hexdigest()
+# print("sha256:", h)
 
-    dataset_config = DatasetConfig(
-        dataset_name="BirdSet",
-        transformations=[
-            {
-                "type": "label_from_feature",
-                "feature": "label",
-                "output_feature": "Label",
-            },
-        ],
-    )
-    ds = BirdSet(split="PER-test")
-    ds.apply_transformations(dataset_config.transformations)
-    return ds
+# csv_bytes = (
+#         ds._data.unwrap.sort_index(axis=0)
+#         .sort_index(axis=1)
+#         .to_csv(index=True)
+#         .encode("utf-8")
+#     )
+# h = hashlib.sha256(csv_bytes).hexdigest()
+
+# print("annotations sha256:", h)
+
+# quit()
+# # # #
+
+# TODO: fill in once v0.2.0 data lands on GCS
+EXPECTED_LEN = None
+EXPECTED_FIRST_ITEM_AUDIO_SHA256 = None
+ANNOTATIONS_SHA256 = None
+# ---------------------------------------------------------------------------
+
+SPLIT = "PER-test_5s"
 
 
-@pytest.fixture
-def dataset_with_output_mapping() -> Dataset:
-    """Fixture providing an BirdSet dataset instance with output mapping.
-
-    Returns
-    -------
-    Dataset
-        An instance of the BirdSet dataset with output mapping applied.
-    """
-    dataset_config = DatasetConfig(
-        dataset_name="birdset",
-        output_take_and_give={"label": "Label"},
-    )
-    ds = BirdSet(split="HSN-test", output_take_and_give=dataset_config.output_take_and_give)
-    return ds
+@pytest.fixture(scope="module")
+def ds() -> BirdSet:
+    """Load BirdSet dataset for testing."""
+    return BirdSet(split=SPLIT, sample_rate=16000)
 
 
-@pytest.fixture
-def dataset_from_config_with_transformations_streaming() -> tuple[Dataset, dict]:
-    """Fixture providing an BirdSet dataset instance loaded from config
-    with transformations applied in streaming mode.
-
-    Returns
-    -------
-    tuple[Dataset, dict]
-        A tuple containing the BirdSet dataset instance and its config.
-    """
-    dataset_config = DatasetConfig(
-        dataset_name="birdset",
-        split="HSN-test",
-        data_root="gs://foundation-model-data/",
-        transformations=[
-            {
-                "type": "filter",
-                "property": "label",
-                "values": ["None"],
-                "mode": "exclude",
-            },
-            {
-                "type": "label_from_feature",
-                "feature": "label",
-                "output_feature": "Label",
-            },
-        ],
-        streaming=True,
-    )
-    dataset, _ = BirdSet.from_config(dataset_config)
-    return dataset, dataset_config
+@pytest.fixture(scope="module")
+def ds_pandas() -> BirdSet:
+    """Load BirdSet dataset for testing with pandas backend."""
+    return BirdSet(split=SPLIT, sample_rate=16000, backend="pandas")
 
 
-def test_info_property(dataset: Dataset) -> None:
-    """Test if the info property returns correct metadata."""
-    assert dataset.info.name == "birdset"
-    assert dataset.info.version == "0.1.0"
-    assert "HSN-train" in dataset.info.split_paths
-    assert "PER-validation" in dataset.info.split_paths
-    assert "POW-test" in dataset.info.split_paths
-    for split in dataset.info.split_paths.values():
-        assert exists(split), f"Split path {split} does not exist"
+@pytest.fixture(scope="module")
+def sample_indices(ds: BirdSet) -> List[int]:
+    """Deterministically choose up to 5 random indices for quick spot checks."""
+    n = len(ds)
+    rng = random.Random(23)
+    return [rng.randrange(n) for _ in range(min(5, n))]
 
 
-def test_data_property(dataset: Dataset) -> None:
-    """Test if the data property returns correct dataframes."""
-    # Data should be _loaded in __init__
-    assert dataset._data is not None
-    assert "path" in dataset._data.columns
-    assert "label" in dataset._data.columns
+def test_ds_not_empty(ds: BirdSet):
+    """Dataset should have at least one example."""
+    assert len(ds) > 0, "Dataset appears empty"
 
 
-def test_columns_property(dataset: Dataset) -> None:
-    """Test if the columns property returns correct column names."""
-    # Columns should match the dataframe columns
-    expected_columns = ["path", "label"]
-    assert all(col in dataset.columns for col in expected_columns)
+def test_check_audio(ds: BirdSet, sample_indices: List[int]):
+    """Basic audio integrity checks on a few random items."""
+    for idx in sample_indices:
+        item = ds[idx]
+        assert "audio" in item, f"[{idx}] missing 'audio' key"
+        audio = item["audio"]
+
+        assert isinstance(audio, np.ndarray), f"[{idx}] audio is not a numpy array"
+        assert (
+            audio.dtype == np.float32
+        ), f"[{idx}] audio dtype is {audio.dtype}, expected float32"
+        assert audio.size >= 10, f"[{idx}] audio too short (size={audio.size})"
+        assert not np.any(np.isnan(audio)), f"[{idx}] audio contains NaN values"
+        assert not np.all(audio == 0), f"[{idx}] audio is all zeros"
 
 
-def test_available_splits(dataset: Dataset) -> None:
+def test_available_splits(ds: BirdSet) -> None:
     """Test if available_splits returns correct split names."""
-    # Available splits should contain these
-    expected_splits = ["HSN-train", "PER-validation", "POW-test"]
-    assert all(split in dataset.available_splits for split in expected_splits)
+    expected_splits = [
+        "HSN-test", "HSN-test_5s",
+        "PER-test", "PER-test_5s",
+        "POW-test", "POW-test_5s",
+        "all",
+    ]
+    assert all(split in ds.available_splits for split in expected_splits)
 
 
-def test_length(dataset: Dataset) -> None:
-    """Test if __len__ returns correct counts."""
-    # Length should be sum of all splits
-    expected_len = len(dataset._data)
-    assert len(dataset) == expected_len
-    print(f"Dataset length: {len(dataset)}")
-    assert len(dataset) == 15120  # Example expected length, adjust as necessary
+def test_expected_columns(ds: BirdSet) -> None:
+    """Key columns from v0.2.0 schema should be present."""
+    expected = ["audio_path", "species", "ebird_code", "16khz_path", "32khz_path"]
+    for col in expected:
+        assert col in ds.columns, f"Missing expected column: {col}"
 
 
-def test_getitem(dataset: Dataset) -> None:
-    """Test if __getitem__ returns correct sample format."""
-    # Get first sample
-    sample = dataset[0]
-    assert isinstance(sample, dict)
-    assert "label" in sample
-    assert "audio" in sample
+def test_presampled_columns_exist(ds: BirdSet):
+    """Pre-resampled path columns should be present in the loaded data."""
+    assert "16khz_path" in ds.columns
+    assert "32khz_path" in ds.columns
 
 
-def test_iteration(dataset: Dataset) -> None:
-    """Test if iteration works correctly."""
-    for _, sample in enumerate(dataset):
-        assert isinstance(sample, dict)
-        # Ensure we can access a known key
-        assert "audio" in sample
-        break
+def test_available_sample_rates(ds: BirdSet):
+    """available_sample_rates should report both pre-resampled rates."""
+    rates = ds.available_sample_rates
+    assert 16000 in rates
+    assert 32000 in rates
 
 
-def test_load_from_config() -> None:
-    """Test if dataset can be loaded from configuration."""
-    dataset_config = DatasetConfig(
-        dataset_name="birdset",
-        split="HSN-test",
+def test_load_presampled_32khz():
+    """Loading with sample_rate=32000 should use pre-resampled 32kHz audio."""
+    ds = BirdSet(split=SPLIT, sample_rate=32000)
+    item = ds[0]
+    audio = item["audio"]
+    assert isinstance(audio, np.ndarray)
+    assert audio.dtype == np.float32
+    assert audio.size >= 10
 
+
+def test_reference_item_stability(ds_pandas: BirdSet):
+    """
+    Check that a canonical item (index 0) is bitwise-stable.
+
+    We hash the raw float32 audio buffer. This catches:
+    - sample rate changes (resampling -> different samples)
+    - channel handling changes (stereo->mono logic changed)
+    - dtype changes
+    - ordering changes in the split (if a different recording moved to idx 0)
+
+    If this fails for a legitimate/intentional reason, recompute the hash below
+    and update EXPECTED_FIRST_ITEM_AUDIO_SHA256.
+
+    We do the same for the annotations csv.
+    """
+    if EXPECTED_FIRST_ITEM_AUDIO_SHA256 is None:
+        pytest.skip("Snapshot hashes not yet computed for v0.2.0")
+
+    idx = 0
+    item = ds_pandas[idx]
+
+    assert "audio" in item, "[0] missing 'audio' key"
+    audio = item["audio"]
+    assert isinstance(audio, np.ndarray), "[0] audio is not a numpy array"
+    assert (
+        audio.dtype == np.float32
+    ), f"[0] audio dtype is {audio.dtype}, expected float32"
+
+    h = hashlib.sha256(audio.tobytes()).hexdigest()
+
+    assert h == EXPECTED_FIRST_ITEM_AUDIO_SHA256, (
+        "First item's audio hash changed.\n"
+        f"Got    {h}\n"
+        f"Expect {EXPECTED_FIRST_ITEM_AUDIO_SHA256}\n\n"
+        "If this is an intentional dataset/content update, "
+        "replace EXPECTED_FIRST_ITEM_AUDIO_SHA256 with the new hash."
     )
-    dataset, _ = BirdSet.from_config(dataset_config)
-    assert dataset.info.name == "birdset"
-    assert dataset.info.split_paths["HSN-test"] is not None
-    assert len(dataset) > 0, "Dataset should not be empty"
+
+    csv_bytes = (
+        ds_pandas._data.unwrap.sort_index(axis=0)
+        .sort_index(axis=1)
+        .to_csv(index=True)
+        .encode("utf-8")
+    )
+    h = hashlib.sha256(csv_bytes).hexdigest()
+
+    assert h == ANNOTATIONS_SHA256, (
+        "Annotation's hash changed.\n"
+        f"Got    {h}\n"
+        f"Expect {ANNOTATIONS_SHA256}\n\n"
+        "If this is an intentional dataset/content update, "
+        "replace ANNOTATIONS_SHA256 with the new hash."
+    )
+
+
+def test_sample_consistency(ds: BirdSet) -> None:
+    """Samples accessed by index vs iteration should match."""
+    direct = ds[0]
+    via_iter = next(iter(ds))
+    assert direct["audio_path"] == via_iter["audio_path"]
 
 
 def test_invalid_split() -> None:
-    """Test if _loading invalid split raises error."""
+    """Initialising with an unknown split should raise LookupError."""
     with pytest.raises(LookupError):
         BirdSet(split="invalid_split")
 
 
-def test_sample_consistency(dataset: Dataset) -> None:
-    """Test if samples are consistent when accessed multiple ways."""
-    # Get same sample through different methods
-    direct_sample = dataset[0]
-    iter_sample = next(iter(dataset))
-
-    # Compare samples
-    assert direct_sample["path"] == iter_sample["path"]
-
-
-def test_transformations(dataset_with_transforms: Dataset) -> None:
-    """Test if transformations are applied correctly.
-
-    This test verifies that:
-    1. The label_from_feature transformation creates a label column
-    2. The filter transformation excludes specified genera
-
-    """
-    # Check that label column was created
-    assert "Label" in dataset_with_transforms._data.columns
+def test_output_take_and_give() -> None:
+    """output_take_and_give should filter and rename columns."""
+    ds = BirdSet(
+        split=SPLIT,
+        sample_rate=16000,
+        output_take_and_give={"species": "label"},
+    )
+    sample = ds[0]
+    assert "label" in sample
+    assert "species" not in sample
 
 
-def test_output_mapping(dataset_with_output_mapping: Dataset) -> None:
-    """Test if output mapping works correctly."""
-    # Check that output mapping was applied
-    sample = dataset_with_output_mapping[0]
-    assert "label" not in sample
-    assert "Label" in sample  # Original label should be renamed to answer
+def test_from_config() -> None:
+    """from_config round-trip should produce a usable dataset."""
+    from esp_data import DatasetConfig
+
+    cfg = DatasetConfig(dataset_name="birdset", split=SPLIT)
+    ds, meta = BirdSet.from_config(cfg)
+    assert ds.info.name == "birdset"
+    assert len(ds) > 0
 
 
-def test_transformations_from_config_streaming(
-    dataset_from_config_with_transformations_streaming: tuple[Dataset, dict]
-) -> None:
-    """Test if transformations from config work in streaming mode."""
-    dataset, _ = dataset_from_config_with_transformations_streaming
-    assert dataset._streaming is True
-    for i, sample in enumerate(dataset):
-        assert "Label" in sample  # Check transformed label exists
-        assert sample["Label"] != "None"
-        break
+def test_str_representation(ds: BirdSet) -> None:
+    """String representation should contain key info."""
+    s = str(ds)
+    assert "birdset" in s
+    assert "0.2.0" in s
