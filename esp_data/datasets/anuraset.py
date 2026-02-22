@@ -13,7 +13,7 @@ from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from esp_data.backends import BackendType
 from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
 
-# Pre-resampled path columns (filled by data-ingestion resample-esp-dataset pipeline)
+# Pre-resampled path columns
 _SAMPLE_RATE_PATHS: dict[int, str] = {16000: "16khz_path", 32000: "32khz_path"}
 
 
