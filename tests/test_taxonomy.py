@@ -3,12 +3,15 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Dict, List
 
+import os
 import numpy as np
 import pandas as pd
 import pytest
 
 from esp_data.backends import PandasBackend
 from esp_data.discover import AddTaxonomy, AddTaxonomyConfig, GBIFConverter
+
+IN_GITHUB_ACTIONS = os.getenv("GITHUB_ACTIONS") == "true"
 
 # AddTaxonomy Transform Unit Tests
 
@@ -281,7 +284,7 @@ def test_add_taxonomy_empty_dataframe(tmp_path: Path) -> None:
     assert metadata["resolved"] == 0
     assert metadata["failed"] == 0
 
-
+@pytest.mark.skipif(IN_GITHUB_ACTIONS, reason="File is too large for Github actions.")
 def test_add_taxonomy_integration_with_beanszero() -> None:
     """Integration test: Apply AddTaxonomy to a subset of BEANSZero dataset.
 
