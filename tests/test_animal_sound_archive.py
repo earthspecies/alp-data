@@ -86,7 +86,10 @@ def test_columns_property(dataset: Dataset) -> None:
 
 def test_available_splits(dataset: Dataset) -> None:
     """Test if available_splits returns correct split names."""
-    expected_splits = ["train", "validation", "all"]
+    expected_splits = [
+        "train", "validation", "all",
+        "train_unseen", "validation_unseen", "all_unseen",
+    ]
     assert set(dataset.available_splits) == set(expected_splits)
 
 

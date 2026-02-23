@@ -52,11 +52,11 @@ from esp_data.datasets.dclde2026 import (
 # quit()
 # # # # #
 
-EXPECTED_LEN_ALL = 10061
+EXPECTED_LEN_ALL = 10053
 EXPECTED_FIRST_ITEM_AUDIO_SHA256 = (
     "87cbf23a8a86233ca55c6263bed7c25bdf4cd61ec69c91b602bc90f8b74fad92"
 )
-ANNOTATIONS_SHA256 = "44f038b229201df4a426c2ad8fb21662f347bc19e8d2efd35e0ddb87ee74ce9c"
+ANNOTATIONS_SHA256 = "4b93614edf5d2808aa9ae50a2d7c87611bcfac0d72e3a196a7fb6f9a303b097c"
 # ---------------------------------------------------------------------------
 
 
