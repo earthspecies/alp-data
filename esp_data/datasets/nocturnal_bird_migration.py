@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import warnings
 from io import StringIO
 from typing import Any, Dict, Iterator, List
 
@@ -264,6 +265,12 @@ class NocturnalBirdMigration(Dataset):
             available_labels.update(st[anno_column].astype(str).tolist())
         if self.unknown_label in available_labels:
             available_labels.remove(self.unknown_label)
+
+        warnings.warn(
+            f"Events with unknown label={self.unknown_label} exist in dataset"
+            f"but {self.unknown_label} suppressed from get_available_labels output",
+            stacklevel=2,
+        )
         return sorted(available_labels)
 
     def __str__(self) -> str:
