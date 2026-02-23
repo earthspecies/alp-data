@@ -184,7 +184,7 @@ class WABAD(Dataset):
         self.sample_rate = sample_rate
         self.data_root = anypath(data_root) if data_root is not None else None
 
-        self.full_dataset_available_labels = pd.read_csv(SPECIES_INFO_PATH)["Species"].to_list()
+        self.full_dataset_available_labels = None  # placeholder for labels if split == all
 
         # Load split CSV
         self._load()
@@ -335,20 +335,22 @@ class WABAD(Dataset):
     def get_available_labels(self, anno_column: str | None = "Species") -> list[str]:
         """
         Return all possible species labels
-        anno_column is included as an optional argument for consistency
-        with other detection datasets.
 
         Returns
         ---------
         A list of all the available labels for anno_column
         """
         if self.split == "all":
+            if self.full_dataset_available_labels is None:
+                self.full_dataset_available_labels = pd.read_csv(SPECIES_INFO_PATH)[
+                    anno_column
+                ].to_list()
             return self.full_dataset_available_labels
         else:
             available_labels = set()
             for row in self._data:
                 st = pd.read_csv(StringIO(row["selection_table"]), sep="\t")
-                available_labels.update(st["Species"].astype(str).tolist())
+                available_labels.update(st[anno_column].astype(str).tolist())
             return sorted(available_labels)
 
     def __str__(self) -> str:
