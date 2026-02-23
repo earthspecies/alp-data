@@ -1,6 +1,6 @@
 """BirdSet dataset"""
 
-from typing import Any, Dict, Iterator
+from typing import Any, Iterator
 
 import librosa
 import numpy as np
@@ -188,8 +188,7 @@ class BirdSet(Dataset):
     def _load(self) -> None:
         if self.split not in self.info.split_paths:
             raise LookupError(
-                f"Invalid split: {self.split}. "
-                f"Expected one of {list(self.info.split_paths.keys())}"
+                f"Invalid split: {self.split}. Expected one of {list(self.info.split_paths.keys())}"
             )
         location = self.info.split_paths[self.split]
         self._data = self._backend_class.from_csv(location, streaming=self._streaming)
