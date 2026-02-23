@@ -102,6 +102,13 @@ class Watkins(Dataset):
         32000: "32khz_path",
     }
 
+    _sample_rate_subdirs = {
+        16000: "audio_16k",
+        32000: "audio_32k",
+    }
+
+    _originals_path_column = "audio_path"
+
     def __init__(
         self,
         split: str = "train",
@@ -124,7 +131,7 @@ class Watkins(Dataset):
             32kHz), it will be loaded directly; otherwise audio is resampled
             on-the-fly.  ``None`` returns original sample rate.
         data_root : str | AnyPathT | None
-            Root directory prepended to ``audio_path``.  Defaults to the GCS
+            Root directory prepended to audio paths.  Defaults to the GCS
             bucket holding the original FLAC files.
         backend : BackendType
             DataFrame backend (``"polars"`` or ``"pandas"``).
@@ -138,12 +145,8 @@ class Watkins(Dataset):
 
         if data_root is None:
             self.data_root = anypath(_GCS_RAW_ROOT)
-            self._data_root_16k = anypath(f"{_GCS_RAW_ROOT}/audio_16k")
-            self._data_root_32k = anypath(f"{_GCS_RAW_ROOT}/audio_32k")
         else:
             self.data_root = anypath(data_root)
-            self._data_root_16k = anypath(data_root)
-            self._data_root_32k = anypath(data_root)
 
         self._load()
 
@@ -225,14 +228,12 @@ class Watkins(Dataset):
         if self.sample_rate is not None and self.sample_rate in self._sample_rate_paths:
             col = self._sample_rate_paths[self.sample_rate]
             if col in row and row[col] is not None and str(row[col]).strip():
-                if self.sample_rate == 16000:
-                    audio_path = self._data_root_16k / row[col]
-                else:
-                    audio_path = self._data_root_32k / row[col]
+                subdir = self._sample_rate_subdirs[self.sample_rate]
+                audio_path = self.data_root / subdir / row[col]
                 use_presampled = True
 
         if not use_presampled:
-            audio_path = self.data_root / row["audio_path"]
+            audio_path = self.data_root / row[self._originals_path_column]
 
         audio, sr = read_audio(audio_path)
         audio = audio.astype(np.float32)

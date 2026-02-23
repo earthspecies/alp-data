@@ -174,6 +174,33 @@ def test_available_sample_rates(dataset: Dataset) -> None:
         assert 32000 in sample_rates
 
 
+def test_load_audio_16k() -> None:
+    """Test that pre-resampled 16kHz audio loads correctly."""
+    ds = Watkins(split="train", sample_rate=16000)
+    sample = ds[0]
+    assert sample["audio"].dtype == np.float32
+    assert len(sample["audio"]) > 0
+    assert sample["sample_rate"] == 16000
+
+
+def test_load_audio_32k() -> None:
+    """Test that pre-resampled 32kHz audio loads correctly."""
+    ds = Watkins(split="train", sample_rate=32000)
+    sample = ds[0]
+    assert sample["audio"].dtype == np.float32
+    assert len(sample["audio"]) > 0
+    assert sample["sample_rate"] == 32000
+
+
+def test_load_audio_original_rate() -> None:
+    """Test that original-rate audio loads correctly (no resampling)."""
+    ds = Watkins(split="train", sample_rate=None)
+    sample = ds[0]
+    assert sample["audio"].dtype == np.float32
+    assert len(sample["audio"]) > 0
+    assert isinstance(sample["sample_rate"], int)
+
+
 def test_data_root_handling(dataset: Dataset) -> None:
     """Test if data_root parameter works correctly."""
     assert dataset.data_root is not None
