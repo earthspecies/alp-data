@@ -1,6 +1,6 @@
 [project]
 name = "esp-data"
-version = "1.5.0"
+version = "1.6.0"
 description = "Data tools for ESP projects"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -118,7 +118,7 @@ max-complexity = 10
 allow-star-arg-any = true # suppress ANN401 for *args and **kwargs arguments
 
 [tool.codespell]
-skip = "*.csv"
+skip = "*.csv, *.ipynb"
 
 [[tool.uv.index]]
 name = "esp-pypi"

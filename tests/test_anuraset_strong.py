@@ -50,7 +50,7 @@ EXPECTED_LEN_ALL = 1612  #
 EXPECTED_FIRST_ITEM_AUDIO_SHA256 = (
     "6e98829b2da865344782fd378ae3e325d74a76cd534d81bcda9786f68c2d044d"
 )
-ANNOTATIONS_SHA256 = "8ec012bcb1143c05c7fba44a539618a4f4fd031f2581653ffad983a6e63203eb"
+ANNOTATIONS_SHA256 = "a5b5d36cec19868498e60df11e036bdbccbd37c1f2b373597fb8c938a630994a"
 # ---------------------------------------------------------------------------
 
 
