@@ -484,7 +484,7 @@ def quality_check() -> None:
 
 
 if __name__ == "__main__":
-    # all_split()
-    # train_val_test_split()
-    # single_song()
+    all_split()
+    train_val_test_split()
+    single_song()
     quality_check()
