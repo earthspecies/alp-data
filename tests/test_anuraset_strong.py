@@ -65,6 +65,14 @@ def ds_pandas() -> AnuraSetStrong:
     """Load AnuraSetStrong dataset for testing with pandas backend."""
     return AnuraSetStrong(split="all", sample_rate=16000, backend="pandas")
 
+def test_get_available_labels(ds: AnuraSetStrong):
+    """Test get_available_labels for ID column."""
+    labels = ds.get_available_labels(anno_column="Species")
+    assert isinstance(labels, list), "get_available_labels should return a list"
+    assert len(labels) > 0, "Should have at least one ID"
+    # Check that all labels can be converted to strings
+    for label in labels:
+        assert isinstance(label, str), f"Species label for {label} should be string"
 
 @pytest.fixture(scope="module")
 def sample_indices(ds: AnuraSetStrong) -> List[int]:

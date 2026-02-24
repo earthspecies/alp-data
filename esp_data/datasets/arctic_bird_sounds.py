@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import warnings
 from io import StringIO
 from typing import Any, Iterator, List
 
@@ -266,9 +267,17 @@ class ArcticBirdSounds(Dataset):
         A list of all the available labels for anno_column
         """
         available_labels = set()
-        for _, row in self._data.iterrows():
+        for row in self._data:
             st = pd.read_csv(StringIO(row["selection_table"]), sep="\t")
             available_labels.update(st[anno_column].astype(str).tolist())
+        if self.unknown_label in available_labels:
+            available_labels.remove(self.unknown_label)
+
+        warnings.warn(
+            f"Events with unknown label={self.unknown_label} exist in dataset"
+            f"but {self.unknown_label} suppressed from get_available_labels output",
+            stacklevel=2,
+        )
 
         return sorted(available_labels)
 
