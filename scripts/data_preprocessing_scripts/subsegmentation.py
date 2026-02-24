@@ -24,9 +24,13 @@ These may be bits of noise outside the song that were automatically segmented,
 If a .not.mat file does not contain any 'a', 's', or 'z' labels,
 the annotator deemed the file unlabelable.
 If an audio segment does not have a corresponding .not.mat file, the audio segment was not viewed.
+
+NOTE: There was one duplicate file in the original dataset that has since been removed.
+So if re-generating the dataset, the hash will change.
 """
 
 import os
+import tempfile
 from io import StringIO
 from typing import Dict
 
@@ -34,6 +38,7 @@ import numpy as np
 import pandas as pd
 import requests
 import scipy.io
+import soundfile as sf
 
 from esp_data.io import anypath, audio_stereo_to_mono, filesystem, read_audio
 
@@ -44,6 +49,9 @@ ANNOTATIONS_PATH = (
 )
 
 SPECIES_LABEL_FIX = {}
+
+SINGLE_SONG_GCS_PATH = "gs://subsegmentation/single_song"
+SINGLE_SONG_AUDIO_SUBPATH = "audio"
 
 
 def _taxonomy_lookup(species_name: str, base_url: str | None) -> Dict[str, str]:
@@ -228,6 +236,155 @@ def train_val_test_split() -> None:
     os.system("gsutil -m cp -r all.csv gs://subsegmentation/xeno_canto_annotations")
 
 
+def _extract_songs(st: pd.DataFrame) -> list[pd.DataFrame]:
+    """
+    Split a selection table into individual songs.
+
+    A song is a contiguous sequence of syllables starting with 'a' and ending
+    with 'z'. Middle syllables ('s') are included. Incomplete songs (missing
+    either endpoint) are discarded. Assumes rows are sorted by Begin Time (s).
+
+    Returns
+    ---------
+    list of selection tables (pd dataframes), each is an individual song
+    """
+    songs = []
+    current: list = []
+    in_song = False
+
+    for _, row in st.iterrows():
+        anno = row["Annotation"]
+        if anno == "a":
+            current = [row]
+            in_song = True
+        elif anno in ("s", "z") and in_song:
+            current.append(row)
+            if anno == "z":
+                songs.append(pd.DataFrame(current).reset_index(drop=True))
+                current = []
+                in_song = False
+
+    return songs
+
+
+def single_song() -> None:
+    """
+    For each split (all, train, val, test), create a single-song variant where
+    each data item is one song extracted from a multi-song recording.
+
+    Song boundaries are defined by 'a' (song start) and 'z' (song end)
+    annotations. Output audio is trimmed from the Begin Time of the 'a'
+    syllable to the End Time of the 'z' syllable. Selection table times are
+    re-zeroed to be relative to the song start.
+
+    Audio files are generated once from the 'all' split and uploaded in one
+    parallel gsutil call. The train/val/test CSVs are derived by filtering
+    all.csv using source_audio_file_name, so no audio file is written twice.
+
+    Results are saved under gs://subsegmentation/single_song/.
+    """
+    with tempfile.TemporaryDirectory() as temp_dir:
+        audio_dir = os.path.join(temp_dir, SINGLE_SONG_AUDIO_SUBPATH)
+        os.makedirs(audio_dir, exist_ok=True)
+
+        # ── Step 1: process 'all' split, write each audio file exactly once ──
+        print("\nProcessing all split")
+        df_all = pd.read_csv(f"{BASE_PATH}/all.csv")
+
+        new_info: dict[str, list] = {
+            "audio_file_name": [],
+            "audio_path": [],
+            "selection_table": [],
+            "pass_qc": [],
+            "Species": [],
+            "Genus": [],
+            "Order": [],
+            "Family": [],
+            "source_audio_file_name": [],
+        }
+
+        for i, row in df_all.iterrows():
+            if i % 100 == 0:
+                print(f"  {i} / {len(df_all)}")
+
+            if not row["pass_qc"]:
+                continue
+
+            try:
+                st = pd.read_csv(StringIO(row["selection_table"]), sep="\t")
+            except Exception:
+                continue
+
+            if st.empty:
+                continue
+
+            st = st.sort_values("Begin Time (s)").reset_index(drop=True)
+            songs = _extract_songs(st)
+            if not songs:
+                continue
+
+            audio_path = anypath(BASE_PATH) / row["audio_path"]
+            try:
+                audio, sr = read_audio(audio_path)
+                audio = audio_stereo_to_mono(audio, mono_method="average").astype(np.float32)
+            except Exception as e:
+                print(f"  Skipping {row['audio_path']}: {e}")
+                continue
+
+            orig_stem = os.path.splitext(row["audio_file_name"])[0]
+
+            for song_idx, song_st in enumerate(songs):
+                song_start = float(song_st["Begin Time (s)"].min())
+                song_end = float(song_st["End Time (s)"].max())
+
+                start_sample = max(0, int(song_start * sr))
+                end_sample = min(len(audio), int(song_end * sr))
+                song_audio = audio[start_sample:end_sample]
+
+                if len(song_audio) < 10:
+                    continue
+
+                # Re-zero selection table times relative to song start
+                song_st = song_st.copy()
+                song_st["Begin Time (s)"] = song_st["Begin Time (s)"] - song_start
+                song_st["End Time (s)"] = song_st["End Time (s)"] - song_start
+
+                new_audio_fn = f"{orig_stem}_song{song_idx}.wav"
+                local_wav = os.path.join(audio_dir, new_audio_fn)
+                sf.write(local_wav, song_audio, sr)
+
+                new_info["audio_file_name"].append(new_audio_fn)
+                new_info["audio_path"].append(os.path.join(SINGLE_SONG_AUDIO_SUBPATH, new_audio_fn))
+                new_info["selection_table"].append(song_st.to_csv(sep="\t", index=False))
+                new_info["pass_qc"].append(True)
+                new_info["Species"].append(row["Species"])
+                new_info["Genus"].append(row["Genus"])
+                new_info["Order"].append(row["Order"])
+                new_info["Family"].append(row["Family"])
+                new_info["source_audio_file_name"].append(row["audio_file_name"])
+
+        new_df_all = pd.DataFrame(new_info)
+        new_df_all.to_csv(os.path.join(temp_dir, "all.csv"), index=False)
+        print(f"  all: {len(new_df_all)} songs")
+
+        # ── Step 2: derive sub-split CSVs by filtering (no audio re-write) ──
+        for split_name in ["train", "val", "test"]:
+            orig_fns = set(pd.read_csv(f"{BASE_PATH}/{split_name}.csv")["audio_file_name"])
+            split_df = new_df_all[new_df_all["source_audio_file_name"].isin(orig_fns)].reset_index(
+                drop=True
+            )
+            split_df.to_csv(os.path.join(temp_dir, f"{split_name}.csv"), index=False)
+            print(f"  {split_name}: {len(split_df)} songs")
+
+        # ── Step 3: batch upload ──────────────────────────────────────────
+        os.system(f"gsutil -m cp -r {audio_dir} {SINGLE_SONG_GCS_PATH}/")
+        for split_name in ["all", "train", "val", "test"]:
+            os.system(
+                f"gsutil cp {os.path.join(temp_dir, split_name + '.csv')}"
+                f" {SINGLE_SONG_GCS_PATH}/{split_name}.csv"
+            )
+
+
 def iterate_qc(
     df: pd.DataFrame,
     data_root: str | None,
@@ -306,17 +463,28 @@ def iterate_qc(
 
 
 def quality_check() -> None:
-    """Run QC for dataset"""
+    """Run QC for original and single-song splits"""
 
-    info = pd.read_csv("gs://subsegmentation/xeno_canto_annotations/all.csv")
-    assert len(info) == len(pd.read_csv("train.csv")) + len(pd.read_csv("val.csv")) + len(
-        pd.read_csv("test.csv")
-    )
+    # Original splits
+    info = pd.read_csv(f"{BASE_PATH}/all.csv")
+    assert len(info) == len(pd.read_csv(f"{BASE_PATH}/train.csv")) + len(
+        pd.read_csv(f"{BASE_PATH}/val.csv")
+    ) + len(pd.read_csv(f"{BASE_PATH}/test.csv"))
     problems = iterate_qc(info, BASE_PATH)
     problems.to_csv("subsegmentation_qc_report.csv")
 
+    # Single-song splits
+    ss_all = pd.read_csv(f"{SINGLE_SONG_GCS_PATH}/all.csv")
+    ss_train = pd.read_csv(f"{SINGLE_SONG_GCS_PATH}/train.csv")
+    ss_val = pd.read_csv(f"{SINGLE_SONG_GCS_PATH}/val.csv")
+    ss_test = pd.read_csv(f"{SINGLE_SONG_GCS_PATH}/test.csv")
+    assert len(ss_all) == len(ss_train) + len(ss_val) + len(ss_test)
+    ss_problems = iterate_qc(ss_all, SINGLE_SONG_GCS_PATH)
+    ss_problems.to_csv("subsegmentation_single_song_qc_report.csv")
+
 
 if __name__ == "__main__":
-    all_split()
-    train_val_test_split()
+    # all_split()
+    # train_val_test_split()
+    # single_song()
     quality_check()
