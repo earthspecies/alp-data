@@ -70,7 +70,81 @@ class WABAD(Dataset):
     info = DatasetInfo(
         name="wabad",
         owner="benjamin",
-        split_paths={"all": "gs://esp-ml-datasets/wabad/v0.1.0/raw/all_info_gbif.csv"},
+        split_paths={
+            "all": "gs://esp-ml-datasets/wabad/v0.1.0/raw/all_info_gbif.csv",
+            "CAT": "gs://esp-ml-datasets/wabad/v0.1.0/raw/CAT_info_gbif.csv",
+            "POZO": "gs://esp-ml-datasets/wabad/v0.1.0/raw/POZO_info_gbif.csv",
+            "BRE": "gs://esp-ml-datasets/wabad/v0.1.0/raw/BRE_info_gbif.csv",
+            "EFFOR": "gs://esp-ml-datasets/wabad/v0.1.0/raw/EFFOR_info_gbif.csv",
+            "MONTEB": "gs://esp-ml-datasets/wabad/v0.1.0/raw/MONTEB_info_gbif.csv",
+            "CB": "gs://esp-ml-datasets/wabad/v0.1.0/raw/CB_info_gbif.csv",
+            "FEU": "gs://esp-ml-datasets/wabad/v0.1.0/raw/FEU_info_gbif.csv",
+            "BIAL": "gs://esp-ml-datasets/wabad/v0.1.0/raw/BIAL_info_gbif.csv",
+            "SPMCO": "gs://esp-ml-datasets/wabad/v0.1.0/raw/SPMCO_info_gbif.csv",
+            "OIO": "gs://esp-ml-datasets/wabad/v0.1.0/raw/OIO_info_gbif.csv",
+            "OESF": "gs://esp-ml-datasets/wabad/v0.1.0/raw/OESF_info_gbif.csv",
+            "QR": "gs://esp-ml-datasets/wabad/v0.1.0/raw/QR_info_gbif.csv",
+            "HAG": "gs://esp-ml-datasets/wabad/v0.1.0/raw/HAG_info_gbif.csv",
+            "VIL": "gs://esp-ml-datasets/wabad/v0.1.0/raw/VIL_info_gbif.csv",
+            "RFP": "gs://esp-ml-datasets/wabad/v0.1.0/raw/RFP_info_gbif.csv",
+            "HAK": "gs://esp-ml-datasets/wabad/v0.1.0/raw/HAK_info_gbif.csv",
+            "SLOB": "gs://esp-ml-datasets/wabad/v0.1.0/raw/SLOB_info_gbif.csv",
+            "BERB": "gs://esp-ml-datasets/wabad/v0.1.0/raw/BERB_info_gbif.csv",
+            "COU": "gs://esp-ml-datasets/wabad/v0.1.0/raw/COU_info_gbif.csv",
+            "OLIV": "gs://esp-ml-datasets/wabad/v0.1.0/raw/OLIV_info_gbif.csv",
+            "EVROS": "gs://esp-ml-datasets/wabad/v0.1.0/raw/EVROS_info_gbif.csv",
+            "FNCA": "gs://esp-ml-datasets/wabad/v0.1.0/raw/FNCA_info_gbif.csv",
+            "RGU": "gs://esp-ml-datasets/wabad/v0.1.0/raw/RGU_info_gbif.csv",
+            "CRUZ": "gs://esp-ml-datasets/wabad/v0.1.0/raw/CRUZ_info_gbif.csv",
+            "JUNCA": "gs://esp-ml-datasets/wabad/v0.1.0/raw/JUNCA_info_gbif.csv",
+            "PINA": "gs://esp-ml-datasets/wabad/v0.1.0/raw/PINA_info_gbif.csv",
+            "GTLU": "gs://esp-ml-datasets/wabad/v0.1.0/raw/GTLU_info_gbif.csv",
+            "MAPIMI": "gs://esp-ml-datasets/wabad/v0.1.0/raw/MAPIMI_info_gbif.csv",
+            "SAL": "gs://esp-ml-datasets/wabad/v0.1.0/raw/SAL_info_gbif.csv",
+            "ARD": "gs://esp-ml-datasets/wabad/v0.1.0/raw/ARD_info_gbif.csv",
+            "MARTI": "gs://esp-ml-datasets/wabad/v0.1.0/raw/MARTI_info_gbif.csv",
+            "DYOM": "gs://esp-ml-datasets/wabad/v0.1.0/raw/DYOM_info_gbif.csv",
+            "VER": "gs://esp-ml-datasets/wabad/v0.1.0/raw/VER_info_gbif.csv",
+            "SCHG": "gs://esp-ml-datasets/wabad/v0.1.0/raw/SCHG_info_gbif.csv",
+            "GLEN": "gs://esp-ml-datasets/wabad/v0.1.0/raw/GLEN_info_gbif.csv",
+            "HONDO": "gs://esp-ml-datasets/wabad/v0.1.0/raw/HONDO_info_gbif.csv",
+            "NL": "gs://esp-ml-datasets/wabad/v0.1.0/raw/NL_info_gbif.csv",
+            "BRCAS": "gs://esp-ml-datasets/wabad/v0.1.0/raw/BRCAS_info_gbif.csv",
+            "NAV": "gs://esp-ml-datasets/wabad/v0.1.0/raw/NAV_info_gbif.csv",
+            "KAR": "gs://esp-ml-datasets/wabad/v0.1.0/raw/KAR_info_gbif.csv",
+            "BUR": "gs://esp-ml-datasets/wabad/v0.1.0/raw/BUR_info_gbif.csv",
+            "KIB": "gs://esp-ml-datasets/wabad/v0.1.0/raw/KIB_info_gbif.csv",
+            "SCHF": "gs://esp-ml-datasets/wabad/v0.1.0/raw/SCHF_info_gbif.csv",
+            "TAM": "gs://esp-ml-datasets/wabad/v0.1.0/raw/TAM_info_gbif.csv",
+            "HUAP": "gs://esp-ml-datasets/wabad/v0.1.0/raw/HUAP_info_gbif.csv",
+            "DONG": "gs://esp-ml-datasets/wabad/v0.1.0/raw/DONG_info_gbif.csv",
+            "CLH": "gs://esp-ml-datasets/wabad/v0.1.0/raw/CLH_info_gbif.csv",
+            "HAR": "gs://esp-ml-datasets/wabad/v0.1.0/raw/HAR_info_gbif.csv",
+            "BOLIN": "gs://esp-ml-datasets/wabad/v0.1.0/raw/BOLIN_info_gbif.csv",
+            "SITH": "gs://esp-ml-datasets/wabad/v0.1.0/raw/SITH_info_gbif.csv",
+            "RBA": "gs://esp-ml-datasets/wabad/v0.1.0/raw/RBA_info_gbif.csv",
+            "MOPU": "gs://esp-ml-datasets/wabad/v0.1.0/raw/MOPU_info_gbif.csv",
+            "CRAT": "gs://esp-ml-datasets/wabad/v0.1.0/raw/CRAT_info_gbif.csv",
+            "PGF": "gs://esp-ml-datasets/wabad/v0.1.0/raw/PGF_info_gbif.csv",
+            "PUUL": "gs://esp-ml-datasets/wabad/v0.1.0/raw/PUUL_info_gbif.csv",
+            "MILLAN": "gs://esp-ml-datasets/wabad/v0.1.0/raw/MILLAN_info_gbif.csv",
+            "BMT": "gs://esp-ml-datasets/wabad/v0.1.0/raw/BMT_info_gbif.csv",
+            "SD": "gs://esp-ml-datasets/wabad/v0.1.0/raw/SD_info_gbif.csv",
+            "UNI": "gs://esp-ml-datasets/wabad/v0.1.0/raw/UNI_info_gbif.csv",
+            "SBN": "gs://esp-ml-datasets/wabad/v0.1.0/raw/SBN_info_gbif.csv",
+            "DUNAS": "gs://esp-ml-datasets/wabad/v0.1.0/raw/DUNAS_info_gbif.csv",
+            "PETI": "gs://esp-ml-datasets/wabad/v0.1.0/raw/PETI_info_gbif.csv",
+            "LIM": "gs://esp-ml-datasets/wabad/v0.1.0/raw/LIM_info_gbif.csv",
+            "BAM": "gs://esp-ml-datasets/wabad/v0.1.0/raw/BAM_info_gbif.csv",
+            "DEVA": "gs://esp-ml-datasets/wabad/v0.1.0/raw/DEVA_info_gbif.csv",
+            "ROTOK": "gs://esp-ml-datasets/wabad/v0.1.0/raw/ROTOK_info_gbif.csv",
+            "CARI": "gs://esp-ml-datasets/wabad/v0.1.0/raw/CARI_info_gbif.csv",
+            "PITI": "gs://esp-ml-datasets/wabad/v0.1.0/raw/PITI_info_gbif.csv",
+            "RME": "gs://esp-ml-datasets/wabad/v0.1.0/raw/RME_info_gbif.csv",
+            "MABI": "gs://esp-ml-datasets/wabad/v0.1.0/raw/MABI_info_gbif.csv",
+            "EMP": "gs://esp-ml-datasets/wabad/v0.1.0/raw/EMP_info_gbif.csv",
+            "EFFOU": "gs://esp-ml-datasets/wabad/v0.1.0/raw/EFFOU_info_gbif.csv",
+        },
         version="0.1.0",
         description="[MISSING]",
         sources="zenodo.org",
@@ -110,7 +184,7 @@ class WABAD(Dataset):
         self.sample_rate = sample_rate
         self.data_root = anypath(data_root) if data_root is not None else None
 
-        self.available_labels = pd.read_csv(SPECIES_INFO_PATH)["Species"].to_list()
+        self.full_dataset_available_labels = None  # placeholder for labels if split == all
 
         # Load split CSV
         self._load()
@@ -258,18 +332,26 @@ class WABAD(Dataset):
 
         return ds, {}
 
-    def get_available_labels(self) -> list[str]:
+    def get_available_labels(self, anno_column: str | None = "Species") -> list[str]:
         """
-        Return all possible labels for a given annotation column
-        anno_column is included as an optional argument for consistency
-        with other detection datasets.
+        Return all possible species labels
 
         Returns
         ---------
         A list of all the available labels for anno_column
         """
-
-        return self.available_labels
+        if self.split == "all":
+            if self.full_dataset_available_labels is None:
+                self.full_dataset_available_labels = pd.read_csv(SPECIES_INFO_PATH)[
+                    anno_column
+                ].to_list()
+            return self.full_dataset_available_labels
+        else:
+            available_labels = set()
+            for row in self._data:
+                st = pd.read_csv(StringIO(row["selection_table"]), sep="\t")
+                available_labels.update(st[anno_column].astype(str).tolist())
+            return sorted(available_labels)
 
     def __str__(self) -> str:
         base = f"{self.info.name} (v{self.info.version})"
