@@ -18,7 +18,7 @@ from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from esp_data.backends import BackendType
 from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
 
-_GCS_RAW_ROOT = "gs://esp-data-ingestion/superwhale/v0.1.0/raw"
+_GCS_RAW_ROOT = "gs://esp-data-ingestion/watkins/v0.1.0"
 
 
 @register_dataset
@@ -100,11 +100,6 @@ class Watkins(Dataset):
     _sample_rate_paths = {
         16000: "16khz_path",
         32000: "32khz_path",
-    }
-
-    _sample_rate_subdirs = {
-        16000: "audio_16k",
-        32000: "audio_32k",
     }
 
     _originals_path_column = "audio_path"
@@ -228,8 +223,7 @@ class Watkins(Dataset):
         if self.sample_rate is not None and self.sample_rate in self._sample_rate_paths:
             col = self._sample_rate_paths[self.sample_rate]
             if col in row and row[col] is not None and str(row[col]).strip():
-                subdir = self._sample_rate_subdirs[self.sample_rate]
-                audio_path = self.data_root / subdir / row[col]
+                audio_path = self.data_root / row[col]
                 use_presampled = True
 
         if not use_presampled:
