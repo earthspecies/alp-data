@@ -11,17 +11,6 @@ from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
 
 _GCS_ROOT = "gs://esp-ml-datasets/birdset/v0.2.0/raw"
 
-_SUBSETS = ("HSN", "NBP", "NES", "PER", "POW", "SSW", "SNE", "UHH")
-
-
-def _build_split_paths() -> dict[str, str]:
-    paths: dict[str, str] = {}
-    for subset in _SUBSETS:
-        for split in ("test", "test_5s"):
-            paths[f"{subset}-{split}"] = f"{_GCS_ROOT}/{subset}_{split}.csv"
-    paths["all"] = f"{_GCS_ROOT}/birdset_all.csv"
-    return paths
-
 
 @register_dataset
 class BirdSet(Dataset):
@@ -101,14 +90,32 @@ class BirdSet(Dataset):
     info = DatasetInfo(
         name="birdset",
         owner="marius; gagan; david",
-        split_paths=_build_split_paths(),
+        split_paths={
+            "HSN-test": f"{_GCS_ROOT}/HSN_test.csv",
+            "HSN-test_5s": f"{_GCS_ROOT}/HSN_test_5s.csv",
+            "NBP-test": f"{_GCS_ROOT}/NBP_test.csv",
+            "NBP-test_5s": f"{_GCS_ROOT}/NBP_test_5s.csv",
+            "NES-test": f"{_GCS_ROOT}/NES_test.csv",
+            "NES-test_5s": f"{_GCS_ROOT}/NES_test_5s.csv",
+            "PER-test": f"{_GCS_ROOT}/PER_test.csv",
+            "PER-test_5s": f"{_GCS_ROOT}/PER_test_5s.csv",
+            "POW-test": f"{_GCS_ROOT}/POW_test.csv",
+            "POW-test_5s": f"{_GCS_ROOT}/POW_test_5s.csv",
+            "SSW-test": f"{_GCS_ROOT}/SSW_test.csv",
+            "SSW-test_5s": f"{_GCS_ROOT}/SSW_test_5s.csv",
+            "SNE-test": f"{_GCS_ROOT}/SNE_test.csv",
+            "SNE-test_5s": f"{_GCS_ROOT}/SNE_test_5s.csv",
+            "UHH-test": f"{_GCS_ROOT}/UHH_test.csv",
+            "UHH-test_5s": f"{_GCS_ROOT}/UHH_test_5s.csv",
+            "all": f"{_GCS_ROOT}/birdset_all.csv",
+        },
         version="0.2.0",
         description=(
             "BirdSet avian bioacoustics benchmark with GBIF-linked taxonomy. "
             "Pre-resampled audio available at 16 kHz and 32 kHz (WAV). "
             "Original audio is 32 kHz OGG from the BirdSet HuggingFace repository."
         ),
-        sources=list(_SUBSETS),
+        sources=["HSN", "NBP", "NES", "PER", "POW", "SSW", "SNE", "UHH"],
         license="CC-BY-4.0, CC0",
     )
 
