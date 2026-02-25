@@ -21,7 +21,6 @@ from esp_data.datasets.dclde2026 import (
     PROVENANCE_COLUMNS,
     PROVIDERS,
     SPECIES_LABELS,
-    _selection_table_has_events,
 )
 
 # # --- Dataset snapshot ---
@@ -270,88 +269,3 @@ def test_str_representation(ds: DCLDE2026) -> None:
     assert "dclde2026" in s
     assert "0.1.0" in s
     assert "CC-BY-4.0" in s
-
-
-# ---------------------------------------------------------------------------
-# Provider / sub-dataset tests
-# ---------------------------------------------------------------------------
-
-
-def test_available_providers_returns_all(ds: DCLDE2026) -> None:
-    """Without filtering, all known providers should be present."""
-    providers = ds.available_providers
-    assert isinstance(providers, list)
-    assert len(providers) > 0
-    # Every provider that appears must be in the canonical list
-    for p in providers:
-        assert p in PROVIDERS, f"Unknown provider in data: {p}"
-
-
-def test_provider_filtering() -> None:
-    """Loading with a provider subset should reduce dataset length."""
-    subset = ["SIMRES"]
-    ds_filtered = DCLDE2026(split="all", sample_rate=16000, providers=subset)
-    assert len(ds_filtered) > 0
-    assert len(ds_filtered) < EXPECTED_LEN_ALL
-    assert ds_filtered.available_providers == subset
-
-
-def test_provider_filtering_invalid() -> None:
-    """Passing an unknown provider name should raise ValueError."""
-    with pytest.raises(ValueError, match="Unknown providers"):
-        DCLDE2026(split="all", sample_rate=16000, providers=["NONEXISTENT"])
-
-
-def test_str_includes_providers(ds: DCLDE2026) -> None:
-    """__str__ should now include provider information."""
-    s = str(ds)
-    assert "Providers:" in s
-
-
-# ---------------------------------------------------------------------------
-# Negative-clip control tests
-# ---------------------------------------------------------------------------
-
-
-def test_selection_table_has_events_positive() -> None:
-    """A TSV with header + data row should be detected as having events."""
-    tsv = "Begin Time (s)\tEnd Time (s)\tspecies\n0.5\t1.2\tKiller whale"
-    assert _selection_table_has_events(tsv) is True
-
-
-def test_selection_table_has_events_negative() -> None:
-    """A TSV with only a header (no event rows) should be negative."""
-    tsv = "Begin Time (s)\tEnd Time (s)\tspecies"
-    assert _selection_table_has_events(tsv) is False
-
-
-def test_selection_table_has_events_empty() -> None:
-    """An empty string should be negative."""
-    assert _selection_table_has_events("") is False
-
-
-def test_positives_only_empty_dict_filters() -> None:
-    """positives_only={} should drop rows with no events (default True for all)."""
-    ds_all = DCLDE2026(split="all", sample_rate=16000)
-    ds_pos = DCLDE2026(split="all", sample_rate=16000, positives_only={})
-    # Positive-only should have ≤ the full count
-    assert len(ds_pos) <= len(ds_all)
-
-
-def test_positives_only_none_returns_all() -> None:
-    """positives_only=None (default) should return every row."""
-    ds = DCLDE2026(split="all", sample_rate=16000)
-    assert len(ds) == EXPECTED_LEN_ALL
-
-
-def test_positives_only_per_provider() -> None:
-    """Allowing negatives from one provider should give ≥ the positives-only count."""
-    # Pick a single provider
-    subset = ["SIMRES"]
-    ds_pos = DCLDE2026(split="all", sample_rate=16000, providers=subset, positives_only={})
-    ds_neg = DCLDE2026(
-        split="all", sample_rate=16000, providers=subset,
-        positives_only={"SIMRES": False},
-    )
-    # With negatives allowed, we should have at least as many rows
-    assert len(ds_neg) >= len(ds_pos)

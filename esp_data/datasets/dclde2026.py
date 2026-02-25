@@ -60,23 +60,6 @@ PROVENANCE_COLUMNS = [
 ]
 
 
-# ── Helpers ────────────────────────────────────────────────────────────────
-
-
-def _selection_table_has_events(tsv: str) -> bool:
-    """Return True if the selection-table TSV blob has ≥1 event row (beyond the header).
-
-    Returns
-    -------
-    bool
-        ``True`` when the TSV contains at least one data row after the header.
-    """
-    if not tsv:
-        return False
-    lines = tsv.strip().split("\n")
-    return len(lines) > 1
-
-
 @register_dataset
 class DCLDE2026(Dataset):
     """DCLDE 2026 Killer Whale Dataset.
@@ -108,7 +91,7 @@ class DCLDE2026(Dataset):
     Splits
     ---------
     - "all": All data (default)
-    - "unseen": All data, with unseen taxa held out for BEANS-Zero evaluation.
+    - "all_excl_beanszero": All data excluding taxa evaluated in the BEANS-Zero benchmark.
 
     Available tasks
     ---------------
@@ -120,37 +103,23 @@ class DCLDE2026(Dataset):
     - Pod identification: J / K / L pods (Southern Resident)
     - Clan identification: A / G clans (Northern Resident)
 
-    Negative-Clip Control
-    ---------------------
-    Some providers may have unlabeled audios for your target species. Use ``positives_only`` to
-    drop negatives per provider::
-
-        ds = DCLDE2026(
-            providers=["SIMRES", "ONC"],
-            positives_only={"ONC": False},  # keep ONC negatives, drop SIMRES negatives
-        )
-    -------------------------------------------------
-    Filtering can be done per provider.
+    Provider Notes
+    --------------
     Data providers: DFO_CRP, JASCO_VFPA, DFO_WDLP, UAF_NGOS, SIMRES, SIO,
     ONC, OrcaSound, JASCO_VFPA_ONC, SMRUConsulting.
 
-    -------------------------------------------------
-    Observations and tips, by provider, focusing on detection:
-    - Different providers have different levels of precision in their annotations:
-      - SMRU: Not very temporally precise, sometimes
-        a selection covers large segments around the
-        call. Multiple very faint calls are sometimes
-        grouped in a single selection.
-      - SIMRES appears to be consistent.
-      - VFPA is generally good, a few missed calls and
-        slightly less consistency: sometimes extremely
-        faint calls are selected, while some faint but
-        clearer calls are missed.
+    Providers differ in annotation precision and coverage. Combining data
+    from multiple providers should be done carefully — consider filtering
+    by provider using Transforms (e.g. ``filter_isin`` on the ``provider``
+    column) when training or evaluating.
 
-      Detection should likely be handled on a
-      per-provider and per call-type basis. Add
-      best-practices here based on experience with
-      the dataset.
+    Per-provider observations (detection focus):
+
+    - SMRU: Not very temporally precise; selections sometimes cover large
+      segments around the call. Multiple faint calls may be grouped.
+    - SIMRES: Consistent annotations.
+    - VFPA: Generally good; a few missed calls and slightly less
+      consistency with faint calls.
 
 
     Examples
@@ -171,7 +140,7 @@ class DCLDE2026(Dataset):
         owner="david",
         split_paths={
             "all": "gs://esp-ml-datasets/dclde2026/v0.1.0/raw/2026/dclde_2026_killer_whales/processed_enriched.csv",
-            "unseen": "gs://esp-ml-datasets/dclde2026/v0.1.0/raw/2026/dclde_2026_killer_whales/unseen_holdout.csv",
+            "all_excl_beanszero": "gs://esp-ml-datasets/dclde2026/v0.1.0/raw/2026/dclde_2026_killer_whales/unseen_holdout.csv",
         },
         version="0.1.0",
         description="DCLDE 2026 killer whale dataset with species, ecotype, call type, "
@@ -196,8 +165,6 @@ class DCLDE2026(Dataset):
         split: str = "all",
         output_take_and_give: dict[str, str] | None = None,
         sample_rate: int | None = 16000,
-        providers: list[str] | None = None,
-        positives_only: dict[str, bool] | None = None,
         data_root: str | AnyPathT | None = None,
         backend: BackendType = "polars",
         streaming: bool = False,
@@ -213,21 +180,6 @@ class DCLDE2026(Dataset):
             If set, audio is resampled to this rate.  Pre-resampled paths
             (``16khz_path``, ``32khz_path``) are preferred when present in the
             CSV; otherwise audio is resampled on-the-fly.
-        providers : list[str] | None
-            Subset of data providers to include (e.g. ``["SIMRES", "ONC"]``).
-            If None, all providers are loaded.  See :data:`PROVIDERS` for the
-            full list.
-        positives_only : dict[str, bool] | None
-            Per-provider control over negative-clip inclusion.  Keys are
-            provider names; values indicate whether to keep **only** rows
-            whose selection table contains at least one event.
-
-            * ``None`` (default) — no event-based filtering; all rows returned.
-            * ``{}`` — every provider defaults to ``True`` (drop negatives).
-            * ``{"SIMRES": False}`` — include negatives from SIMRES, drop
-              negatives from all other providers.
-
-            Missing keys default to ``True`` (positives only).
         data_root : str | AnyPathT | None
             Root directory containing provider audio subdirectories.
             If None, defaults to the parent directory of the split CSV path.
@@ -235,11 +187,6 @@ class DCLDE2026(Dataset):
             The backend to use ("pandas" or "polars"), by default "polars".
         streaming : bool
             Whether to use streaming mode, by default False.
-
-        Raises
-        ------
-        ValueError
-            If ``providers`` contains unknown provider names.
         """
         super().__init__(output_take_and_give, backend=backend, streaming=streaming)
         self.split = split
@@ -253,26 +200,10 @@ class DCLDE2026(Dataset):
             "pod",
             "clan",
         ]
-        self.positives_only_map: dict[str, bool] | None = positives_only
         self.data_root = anypath(data_root) if data_root is not None else None
 
-        # Load split CSV
         self._load()
 
-        # Filter to requested providers
-        if providers is not None:
-            unknown = set(providers) - set(PROVIDERS)
-            if unknown:
-                raise ValueError(
-                    f"Unknown providers: {sorted(unknown)}. Valid providers: {PROVIDERS}"
-                )
-            self._data = self._data.filter_isin("provider", providers)
-
-        # Filter negatives per provider
-        if self.positives_only_map is not None:
-            self._filter_negatives()
-
-        # If no explicit data_root, assume parent dir of the split path
         if self.data_root is None:
             self.data_root = anypath(self.info.split_paths[self.split]).parent
 
@@ -283,24 +214,6 @@ class DCLDE2026(Dataset):
     @property
     def available_splits(self) -> list[str]:
         return list(self.info.split_paths.keys())
-
-    @property
-    def available_providers(self) -> list[str]:
-        """Return the providers present in the currently-loaded data.
-
-        Returns
-        -------
-        list[str]
-            Sorted list of unique provider names in the current data.
-
-        Raises
-        ------
-        RuntimeError
-            If no split has been loaded yet.
-        """
-        if self._data is None:
-            raise RuntimeError("No split has been loaded yet.")
-        return sorted(self._data.get_unique("provider"))
 
     def _load(self) -> None:
         """Load the split CSV into the configured backend.
@@ -321,30 +234,6 @@ class DCLDE2026(Dataset):
             keep_default_na=False,
             na_values=[""],
         )
-
-    def _filter_negatives(self) -> None:
-        """Drop rows whose selection table has no events, governed by ``positives_only_map``.
-
-        For each row the provider is looked up in ``positives_only_map``.
-        Missing keys default to ``True`` (positives only).  Rows from
-        providers marked ``True`` are kept only when the selection-table TSV
-        contains at least one event row beyond the header.
-        """
-        if self._data is None or self.positives_only_map is None:
-            return
-
-        keep_indices: list[int] = []
-        for i, row in enumerate(self._data):
-            provider = row.get("provider", "")
-            if self.positives_only_map.get(provider, True):
-                # Positives-only: keep only if ≥1 event
-                if _selection_table_has_events(row.get("selection_table", "")):
-                    keep_indices.append(i)
-            else:
-                # Include negatives from this provider
-                keep_indices.append(i)
-
-        self._data = self._data[keep_indices]
 
     def __len__(self) -> int:
         """Return the number of audio files in the dataset.
@@ -476,8 +365,6 @@ class DCLDE2026(Dataset):
         ----------
         dataset_config : DatasetConfig
             Configuration dictionary containing dataset parameters.
-            Accepts optional ``providers`` (list of provider names) and
-            ``positives_only`` (dict mapping provider → bool) keys.
 
         Returns
         -------
@@ -489,8 +376,6 @@ class DCLDE2026(Dataset):
             split=cfg["split"],
             output_take_and_give=cfg["output_take_and_give"],
             sample_rate=cfg["sample_rate"],
-            providers=cfg["providers"],
-            positives_only=cfg["positives_only"],
             data_root=cfg["data_root"],
             backend=cfg["backend"],
             streaming=cfg["streaming"],
@@ -534,11 +419,9 @@ class DCLDE2026(Dataset):
     def __str__(self) -> str:
         base = f"{self.info.name} (v{self.info.version})"
         n = len(self) if self._data is not None and not self._streaming else "?"
-        providers = ", ".join(self.available_providers)
         return (
             f"{base}\n"
             f"Audio files: {n}\n"
-            f"Providers: {providers}\n"
             f"Sources: {self.info.sources}\n"
             f"License: {self.info.license}\n"
             f"Available splits: {', '.join(self.info.split_paths.keys())}"

@@ -72,9 +72,9 @@ class AnimalSoundArchive(Dataset):
     - ``train``: Training set (all minus 3000 held-out samples, random split)
     - ``validation``: Validation set (3000 samples, random split)
     - ``all``: Complete dataset (train + validation)
-    - ``train_unseen``: Training set excluding unseen taxa evaluated in BEANS-Zero benchmark
-    - ``validation_unseen``: Validation set excluding unseen taxa evaluated in BEANS-Zero benchmark
-    - ``all_unseen``: Complete dataset excluding BEANS-Zero unseen taxa
+    - ``train_excl_beanszero``: Training set excluding taxa evaluated in BEANS-Zero benchmark
+    - ``validation_excl_beanszero``: Validation set excluding taxa evaluated in BEANS-Zero benchmark
+    - ``all_excl_beanszero``: Complete dataset excluding BEANS-Zero taxa
 
     References
     ----------
@@ -106,9 +106,9 @@ class AnimalSoundArchive(Dataset):
             "train": "gs://esp-ml-datasets/tierstimmenarchiv/v0.1.0/raw/train.csv",
             "validation": "gs://esp-ml-datasets/tierstimmenarchiv/v0.1.0/raw/val.csv",
             "all": "gs://esp-ml-datasets/tierstimmenarchiv/v0.1.0/raw/all.csv",
-            "train_unseen": "gs://esp-ml-datasets/tierstimmenarchiv/v0.1.0/raw/train_unseen.csv",
-            "validation_unseen": "gs://esp-ml-datasets/tierstimmenarchiv/v0.1.0/raw/val_unseen.csv",
-            "all_unseen": "gs://esp-ml-datasets/tierstimmenarchiv/v0.1.0/raw/all_unseen.csv",
+            "train_excl_beanszero": "gs://esp-ml-datasets/tierstimmenarchiv/v0.1.0/raw/train_unseen.csv",
+            "validation_excl_beanszero": "gs://esp-ml-datasets/tierstimmenarchiv/v0.1.0/raw/val_unseen.csv",
+            "all_excl_beanszero": "gs://esp-ml-datasets/tierstimmenarchiv/v0.1.0/raw/all_unseen.csv",
         },
         version="0.1.0",
         description="Animal Sound Archive (Tierstimmenarchiv) audio dataset with "
