@@ -50,7 +50,7 @@ EXPECTED_LEN_ALL = 1612  #
 EXPECTED_FIRST_ITEM_AUDIO_SHA256 = (
     "6e98829b2da865344782fd378ae3e325d74a76cd534d81bcda9786f68c2d044d"
 )
-ANNOTATIONS_SHA256 = "8ec012bcb1143c05c7fba44a539618a4f4fd031f2581653ffad983a6e63203eb"
+ANNOTATIONS_SHA256 = "a5b5d36cec19868498e60df11e036bdbccbd37c1f2b373597fb8c938a630994a"
 # ---------------------------------------------------------------------------
 
 
@@ -65,6 +65,14 @@ def ds_pandas() -> AnuraSetStrong:
     """Load AnuraSetStrong dataset for testing with pandas backend."""
     return AnuraSetStrong(split="all", sample_rate=16000, backend="pandas")
 
+def test_get_available_labels(ds: AnuraSetStrong):
+    """Test get_available_labels for ID column."""
+    labels = ds.get_available_labels(anno_column="Species")
+    assert isinstance(labels, list), "get_available_labels should return a list"
+    assert len(labels) > 0, "Should have at least one ID"
+    # Check that all labels can be converted to strings
+    for label in labels:
+        assert isinstance(label, str), f"Species label for {label} should be string"
 
 @pytest.fixture(scope="module")
 def sample_indices(ds: AnuraSetStrong) -> List[int]:

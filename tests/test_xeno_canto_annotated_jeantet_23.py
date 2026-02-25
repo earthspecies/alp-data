@@ -49,7 +49,7 @@ EXPECTED_LEN_ALL = 967  #
 EXPECTED_FIRST_ITEM_AUDIO_SHA256 = (
     "65fc1372fa64983d4998cf1be43d4469c7770e2f3485c860c654688ea3a3c30b"
 )
-ANNOTATIONS_SHA256 = "c576e979a50c37b62c6d0d5c65f4b206ea1102547ece03b1a14767f7c1ca0ddb"
+ANNOTATIONS_SHA256 = "a084b5c5d81987f2dbad2e67c7f113d7a04d352e6c8dce8d2a67f6244e5068ed"
 # ---------------------------------------------------------------------------
 
 
@@ -76,6 +76,16 @@ def sample_indices(ds: XenoCantoAnnotatedJeantet23) -> List[int]:
 def test_ds_not_empty(ds: XenoCantoAnnotatedJeantet23):
     """Dataset should have at least one example."""
     assert len(ds) > 0, "Dataset appears empty"
+
+
+def test_get_available_labels(ds: XenoCantoAnnotatedJeantet23):
+    """Test get_available_labels for bird ID column."""
+    labels = ds.get_available_labels(anno_column="Species")
+    assert isinstance(labels, list), "get_available_labels should return a list"
+    assert len(labels) > 0, "Should have at least one bird ID"
+    # Check that all labels can be converted to strings
+    for label in labels:
+        assert isinstance(label, str), f"Species label for {label} should be string"
 
 
 def test_check_audio(ds: XenoCantoAnnotatedJeantet23, sample_indices: List[int]):

@@ -78,7 +78,6 @@ def test_ds_not_empty(ds: HawaiianBirds):
     """Dataset should have at least one example."""
     assert len(ds) > 0, "Dataset appears empty"
 
-
 def test_check_audio(ds: HawaiianBirds, sample_indices: List[int]):
     """Basic audio integrity checks on a few random items."""
     for idx in sample_indices:

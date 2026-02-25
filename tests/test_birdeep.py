@@ -49,7 +49,7 @@ EXPECTED_LEN_ALL = 291  #
 EXPECTED_FIRST_ITEM_AUDIO_SHA256 = (
     "dd81518532b80282b5d9c27b371398a3eb6469bb50da1717ed4113a51023396d"
 )
-ANNOTATIONS_SHA256 = "b5e46c0ec0442bdc6363f43f2d0a5a2072b64066252c01cb0e25e0d4ca96a2e7"
+ANNOTATIONS_SHA256 = "667a29118d20db83e672a46e0a2bdb7fd44da8b6fc53ff968ae1201d77472404"
 # ---------------------------------------------------------------------------
 
 
@@ -76,7 +76,6 @@ def sample_indices(ds: Birdeep) -> List[int]:
 def test_ds_not_empty(ds: Birdeep):
     """Dataset should have at least one example."""
     assert len(ds) > 0, "Dataset appears empty"
-
 
 def test_check_audio(ds: Birdeep, sample_indices: List[int]):
     """Basic audio integrity checks on a few random items."""

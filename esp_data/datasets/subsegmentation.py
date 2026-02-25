@@ -229,7 +229,7 @@ class Subsegmentation(Dataset):
             return ds, meta
         return ds, {}
 
-    def get_available_labels(self, anno_column: str) -> List[str]:
+    def get_available_labels(self, anno_column: str = "Species") -> List[str]:
         """
         Return all possible labels for a given annotation column
 
@@ -239,7 +239,7 @@ class Subsegmentation(Dataset):
         """
         available_labels = set()
         for row in self._data:
-            st = pd.read_csv(StringIO(row["selection_table_str"]), sep="\t")
+            st = pd.read_csv(StringIO(row["selection_table"]), sep="\t")
             available_labels.update(st[anno_column].astype(str).tolist())
         return sorted(available_labels)
 

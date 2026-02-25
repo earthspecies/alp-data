@@ -49,7 +49,7 @@ EXPECTED_LEN_ALL = 4297  #
 EXPECTED_FIRST_ITEM_AUDIO_SHA256 = (
     "0f4bdebee1f396aff35873adcb7ffa0600a1f0f3e5817f1f1b83b2b2fde792f9"
 )
-ANNOTATIONS_SHA256 = "34cc59456125a71e189c1c4dd7605becead301ede0cf17dd34cee01937eafac9"
+ANNOTATIONS_SHA256 = "b87159c426ed202fe7a7b6d0b977dc6ed9be3db59f6fcd6df6073d52f8accef0"
 # ---------------------------------------------------------------------------
 
 
@@ -57,6 +57,11 @@ ANNOTATIONS_SHA256 = "34cc59456125a71e189c1c4dd7605becead301ede0cf17dd34cee01937
 def ds() -> WABAD:
     """Load WABAD dataset for testing."""
     return WABAD(split="all", sample_rate=16000, backend="pandas")
+
+@pytest.fixture(scope="module")
+def ds_sub() -> WABAD:
+    """Load WABAD subdataset for testing."""
+    return WABAD(split="CAT", sample_rate=16000, backend="pandas")
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -76,6 +81,16 @@ def sample_indices(ds_polars: WABAD) -> List[int]:
 def test_ds_not_empty(ds: WABAD):
     """Dataset should have at least one example."""
     assert len(ds) > 0, "Dataset appears empty"
+
+
+def test_get_available_labels(ds: WABAD):
+    """Test get_available_labels for bird ID column."""
+    labels = ds.get_available_labels()
+    assert isinstance(labels, list), "get_available_labels should return a list"
+    assert len(labels) > 0, "Should have at least one bird ID"
+    # Check that all labels can be converted to strings
+    for label in labels:
+        assert isinstance(label, str), f"Species label for {label} should be string"
 
 
 def test_check_audio(ds_polars: WABAD, sample_indices: List[int]):
@@ -99,6 +114,24 @@ def test_available_splits(ds: WABAD) -> None:
     # Available splits should contain these
     expected_splits = ["all"]
     assert all(split in ds.available_splits for split in expected_splits)
+
+def test_get_available_labels(ds: WABAD, ds_sub: WABAD):
+    """Test get_available_labels for bird ID column."""
+    labels = ds.get_available_labels(anno_column="Species")
+    assert isinstance(labels, list), "get_available_labels should return a list"
+    assert len(labels) > 0, "Should have at least one bird ID"
+    # Check that all labels can be converted to strings
+    for label in labels:
+        assert isinstance(label, str), f"Species label for {label} should be string"
+
+
+    labels_sub = ds_sub.get_available_labels(anno_column="Species")
+    assert isinstance(labels_sub, list), "get_available_labels should return a list"
+    assert len(labels_sub) > 0, "Should have at least one bird ID"
+    # Check that all labels can be converted to strings
+    for label in labels_sub:
+        assert isinstance(label, str), f"Species label for {label} should be string"
+    assert len(labels_sub) < len(labels), "Subdataset should have fewer classes than all"
 
 
 def test_reference_item_stability(ds: WABAD):

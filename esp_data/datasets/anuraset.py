@@ -259,7 +259,7 @@ class AnuraSetStrong(Dataset):
         A list of all the available labels for anno_column
         """
         available_labels = set()
-        for _, row in self._data.iterrows():
+        for row in self._data:
             st = pd.read_csv(StringIO(row["selection_table"]), sep="\t")
             available_labels.update(st[anno_column].astype(str).tolist())
 
