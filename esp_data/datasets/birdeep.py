@@ -13,9 +13,6 @@ from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from esp_data.backends import BackendType
 from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
 
-# Native 32 kHz; only 16 kHz is pre-resampled
-_SAMPLE_RATE_PATHS: dict[int, str] = {16000: "16khz_path"}
-
 
 @register_dataset
 class Birdeep(Dataset):
@@ -70,16 +67,19 @@ class Birdeep(Dataset):
         name="birdeep",
         owner="benjamin",
         split_paths={
-            "train": "gs://esp-ml-datasets/birdeep/train_formatted.csv",
-            "val": "gs://esp-ml-datasets/birdeep/val_formatted.csv",
-            "test": "gs://esp-ml-datasets/birdeep/test_formatted.csv",
-            "all": "gs://esp-ml-datasets/birdeep/all_formatted.csv",
+            "train": "gs://esp-ml-datasets/birdeep/train_formatted_v2.csv",
+            "val": "gs://esp-ml-datasets/birdeep/val_formatted_v2.csv",
+            "test": "gs://esp-ml-datasets/birdeep/test_formatted_v2.csv",
+            "all": "gs://esp-ml-datasets/birdeep/all_formatted_v2.csv",
         },
         version="0.1.0",
         description="[MISSING]",
         sources="HuggingFace",
         license="MIT",
     )
+
+    _sample_rate_paths: dict[int, str] = {16000: "16khz_path"}
+    _originals_path_column = "audio_path"
 
     def __init__(
         self,
@@ -113,16 +113,13 @@ class Birdeep(Dataset):
         self.unknown_label = "Unknown"
 
         self.sample_rate = sample_rate
-        self.data_root = anypath(data_root) if data_root is not None else None
 
-        # Load split CSV
         self._load()
 
-        # If no explicit data_root, assume parent dir of the split path
-        if self.data_root is None:
+        if data_root is None:
             self.data_root = anypath(self.info.split_paths[self.split]).parent
-
-        self._data_root_16k = self.data_root / "audio_16k"
+        else:
+            self.data_root = anypath(data_root)
 
     @property
     def columns(self) -> list[str]:
@@ -132,15 +129,10 @@ class Birdeep(Dataset):
     def available_splits(self) -> list[str]:
         return list(self.info.split_paths.keys())
 
-    def _resolve_audio_path(self, row: dict[str, Any]) -> tuple[AnyPathT, bool]:
-        if self.sample_rate is not None and self.sample_rate in _SAMPLE_RATE_PATHS:
-            col = _SAMPLE_RATE_PATHS[self.sample_rate]
-            if col in row and row[col] is not None and str(row[col]).strip():
-                return self._data_root_16k / row[col], True
-        path = (
-            (self.data_root / row["audio_path"]) if self.data_root else anypath(row["audio_path"])
-        )
-        return path, False
+    @property
+    def available_sample_rates(self) -> list[int]:
+        """Return pre-resampled sample rates whose path columns exist in the data."""
+        return [sr for sr, col in self._sample_rate_paths.items() if col in self._data.columns]
 
     def _load(self) -> None:
         if self.split not in self.info.split_paths:
@@ -174,14 +166,20 @@ class Birdeep(Dataset):
         dict[str, Any]
             The processed row.
         """
+        use_presampled = False
+        if self.sample_rate is not None and self.sample_rate in self._sample_rate_paths:
+            path_column = self._sample_rate_paths[self.sample_rate]
+            if path_column in row and row[path_column] is not None and row[path_column] != "":
+                audio_path = anypath(self.data_root) / row[path_column]
+                use_presampled = True
 
-        audio_path, is_presampled = self._resolve_audio_path(row)
+        if not use_presampled:
+            audio_path = anypath(self.data_root) / row[self._originals_path_column]
 
-        # Read audio
         audio, sr = read_audio(audio_path)
         audio = audio_stereo_to_mono(audio, mono_method="average").astype(np.float32)
 
-        if not is_presampled and self.sample_rate is not None and sr != self.sample_rate:
+        if not use_presampled and self.sample_rate is not None and sr != self.sample_rate:
             audio = librosa.resample(
                 y=audio,
                 orig_sr=sr,
@@ -191,14 +189,10 @@ class Birdeep(Dataset):
             )
             sr = self.sample_rate
 
-        # Selection table
         st = pd.read_csv(StringIO(row["selection_table"]), sep="\t")
-
-        # Clip events outside audio (keep only events that begin before audio end)
         audio_dur = len(audio) / float(sr)
         st = st[st["Begin Time (s)"] < audio_dur].copy()
 
-        # Build output
         row["audio"] = audio
         row["selection_table"] = st
 

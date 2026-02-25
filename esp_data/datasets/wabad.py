@@ -15,8 +15,6 @@ from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
 
 SPECIES_INFO_PATH = "gs://esp-ml-datasets/wabad/v0.1.0/raw/gbif_labels.csv"
 
-_SAMPLE_RATE_PATHS: dict[int, str] = {16000: "16khz_path", 32000: "32khz_path"}
-
 
 @register_dataset
 class WABAD(Dataset):
@@ -79,12 +77,15 @@ class WABAD(Dataset):
     info = DatasetInfo(
         name="wabad",
         owner="benjamin",
-        split_paths={"all": "gs://esp-ml-datasets/wabad/v0.1.0/raw/all_info_gbif.csv"},
+        split_paths={"all": "gs://esp-ml-datasets/wabad/v0.1.0/raw/all_info_gbif_v2.csv"},
         version="0.1.0",
         description="[MISSING]",
         sources="zenodo.org",
         license="CC-BY-4.0",
     )
+
+    _sample_rate_paths: dict[int, str] = {16000: "16khz_path", 32000: "32khz_path"}
+    _originals_path_column = "audio_fp"
 
     def __init__(
         self,
@@ -117,19 +118,15 @@ class WABAD(Dataset):
         self.annotation_columns = ["Species"]
         self.unknown_label = "Unknown"
         self.sample_rate = sample_rate
-        self.data_root = anypath(data_root) if data_root is not None else None
 
         self.available_labels = pd.read_csv(SPECIES_INFO_PATH)["Species"].to_list()
 
-        # Load split CSV
         self._load()
 
-        # If no explicit data_root, assume parent dir of the split path
-        if self.data_root is None:
+        if data_root is None:
             self.data_root = anypath(self.info.split_paths[self.split]).parent
-
-        self._data_root_16k = self.data_root / "audio_16k"
-        self._data_root_32k = self.data_root / "audio_32k"
+        else:
+            self.data_root = anypath(data_root)
 
     @property
     def columns(self) -> list[str]:
@@ -139,13 +136,10 @@ class WABAD(Dataset):
     def available_splits(self) -> list[str]:
         return list(self.info.split_paths.keys())
 
-    def _resolve_audio_path(self, row: dict[str, Any]) -> tuple[AnyPathT, bool]:
-        if self.sample_rate is not None and self.sample_rate in _SAMPLE_RATE_PATHS:
-            col = _SAMPLE_RATE_PATHS[self.sample_rate]
-            if col in row and row[col] is not None and str(row[col]).strip():
-                root = self._data_root_16k if self.sample_rate == 16000 else self._data_root_32k
-                return root / row[col], True
-        return self.data_root / row["audio_fp"], False
+    @property
+    def available_sample_rates(self) -> list[int]:
+        """Return pre-resampled sample rates whose path columns exist in the data."""
+        return [sr for sr, col in self._sample_rate_paths.items() if col in self._data.columns]
 
     def _load(self) -> None:
         if self.split not in self.info.split_paths:
@@ -182,13 +176,32 @@ class WABAD(Dataset):
         return len(self._data)
 
     def _process(self, row: dict[str, Any]) -> dict[str, Any]:
-        audio_path, is_presampled = self._resolve_audio_path(row)
+        """Process a single row of the dataset.
 
-        # Read audio
+        Parameters
+        ----------
+        row : dict[str, Any]
+            A dictionary representing a single row of the dataset.
+
+        Returns
+        -------
+        dict[str, Any]
+            The processed row.
+        """
+        use_presampled = False
+        if self.sample_rate is not None and self.sample_rate in self._sample_rate_paths:
+            path_column = self._sample_rate_paths[self.sample_rate]
+            if path_column in row and row[path_column] is not None and row[path_column] != "":
+                audio_path = anypath(self.data_root) / row[path_column]
+                use_presampled = True
+
+        if not use_presampled:
+            audio_path = anypath(self.data_root) / row[self._originals_path_column]
+
         audio, sr = read_audio(audio_path)
         audio = audio_stereo_to_mono(audio, mono_method="average").astype(np.float32)
 
-        if not is_presampled and self.sample_rate is not None and sr != self.sample_rate:
+        if not use_presampled and self.sample_rate is not None and sr != self.sample_rate:
             audio = librosa.resample(
                 y=audio,
                 orig_sr=sr,
@@ -198,14 +211,10 @@ class WABAD(Dataset):
             )
             sr = self.sample_rate
 
-        # Selection table
         st = pd.read_csv(StringIO(row["selection_table"]), sep="\t")
-
-        # Clip events outside audio (keep only events that begin before audio end)
         audio_dur = len(audio) / float(sr)
         st = st[st["Begin Time (s)"] < audio_dur].copy()
 
-        # Build output
         row["audio"] = audio
         row["selection_table"] = st
 

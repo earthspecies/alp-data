@@ -13,9 +13,6 @@ from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from esp_data.backends import BackendType
 from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
 
-# Pre-resampled path columns
-_SAMPLE_RATE_PATHS: dict[int, str] = {16000: "16khz_path", 32000: "32khz_path"}
-
 
 @register_dataset
 class AnuraSetStrong(Dataset):
@@ -77,13 +74,16 @@ class AnuraSetStrong(Dataset):
         name="anuraset_strong",
         owner="benjamin",
         split_paths={
-            "all": "gs://esp-ml-datasets/anuraset/anuraset_all_gbif.csv",
+            "all": "gs://esp-ml-datasets/anuraset/anuraset_all_gbif_v2.csv",
         },
         version="0.1.0",
         description="[MISSING]",
         sources="Zenodo",
         license="CC BY 1.0",
     )
+
+    _sample_rate_paths: dict[int, str] = {16000: "16khz_path", 32000: "32khz_path"}
+    _originals_path_column = "audio_path"
 
     def __init__(
         self,
@@ -115,18 +115,14 @@ class AnuraSetStrong(Dataset):
         self.annotation_columns = ["Species"]
 
         self.sample_rate = sample_rate
-        self.data_root = anypath(data_root) if data_root is not None else None
         self._data = None
 
-        # Load split CSV
         self._load()
 
-        # If no explicit data_root, assume parent dir of the split path
-        if self.data_root is None:
+        if data_root is None:
             self.data_root = anypath(self.info.split_paths[self.split]).parent
-
-        self._data_root_16k = self.data_root / "audio_16k"
-        self._data_root_32k = self.data_root / "audio_32k"
+        else:
+            self.data_root = anypath(data_root)
 
     @property
     def columns(self) -> list[str]:
@@ -136,14 +132,10 @@ class AnuraSetStrong(Dataset):
     def available_splits(self) -> list[str]:
         return list(self.info.split_paths.keys())
 
-    def _resolve_audio_path(self, row: dict[str, Any]) -> tuple[AnyPathT, bool]:
-        """Return (full_audio_path, is_presampled). Prefers pre-resampled when available."""
-        if self.sample_rate is not None and self.sample_rate in _SAMPLE_RATE_PATHS:
-            col = _SAMPLE_RATE_PATHS[self.sample_rate]
-            if col in row and row[col] is not None and str(row[col]).strip():
-                root = self._data_root_16k if self.sample_rate == 16000 else self._data_root_32k
-                return root / row[col], True
-        return self.data_root / row["audio_path"], False
+    @property
+    def available_sample_rates(self) -> list[int]:
+        """Return pre-resampled sample rates whose path columns exist in the data."""
+        return [sr for sr, col in self._sample_rate_paths.items() if col in self._data.columns]
 
     def _load(self) -> None:
         if self.split not in self.info.split_paths:
@@ -177,32 +169,33 @@ class AnuraSetStrong(Dataset):
         dict[str, Any]
             The processed row.
         """
-        audio_path, is_presampled = self._resolve_audio_path(row)
+        use_presampled = False
+        if self.sample_rate is not None and self.sample_rate in self._sample_rate_paths:
+            path_column = self._sample_rate_paths[self.sample_rate]
+            if path_column in row and row[path_column] is not None and row[path_column] != "":
+                audio_path = anypath(self.data_root) / row[path_column]
+                use_presampled = True
 
-        # Read audio
+        if not use_presampled:
+            audio_path = anypath(self.data_root) / row[self._originals_path_column]
+
         audio, sr = read_audio(audio_path)
         audio = audio_stereo_to_mono(audio, mono_method="average").astype(np.float32)
 
-        # Resample on-the-fly only when not using pre-resampled
-        target_sr = self.sample_rate
-        if not is_presampled and target_sr is not None and sr != target_sr:
+        if not use_presampled and self.sample_rate is not None and sr != self.sample_rate:
             audio = librosa.resample(
                 y=audio,
                 orig_sr=sr,
-                target_sr=target_sr,
+                target_sr=self.sample_rate,
                 scale=True,
                 res_type="kaiser_best",
             )
-            sr = target_sr
+            sr = self.sample_rate
 
-        # Selection table
         st = pd.read_csv(StringIO(row["selection_table"]), sep="\t")
-
-        # Clip events outside audio (keep only events that begin before audio end)
         audio_dur = len(audio) / float(sr)
         st = st[st["Begin Time (s)"] < audio_dur].copy()
 
-        # Build output
         row["audio"] = audio
         row["selection_table"] = st
 
