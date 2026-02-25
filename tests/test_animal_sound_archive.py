@@ -74,13 +74,13 @@ def test_info_property(dataset: Dataset) -> None:
 def test_data_property(dataset: Dataset) -> None:
     """Test if the data property returns correct dataframes."""
     assert dataset._data is not None
-    assert "relative_path" in dataset._data.columns
+    assert "originals_path" in dataset._data.columns
 
 
 def test_columns_property(dataset: Dataset) -> None:
     """Test if the columns property returns correct column names."""
-    assert "relative_path" in dataset.columns
-    expected_columns = ["relative_path", "canonical_name", "16khz_path", "32khz_path"]
+    assert "originals_path" in dataset.columns
+    expected_columns = ["originals_path", "canonical_name", "16khz_path", "32khz_path"]
     assert all(col in dataset.columns for col in expected_columns)
 
 
@@ -106,7 +106,7 @@ def test_getitem(dataset: Dataset) -> None:
     assert isinstance(sample, dict)
     assert "audio" in sample
     assert "sample_rate" in sample
-    assert "relative_path" in sample
+    assert "originals_path" in sample
 
     # Check audio properties
     assert sample["audio"].dtype.name == "float32"
@@ -119,7 +119,7 @@ def test_iteration(dataset: Dataset) -> None:
         assert isinstance(sample, dict)
         assert "audio" in sample
         assert "sample_rate" in sample
-        assert "relative_path" in sample
+        assert "originals_path" in sample
         if i >= 2:  # Only test first few samples
             break
 
@@ -135,7 +135,7 @@ def test_sample_consistency(dataset: Dataset) -> None:
     direct_sample = dataset[0]
     iter_sample = next(iter(dataset))
 
-    assert direct_sample["relative_path"] == iter_sample["relative_path"]
+    assert direct_sample["originals_path"] == iter_sample["originals_path"]
 
 
 def test_transformations_from_config(

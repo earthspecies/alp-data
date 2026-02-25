@@ -33,10 +33,10 @@ class AnimalSoundArchive(Dataset):
         - ``gbifID``: GBIF (Global Biodiversity Information Facility) identifier
 
     **Audio File Paths:**
-        - ``relative_path``: Path to original MP3 audio relative to audio root
+        - ``originals_path``: Path to original MP3 audio relative to data root
         - ``gcs_path``: Full GCS path to original audio
-        - ``32khz_path``: Path to pre-resampled 32kHz WAV audio
-        - ``16khz_path``: Path to pre-resampled 16kHz WAV audio
+        - ``32khz_path``: Path to pre-resampled 32kHz WAV audio relative to data root
+        - ``16khz_path``: Path to pre-resampled 16kHz WAV audio relative to data root
 
     **Recording Metadata:**
         - ``tsa_id``: Tierstimmenarchiv unique identifier
@@ -121,14 +121,12 @@ class AnimalSoundArchive(Dataset):
         license="mostly CC-BY-NC-SA (unversioned)",
     )
 
-    # Mapping of sample rates to their corresponding path columns
     _sample_rate_paths = {
-        32000: "32khz_path",  # Pre-resampled to 32kHz
-        16000: "16khz_path",  # Pre-resampled to 16kHz
+        32000: "32khz_path",
+        16000: "16khz_path",
     }
 
-    # Column name for original variable-rate audio files
-    _originals_path_column = "relative_path"
+    _originals_path_column = "originals_path"
 
     def __init__(
         self,
@@ -155,9 +153,8 @@ class AnimalSoundArchive(Dataset):
             librosa's kaiser_best method. If None, audio is returned at its original
             (variable) sample rate.
         data_root : str | AnyPathT, optional
-            The root directory for the dataset. This is prepended to the path
-            column value to construct the full path to audio files. If None, defaults
-            to the GCS bucket paths for this dataset.
+            The root directory for the dataset. All path columns in the CSV are
+            relative to this root. If None, defaults to the GCS bucket path.
         backend : BackendType, optional
             The backend to use ("pandas" or "polars"), by default "polars"
         streaming : bool, optional
@@ -170,19 +167,9 @@ class AnimalSoundArchive(Dataset):
         self.sample_rate = sample_rate
 
         if data_root is None:
-            # Originals are in esp-data-ingestion bucket
-            self.data_root = anypath("gs://esp-data-ingestion/tierstimmenarchiv/v0.1.0/raw/")
-            # Pre-resampled audio is in esp-ml-datasets bucket
-            self._data_root_32k = anypath(
-                "gs://esp-ml-datasets/tierstimmenarchiv/v0.1.0/raw/audio_32k/"
-            )
-            self._data_root_16k = anypath(
-                "gs://esp-ml-datasets/tierstimmenarchiv/v0.1.0/raw/audio_16k/"
-            )
+            self.data_root = anypath("gs://esp-ml-datasets/tierstimmenarchiv/v0.1.0/raw/")
         else:
             self.data_root = anypath(data_root)
-            self._data_root_32k = anypath(data_root)
-            self._data_root_16k = anypath(data_root)
 
     @property
     def columns(self) -> list[str]:
@@ -296,30 +283,19 @@ class AnimalSoundArchive(Dataset):
         dict[str, Any]
             The processed row.
         """
-        # Determine which path column to use based on requested sample rate
-        # If a pre-resampled version is available, use it; otherwise resample on-the-fly
         use_presampled = False
         if self.sample_rate is not None and self.sample_rate in self._sample_rate_paths:
             path_column = self._sample_rate_paths[self.sample_rate]
             if path_column in row and row[path_column] is not None and row[path_column] != "":
-                if self.sample_rate == 16000:
-                    audio_path = self._data_root_16k / row[path_column]
-                else:
-                    audio_path = self._data_root_32k / row[path_column]
+                audio_path = self.data_root / row[path_column]
                 use_presampled = True
 
         if use_presampled:
             audio, sample_rate = read_audio(audio_path)
             audio = audio.astype(np.float32)
             audio = audio_stereo_to_mono(audio, mono_method="average")
-            # Audio is already at the correct sample rate, no resampling needed
         else:
-            # Use original variable-rate files and resample on-the-fly if needed
-            rel_path = row[self._originals_path_column]
-            if not rel_path.startswith("audio/"):
-                audio_path = self.data_root / "audio" / rel_path
-            else:
-                audio_path = self.data_root / rel_path
+            audio_path = self.data_root / row[self._originals_path_column]
             audio, sample_rate = read_audio(audio_path)
             audio = audio.astype(np.float32)
             audio = audio_stereo_to_mono(audio, mono_method="average")
