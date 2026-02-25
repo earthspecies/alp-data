@@ -47,9 +47,9 @@ from esp_data.datasets import Birdeep
 
 EXPECTED_LEN_ALL = 291  #
 EXPECTED_FIRST_ITEM_AUDIO_SHA256 = (
-    "dd81518532b80282b5d9c27b371398a3eb6469bb50da1717ed4113a51023396d"
+    "8b65252bf9e4c82a79277bbccf9bcc4bc0adcda3b7c9dbf4582c36cf99046f89"
 )
-ANNOTATIONS_SHA256 = "667a29118d20db83e672a46e0a2bdb7fd44da8b6fc53ff968ae1201d77472404"
+ANNOTATIONS_SHA256 = "0b20d290e604aeed01c4eb514a6bb2e01f84da0dfee15ebbef964951867abcbf"
 # ---------------------------------------------------------------------------
 
 

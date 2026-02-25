@@ -48,9 +48,9 @@ from esp_data.datasets import AnuraSetStrong
 
 EXPECTED_LEN_ALL = 1612  #
 EXPECTED_FIRST_ITEM_AUDIO_SHA256 = (
-    "6e98829b2da865344782fd378ae3e325d74a76cd534d81bcda9786f68c2d044d"
+    "01f8cb6536238e31f81c1a1cc5090f930f69a55763d354b23e1f756d8f5cd9d7"
 )
-ANNOTATIONS_SHA256 = "a5b5d36cec19868498e60df11e036bdbccbd37c1f2b373597fb8c938a630994a"
+ANNOTATIONS_SHA256 = "f1511e525c9a31cb329c7b925ac1baf68ea888d10a267ac8d8ad307c440439fc"
 # ---------------------------------------------------------------------------
 
 

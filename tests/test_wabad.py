@@ -47,9 +47,9 @@ from esp_data.datasets import WABAD
 
 EXPECTED_LEN_ALL = 4297  #
 EXPECTED_FIRST_ITEM_AUDIO_SHA256 = (
-    "0f4bdebee1f396aff35873adcb7ffa0600a1f0f3e5817f1f1b83b2b2fde792f9"
+    "c0febadbf616be8c083a22e128e82e25be9be8953bf3dec33c2b8ee1f88ad330"
 )
-ANNOTATIONS_SHA256 = "b87159c426ed202fe7a7b6d0b977dc6ed9be3db59f6fcd6df6073d52f8accef0"
+ANNOTATIONS_SHA256 = "318b8a112fcef3e1b2ec9fddc7b1d02f406688c68654a665502f03ea9b9bb90b"
 # ---------------------------------------------------------------------------
 
 

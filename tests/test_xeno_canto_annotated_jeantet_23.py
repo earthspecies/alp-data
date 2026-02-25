@@ -47,9 +47,9 @@ from esp_data.datasets import XenoCantoAnnotatedJeantet23
 
 EXPECTED_LEN_ALL = 967  #
 EXPECTED_FIRST_ITEM_AUDIO_SHA256 = (
-    "65fc1372fa64983d4998cf1be43d4469c7770e2f3485c860c654688ea3a3c30b"
+    "bb8adcd2d870552f35771a7bf36675e7cb6d300020a5c8c9849bd9fc993ef980"
 )
-ANNOTATIONS_SHA256 = "a084b5c5d81987f2dbad2e67c7f113d7a04d352e6c8dce8d2a67f6244e5068ed"
+ANNOTATIONS_SHA256 = "f6e89a84b15cff2796a0d9fb325c424e3d6ac693416106d7d7cc1f6ccc18f7fc"
 # ---------------------------------------------------------------------------
 
 
