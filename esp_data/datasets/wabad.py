@@ -290,6 +290,7 @@ class WABAD(Dataset):
         st = st[st["Begin Time (s)"] < audio_dur].copy()
 
         row["audio"] = audio
+        row["sample_rate"] = sr
         row["selection_table"] = st
 
         if self.output_take_and_give:

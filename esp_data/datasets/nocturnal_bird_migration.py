@@ -78,9 +78,13 @@ class NocturnalBirdMigration(Dataset):
         name="nocturnal_bird_migration",
         owner="benjamin",
         split_paths={
+            # Full training set
             "train": "gs://esp-ml-datasets/nocturnal_bird_migration/train_v2.csv",
+            # Training subset: no xeno-canto
             "train_nonxc": "gs://esp-ml-datasets/nocturnal_bird_migration/train_nonxc_v2.csv",
+            # Training subset: xeno-canto recordings only
             "train_xc": "gs://esp-ml-datasets/nocturnal_bird_migration/train_xc_v2.csv",
+            # Held-out test set
             "test": "gs://esp-ml-datasets/nocturnal_bird_migration/test_v2.csv",
         },
         version="0.1.0",
@@ -205,6 +209,7 @@ class NocturnalBirdMigration(Dataset):
         st = st[st["Begin Time (s)"] < audio_dur].copy()
 
         row["audio"] = audio
+        row["sample_rate"] = sr
         row["selection_table"] = st
 
         if self.output_take_and_give:

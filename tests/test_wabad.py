@@ -198,8 +198,8 @@ def test_presampled_columns_exist(ds: WABAD):
 
 def test_load_presampled_32khz():
     """Loading with sample_rate=32000 should use pre-resampled 32kHz audio."""
-    ds = WABAD(split="all", sample_rate=32000)
-    item = ds[0]
+    ds = WABAD(split="all", sample_rate=32000, streaming=True)
+    item = next(iter(ds))
     audio = item["audio"]
     assert isinstance(audio, np.ndarray)
     assert audio.dtype == np.float32
