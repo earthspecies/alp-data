@@ -33,6 +33,9 @@ class BirdSet(Dataset):
         - ``species_common``: Common English name
         - ``ebird_code``: eBird species code (primary label)
         - ``ebird_code_multilabel``: JSON list of all species codes in recording
+        - ``species_multispecies``: JSON list of scientific names for all species
+        - ``canonical_name_multispecies``: JSON list of canonical names for all species
+        - ``gbifID_multispecies``: JSON list of GBIF backbone IDs for all species
         - ``genus``, ``order``: Taxonomic hierarchy
         - ``gbifID``: GBIF backbone identifier
 
