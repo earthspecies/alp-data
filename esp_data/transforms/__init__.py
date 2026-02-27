@@ -9,6 +9,7 @@ from .multilabel_from_features import (
     MultiLabelFromFeatures,
     MultiLabelFromFeaturesConfig,
 )
+from .rename_columns import RenameColumns, RenameColumnsConfig
 from .subsample import Subsample, SubsampleConfig
 
 __all__ = [
@@ -22,6 +23,8 @@ __all__ = [
     "LabelFromFeatureConfig",
     "MultiLabelFromFeatures",
     "MultiLabelFromFeaturesConfig",
+    "RenameColumns",
+    "RenameColumnsConfig",
     "Subsample",
     "SubsampleConfig",
     "register_transform",

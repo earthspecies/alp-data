@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from io import StringIO
 from typing import Any, Iterator
 
@@ -11,7 +12,9 @@ import pandas as pd
 
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from esp_data.backends import BackendType
-from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
+from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, get_audio_info, read_audio
+
+logger = logging.getLogger("esp_data")
 
 SPECIES_INFO_PATH = "gs://esp-ml-datasets/wabad/v0.1.0/raw/gbif_labels.csv"
 
@@ -92,7 +95,7 @@ class WABAD(Dataset):
         split : str
             Split to load (key in info.split_paths).
         output_take_and_give : dict[str, str] | None
-            Optional mapping of original → new output keys (filters columns as well).
+            Optional mapping of original -> new output keys (filters columns as well).
         sample_rate : int | None
             If set, audio is resampled to this rate.
         data_root : str | AnyPathT | None
@@ -140,6 +143,35 @@ class WABAD(Dataset):
             na_values=[""],
         )
 
+    def _prepare_for_transforms(self) -> None:
+        """Enrich the backend with columns needed by transforms.
+
+        Resolves ``audio_fp`` to full paths using ``data_root`` and adds an
+        ``audio_duration`` column by reading audio file headers via
+        `get_audio_info` (no audio decoding).
+        """
+        if self._data is None:
+            raise RuntimeError("No data loaded. Call _load() first.")
+
+        df = self._data.unwrap.copy()
+
+        if "audio_duration" not in df.columns:
+            durations = []
+            for audio_fp in df["audio_fp"]:
+                full_path = self.data_root / audio_fp
+                try:
+                    info = get_audio_info(full_path)
+                    durations.append(info["duration"])
+                except Exception:
+                    logger.warning(f"Could not read audio info for {full_path}, using 0.0")
+                    durations.append(0.0)
+            df["audio_duration"] = durations
+
+        resolved_paths = [str(self.data_root / fp) for fp in df["audio_fp"]]
+        df["audio_fp"] = resolved_paths
+
+        self._data = self._backend_class(df, streaming=False)
+
     def __len__(self) -> int:
         """Return the number of samples in the dataset.
 
@@ -162,14 +194,40 @@ class WABAD(Dataset):
         return len(self._data)
 
     def _process(self, row: dict[str, Any]) -> dict[str, Any]:
-        # Resolve audio path
-        audio_fp = self.data_root / row["audio_fp"]
+        """Process a single row, loading audio (with optional partial read).
 
-        # Read audio
-        audio, sample_rate = read_audio(audio_fp)
+        When ``window_start_sec`` and ``window_end_sec`` are present (set by
+        the ``window_annotations`` transform), only the windowed segment is
+        loaded via `read_audio(start_time=..., end_time=...)`.
+
+        Parameters
+        ----------
+        row : dict[str, Any]
+            A raw or windowed row from the backend.
+
+        Returns
+        -------
+        dict[str, Any]
+            Row enriched with ``audio`` and ``sample_rate``.
+        """
+        audio_fp = row["audio_fp"]
+        if not str(audio_fp).startswith(("gs://", "s3://", "/")):
+            audio_fp = self.data_root / audio_fp
+
+        window_start = row.get("window_start_sec")
+        window_end = row.get("window_end_sec")
+
+        if window_start is not None and window_end is not None:
+            audio, sample_rate = read_audio(
+                audio_fp,
+                start_time=float(window_start),
+                end_time=float(window_end),
+            )
+        else:
+            audio, sample_rate = read_audio(audio_fp)
+
         audio = audio_stereo_to_mono(audio, mono_method="average").astype(np.float32)
 
-        # Resample if necessary
         if self.sample_rate is not None and sample_rate != self.sample_rate:
             audio = librosa.resample(
                 y=audio,
@@ -180,14 +238,15 @@ class WABAD(Dataset):
             )
             sample_rate = self.sample_rate
 
-        # Selection table
-        st = pd.read_csv(StringIO(row["selection_table"]), sep="\t")
+        # Parse selection table if still a string
+        st = row["selection_table"]
+        if isinstance(st, str):
+            st = pd.read_csv(StringIO(st), sep="\t")
 
-        # Clip events outside audio (keep only events that begin before audio end)
-        audio_dur = len(audio) / float(sample_rate)
-        st = st[st["Begin Time (s)"] < audio_dur].copy()
+        if window_start is None:
+            audio_dur = len(audio) / float(sample_rate)
+            st = st[st["Begin Time (s)"] < audio_dur].copy()
 
-        # Build output
         row["audio"] = audio
         row["sample_rate"] = sample_rate
         row["selection_table"] = st
@@ -202,6 +261,7 @@ class WABAD(Dataset):
 
     def __getitem__(self, idx: int) -> dict[str, Any]:
         """Get a specific sample from the dataset.
+
         Parameters
         ----------
         idx : int
@@ -253,20 +313,19 @@ class WABAD(Dataset):
         )
 
         if dataset_config.transformations:
+            ds._prepare_for_transforms()
             meta = ds.apply_transformations(dataset_config.transformations)
             return ds, meta
 
         return ds, {}
 
     def get_available_labels(self) -> list[str]:
-        """
-        Return all possible labels for a given annotation column
-        anno_column is included as an optional argument for consistency
-        with other detection datasets.
+        """Return all possible labels for a given annotation column.
 
         Returns
-        ---------
-        A list of all the available labels for anno_column
+        -------
+        list[str]
+            A list of all the available labels for the annotation column.
         """
 
         return self.available_labels

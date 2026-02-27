@@ -5,9 +5,12 @@ from __future__ import annotations
 import inspect
 import logging
 import warnings
+from pathlib import Path
 from typing import Any, Callable, Iterator, Literal
 
 import polars as pl
+
+from esp_data.io import AnyPathT, anypath
 
 from .protocol import DataBackend
 
@@ -1011,6 +1014,53 @@ class PolarsBackend(DataBackend):
             self._df.clone(),
             streaming=self._streaming,
         )
+
+    def _write_path(self, path: str) -> Path | AnyPathT:
+        """Resolve a destination path string to a local or cloud path object.
+
+        Parameters
+        ----------
+        path : str
+            Destination path (local or ``gs://``/``s3://``).
+
+        Returns
+        -------
+        Path | AnyPathT
+            Resolved path object.
+        """
+        return anypath(path)
+
+    def to_csv(self, path: str) -> None:
+        """Write the DataFrame to a CSV file.
+
+        Parameters
+        ----------
+        path : str
+            Destination path (local or cloud, e.g. ``gs://bucket/file.csv``).
+        """
+        df = self._ensure_collected()
+        dest = self._write_path(path)
+        if isinstance(dest, Path):
+            df.write_csv(str(dest))
+        else:
+            with dest.open("wb") as f:
+                df.write_csv(f)
+
+    def to_jsonl(self, path: str) -> None:
+        """Write the DataFrame to a JSON-Lines (ndjson) file.
+
+        Parameters
+        ----------
+        path : str
+            Destination path (local or cloud, e.g. ``gs://bucket/file.jsonl``).
+        """
+        df = self._ensure_collected()
+        dest = self._write_path(path)
+        if isinstance(dest, Path):
+            df.write_ndjson(str(dest))
+        else:
+            with dest.open("wb") as f:
+                df.write_ndjson(f)
 
     def apply_fn(
         self,

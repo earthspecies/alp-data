@@ -183,10 +183,11 @@ def _read_audio_from_file(
             "Failed to read audio from file-like object directly, "
             f"falling back to temporary file method: {e}"
         )
-        # Fallback to temporary file if BytesIO approach fails
-        # For formats like MP3, soundfile cannot read from BytesIO with format specification
-        # due to libsndfile limitations. We use a temporary file as a workaround.
+        # Fallback to temporary file if BytesIO approach fails.
+        # For formats like MP3, soundfile cannot read from BytesIO with format
+        # specification due to libsndfile limitations.
         if format:
+            audio_file.seek(0)
             return _read_audio_from_tmpfile(audio_file.read(), format, frames, start)
 
 

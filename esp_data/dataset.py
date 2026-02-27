@@ -10,6 +10,8 @@ from esp_data.io import AnyPathT, read_yaml
 from esp_data.transforms import transform_from_config
 from esp_data.transforms.registry import RegisteredTransformConfigs
 
+SaveFormat = Literal["csv", "jsonl"]
+
 
 class DatasetConfig(BaseModel):
     """A Pydantic base model for the configuration of a dataset.
@@ -491,6 +493,33 @@ class Dataset(ABC):
             transform_metadata[cfg.type] = metadata
 
         return transform_metadata
+
+    def save_data(self, path: str, fmt: SaveFormat = "csv") -> None:
+        """Save the dataset's backend data to a file.
+
+        Writes the current state of ``_data`` (after any transformations) to
+        the given path.  This captures the tabular metadata (paths, labels,
+        conversation templates, etc.) — not the decoded audio.
+
+        Parameters
+        ----------
+        path : str
+            Destination file path (local or cloud, e.g.
+            ``gs://bucket/train.csv``).
+        fmt : SaveFormat
+            Output format: ``"csv"`` or ``"jsonl"``.
+
+        Raises
+        ------
+        RuntimeError
+            If no data has been loaded yet.
+        """
+        if self._data is None:
+            raise RuntimeError("No data loaded. Call _load() first.")
+        if fmt == "csv":
+            self._data.to_csv(path)
+        elif fmt == "jsonl":
+            self._data.to_jsonl(path)
 
 
 # Global registry instance

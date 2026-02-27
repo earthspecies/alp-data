@@ -546,6 +546,26 @@ class DataBackend(Protocol):
         """
         ...
 
+    def to_csv(self, path: str) -> None:
+        """Write the data to a CSV file.
+
+        Parameters
+        ----------
+        path : str
+            Destination path (local or cloud, e.g. ``gs://bucket/file.csv``).
+        """
+        ...
+
+    def to_jsonl(self, path: str) -> None:
+        """Write the data to a JSON-Lines (ndjson) file.
+
+        Parameters
+        ----------
+        path : str
+            Destination path (local or cloud, e.g. ``gs://bucket/file.jsonl``).
+        """
+        ...
+
     def apply_fn(self, fn: Callable, **fn_kwargs: dict) -> "DataBackend":
         """Apply a custom function to the underlying data.
 

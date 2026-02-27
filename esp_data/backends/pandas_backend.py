@@ -4,9 +4,12 @@ from __future__ import annotations
 
 import inspect
 import warnings
+from pathlib import Path
 from typing import Any, Callable, Iterator, Literal
 
 import pandas as pd
+
+from esp_data.io import AnyPathT, anypath
 
 from .protocol import DataBackend
 
@@ -929,6 +932,53 @@ class PandasBackend(DataBackend):
         """
         self._ensure_not_streaming("copy")
         return PandasBackend(self._df.copy(), streaming=False)
+
+    def _write_path(self, path: str) -> Path | AnyPathT:
+        """Resolve a destination path string to a local or cloud path object.
+
+        Parameters
+        ----------
+        path : str
+            Destination path (local or ``gs://``/``s3://``).
+
+        Returns
+        -------
+        Path | AnyPathT
+            Resolved path object.
+        """
+        return anypath(path)
+
+    def to_csv(self, path: str) -> None:
+        """Write the DataFrame to a CSV file.
+
+        Parameters
+        ----------
+        path : str
+            Destination path (local or cloud, e.g. ``gs://bucket/file.csv``).
+        """
+        self._ensure_not_streaming("to_csv")
+        dest = self._write_path(path)
+        if isinstance(dest, Path):
+            self._df.to_csv(str(dest), index=False)
+        else:
+            with dest.open("w") as f:
+                self._df.to_csv(f, index=False)
+
+    def to_jsonl(self, path: str) -> None:
+        """Write the DataFrame to a JSON-Lines (ndjson) file.
+
+        Parameters
+        ----------
+        path : str
+            Destination path (local or cloud, e.g. ``gs://bucket/file.jsonl``).
+        """
+        self._ensure_not_streaming("to_jsonl")
+        dest = self._write_path(path)
+        if isinstance(dest, Path):
+            self._df.to_json(str(dest), orient="records", lines=True)
+        else:
+            with dest.open("w") as f:
+                self._df.to_json(f, orient="records", lines=True)
 
     def apply_fn(
         self,

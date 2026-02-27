@@ -4,6 +4,7 @@ from esp_data.dataset import (
     ChainedDatasetConfig,
     Dataset,
     DatasetInfo,
+    SaveFormat,
     dataset_from_config,
     register_dataset,
 )
@@ -168,6 +169,34 @@ class ChainedDataset(Dataset):
         ds = cls(datasets)
 
         return ds, metadata
+
+    def save_data(self, path: str, fmt: SaveFormat = "csv") -> None:
+        """Concatenate all source datasets' backends and save to a single file.
+
+        Parameters
+        ----------
+        path : str
+            Destination file path (local or cloud).
+        fmt : SaveFormat
+            Output format: ``"csv"`` or ``"jsonl"``.
+
+        Raises
+        ------
+        ChainException
+            If none of the source datasets have loaded data.
+        """
+        backends = [
+            ds._data for ds in self._source_datasets if getattr(ds, "_data", None) is not None
+        ]
+        if not backends:
+            raise ChainException("No source datasets have loaded data.")
+
+        backend_cls = type(backends[0])
+        merged = backend_cls.concat(backends)
+        if fmt == "csv":
+            merged.to_csv(path)
+        elif fmt == "jsonl":
+            merged.to_jsonl(path)
 
     def __str__(self) -> str:
         return (
