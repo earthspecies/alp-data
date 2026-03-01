@@ -40,12 +40,12 @@ ECOTYPE_LABELS = [
     "OKW",  # Offshore
 ]
 
-# Data providers in the DCLDE 2026 dataset
+# Data providers in the DCLDE 2026 dataset.
+# UAF_NGOS is excluded
 PROVIDERS = [
     "DFO_CRP",
     "JASCO_VFPA",
     "DFO_WDLP",
-    "UAF_NGOS",
     "SIMRES",
     "SIO",
     "ONC",
@@ -105,8 +105,11 @@ class DCLDE2026(Dataset):
 
     Provider Notes
     --------------
-    Data providers: DFO_CRP, JASCO_VFPA, DFO_WDLP, UAF_NGOS, SIMRES, SIO,
+    Data providers: DFO_CRP, JASCO_VFPA, DFO_WDLP, SIMRES, SIO,
     ONC, OrcaSound, JASCO_VFPA_ONC, SMRUConsulting.
+
+    **UAF_NGOS** (University of Alaska Fairbanks / North Gulf Oceanic Society)
+    is excluded from the dataset.
 
     Providers differ in annotation precision and coverage. Combining data
     from multiple providers should be done carefully — consider filtering
@@ -144,7 +147,7 @@ class DCLDE2026(Dataset):
         },
         version="0.1.0",
         description="DCLDE 2026 killer whale dataset with species, ecotype, call type, "
-        "pod, clan, and acoustic behavior annotations across 10 providers",
+        "pod, clan, and acoustic behavior annotations across 9 providers",
         sources="Palmer et al. (2025) doi:10.1038/s41597-025-05281-5",
         license="CC-BY-4.0",
     )
