@@ -40,6 +40,8 @@ ECOTYPE_LABELS = [
     "OKW",  # Offshore
 ]
 
+COARSE_CALL_TYPE_LABELS = ["Call", "Whistle", "Click", "Buzz"]
+
 # Data providers in the DCLDE 2026 dataset.
 # UAF_NGOS is excluded
 PROVIDERS = [
@@ -82,7 +84,7 @@ class DCLDE2026(Dataset):
         ``High Freq (Hz)``, ``species``, ``canonical_name``,
         ``sound_detail``, ``ecotype``, ``call_type``,
         ``acoustic_behavior``, ``pod``, ``clan``,
-        ``annotation_level``, ``confidence``.
+        ``annotation_level``, ``confidence``, ``coarse_call_type``.
     provider : str
         Data provider name (see :data:`PROVIDERS`).
     16khz_path, 32khz_path : str | None
@@ -98,7 +100,9 @@ class DCLDE2026(Dataset):
     - Species classification: Killer whale / Humpback whale / Bowhead whale / Unknown biological
     - KW detection (binary): presence / absence of killer whale
     - Ecotype classification: SRKW / TKW / NRKW / SAR / OKW
-    - Call type classification: S-series, N-series, T-series, OFF-series, BP, W, etc.
+    - Call type classification (fine-grained): S04, N24ii, T01, whistle, BP, EL, etc.
+    - Call type classification (coarse): Call / Whistle / Click / Buzz
+      (see :data:`COARSE_CALL_TYPE_LABELS` below)
     - Acoustic behavior: burst_pulse / pulsed_call / whistle / click / buzzer / echolocation
     - Pod identification: J / K / L pods (Southern Resident)
     - Clan identification: A / G clans (Northern Resident)
@@ -123,6 +127,21 @@ class DCLDE2026(Dataset):
     - SIMRES: Consistent annotations.
     - VFPA: Generally good; a few missed calls and slightly less
       consistency with faint calls.
+
+    Coarse call types:
+    Coarse call types derived from the fine-grained ``call_type`` column.
+    The ``coarse_call_type`` column is pre-computed in the selection tables.
+
+    Mapping rules:
+    Call    — Discrete pulsed calls (S-series, N-series, T-series, OFF-series,
+                NS, BP) and variable vocalizations (tone, moan, upsweep, chirp,
+                groan, knock, shriek, whup, creak, grunt, scream, rasp, growl).
+    Whistle — Whistle-labeled signals only (whistle, whistle/tone, W).
+    Click   — Echolocation clicks (EL).
+    Buzz    — Rapid click trains (buzz, BZ).
+
+    Unknown / ambiguous labels (Unk, Multiple overlapping, etc.) map to empty
+    string and are dropped when ``drop_empty_windows=True`` in windowing.
 
 
     Examples
@@ -293,8 +312,15 @@ class DCLDE2026(Dataset):
     def _process(self, row: dict[str, Any]) -> dict[str, Any]:
         audio_fp, is_presampled = self._resolve_audio_path(row)
 
-        # Read audio
-        audio, sr = read_audio(audio_fp)
+        window_start = row.get("window_start_sec")
+        window_end = row.get("window_end_sec")
+
+        if window_start is not None and window_end is not None:
+            audio, sr = read_audio(
+                audio_fp, start_time=float(window_start), end_time=float(window_end)
+            )
+        else:
+            audio, sr = read_audio(audio_fp)
         audio = audio_stereo_to_mono(audio, mono_method="average").astype(np.float32)
 
         # Resample on-the-fly only when no pre-resampled file was used
