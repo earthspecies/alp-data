@@ -47,9 +47,9 @@ from esp_data.datasets import NocturnalBirdMigration
 
 EXPECTED_LEN_ALL = 271  #
 EXPECTED_FIRST_ITEM_AUDIO_SHA256 = (
-    "5ffaed0dcd40e3efcb59086a6fe29d0d5b38df6cf6ac87c2a99b71ba34657c86"
+    "6db9f3c9ac491e67c974694083815346912fb0d9135815d0301270c3cae1ff86"
 )
-ANNOTATIONS_SHA256 = "e4f2e0aaef608be377184ff0f0c394d80b22585188734ccb09a86598927c9ef8"
+ANNOTATIONS_SHA256 = "a494952f89f1f92fbebc1032892f7e21eed01c845018ddf62b8f96c5ba84d8ac"
 # ---------------------------------------------------------------------------
 
 
@@ -164,6 +164,22 @@ def test_reference_item_stability(ds_pandas: NocturnalBirdMigration):
         "If this is an intentional dataset/content update, "
         "replace EXPECTED_FIRST_ITEM_AUDIO_SHA256 with the new hash."
     )
+
+
+def test_presampled_columns_exist(ds: NocturnalBirdMigration):
+    """Pre-resampled path columns should be present in the loaded data."""
+    assert "16khz_path" in ds.columns
+    assert "32khz_path" in ds.columns
+
+
+def test_load_presampled_32khz():
+    """Loading with sample_rate=32000 should use pre-resampled 32kHz audio."""
+    ds = NocturnalBirdMigration(split="test", sample_rate=32000, streaming=True)
+    item = next(iter(ds))
+    audio = item["audio"]
+    assert isinstance(audio, np.ndarray)
+    assert audio.dtype == np.float32
+    assert audio.size >= 10
 
 
 def test_check_selection_table(ds: NocturnalBirdMigration, sample_indices: List[int]):

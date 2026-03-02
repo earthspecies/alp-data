@@ -60,6 +60,13 @@ class WABAD(Dataset):
     indices with species-based diversity indices. The dataset is published under a
     Creative Commons Attribution Non Commercial 4.0 International copyright.
 
+    Pre-resampled Audio
+    -------------------
+    Pre-resampled audio is available at 16 kHz and 32 kHz. When
+    ``sample_rate`` matches one of these rates, the pre-resampled files are
+    loaded directly (no on-the-fly resampling). For any other target rate,
+    audio is resampled on-the-fly using librosa's ``kaiser_best`` method.
+
     References
     ----------
     https://zenodo.org/records/15629388
@@ -71,85 +78,88 @@ class WABAD(Dataset):
         name="wabad",
         owner="benjamin",
         split_paths={
-            "all": "gs://esp-ml-datasets/wabad/v0.1.0/raw/all_info_gbif.csv",
-            "CAT": "gs://esp-ml-datasets/wabad/v0.1.0/raw/CAT_info_gbif.csv",
-            "POZO": "gs://esp-ml-datasets/wabad/v0.1.0/raw/POZO_info_gbif.csv",
-            "BRE": "gs://esp-ml-datasets/wabad/v0.1.0/raw/BRE_info_gbif.csv",
-            "EFFOR": "gs://esp-ml-datasets/wabad/v0.1.0/raw/EFFOR_info_gbif.csv",
-            "MONTEB": "gs://esp-ml-datasets/wabad/v0.1.0/raw/MONTEB_info_gbif.csv",
-            "CB": "gs://esp-ml-datasets/wabad/v0.1.0/raw/CB_info_gbif.csv",
-            "FEU": "gs://esp-ml-datasets/wabad/v0.1.0/raw/FEU_info_gbif.csv",
-            "BIAL": "gs://esp-ml-datasets/wabad/v0.1.0/raw/BIAL_info_gbif.csv",
-            "SPMCO": "gs://esp-ml-datasets/wabad/v0.1.0/raw/SPMCO_info_gbif.csv",
-            "OIO": "gs://esp-ml-datasets/wabad/v0.1.0/raw/OIO_info_gbif.csv",
-            "OESF": "gs://esp-ml-datasets/wabad/v0.1.0/raw/OESF_info_gbif.csv",
-            "QR": "gs://esp-ml-datasets/wabad/v0.1.0/raw/QR_info_gbif.csv",
-            "HAG": "gs://esp-ml-datasets/wabad/v0.1.0/raw/HAG_info_gbif.csv",
-            "VIL": "gs://esp-ml-datasets/wabad/v0.1.0/raw/VIL_info_gbif.csv",
-            "RFP": "gs://esp-ml-datasets/wabad/v0.1.0/raw/RFP_info_gbif.csv",
-            "HAK": "gs://esp-ml-datasets/wabad/v0.1.0/raw/HAK_info_gbif.csv",
-            "SLOB": "gs://esp-ml-datasets/wabad/v0.1.0/raw/SLOB_info_gbif.csv",
-            "BERB": "gs://esp-ml-datasets/wabad/v0.1.0/raw/BERB_info_gbif.csv",
-            "COU": "gs://esp-ml-datasets/wabad/v0.1.0/raw/COU_info_gbif.csv",
-            "OLIV": "gs://esp-ml-datasets/wabad/v0.1.0/raw/OLIV_info_gbif.csv",
-            "EVROS": "gs://esp-ml-datasets/wabad/v0.1.0/raw/EVROS_info_gbif.csv",
-            "FNCA": "gs://esp-ml-datasets/wabad/v0.1.0/raw/FNCA_info_gbif.csv",
-            "RGU": "gs://esp-ml-datasets/wabad/v0.1.0/raw/RGU_info_gbif.csv",
-            "CRUZ": "gs://esp-ml-datasets/wabad/v0.1.0/raw/CRUZ_info_gbif.csv",
-            "JUNCA": "gs://esp-ml-datasets/wabad/v0.1.0/raw/JUNCA_info_gbif.csv",
-            "PINA": "gs://esp-ml-datasets/wabad/v0.1.0/raw/PINA_info_gbif.csv",
-            "GTLU": "gs://esp-ml-datasets/wabad/v0.1.0/raw/GTLU_info_gbif.csv",
-            "MAPIMI": "gs://esp-ml-datasets/wabad/v0.1.0/raw/MAPIMI_info_gbif.csv",
-            "SAL": "gs://esp-ml-datasets/wabad/v0.1.0/raw/SAL_info_gbif.csv",
-            "ARD": "gs://esp-ml-datasets/wabad/v0.1.0/raw/ARD_info_gbif.csv",
-            "MARTI": "gs://esp-ml-datasets/wabad/v0.1.0/raw/MARTI_info_gbif.csv",
-            "DYOM": "gs://esp-ml-datasets/wabad/v0.1.0/raw/DYOM_info_gbif.csv",
-            "VER": "gs://esp-ml-datasets/wabad/v0.1.0/raw/VER_info_gbif.csv",
-            "SCHG": "gs://esp-ml-datasets/wabad/v0.1.0/raw/SCHG_info_gbif.csv",
-            "GLEN": "gs://esp-ml-datasets/wabad/v0.1.0/raw/GLEN_info_gbif.csv",
-            "HONDO": "gs://esp-ml-datasets/wabad/v0.1.0/raw/HONDO_info_gbif.csv",
-            "NL": "gs://esp-ml-datasets/wabad/v0.1.0/raw/NL_info_gbif.csv",
-            "BRCAS": "gs://esp-ml-datasets/wabad/v0.1.0/raw/BRCAS_info_gbif.csv",
-            "NAV": "gs://esp-ml-datasets/wabad/v0.1.0/raw/NAV_info_gbif.csv",
-            "KAR": "gs://esp-ml-datasets/wabad/v0.1.0/raw/KAR_info_gbif.csv",
-            "BUR": "gs://esp-ml-datasets/wabad/v0.1.0/raw/BUR_info_gbif.csv",
-            "KIB": "gs://esp-ml-datasets/wabad/v0.1.0/raw/KIB_info_gbif.csv",
-            "SCHF": "gs://esp-ml-datasets/wabad/v0.1.0/raw/SCHF_info_gbif.csv",
-            "TAM": "gs://esp-ml-datasets/wabad/v0.1.0/raw/TAM_info_gbif.csv",
-            "HUAP": "gs://esp-ml-datasets/wabad/v0.1.0/raw/HUAP_info_gbif.csv",
-            "DONG": "gs://esp-ml-datasets/wabad/v0.1.0/raw/DONG_info_gbif.csv",
-            "CLH": "gs://esp-ml-datasets/wabad/v0.1.0/raw/CLH_info_gbif.csv",
-            "HAR": "gs://esp-ml-datasets/wabad/v0.1.0/raw/HAR_info_gbif.csv",
-            "BOLIN": "gs://esp-ml-datasets/wabad/v0.1.0/raw/BOLIN_info_gbif.csv",
-            "SITH": "gs://esp-ml-datasets/wabad/v0.1.0/raw/SITH_info_gbif.csv",
-            "RBA": "gs://esp-ml-datasets/wabad/v0.1.0/raw/RBA_info_gbif.csv",
-            "MOPU": "gs://esp-ml-datasets/wabad/v0.1.0/raw/MOPU_info_gbif.csv",
-            "CRAT": "gs://esp-ml-datasets/wabad/v0.1.0/raw/CRAT_info_gbif.csv",
-            "PGF": "gs://esp-ml-datasets/wabad/v0.1.0/raw/PGF_info_gbif.csv",
-            "PUUL": "gs://esp-ml-datasets/wabad/v0.1.0/raw/PUUL_info_gbif.csv",
-            "MILLAN": "gs://esp-ml-datasets/wabad/v0.1.0/raw/MILLAN_info_gbif.csv",
-            "BMT": "gs://esp-ml-datasets/wabad/v0.1.0/raw/BMT_info_gbif.csv",
-            "SD": "gs://esp-ml-datasets/wabad/v0.1.0/raw/SD_info_gbif.csv",
-            "UNI": "gs://esp-ml-datasets/wabad/v0.1.0/raw/UNI_info_gbif.csv",
-            "SBN": "gs://esp-ml-datasets/wabad/v0.1.0/raw/SBN_info_gbif.csv",
-            "DUNAS": "gs://esp-ml-datasets/wabad/v0.1.0/raw/DUNAS_info_gbif.csv",
-            "PETI": "gs://esp-ml-datasets/wabad/v0.1.0/raw/PETI_info_gbif.csv",
-            "LIM": "gs://esp-ml-datasets/wabad/v0.1.0/raw/LIM_info_gbif.csv",
-            "BAM": "gs://esp-ml-datasets/wabad/v0.1.0/raw/BAM_info_gbif.csv",
-            "DEVA": "gs://esp-ml-datasets/wabad/v0.1.0/raw/DEVA_info_gbif.csv",
-            "ROTOK": "gs://esp-ml-datasets/wabad/v0.1.0/raw/ROTOK_info_gbif.csv",
-            "CARI": "gs://esp-ml-datasets/wabad/v0.1.0/raw/CARI_info_gbif.csv",
-            "PITI": "gs://esp-ml-datasets/wabad/v0.1.0/raw/PITI_info_gbif.csv",
-            "RME": "gs://esp-ml-datasets/wabad/v0.1.0/raw/RME_info_gbif.csv",
-            "MABI": "gs://esp-ml-datasets/wabad/v0.1.0/raw/MABI_info_gbif.csv",
-            "EMP": "gs://esp-ml-datasets/wabad/v0.1.0/raw/EMP_info_gbif.csv",
-            "EFFOU": "gs://esp-ml-datasets/wabad/v0.1.0/raw/EFFOU_info_gbif.csv",
+            "all": "gs://esp-ml-datasets/wabad/v0.1.0/raw/all_info_gbif_v2.csv",
+            "CAT": "gs://esp-ml-datasets/wabad/v0.1.0/raw/CAT_info_gbif_v2.csv",
+            "POZO": "gs://esp-ml-datasets/wabad/v0.1.0/raw/POZO_info_gbif_v2.csv",
+            "BRE": "gs://esp-ml-datasets/wabad/v0.1.0/raw/BRE_info_gbif_v2.csv",
+            "EFFOR": "gs://esp-ml-datasets/wabad/v0.1.0/raw/EFFOR_info_gbif_v2.csv",
+            "MONTEB": "gs://esp-ml-datasets/wabad/v0.1.0/raw/MONTEB_info_gbif_v2.csv",
+            "CB": "gs://esp-ml-datasets/wabad/v0.1.0/raw/CB_info_gbif_v2.csv",
+            "FEU": "gs://esp-ml-datasets/wabad/v0.1.0/raw/FEU_info_gbif_v2.csv",
+            "BIAL": "gs://esp-ml-datasets/wabad/v0.1.0/raw/BIAL_info_gbif_v2.csv",
+            "SPMCO": "gs://esp-ml-datasets/wabad/v0.1.0/raw/SPMCO_info_gbif_v2.csv",
+            "OIO": "gs://esp-ml-datasets/wabad/v0.1.0/raw/OIO_info_gbif_v2.csv",
+            "OESF": "gs://esp-ml-datasets/wabad/v0.1.0/raw/OESF_info_gbif_v2.csv",
+            "QR": "gs://esp-ml-datasets/wabad/v0.1.0/raw/QR_info_gbif_v2.csv",
+            "HAG": "gs://esp-ml-datasets/wabad/v0.1.0/raw/HAG_info_gbif_v2.csv",
+            "VIL": "gs://esp-ml-datasets/wabad/v0.1.0/raw/VIL_info_gbif_v2.csv",
+            "RFP": "gs://esp-ml-datasets/wabad/v0.1.0/raw/RFP_info_gbif_v2.csv",
+            "HAK": "gs://esp-ml-datasets/wabad/v0.1.0/raw/HAK_info_gbif_v2.csv",
+            "SLOB": "gs://esp-ml-datasets/wabad/v0.1.0/raw/SLOB_info_gbif_v2.csv",
+            "BERB": "gs://esp-ml-datasets/wabad/v0.1.0/raw/BERB_info_gbif_v2.csv",
+            "COU": "gs://esp-ml-datasets/wabad/v0.1.0/raw/COU_info_gbif_v2.csv",
+            "OLIV": "gs://esp-ml-datasets/wabad/v0.1.0/raw/OLIV_info_gbif_v2.csv",
+            "EVROS": "gs://esp-ml-datasets/wabad/v0.1.0/raw/EVROS_info_gbif_v2.csv",
+            "FNCA": "gs://esp-ml-datasets/wabad/v0.1.0/raw/FNCA_info_gbif_v2.csv",
+            "RGU": "gs://esp-ml-datasets/wabad/v0.1.0/raw/RGU_info_gbif_v2.csv",
+            "CRUZ": "gs://esp-ml-datasets/wabad/v0.1.0/raw/CRUZ_info_gbif_v2.csv",
+            "JUNCA": "gs://esp-ml-datasets/wabad/v0.1.0/raw/JUNCA_info_gbif_v2.csv",
+            "PINA": "gs://esp-ml-datasets/wabad/v0.1.0/raw/PINA_info_gbif_v2.csv",
+            "GTLU": "gs://esp-ml-datasets/wabad/v0.1.0/raw/GTLU_info_gbif_v2.csv",
+            "MAPIMI": "gs://esp-ml-datasets/wabad/v0.1.0/raw/MAPIMI_info_gbif_v2.csv",
+            "SAL": "gs://esp-ml-datasets/wabad/v0.1.0/raw/SAL_info_gbif_v2.csv",
+            "ARD": "gs://esp-ml-datasets/wabad/v0.1.0/raw/ARD_info_gbif_v2.csv",
+            "MARTI": "gs://esp-ml-datasets/wabad/v0.1.0/raw/MARTI_info_gbif_v2.csv",
+            "DYOM": "gs://esp-ml-datasets/wabad/v0.1.0/raw/DYOM_info_gbif_v2.csv",
+            "VER": "gs://esp-ml-datasets/wabad/v0.1.0/raw/VER_info_gbif_v2.csv",
+            "SCHG": "gs://esp-ml-datasets/wabad/v0.1.0/raw/SCHG_info_gbif_v2.csv",
+            "GLEN": "gs://esp-ml-datasets/wabad/v0.1.0/raw/GLEN_info_gbif_v2.csv",
+            "HONDO": "gs://esp-ml-datasets/wabad/v0.1.0/raw/HONDO_info_gbif_v2.csv",
+            "NL": "gs://esp-ml-datasets/wabad/v0.1.0/raw/NL_info_gbif_v2.csv",
+            "BRCAS": "gs://esp-ml-datasets/wabad/v0.1.0/raw/BRCAS_info_gbif_v2.csv",
+            "NAV": "gs://esp-ml-datasets/wabad/v0.1.0/raw/NAV_info_gbif_v2.csv",
+            "KAR": "gs://esp-ml-datasets/wabad/v0.1.0/raw/KAR_info_gbif_v2.csv",
+            "BUR": "gs://esp-ml-datasets/wabad/v0.1.0/raw/BUR_info_gbif_v2.csv",
+            "KIB": "gs://esp-ml-datasets/wabad/v0.1.0/raw/KIB_info_gbif_v2.csv",
+            "SCHF": "gs://esp-ml-datasets/wabad/v0.1.0/raw/SCHF_info_gbif_v2.csv",
+            "TAM": "gs://esp-ml-datasets/wabad/v0.1.0/raw/TAM_info_gbif_v2.csv",
+            "HUAP": "gs://esp-ml-datasets/wabad/v0.1.0/raw/HUAP_info_gbif_v2.csv",
+            "DONG": "gs://esp-ml-datasets/wabad/v0.1.0/raw/DONG_info_gbif_v2.csv",
+            "CLH": "gs://esp-ml-datasets/wabad/v0.1.0/raw/CLH_info_gbif_v2.csv",
+            "HAR": "gs://esp-ml-datasets/wabad/v0.1.0/raw/HAR_info_gbif_v2.csv",
+            "BOLIN": "gs://esp-ml-datasets/wabad/v0.1.0/raw/BOLIN_info_gbif_v2.csv",
+            "SITH": "gs://esp-ml-datasets/wabad/v0.1.0/raw/SITH_info_gbif_v2.csv",
+            "RBA": "gs://esp-ml-datasets/wabad/v0.1.0/raw/RBA_info_gbif_v2.csv",
+            "MOPU": "gs://esp-ml-datasets/wabad/v0.1.0/raw/MOPU_info_gbif_v2.csv",
+            "CRAT": "gs://esp-ml-datasets/wabad/v0.1.0/raw/CRAT_info_gbif_v2.csv",
+            "PGF": "gs://esp-ml-datasets/wabad/v0.1.0/raw/PGF_info_gbif_v2.csv",
+            "PUUL": "gs://esp-ml-datasets/wabad/v0.1.0/raw/PUUL_info_gbif_v2.csv",
+            "MILLAN": "gs://esp-ml-datasets/wabad/v0.1.0/raw/MILLAN_info_gbif_v2.csv",
+            "BMT": "gs://esp-ml-datasets/wabad/v0.1.0/raw/BMT_info_gbif_v2.csv",
+            "SD": "gs://esp-ml-datasets/wabad/v0.1.0/raw/SD_info_gbif_v2.csv",
+            "UNI": "gs://esp-ml-datasets/wabad/v0.1.0/raw/UNI_info_gbif_v2.csv",
+            "SBN": "gs://esp-ml-datasets/wabad/v0.1.0/raw/SBN_info_gbif_v2.csv",
+            "DUNAS": "gs://esp-ml-datasets/wabad/v0.1.0/raw/DUNAS_info_gbif_v2.csv",
+            "PETI": "gs://esp-ml-datasets/wabad/v0.1.0/raw/PETI_info_gbif_v2.csv",
+            "LIM": "gs://esp-ml-datasets/wabad/v0.1.0/raw/LIM_info_gbif_v2.csv",
+            "BAM": "gs://esp-ml-datasets/wabad/v0.1.0/raw/BAM_info_gbif_v2.csv",
+            "DEVA": "gs://esp-ml-datasets/wabad/v0.1.0/raw/DEVA_info_gbif_v2.csv",
+            "ROTOK": "gs://esp-ml-datasets/wabad/v0.1.0/raw/ROTOK_info_gbif_v2.csv",
+            "CARI": "gs://esp-ml-datasets/wabad/v0.1.0/raw/CARI_info_gbif_v2.csv",
+            "PITI": "gs://esp-ml-datasets/wabad/v0.1.0/raw/PITI_info_gbif_v2.csv",
+            "RME": "gs://esp-ml-datasets/wabad/v0.1.0/raw/RME_info_gbif_v2.csv",
+            "MABI": "gs://esp-ml-datasets/wabad/v0.1.0/raw/MABI_info_gbif_v2.csv",
+            "EMP": "gs://esp-ml-datasets/wabad/v0.1.0/raw/EMP_info_gbif_v2.csv",
+            "EFFOU": "gs://esp-ml-datasets/wabad/v0.1.0/raw/EFFOU_info_gbif_v2.csv",
         },
         version="0.1.0",
         description="[MISSING]",
         sources="zenodo.org",
         license="CC-BY-4.0",
     )
+
+    _sample_rate_paths: dict[int, str] = {16000: "16khz_path", 32000: "32khz_path"}
+    _originals_path_column = "audio_fp"
 
     def __init__(
         self,
@@ -182,16 +192,15 @@ class WABAD(Dataset):
         self.annotation_columns = ["Species"]
         self.unknown_label = "Unknown"
         self.sample_rate = sample_rate
-        self.data_root = anypath(data_root) if data_root is not None else None
 
         self.full_dataset_available_labels = None  # placeholder for labels if split == all
 
-        # Load split CSV
         self._load()
 
-        # If no explicit data_root, assume parent dir of the split path
-        if self.data_root is None:
+        if data_root is None:
             self.data_root = anypath(self.info.split_paths[self.split]).parent
+        else:
+            self.data_root = anypath(data_root)
 
     @property
     def columns(self) -> list[str]:
@@ -200,6 +209,11 @@ class WABAD(Dataset):
     @property
     def available_splits(self) -> list[str]:
         return list(self.info.split_paths.keys())
+
+    @property
+    def available_sample_rates(self) -> list[int]:
+        """Return pre-resampled sample rates whose path columns exist in the data."""
+        return [sr for sr, col in self._sample_rate_paths.items() if col in self._data.columns]
 
     def _load(self) -> None:
         if self.split not in self.info.split_paths:
@@ -236,34 +250,47 @@ class WABAD(Dataset):
         return len(self._data)
 
     def _process(self, row: dict[str, Any]) -> dict[str, Any]:
-        # Resolve audio path
-        audio_fp = self.data_root / row["audio_fp"]
+        """Process a single row of the dataset.
 
-        # Read audio
-        audio, sample_rate = read_audio(audio_fp)
+        Parameters
+        ----------
+        row : dict[str, Any]
+            A dictionary representing a single row of the dataset.
+
+        Returns
+        -------
+        dict[str, Any]
+            The processed row.
+        """
+        use_presampled = False
+        if self.sample_rate is not None and self.sample_rate in self._sample_rate_paths:
+            path_column = self._sample_rate_paths[self.sample_rate]
+            if path_column in row and row[path_column] is not None and row[path_column] != "":
+                audio_path = anypath(self.data_root) / row[path_column]
+                use_presampled = True
+
+        if not use_presampled:
+            audio_path = anypath(self.data_root) / row[self._originals_path_column]
+
+        audio, sr = read_audio(audio_path)
         audio = audio_stereo_to_mono(audio, mono_method="average").astype(np.float32)
 
-        # Resample if necessary
-        if self.sample_rate is not None and sample_rate != self.sample_rate:
+        if not use_presampled and self.sample_rate is not None and sr != self.sample_rate:
             audio = librosa.resample(
                 y=audio,
-                orig_sr=sample_rate,
+                orig_sr=sr,
                 target_sr=self.sample_rate,
                 scale=True,
                 res_type="kaiser_best",
             )
-            sample_rate = self.sample_rate
+            sr = self.sample_rate
 
-        # Selection table
         st = pd.read_csv(StringIO(row["selection_table"]), sep="\t")
-
-        # Clip events outside audio (keep only events that begin before audio end)
-        audio_dur = len(audio) / float(sample_rate)
+        audio_dur = len(audio) / float(sr)
         st = st[st["Begin Time (s)"] < audio_dur].copy()
 
-        # Build output
         row["audio"] = audio
-        row["sample_rate"] = sample_rate
+        row["sample_rate"] = sr
         row["selection_table"] = st
 
         if self.output_take_and_give:
