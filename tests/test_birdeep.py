@@ -47,9 +47,9 @@ from esp_data.datasets import Birdeep
 
 EXPECTED_LEN_ALL = 291  #
 EXPECTED_FIRST_ITEM_AUDIO_SHA256 = (
-    "dd81518532b80282b5d9c27b371398a3eb6469bb50da1717ed4113a51023396d"
+    "8b65252bf9e4c82a79277bbccf9bcc4bc0adcda3b7c9dbf4582c36cf99046f89"
 )
-ANNOTATIONS_SHA256 = "b5e46c0ec0442bdc6363f43f2d0a5a2072b64066252c01cb0e25e0d4ca96a2e7"
+ANNOTATIONS_SHA256 = "0b20d290e604aeed01c4eb514a6bb2e01f84da0dfee15ebbef964951867abcbf"
 # ---------------------------------------------------------------------------
 
 
@@ -76,7 +76,6 @@ def sample_indices(ds: Birdeep) -> List[int]:
 def test_ds_not_empty(ds: Birdeep):
     """Dataset should have at least one example."""
     assert len(ds) > 0, "Dataset appears empty"
-
 
 def test_check_audio(ds: Birdeep, sample_indices: List[int]):
     """Basic audio integrity checks on a few random items."""
@@ -165,6 +164,11 @@ def test_reference_item_stability(ds_pandas: Birdeep):
         "If this is an intentional dataset/content update, "
         "replace EXPECTED_FIRST_ITEM_AUDIO_SHA256 with the new hash."
     )
+
+
+def test_presampled_columns_exist(ds: Birdeep):
+    """Pre-resampled path columns should be present in the loaded data."""
+    assert "16khz_path" in ds.columns
 
 
 def test_check_selection_table(ds: Birdeep, sample_indices: List[int]):
