@@ -11,7 +11,6 @@ We have a schema system in `esp_data/schema.py` that defines `ColumnSchema` and 
 
 **Current state:**
 - Only **AnimalSpeak** defines a schema — and it only declares 4 required columns out of 46 actual columns
-- `scripts/extract_schemas.py` can introspect all 37 datasets to dump their actual columns and dtypes (see `docs/dataset_schemas.md`)
 - The abstract `DType` system maps to polars/pandas types: `str`, `int`, `float`, `bool`, `datetime`, `list[str]`, `list[int]`, `list[float]`, `nullable`
 
 ## Question 1: What is the schema for?
