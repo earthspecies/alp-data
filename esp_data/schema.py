@@ -4,15 +4,11 @@ This module provides a schema abstraction for validating dataset columns
 with expected names, dtypes, and required status.
 """
 
-from __future__ import annotations
-
-from typing import TYPE_CHECKING, Literal
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-if TYPE_CHECKING:
-    from esp_data.backends.protocol import DataBackend
-
+from esp_data.backends.protocol import DataBackend
 
 # Abstract dtype enum - maps to polars/pandas types
 DType = Literal["str", "int", "float", "bool", "datetime", "list[str]", "list[int]", "list[float]"]
@@ -79,7 +75,7 @@ class DatasetSchema(BaseModel):
         """
         return [col.name for col in self.columns]
 
-    def validate_backend(self, backend: "DataBackend") -> None:
+    def validate_backend(self, backend: DataBackend) -> None:
         """Validate a loaded backend against this schema.
 
         Parameters
