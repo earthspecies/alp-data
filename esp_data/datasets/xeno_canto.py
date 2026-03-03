@@ -83,6 +83,11 @@ class XenoCanto(Dataset):
     - ``train_unseen``: Training set excluding unseen taxa evaluated in BEANS-Zero benchmark
     - ``validation_unseen``: Validation set excluding unseen taxa evaluated in BEANS-Zero benchmark
     - ``all_unseen``: Complete dataset excluding BEANS-Zero unseen taxa
+    - ``train_strong``: Training set with selection tables derived from
+      EfficientNet model predictions. Each row includes a ``selection_table``
+      TSV and ``audio_duration`` column for use with the ``window_annotations``
+      transform. Background species are annotated per-window where confirmed
+      by the model; the focal species spans the full clip.
 
     The ``_unseen`` splits are designed for training models that will be evaluated
     on BEANS-Zero's unseen taxa benchmark, ensuring no test taxa leak into the training data.
@@ -125,6 +130,7 @@ class XenoCanto(Dataset):
             "train_unseen": "gs://esp-ml-datasets/xeno-canto/v0.1.0/raw/train_unseen_20260203.csv",
             "validation_unseen": "gs://esp-ml-datasets/xeno-canto/v0.1.0/raw/val_unseen_20260203.csv",
             "all_unseen": "gs://esp-ml-datasets/xeno-canto/v0.1.0/raw/all_unseen_20260203.csv",
+            "train_strong": "gs://esp-data-ingestion/xeno-canto/v0.1.0/raw/train_strong_labels.csv",
         },
         version="0.1.0",
         description="Xeno-canto audio dataset with taxonomic metadata. "
@@ -296,6 +302,11 @@ class XenoCanto(Dataset):
     def _process(self, row: dict[str, Any]) -> dict[str, Any]:
         """Process a single row of the dataset.
 
+        When the row contains ``window_start_sec`` / ``window_end_sec``
+        (set by the ``window_annotations`` transform), only the
+        corresponding audio segment is loaded from disk/GCS instead of
+        the full recording.
+
         Parameters
         ----------
         row : dict[str, Any]
@@ -312,41 +323,42 @@ class XenoCanto(Dataset):
         use_presampled = False
         if self.sample_rate is not None and self.sample_rate in self._sample_rate_paths:
             path_column = self._sample_rate_paths[self.sample_rate]
-            # Check if the pre-resampled path column exists in the data
             if path_column in row and row[path_column] is not None and row[path_column] != "":
-                # Use pre-resampled audio with appropriate data root
                 if self.sample_rate == 16000:
                     audio_path = self._data_root_16k / row[path_column]
                 else:
                     audio_path = self._data_root_32k / row[path_column]
                 use_presampled = True
 
-        if use_presampled:
-            audio, sample_rate = read_audio(audio_path)
-            audio = audio.astype(np.float32)
-            audio = audio_stereo_to_mono(audio, mono_method="average")
-            # Audio is already at the correct sample rate, no resampling needed
-        else:
-            # Use original variable-rate files and resample on-the-fly if needed
-            # For original files, relative_path needs audio/ prefix if not already present
+        if not use_presampled:
             rel_path = row[self._originals_path_column]
             if not rel_path.startswith("audio/"):
                 audio_path = anypath(self.data_root) / "audio" / rel_path
             else:
                 audio_path = anypath(self.data_root) / rel_path
-            audio, sample_rate = read_audio(audio_path)
-            audio = audio.astype(np.float32)
-            audio = audio_stereo_to_mono(audio, mono_method="average")
 
-            if self.sample_rate is not None and sample_rate != self.sample_rate:
-                audio = librosa.resample(
-                    y=audio,
-                    orig_sr=sample_rate,
-                    target_sr=self.sample_rate,
-                    scale=True,
-                    res_type="kaiser_best",
-                )
-                sample_rate = self.sample_rate
+        window_start = row.get("window_start_sec")
+        window_end = row.get("window_end_sec")
+
+        if window_start is not None and window_end is not None:
+            audio, sample_rate = read_audio(
+                audio_path, start_time=float(window_start), end_time=float(window_end)
+            )
+        else:
+            audio, sample_rate = read_audio(audio_path)
+
+        audio = audio.astype(np.float32)
+        audio = audio_stereo_to_mono(audio, mono_method="average")
+
+        if not use_presampled and self.sample_rate is not None and sample_rate != self.sample_rate:
+            audio = librosa.resample(
+                y=audio,
+                orig_sr=sample_rate,
+                target_sr=self.sample_rate,
+                scale=True,
+                res_type="kaiser_best",
+            )
+            sample_rate = self.sample_rate
 
         row["audio"] = audio
         row["sample_rate"] = sample_rate

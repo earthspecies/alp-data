@@ -217,8 +217,7 @@ DETECTION_CATALOG: dict[str, dict[str, Any]] = {
     },
     "zenodo_17282717_mediterranean_sperm_whale_clicks": {
         "description": (
-            "Mediterranean sperm whale click recordings from the "
-            "Alboran Sea (Zenodo 17282717)."
+            "Mediterranean sperm whale click recordings from the Alboran Sea (Zenodo 17282717)."
         ),
         "species": ["Physeter macrocephalus"],
         "call_types": ["click"],
@@ -316,8 +315,7 @@ class SuperWhaleDetectionConfig(DatasetConfig):
     include_datasets: list[str] | None = Field(
         default=None,
         description=(
-            "Source-dataset names to include.  None = all.  "
-            "See DETECTION_CATALOG for valid names."
+            "Source-dataset names to include.  None = all.  See DETECTION_CATALOG for valid names."
         ),
     )
     positives_only: dict[str, bool] = Field(
@@ -450,8 +448,7 @@ class SuperWhaleDetection(Dataset):
         """Load the merged detection CSV, then apply dataset & positives filters."""
         if self.split not in self.info.split_paths:
             raise LookupError(
-                f"Invalid split: {self.split}. "
-                f"Expected one of {list(self.info.split_paths.keys())}"
+                f"Invalid split: {self.split}. Expected one of {list(self.info.split_paths.keys())}"
             )
 
         location = self.info.split_paths[self.split]
@@ -474,9 +471,7 @@ class SuperWhaleDetection(Dataset):
             is_positives_only = self.positives_only_map.get(source_ds, True)
             if is_positives_only:
                 ds_rows = df["source_dataset"] == source_ds
-                has_events = df.loc[ds_rows, "selection_table"].apply(
-                    _selection_table_has_events
-                )
+                has_events = df.loc[ds_rows, "selection_table"].apply(_selection_table_has_events)
                 keep_mask.loc[ds_rows] = has_events
 
         df = df[keep_mask].reset_index(drop=True)
@@ -506,9 +501,7 @@ class SuperWhaleDetection(Dataset):
         cls, dataset_config: SuperWhaleDetectionConfig
     ) -> tuple["SuperWhaleDetection", dict[str, Any]]:
         """Create a SuperWhaleDetection instance from a config."""
-        cfg = dataset_config.model_dump(
-            exclude={"dataset_name", "transformations"}
-        )
+        cfg = dataset_config.model_dump(exclude={"dataset_name", "transformations"})
         ds = cls(
             split=cfg["split"],
             include_datasets=cfg["include_datasets"],
@@ -552,7 +545,14 @@ class SuperWhaleDetection(Dataset):
 
         # Parse selection table TSV into a DataFrame
         st = pd.read_csv(StringIO(row["selection_table"]), sep="\t")
-        for col in ("species", "taxon", "taxon_rank", "call_type", "coarse_call_type", "confidence"):
+        for col in (
+            "species",
+            "taxon",
+            "taxon_rank",
+            "call_type",
+            "coarse_call_type",
+            "confidence",
+        ):
             if col in st.columns:
                 st[col] = st[col].fillna("")
 
@@ -585,11 +585,7 @@ class SuperWhaleDetection(Dataset):
 
     def __str__(self) -> str:
         n = len(self) if self._data is not None and not self._streaming else "?"
-        ds_count = (
-            len(self.include_datasets)
-            if self.include_datasets
-            else len(DETECTION_CATALOG)
-        )
+        ds_count = len(self.include_datasets) if self.include_datasets else len(DETECTION_CATALOG)
         return (
             f"{self.info.name} (v{self.info.version}), split='{self.split}'\n"
             f"  Rows: {n}  |  Source datasets: {ds_count}\n"

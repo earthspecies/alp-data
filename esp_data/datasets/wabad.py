@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import logging
 from io import StringIO
 from typing import Any, Iterator
 
@@ -12,9 +11,7 @@ import pandas as pd
 
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from esp_data.backends import BackendType
-from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, get_audio_info, read_audio
-
-logger = logging.getLogger("esp_data")
+from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
 
 SPECIES_INFO_PATH = "gs://esp-ml-datasets/wabad/v0.1.0/raw/gbif_labels.csv"
 
@@ -63,6 +60,13 @@ class WABAD(Dataset):
     indices with species-based diversity indices. The dataset is published under a
     Creative Commons Attribution Non Commercial 4.0 International copyright.
 
+    Pre-resampled Audio
+    -------------------
+    Pre-resampled audio is available at 16 kHz and 32 kHz. When
+    ``sample_rate`` matches one of these rates, the pre-resampled files are
+    loaded directly (no on-the-fly resampling). For any other target rate,
+    audio is resampled on-the-fly using librosa's ``kaiser_best`` method.
+
     References
     ----------
     https://zenodo.org/records/15629388
@@ -73,12 +77,89 @@ class WABAD(Dataset):
     info = DatasetInfo(
         name="wabad",
         owner="benjamin",
-        split_paths={"all": "gs://esp-ml-datasets/wabad/v0.1.0/raw/all_info_gbif.csv"},
+        split_paths={
+            "all": "gs://esp-ml-datasets/wabad/v0.1.0/raw/all_info_gbif_v2.csv",
+            "CAT": "gs://esp-ml-datasets/wabad/v0.1.0/raw/CAT_info_gbif_v2.csv",
+            "POZO": "gs://esp-ml-datasets/wabad/v0.1.0/raw/POZO_info_gbif_v2.csv",
+            "BRE": "gs://esp-ml-datasets/wabad/v0.1.0/raw/BRE_info_gbif_v2.csv",
+            "EFFOR": "gs://esp-ml-datasets/wabad/v0.1.0/raw/EFFOR_info_gbif_v2.csv",
+            "MONTEB": "gs://esp-ml-datasets/wabad/v0.1.0/raw/MONTEB_info_gbif_v2.csv",
+            "CB": "gs://esp-ml-datasets/wabad/v0.1.0/raw/CB_info_gbif_v2.csv",
+            "FEU": "gs://esp-ml-datasets/wabad/v0.1.0/raw/FEU_info_gbif_v2.csv",
+            "BIAL": "gs://esp-ml-datasets/wabad/v0.1.0/raw/BIAL_info_gbif_v2.csv",
+            "SPMCO": "gs://esp-ml-datasets/wabad/v0.1.0/raw/SPMCO_info_gbif_v2.csv",
+            "OIO": "gs://esp-ml-datasets/wabad/v0.1.0/raw/OIO_info_gbif_v2.csv",
+            "OESF": "gs://esp-ml-datasets/wabad/v0.1.0/raw/OESF_info_gbif_v2.csv",
+            "QR": "gs://esp-ml-datasets/wabad/v0.1.0/raw/QR_info_gbif_v2.csv",
+            "HAG": "gs://esp-ml-datasets/wabad/v0.1.0/raw/HAG_info_gbif_v2.csv",
+            "VIL": "gs://esp-ml-datasets/wabad/v0.1.0/raw/VIL_info_gbif_v2.csv",
+            "RFP": "gs://esp-ml-datasets/wabad/v0.1.0/raw/RFP_info_gbif_v2.csv",
+            "HAK": "gs://esp-ml-datasets/wabad/v0.1.0/raw/HAK_info_gbif_v2.csv",
+            "SLOB": "gs://esp-ml-datasets/wabad/v0.1.0/raw/SLOB_info_gbif_v2.csv",
+            "BERB": "gs://esp-ml-datasets/wabad/v0.1.0/raw/BERB_info_gbif_v2.csv",
+            "COU": "gs://esp-ml-datasets/wabad/v0.1.0/raw/COU_info_gbif_v2.csv",
+            "OLIV": "gs://esp-ml-datasets/wabad/v0.1.0/raw/OLIV_info_gbif_v2.csv",
+            "EVROS": "gs://esp-ml-datasets/wabad/v0.1.0/raw/EVROS_info_gbif_v2.csv",
+            "FNCA": "gs://esp-ml-datasets/wabad/v0.1.0/raw/FNCA_info_gbif_v2.csv",
+            "RGU": "gs://esp-ml-datasets/wabad/v0.1.0/raw/RGU_info_gbif_v2.csv",
+            "CRUZ": "gs://esp-ml-datasets/wabad/v0.1.0/raw/CRUZ_info_gbif_v2.csv",
+            "JUNCA": "gs://esp-ml-datasets/wabad/v0.1.0/raw/JUNCA_info_gbif_v2.csv",
+            "PINA": "gs://esp-ml-datasets/wabad/v0.1.0/raw/PINA_info_gbif_v2.csv",
+            "GTLU": "gs://esp-ml-datasets/wabad/v0.1.0/raw/GTLU_info_gbif_v2.csv",
+            "MAPIMI": "gs://esp-ml-datasets/wabad/v0.1.0/raw/MAPIMI_info_gbif_v2.csv",
+            "SAL": "gs://esp-ml-datasets/wabad/v0.1.0/raw/SAL_info_gbif_v2.csv",
+            "ARD": "gs://esp-ml-datasets/wabad/v0.1.0/raw/ARD_info_gbif_v2.csv",
+            "MARTI": "gs://esp-ml-datasets/wabad/v0.1.0/raw/MARTI_info_gbif_v2.csv",
+            "DYOM": "gs://esp-ml-datasets/wabad/v0.1.0/raw/DYOM_info_gbif_v2.csv",
+            "VER": "gs://esp-ml-datasets/wabad/v0.1.0/raw/VER_info_gbif_v2.csv",
+            "SCHG": "gs://esp-ml-datasets/wabad/v0.1.0/raw/SCHG_info_gbif_v2.csv",
+            "GLEN": "gs://esp-ml-datasets/wabad/v0.1.0/raw/GLEN_info_gbif_v2.csv",
+            "HONDO": "gs://esp-ml-datasets/wabad/v0.1.0/raw/HONDO_info_gbif_v2.csv",
+            "NL": "gs://esp-ml-datasets/wabad/v0.1.0/raw/NL_info_gbif_v2.csv",
+            "BRCAS": "gs://esp-ml-datasets/wabad/v0.1.0/raw/BRCAS_info_gbif_v2.csv",
+            "NAV": "gs://esp-ml-datasets/wabad/v0.1.0/raw/NAV_info_gbif_v2.csv",
+            "KAR": "gs://esp-ml-datasets/wabad/v0.1.0/raw/KAR_info_gbif_v2.csv",
+            "BUR": "gs://esp-ml-datasets/wabad/v0.1.0/raw/BUR_info_gbif_v2.csv",
+            "KIB": "gs://esp-ml-datasets/wabad/v0.1.0/raw/KIB_info_gbif_v2.csv",
+            "SCHF": "gs://esp-ml-datasets/wabad/v0.1.0/raw/SCHF_info_gbif_v2.csv",
+            "TAM": "gs://esp-ml-datasets/wabad/v0.1.0/raw/TAM_info_gbif_v2.csv",
+            "HUAP": "gs://esp-ml-datasets/wabad/v0.1.0/raw/HUAP_info_gbif_v2.csv",
+            "DONG": "gs://esp-ml-datasets/wabad/v0.1.0/raw/DONG_info_gbif_v2.csv",
+            "CLH": "gs://esp-ml-datasets/wabad/v0.1.0/raw/CLH_info_gbif_v2.csv",
+            "HAR": "gs://esp-ml-datasets/wabad/v0.1.0/raw/HAR_info_gbif_v2.csv",
+            "BOLIN": "gs://esp-ml-datasets/wabad/v0.1.0/raw/BOLIN_info_gbif_v2.csv",
+            "SITH": "gs://esp-ml-datasets/wabad/v0.1.0/raw/SITH_info_gbif_v2.csv",
+            "RBA": "gs://esp-ml-datasets/wabad/v0.1.0/raw/RBA_info_gbif_v2.csv",
+            "MOPU": "gs://esp-ml-datasets/wabad/v0.1.0/raw/MOPU_info_gbif_v2.csv",
+            "CRAT": "gs://esp-ml-datasets/wabad/v0.1.0/raw/CRAT_info_gbif_v2.csv",
+            "PGF": "gs://esp-ml-datasets/wabad/v0.1.0/raw/PGF_info_gbif_v2.csv",
+            "PUUL": "gs://esp-ml-datasets/wabad/v0.1.0/raw/PUUL_info_gbif_v2.csv",
+            "MILLAN": "gs://esp-ml-datasets/wabad/v0.1.0/raw/MILLAN_info_gbif_v2.csv",
+            "BMT": "gs://esp-ml-datasets/wabad/v0.1.0/raw/BMT_info_gbif_v2.csv",
+            "SD": "gs://esp-ml-datasets/wabad/v0.1.0/raw/SD_info_gbif_v2.csv",
+            "UNI": "gs://esp-ml-datasets/wabad/v0.1.0/raw/UNI_info_gbif_v2.csv",
+            "SBN": "gs://esp-ml-datasets/wabad/v0.1.0/raw/SBN_info_gbif_v2.csv",
+            "DUNAS": "gs://esp-ml-datasets/wabad/v0.1.0/raw/DUNAS_info_gbif_v2.csv",
+            "PETI": "gs://esp-ml-datasets/wabad/v0.1.0/raw/PETI_info_gbif_v2.csv",
+            "LIM": "gs://esp-ml-datasets/wabad/v0.1.0/raw/LIM_info_gbif_v2.csv",
+            "BAM": "gs://esp-ml-datasets/wabad/v0.1.0/raw/BAM_info_gbif_v2.csv",
+            "DEVA": "gs://esp-ml-datasets/wabad/v0.1.0/raw/DEVA_info_gbif_v2.csv",
+            "ROTOK": "gs://esp-ml-datasets/wabad/v0.1.0/raw/ROTOK_info_gbif_v2.csv",
+            "CARI": "gs://esp-ml-datasets/wabad/v0.1.0/raw/CARI_info_gbif_v2.csv",
+            "PITI": "gs://esp-ml-datasets/wabad/v0.1.0/raw/PITI_info_gbif_v2.csv",
+            "RME": "gs://esp-ml-datasets/wabad/v0.1.0/raw/RME_info_gbif_v2.csv",
+            "MABI": "gs://esp-ml-datasets/wabad/v0.1.0/raw/MABI_info_gbif_v2.csv",
+            "EMP": "gs://esp-ml-datasets/wabad/v0.1.0/raw/EMP_info_gbif_v2.csv",
+            "EFFOU": "gs://esp-ml-datasets/wabad/v0.1.0/raw/EFFOU_info_gbif_v2.csv",
+        },
         version="0.1.0",
         description="[MISSING]",
         sources="zenodo.org",
         license="CC-BY-4.0",
     )
+
+    _sample_rate_paths: dict[int, str] = {16000: "16khz_path", 32000: "32khz_path"}
+    _originals_path_column = "audio_fp"
 
     def __init__(
         self,
@@ -95,7 +176,7 @@ class WABAD(Dataset):
         split : str
             Split to load (key in info.split_paths).
         output_take_and_give : dict[str, str] | None
-            Optional mapping of original -> new output keys (filters columns as well).
+            Optional mapping of original → new output keys (filters columns as well).
         sample_rate : int | None
             If set, audio is resampled to this rate.
         data_root : str | AnyPathT | None
@@ -111,16 +192,15 @@ class WABAD(Dataset):
         self.annotation_columns = ["Species"]
         self.unknown_label = "Unknown"
         self.sample_rate = sample_rate
-        self.data_root = anypath(data_root) if data_root is not None else None
 
-        self.available_labels = pd.read_csv(SPECIES_INFO_PATH)["Species"].to_list()
+        self.full_dataset_available_labels = None  # placeholder for labels if split == all
 
-        # Load split CSV
         self._load()
 
-        # If no explicit data_root, assume parent dir of the split path
-        if self.data_root is None:
+        if data_root is None:
             self.data_root = anypath(self.info.split_paths[self.split]).parent
+        else:
+            self.data_root = anypath(data_root)
 
     @property
     def columns(self) -> list[str]:
@@ -129,6 +209,11 @@ class WABAD(Dataset):
     @property
     def available_splits(self) -> list[str]:
         return list(self.info.split_paths.keys())
+
+    @property
+    def available_sample_rates(self) -> list[int]:
+        """Return pre-resampled sample rates whose path columns exist in the data."""
+        return [sr for sr, col in self._sample_rate_paths.items() if col in self._data.columns]
 
     def _load(self) -> None:
         if self.split not in self.info.split_paths:
@@ -142,35 +227,6 @@ class WABAD(Dataset):
             keep_default_na=False,
             na_values=[""],
         )
-
-    def _prepare_for_transforms(self) -> None:
-        """Enrich the backend with columns needed by transforms.
-
-        Resolves ``audio_fp`` to full paths using ``data_root`` and adds an
-        ``audio_duration`` column by reading audio file headers via
-        `get_audio_info` (no audio decoding).
-        """
-        if self._data is None:
-            raise RuntimeError("No data loaded. Call _load() first.")
-
-        df = self._data.unwrap.copy()
-
-        if "audio_duration" not in df.columns:
-            durations = []
-            for audio_fp in df["audio_fp"]:
-                full_path = self.data_root / audio_fp
-                try:
-                    info = get_audio_info(full_path)
-                    durations.append(info["duration"])
-                except Exception:
-                    logger.warning(f"Could not read audio info for {full_path}, using 0.0")
-                    durations.append(0.0)
-            df["audio_duration"] = durations
-
-        resolved_paths = [str(self.data_root / fp) for fp in df["audio_fp"]]
-        df["audio_fp"] = resolved_paths
-
-        self._data = self._backend_class(df, streaming=False)
 
     def __len__(self) -> int:
         """Return the number of samples in the dataset.
@@ -194,62 +250,72 @@ class WABAD(Dataset):
         return len(self._data)
 
     def _process(self, row: dict[str, Any]) -> dict[str, Any]:
-        """Process a single row, loading audio (with optional partial read).
+        """Process a single row of the dataset.
 
-        When ``window_start_sec`` and ``window_end_sec`` are present (set by
-        the ``window_annotations`` transform), only the windowed segment is
-        loaded via `read_audio(start_time=..., end_time=...)`.
+        When the row contains ``window_start_sec`` / ``window_end_sec``
+        (set by the ``window_annotations`` transform), only the
+        corresponding audio segment is loaded from disk/GCS instead of
+        the full recording.  This drastically reduces peak memory and
+        network IO.
 
         Parameters
         ----------
         row : dict[str, Any]
-            A raw or windowed row from the backend.
+            A dictionary representing a single row of the dataset.
 
         Returns
         -------
         dict[str, Any]
-            Row enriched with ``audio`` and ``sample_rate``.
+            The processed row.
         """
-        audio_fp = row["audio_fp"]
-        if not str(audio_fp).startswith(("gs://", "s3://", "/")):
-            audio_fp = self.data_root / audio_fp
+        use_presampled = False
+        if self.sample_rate is not None and self.sample_rate in self._sample_rate_paths:
+            path_column = self._sample_rate_paths[self.sample_rate]
+            if path_column in row and row[path_column] is not None and row[path_column] != "":
+                audio_path = anypath(self.data_root) / row[path_column]
+                use_presampled = True
+
+        if not use_presampled:
+            audio_path = anypath(self.data_root) / row[self._originals_path_column]
 
         window_start = row.get("window_start_sec")
         window_end = row.get("window_end_sec")
 
         if window_start is not None and window_end is not None:
-            audio, sample_rate = read_audio(
-                audio_fp,
-                start_time=float(window_start),
-                end_time=float(window_end),
+            audio, sr = read_audio(
+                audio_path, start_time=float(window_start), end_time=float(window_end)
             )
         else:
-            audio, sample_rate = read_audio(audio_fp)
+            audio, sr = read_audio(audio_path)
 
         audio = audio_stereo_to_mono(audio, mono_method="average").astype(np.float32)
 
-        if self.sample_rate is not None and sample_rate != self.sample_rate:
+        if not use_presampled and self.sample_rate is not None and sr != self.sample_rate:
             audio = librosa.resample(
                 y=audio,
-                orig_sr=sample_rate,
+                orig_sr=sr,
                 target_sr=self.sample_rate,
                 scale=True,
                 res_type="kaiser_best",
             )
-            sample_rate = self.sample_rate
-
-        # Parse selection table if still a string
-        st = row["selection_table"]
-        if isinstance(st, str):
-            st = pd.read_csv(StringIO(st), sep="\t")
-
-        if window_start is None:
-            audio_dur = len(audio) / float(sample_rate)
-            st = st[st["Begin Time (s)"] < audio_dur].copy()
+            sr = self.sample_rate
 
         row["audio"] = audio
-        row["sample_rate"] = sample_rate
-        row["selection_table"] = st
+        row["sample_rate"] = sr
+
+        raw_st = row.get("selection_table")
+        if raw_st is not None:
+            if isinstance(raw_st, str):
+                st = pd.read_csv(StringIO(raw_st), sep="\t")
+            elif isinstance(raw_st, pd.DataFrame):
+                st = raw_st
+            else:
+                st = pd.DataFrame()
+
+            audio_dur = len(audio) / float(sr)
+            if "Begin Time (s)" in st.columns:
+                st = st[st["Begin Time (s)"] < audio_dur].copy()
+            row["selection_table"] = st
 
         if self.output_take_and_give:
             item = {}
@@ -261,7 +327,6 @@ class WABAD(Dataset):
 
     def __getitem__(self, idx: int) -> dict[str, Any]:
         """Get a specific sample from the dataset.
-
         Parameters
         ----------
         idx : int
@@ -313,22 +378,31 @@ class WABAD(Dataset):
         )
 
         if dataset_config.transformations:
-            ds._prepare_for_transforms()
             meta = ds.apply_transformations(dataset_config.transformations)
             return ds, meta
 
         return ds, {}
 
-    def get_available_labels(self) -> list[str]:
-        """Return all possible labels for a given annotation column.
+    def get_available_labels(self, anno_column: str | None = "Species") -> list[str]:
+        """
+        Return all possible species labels
 
         Returns
-        -------
-        list[str]
-            A list of all the available labels for the annotation column.
+        ---------
+        A list of all the available labels for anno_column
         """
-
-        return self.available_labels
+        if self.split == "all":
+            if self.full_dataset_available_labels is None:
+                self.full_dataset_available_labels = pd.read_csv(SPECIES_INFO_PATH)[
+                    anno_column
+                ].to_list()
+            return self.full_dataset_available_labels
+        else:
+            available_labels = set()
+            for row in self._data:
+                st = pd.read_csv(StringIO(row["selection_table"]), sep="\t")
+                available_labels.update(st[anno_column].astype(str).tolist())
+            return sorted(available_labels)
 
     def __str__(self) -> str:
         base = f"{self.info.name} (v{self.info.version})"

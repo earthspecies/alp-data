@@ -3,6 +3,7 @@ from .registry import register_transform, transform_from_config  # isort:skip
 
 from .balanced_sample import BalancedSample, BalancedSampleConfig
 from .deduplicate import Deduplicate, DeduplicateConfig
+from .downsample import Downsample, DownsampleConfig
 from .filter import Filter, FilterConfig
 from .label_from_feature import LabelFromFeature, LabelFromFeatureConfig
 from .multilabel_from_features import (
@@ -11,12 +12,15 @@ from .multilabel_from_features import (
 )
 from .rename_columns import RenameColumns, RenameColumnsConfig
 from .subsample import Subsample, SubsampleConfig
+from .upsample import Upsample, UpsampleConfig
 
 __all__ = [
     "BalancedSample",
     "BalancedSampleConfig",
     "Deduplicate",
     "DeduplicateConfig",
+    "Downsample",
+    "DownsampleConfig",
     "Filter",
     "FilterConfig",
     "LabelFromFeature",
@@ -27,6 +31,8 @@ __all__ = [
     "RenameColumnsConfig",
     "Subsample",
     "SubsampleConfig",
+    "Upsample",
+    "UpsampleConfig",
     "register_transform",
     "transform_from_config",
 ]

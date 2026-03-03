@@ -1,13 +1,54 @@
+import copy
+import json
+import logging
 from typing import Any, Iterator
 
 from esp_data.dataset import (
     ChainedDatasetConfig,
     Dataset,
+    DatasetConfig,
     DatasetInfo,
     SaveFormat,
     dataset_from_config,
     register_dataset,
 )
+from esp_data.transforms import transform_from_config
+
+logger = logging.getLogger(__name__)
+
+
+def _base_dataset_key(cfg: DatasetConfig) -> str:
+    """Return a hashable key identifying the base dataset (excluding transforms).
+
+    Two configs that differ only in ``transformations`` will produce the
+    same key, allowing the loaded data to be shared.
+
+    Returns
+    -------
+    str
+        A JSON string of all config fields except ``transformations``.
+    """
+    d = cfg.model_dump(exclude={"transformations"})
+    return json.dumps(d, sort_keys=True, default=str)
+
+
+def _transforms_prefix_key(base_key: str, transforms: list) -> str:
+    """Return a hashable key for a base dataset + a prefix of applied transforms.
+
+    Parameters
+    ----------
+    base_key : str
+        Key from ``_base_dataset_key`` identifying the base dataset.
+    transforms : list
+        Ordered list of transform config objects (Pydantic models) applied so far.
+
+    Returns
+    -------
+    str
+        A deterministic JSON string encoding ``base_key`` and the transform configs.
+    """
+    tf_dumps = [cfg.model_dump() for cfg in transforms]
+    return base_key + "|" + json.dumps(tf_dumps, sort_keys=True, default=str)
 
 
 class ChainException(Exception):
@@ -146,29 +187,99 @@ class ChainedDataset(Dataset):
     def from_config(
         cls, chain_config: ChainedDatasetConfig
     ) -> tuple["ChainedDataset", dict[str, Any]]:
-        """Create a ConcatenatedDataset from a ConcatConfig object.
+        """Create a ChainedDataset from a ChainedDatasetConfig object.
+
+        When multiple entries share the same base dataset (same name, split,
+        sample rate, etc.) only the first triggers a GCS/disk read.  Subsequent
+        entries get a cheap clone of the cached backend and then apply their own
+        transformations on top.
+
+        Transform results are also cached at each step.  When two entries
+        share the same base dataset *and* the same leading transforms
+        (e.g. ``filter → window_annotations → annotation_features``) but
+        diverge later (e.g. different ``chat`` template), only the
+        divergent tail is recomputed.
 
         Parameters
         ----------
         chain_config : ChainedDatasetConfig
-            Configuration object specifying the datasets to concatenate
-            and how to merge them.
+            Configuration object specifying the datasets to chain.
 
         Returns
         -------
         tuple[ChainedDataset, dict]
-            A tuple containing the ConcatenatedDataset instance
+            A tuple containing the ChainedDataset instance
             and metadata about transformations applied.
         """
-        datasets = []
-        metadata = {}
-        for cfg in chain_config.datasets:
-            ds, meta = dataset_from_config(cfg)
-            datasets.append(ds)
-            metadata.update({f"{cfg.dataset_name}_metadata": meta})
-        ds = cls(datasets)
+        base_cache: dict[str, Dataset] = {}
+        transform_cache: dict[str, tuple[Any, dict[str, Any]]] = {}
+        datasets: list[Dataset] = []
+        metadata: dict[str, Any] = {}
 
-        return ds, metadata
+        for cfg in chain_config.datasets:
+            cache_key = _base_dataset_key(cfg)
+
+            if cache_key not in base_cache:
+                no_tf_cfg = cfg.model_copy(update={"transformations": None})
+                base_ds, _ = dataset_from_config(no_tf_cfg)
+                base_cache[cache_key] = base_ds
+                logger.info(
+                    "ChainedDataset: loaded base %s/%s (%d rows)",
+                    cfg.dataset_name,
+                    cfg.split,
+                    len(base_ds),
+                )
+
+            ds = copy.copy(base_cache[cache_key])
+
+            meta: dict[str, Any] = {}
+            if cfg.transformations:
+                transforms = cfg.transformations
+
+                # Find the longest already-cached prefix of transforms
+                best_prefix_len = 0
+                for i in range(len(transforms), 0, -1):
+                    prefix_key = _transforms_prefix_key(cache_key, transforms[:i])
+                    if prefix_key in transform_cache:
+                        best_prefix_len = i
+                        break
+
+                if best_prefix_len > 0:
+                    prefix_key = _transforms_prefix_key(
+                        cache_key, transforms[:best_prefix_len]
+                    )
+                    cached_data, cached_meta = transform_cache[prefix_key]
+                    ds._data = cached_data.copy()
+                    meta = dict(cached_meta)
+                    logger.info(
+                        "ChainedDataset: %s — reusing cached result for %d/%d transforms",
+                        cfg.dataset_name,
+                        best_prefix_len,
+                        len(transforms),
+                    )
+                else:
+                    ds._data = base_cache[cache_key]._data.copy()
+
+                # Apply only the remaining transforms
+                for i in range(best_prefix_len, len(transforms)):
+                    tf_cfg = transforms[i]
+                    tf = transform_from_config(tf_cfg)
+                    ds._data, tf_meta = tf(ds._data)
+                    meta[tf_cfg.type] = tf_meta
+
+                    applied_key = _transforms_prefix_key(
+                        cache_key, transforms[: i + 1]
+                    )
+                    if applied_key not in transform_cache:
+                        transform_cache[applied_key] = (ds._data, dict(meta))
+            else:
+                ds._data = base_cache[cache_key]._data.copy()
+
+            datasets.append(ds)
+            metadata[f"{cfg.dataset_name}_metadata"] = meta
+
+        chained = cls(datasets)
+        return chained, metadata
 
     def save_data(self, path: str, fmt: SaveFormat = "csv") -> None:
         """Concatenate all source datasets' backends and save to a single file.
