@@ -333,11 +333,6 @@ class DCLDE2026(Dataset):
         # Parse selection table from serialized TSV
         st = pd.read_csv(StringIO(row["selection_table"]), sep="\t", keep_default_na=False)
 
-        # Fill NaN in annotation string columns
-        for col in self.annotation_columns:
-            if col in st.columns:
-                st[col] = st[col].fillna("")
-
         # Clip events outside audio (keep only events that begin before audio end)
         audio_dur = len(audio) / float(sr)
         st = st[st["Begin Time (s)"] < audio_dur].copy()
