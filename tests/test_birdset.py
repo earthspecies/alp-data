@@ -1,5 +1,5 @@
 """
-Unit tests for BirdSet dataset (v0.2.0).
+Unit tests for BirdSet dataset (v0.1.0).
 
 Run with:
     pytest -q test_birdset.py
@@ -45,10 +45,9 @@ from esp_data.datasets import BirdSet
 # quit()
 # # # #
 
-# TODO: fill in once v0.2.0 data lands on GCS
-EXPECTED_LEN = None
-EXPECTED_FIRST_ITEM_AUDIO_SHA256 = None
-ANNOTATIONS_SHA256 = None
+EXPECTED_LEN = 15120
+EXPECTED_FIRST_ITEM_AUDIO_SHA256 = "c6c84647649f958f1ab9eef45276bc590d629ebfb94999d241f9e045b94acde8"
+ANNOTATIONS_SHA256 = "1dca08123cfc08671be754f028cdfb028523885f757924c52e5574c2033ca4f7"
 # ---------------------------------------------------------------------------
 
 SPLIT = "PER-test_5s"
@@ -107,7 +106,7 @@ def test_available_splits(ds: BirdSet) -> None:
 
 
 def test_expected_columns(ds: BirdSet) -> None:
-    """Key columns from v0.2.0 schema should be present."""
+    """Key columns from v0.1.0 schema should be present."""
     expected = ["audio_path", "species", "ebird_code", "16khz_path", "32khz_path"]
     for col in expected:
         assert col in ds.columns, f"Missing expected column: {col}"
@@ -152,7 +151,7 @@ def test_reference_item_stability(ds_pandas: BirdSet):
     We do the same for the annotations csv.
     """
     if EXPECTED_FIRST_ITEM_AUDIO_SHA256 is None:
-        pytest.skip("Snapshot hashes not yet computed for v0.2.0")
+        pytest.skip("Snapshot hashes not yet computed")
 
     idx = 0
     item = ds_pandas[idx]
