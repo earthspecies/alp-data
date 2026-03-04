@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import warnings
 from io import StringIO
 from typing import Any, Dict, Iterator, List
 
@@ -59,6 +60,13 @@ class NocturnalBirdMigration(Dataset):
     - a selection table (Raven format), with Species labels
     - xeno-canto id, if applicable (else, empty string)
 
+    Pre-resampled Audio
+    -------------------
+    Pre-resampled audio is available at 16 kHz and 32 kHz. When
+    ``sample_rate`` matches one of these rates, the pre-resampled files are
+    loaded directly (no on-the-fly resampling). For any other target rate,
+    audio is resampled on-the-fly using librosa's ``kaiser_best`` method.
+
     References
     ----------
     https://zenodo.org/records/14039937
@@ -70,16 +78,23 @@ class NocturnalBirdMigration(Dataset):
         name="nocturnal_bird_migration",
         owner="benjamin",
         split_paths={
-            "train": "gs://esp-ml-datasets/nocturnal_bird_migration/train.csv",
-            "train_nonxc": "gs://esp-ml-datasets/nocturnal_bird_migration/train_nonxc.csv",
-            "train_xc": "gs://esp-ml-datasets/nocturnal_bird_migration/train_xc.csv",
-            "test": "gs://esp-ml-datasets/nocturnal_bird_migration/test.csv",
+            # Full training set
+            "train": "gs://esp-ml-datasets/nocturnal_bird_migration/train_v2.csv",
+            # Training subset: no xeno-canto
+            "train_nonxc": "gs://esp-ml-datasets/nocturnal_bird_migration/train_nonxc_v2.csv",
+            # Training subset: xeno-canto recordings only
+            "train_xc": "gs://esp-ml-datasets/nocturnal_bird_migration/train_xc_v2.csv",
+            # Held-out test set
+            "test": "gs://esp-ml-datasets/nocturnal_bird_migration/test_v2.csv",
         },
         version="0.1.0",
         description="[MISSING]",
         sources="Zenodo, xeno-canto",
         license="CC BY-ND 3.0",
     )
+
+    _sample_rate_paths: dict[int, str] = {16000: "16khz_path", 32000: "32khz_path"}
+    _originals_path_column = "audio_path"
 
     def __init__(
         self,
@@ -113,14 +128,13 @@ class NocturnalBirdMigration(Dataset):
         self.unknown_label = "Unknown"
 
         self.sample_rate = sample_rate
-        self.data_root = anypath(data_root) if data_root is not None else None
 
-        # Load split CSV
         self._load()
 
-        # If no explicit data_root, assume parent dir of the split path
-        if self.data_root is None:
+        if data_root is None:
             self.data_root = anypath(self.info.split_paths[self.split]).parent
+        else:
+            self.data_root = anypath(data_root)
 
     @property
     def columns(self) -> list[str]:
@@ -129,6 +143,11 @@ class NocturnalBirdMigration(Dataset):
     @property
     def available_splits(self) -> list[str]:
         return list(self.info.split_paths.keys())
+
+    @property
+    def available_sample_rates(self) -> list[int]:
+        """Return pre-resampled sample rates whose path columns exist in the data."""
+        return [sr for sr, col in self._sample_rate_paths.items() if col in self._data.columns]
 
     def _load(self) -> None:
         if self.split not in self.info.split_paths:
@@ -162,37 +181,35 @@ class NocturnalBirdMigration(Dataset):
         dict[str, Any]
             The processed row.
         """
+        use_presampled = False
+        if self.sample_rate is not None and self.sample_rate in self._sample_rate_paths:
+            path_column = self._sample_rate_paths[self.sample_rate]
+            if path_column in row and row[path_column] is not None and row[path_column] != "":
+                audio_path = anypath(self.data_root) / row[path_column]
+                use_presampled = True
 
-        # Resolve audio path
-        audio_path = (
-            (self.data_root / row["audio_path"]) if self.data_root else anypath(row["audio_path"])
-        )
+        if not use_presampled:
+            audio_path = anypath(self.data_root) / row[self._originals_path_column]
 
-        # Read audio
-        audio, sample_rate = read_audio(audio_path)
+        audio, sr = read_audio(audio_path)
         audio = audio_stereo_to_mono(audio, mono_method="average").astype(np.float32)
 
-        # Resample if necessary
-        if self.sample_rate is not None and sample_rate != self.sample_rate:
+        if not use_presampled and self.sample_rate is not None and sr != self.sample_rate:
             audio = librosa.resample(
                 y=audio,
-                orig_sr=sample_rate,
+                orig_sr=sr,
                 target_sr=self.sample_rate,
                 scale=True,
                 res_type="kaiser_best",
             )
-            sample_rate = self.sample_rate
+            sr = self.sample_rate
 
-        # Selection table
         st = pd.read_csv(StringIO(row["selection_table"]), sep="\t")
-
-        # Clip events outside audio (keep only events that begin before audio end)
-        audio_dur = len(audio) / float(sample_rate)
+        audio_dur = len(audio) / float(sr)
         st = st[st["Begin Time (s)"] < audio_dur].copy()
 
-        # Build output
         row["audio"] = audio
-        row["sample_rate"] = sample_rate
+        row["sample_rate"] = sr
         row["selection_table"] = st
 
         if self.output_take_and_give:
@@ -264,6 +281,12 @@ class NocturnalBirdMigration(Dataset):
             available_labels.update(st[anno_column].astype(str).tolist())
         if self.unknown_label in available_labels:
             available_labels.remove(self.unknown_label)
+
+        warnings.warn(
+            f"Events with unknown label={self.unknown_label} exist in dataset"
+            f"but {self.unknown_label} suppressed from get_available_labels output",
+            stacklevel=2,
+        )
         return sorted(available_labels)
 
     def __str__(self) -> str:

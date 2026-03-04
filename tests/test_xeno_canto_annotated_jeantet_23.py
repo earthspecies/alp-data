@@ -47,9 +47,9 @@ from esp_data.datasets import XenoCantoAnnotatedJeantet23
 
 EXPECTED_LEN_ALL = 967  #
 EXPECTED_FIRST_ITEM_AUDIO_SHA256 = (
-    "65fc1372fa64983d4998cf1be43d4469c7770e2f3485c860c654688ea3a3c30b"
+    "bb8adcd2d870552f35771a7bf36675e7cb6d300020a5c8c9849bd9fc993ef980"
 )
-ANNOTATIONS_SHA256 = "c576e979a50c37b62c6d0d5c65f4b206ea1102547ece03b1a14767f7c1ca0ddb"
+ANNOTATIONS_SHA256 = "f6e89a84b15cff2796a0d9fb325c424e3d6ac693416106d7d7cc1f6ccc18f7fc"
 # ---------------------------------------------------------------------------
 
 
@@ -76,6 +76,16 @@ def sample_indices(ds: XenoCantoAnnotatedJeantet23) -> List[int]:
 def test_ds_not_empty(ds: XenoCantoAnnotatedJeantet23):
     """Dataset should have at least one example."""
     assert len(ds) > 0, "Dataset appears empty"
+
+
+def test_get_available_labels(ds: XenoCantoAnnotatedJeantet23):
+    """Test get_available_labels for bird ID column."""
+    labels = ds.get_available_labels(anno_column="Species")
+    assert isinstance(labels, list), "get_available_labels should return a list"
+    assert len(labels) > 0, "Should have at least one bird ID"
+    # Check that all labels can be converted to strings
+    for label in labels:
+        assert isinstance(label, str), f"Species label for {label} should be string"
 
 
 def test_check_audio(ds: XenoCantoAnnotatedJeantet23, sample_indices: List[int]):
@@ -165,6 +175,22 @@ def test_reference_item_stability(ds_pandas: XenoCantoAnnotatedJeantet23):
         "If this is an intentional dataset/content update, "
         "replace EXPECTED_FIRST_ITEM_AUDIO_SHA256 with the new hash."
     )
+
+
+def test_presampled_columns_exist(ds: XenoCantoAnnotatedJeantet23):
+    """Pre-resampled path columns should be present in the loaded data."""
+    assert "16khz_path" in ds.columns
+    assert "32khz_path" in ds.columns
+
+
+def test_load_presampled_32khz():
+    """Loading with sample_rate=32000 should use pre-resampled 32kHz audio."""
+    ds = XenoCantoAnnotatedJeantet23(split="all", sample_rate=32000)
+    item = ds[0]
+    audio = item["audio"]
+    assert isinstance(audio, np.ndarray)
+    assert audio.dtype == np.float32
+    assert audio.size >= 10
 
 
 def test_check_selection_table(

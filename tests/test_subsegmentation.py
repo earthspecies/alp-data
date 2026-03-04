@@ -74,6 +74,16 @@ def test_ds_not_empty(ds: Subsegmentation):
     assert len(ds) > 0, "Dataset appears empty"
 
 
+def test_get_available_labels(ds: Subsegmentation):
+    """Test get_available_labels for bird ID column."""
+    labels = ds.get_available_labels(anno_column="Species")
+    assert isinstance(labels, list), "get_available_labels should return a list"
+    assert len(labels) > 0, "Should have at least one bird ID"
+    # Check that all labels can be converted to strings
+    for label in labels:
+        assert isinstance(label, str), f"Species label for {label} should be string"
+
+
 def test_check_audio(ds: Subsegmentation, sample_indices: List[int]):
     """Basic audio integrity checks on a few random items."""
     for idx in sample_indices:
@@ -187,3 +197,116 @@ def test_qc_flag_consistent(ds: Subsegmentation, sample_indices: List[int]):
         assert (
             item["pass_qc"] == expected_pass_qc
         ), f"[{idx}] qc inconsistent: pass_qc={item['pass_qc']} but len(st)={len(st)}"
+
+
+# ---------------------------------------------------------------------------
+# Single-song split tests
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture(scope="module")
+def ds_single_song() -> Subsegmentation:
+    """Load single-song-all split for testing."""
+    return Subsegmentation(split="single_song_all", sample_rate=16000)
+
+
+@pytest.fixture(scope="module")
+def sample_indices_single_song(ds_single_song: Subsegmentation) -> List[int]:
+    """Deterministically choose up to 5 random indices for single-song spot checks."""
+    n = len(ds_single_song)
+    rng = random.Random(42)
+    return [rng.randrange(n) for _ in range(min(5, n))]
+
+
+def test_single_song_not_empty(ds_single_song: Subsegmentation):
+    """Single-song split should have at least one example."""
+    assert len(ds_single_song) > 0, "Single-song split appears empty"
+
+
+def test_single_song_check_audio(
+    ds_single_song: Subsegmentation, sample_indices_single_song: List[int]
+):
+    """Basic audio integrity checks on a few random single-song items."""
+    for idx in sample_indices_single_song:
+        item = ds_single_song[idx]
+        assert "audio" in item, f"[{idx}] missing 'audio' key"
+        audio = item["audio"]
+
+        assert isinstance(audio, np.ndarray), f"[{idx}] audio is not a numpy array"
+        assert (
+            audio.dtype == np.float32
+        ), f"[{idx}] audio dtype is {audio.dtype}, expected float32"
+        assert audio.size >= 10, f"[{idx}] audio too short (size={audio.size})"
+        assert not np.any(np.isnan(audio)), f"[{idx}] audio contains NaN values"
+        assert not np.all(audio == 0), f"[{idx}] audio is all zeros"
+
+
+def test_single_song_check_selection_table(
+    ds_single_song: Subsegmentation, sample_indices_single_song: List[int]
+):
+    """Selection table should have required columns and single-song structural invariants."""
+    required = {
+        "Begin Time (s)",
+        "End Time (s)",
+        "Species",
+        "Annotation",
+        "Genus",
+        "Family",
+        "Order",
+    }
+
+    for idx in sample_indices_single_song:
+        item = ds_single_song[idx]
+        assert "selection_table" in item, f"[{idx}] missing 'selection_table' key"
+        st = item["selection_table"]
+
+        assert isinstance(st, pd.DataFrame), f"[{idx}] selection_table is not a DataFrame"
+        missing = required - set(st.columns)
+        assert not missing, f"[{idx}] selection_table missing columns: {sorted(missing)}"
+
+        # Every single-song item is a complete song: at minimum 'a' and 'z'
+        assert len(st) >= 2, f"[{idx}] expected at least 2 syllables (a + z), got {len(st)}"
+        assert (
+            st.iloc[0]["Annotation"] == "a"
+        ), f"[{idx}] first annotation is {st.iloc[0]['Annotation']!r}, expected 'a'"
+        assert (
+            st.iloc[-1]["Annotation"] == "z"
+        ), f"[{idx}] last annotation is {st.iloc[-1]['Annotation']!r}, expected 'z'"
+
+        valid_annos = {"a", "s", "z"}
+        bad = set(st["Annotation"].unique()) - valid_annos
+        assert not bad, f"[{idx}] unexpected annotations in single-song table: {bad}"
+
+        # Times should be re-zeroed (no negative begin times)
+        assert not (
+            st["Begin Time (s)"] < 0
+        ).any(), f"[{idx}] negative begin times present after re-zeroing"
+
+
+def test_single_song_pass_qc_always_true(
+    ds_single_song: Subsegmentation, sample_indices_single_song: List[int]
+):
+    """Every single-song item is a complete song, so pass_qc must always be True."""
+    for idx in sample_indices_single_song:
+        item = ds_single_song[idx]
+        assert "pass_qc" in item, f"[{idx}] missing 'pass_qc' key"
+        assert item["pass_qc"] is True, f"[{idx}] pass_qc is False for a single-song item"
+
+
+def test_single_song_audio_covers_annotations(
+    ds_single_song: Subsegmentation, sample_indices_single_song: List[int]
+):
+    """Audio duration should cover the full selection table (with 1-sample floor-rounding tolerance)."""
+    for idx in sample_indices_single_song:
+        item = ds_single_song[idx]
+        audio = item["audio"]
+        st = item["selection_table"]
+        sr = item["sample_rate"]
+
+        audio_dur = len(audio) / float(sr)
+        max_end = float(st["End Time (s)"].max())
+        tolerance = 1.0 / sr  # one sample worth of tolerance for int() floor rounding
+        assert max_end <= audio_dur + tolerance, (
+            f"[{idx}] selection table end time {max_end:.6f}s exceeds "
+            f"audio duration {audio_dur:.6f}s (tolerance={tolerance:.6f}s)"
+        )

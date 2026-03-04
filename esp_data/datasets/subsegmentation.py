@@ -33,6 +33,12 @@ class Subsegmentation(Dataset):
     - a boolean indicating if it passed quality control (i.e. if it was sub-segmentable)
     - annotations of Species, Genus, Order, and Family.
 
+    Splits
+    ------
+    Original (multi-song recordings): "all", "train", "val", "test"
+    Single-song (one song per item, times re-zeroed): "single_song_all",
+        "single_song_train", "single_song_val", "single_song_test"
+
     Each selection table has, for each syllable, column for the Species, Genus, Order,
     and Family, as well as an Annotation:
 
@@ -58,6 +64,10 @@ class Subsegmentation(Dataset):
             "train": "gs://subsegmentation/xeno_canto_annotations/train.csv",
             "val": "gs://subsegmentation/xeno_canto_annotations/val.csv",
             "test": "gs://subsegmentation/xeno_canto_annotations/test.csv",
+            "single_song_all": "gs://subsegmentation/single_song/all.csv",
+            "single_song_train": "gs://subsegmentation/single_song/train.csv",
+            "single_song_val": "gs://subsegmentation/single_song/val.csv",
+            "single_song_test": "gs://subsegmentation/single_song/test.csv",
         },
         version="0.1.0",
         description="[MISSING]",
@@ -229,7 +239,7 @@ class Subsegmentation(Dataset):
             return ds, meta
         return ds, {}
 
-    def get_available_labels(self, anno_column: str) -> List[str]:
+    def get_available_labels(self, anno_column: str = "Species") -> List[str]:
         """
         Return all possible labels for a given annotation column
 
@@ -239,7 +249,7 @@ class Subsegmentation(Dataset):
         """
         available_labels = set()
         for row in self._data:
-            st = pd.read_csv(StringIO(row["selection_table_str"]), sep="\t")
+            st = pd.read_csv(StringIO(row["selection_table"]), sep="\t")
             available_labels.update(st[anno_column].astype(str).tolist())
         return sorted(available_labels)
 
