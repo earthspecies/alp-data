@@ -40,7 +40,7 @@ ECOTYPE_LABELS = [
     "OKW",  # Offshore
 ]
 
-COARSE_CALL_TYPE_LABELS = ["Call", "Whistle", "Click", "Buzz"]
+COARSE_CALL_TYPE_LABELS = ["call", "whistle", "click", "burst_pulse"]
 
 # Data providers in the DCLDE 2026 dataset.
 # UAF_NGOS is excluded
@@ -93,7 +93,6 @@ class DCLDE2026(Dataset):
     Splits
     ---------
     - "all": All data (default)
-    - "all_excl_beanszero": All data excluding taxa evaluated in the BEANS-Zero benchmark.
 
     Available tasks
     ---------------
@@ -101,9 +100,8 @@ class DCLDE2026(Dataset):
     - KW detection (binary): presence / absence of killer whale
     - Ecotype classification: SRKW / TKW / NRKW / SAR / OKW
     - Call type classification (fine-grained): S04, N24ii, T01, whistle, BP, EL, etc.
-    - Call type classification (coarse): Call / Whistle / Click / Buzz
-      (see :data:`COARSE_CALL_TYPE_LABELS` below)
-    - Acoustic behavior: burst_pulse / pulsed_call / whistle / click / buzzer / echolocation
+    - Call type classification (coarse): call / whistle / click / burst_pulse
+      (see :data:`COARSE_CALL_TYPE_LABELS` below; aligned with Watkins taxonomy)
     - Pod identification: J / K / L pods (Southern Resident)
     - Clan identification: A / G clans (Northern Resident)
 
@@ -128,17 +126,16 @@ class DCLDE2026(Dataset):
     - VFPA: Generally good; a few missed calls and slightly less
       consistency with faint calls.
 
-    Coarse call types:
-    Coarse call types derived from the fine-grained ``call_type`` column.
-    The ``coarse_call_type`` column is pre-computed in the selection tables.
+    Coarse call types (aligned with Watkins taxonomy):
 
     Mapping rules:
-    Call    — Discrete pulsed calls (S-series, N-series, T-series, OFF-series,
-                NS, BP) and variable vocalizations (tone, moan, upsweep, chirp,
-                groan, knock, shriek, whup, creak, grunt, scream, rasp, growl).
-    Whistle — Whistle-labeled signals only (whistle, whistle/tone, W).
-    Click   — Echolocation clicks (EL).
-    Buzz    — Rapid click trains (buzz, BZ).
+    call         — Discrete pulsed calls (S-series, N-series, T-series,
+                     OFF-series, NS) and variable vocalizations (tone, moan,
+                     upsweep, chirp, groan, knock, shriek, whup, creak,
+                     grunt, scream, rasp, growl).
+    whistle      — Whistle-labeled signals (whistle, whistle/tone, W).
+    click        — Echolocation clicks (EL) and rapid click trains (buzz, BZ).
+    burst_pulse  — Burst-pulse signals (BP).
 
     Unknown / ambiguous labels (Unk, Multiple overlapping, etc.) map to empty
     string and are dropped when ``drop_empty_windows=True`` in windowing.
@@ -162,7 +159,6 @@ class DCLDE2026(Dataset):
         owner="david",
         split_paths={
             "all": "gs://esp-ml-datasets/dclde2026/v0.1.0/raw/2026/dclde_2026_killer_whales/processed_enriched.csv",
-            "all_excl_beanszero": "gs://esp-ml-datasets/dclde2026/v0.1.0/raw/2026/dclde_2026_killer_whales/unseen_holdout.csv",
         },
         version="0.1.0",
         description="DCLDE 2026 killer whale dataset with species, ecotype, call type, "
