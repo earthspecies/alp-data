@@ -1,0 +1,151 @@
+name: CI Debug (self-hosted runner)
+
+on:    # yamllint disable-line rule:truthy
+    workflow_dispatch:
+    push:
+        branches: ["main"]
+    pull_request:
+
+jobs:
+    # Runs on GitHub-hosted runners. If your CI needs access to Google Cloud
+    # (e.g. private pypi, GCS buckets), prefer the self-hosted job below which
+    # runs on GKE and inherits GCP credentials automatically. It is also
+    # possible to authenticate from GitHub-hosted runners using workload
+    # identity federation — see the commented-out steps below.
+
+    # tests-github-hosted:
+    #     name: Run pytests tests
+    #     runs-on: ubuntu-latest
+    #     permissions:
+    #         contents: read
+    #         id-token: write
+
+    #     steps:
+    #         - uses: actions/checkout@v4
+
+    #         # - name: Authenticate to Google Cloud
+    #         #   uses: "google-github-actions/auth@v2"
+    #         #   with:
+    #         #       workload_identity_provider: ${{ secrets.WORKLOAD_IDENTITY_PROVIDER_ID }}
+    #         #       service_account: ${{ secrets.GH_ACTIONS_SA }}
+
+    #         - name: Install uv
+    #           uses: astral-sh/setup-uv@v4
+    #           with:
+    #               enable-cache: true
+
+    #         - name: "Set up Python"
+    #           uses: actions/setup-python@v5
+    #           with:
+    #               python-version-file: ".python-version"
+
+    #         - name: Install the project
+    #           run: uv sync --all-extras --dev
+
+    #         - name: Display Python version
+    #           run: python -c "import sys; print(sys.version)"
+
+    #         - name: Checking dependencies
+    #           run: uv run deptry .
+
+    #         - name: Run Doctests
+    #           run: uv run pytest --doctest-modules esp_data
+
+    #         - name: Run tests
+    #           run: uv run pytest tests
+
+    # test-multi-version-self-hosted:
+    #     name: Run tests on multiple Python versions
+    #     runs-on: self-hosted
+    #     strategy:
+    #         matrix:
+    #             python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
+    #     # permissions:
+    #     #     contents: read
+    #     #     id-token: write
+
+    #     steps:
+    #         - uses: actions/checkout@v4
+
+    #         - name: Authenticate to Google Cloud
+    #           uses: "google-github-actions/auth@v2"
+    #           with:
+    #               workload_identity_provider: ${{ secrets.WORKLOAD_IDENTITY_PROVIDER_ID }}
+    #               service_account: ${{ secrets.GH_ACTIONS_SA }}
+
+    #         - name: Install uv
+    #           uses: astral-sh/setup-uv@v4
+    #           with:
+    #               enable-cache: true
+
+    #         - name: "Set up Python ${{ matrix.python-version }}"
+    #           uses: actions/setup-python@v5
+    #           with:
+    #               python-version: ${{ matrix.python-version }}
+
+    #         - name: Install the project
+    #           run: uv sync --all-extras --dev
+
+    #         - name: Run core tests
+    #           run: uv run pytest tests/io
+
+    # Runs on ESP's self-hosted runners on GKE. GCP credentials are available
+    # automatically via the node's service account — no workload identity
+    # federation or secrets needed.
+    test-self-hosted:
+        name: Run pytests tests
+        runs-on: self-hosted
+
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Install uv
+              uses: astral-sh/setup-uv@v4
+              with:
+                  enable-cache: true
+
+            - name: "Set up Python"
+              uses: actions/setup-python@v5
+              with:
+                  python-version-file: ".python-version"
+
+            - name: Install the project
+              run: uv sync --all-extras --dev
+
+            - name: Display Python version
+              run: python -c "import sys; print(sys.version)"
+
+            - name: Checking dependencies
+              run: uv run deptry .
+
+            - name: Run Doctests
+              run: uv run pytest --doctest-modules esp_data
+
+            - name: Run tests
+              run: uv run pytest tests
+
+    test-multi-version-self-hosted:
+        name: Run tests on multiple Python versions
+        runs-on: self-hosted
+        strategy:
+            matrix:
+                python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
+
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Install uv
+              uses: astral-sh/setup-uv@v4
+              with:
+                  enable-cache: true
+
+            - name: "Set up Python ${{ matrix.python-version }}"
+              uses: actions/setup-python@v5
+              with:
+                  python-version: ${{ matrix.python-version }}
+
+            - name: Install the project
+              run: uv sync --all-extras --dev
+
+            - name: Run core tests
+              run: uv run pytest tests/io
