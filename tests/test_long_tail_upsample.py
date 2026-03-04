@@ -6,44 +6,6 @@ from esp_data.backends import PandasBackend, PolarsBackend
 from esp_data.transforms import LongTailUpsample, LongTailUpsampleConfig
 
 
-def _get_class_counts(
-    backend: PandasBackend | PolarsBackend,
-    backend_type: str,
-    column: str = "class",
-) -> dict[str, int]:
-    """Extract per-class counts from a backend regardless of type.
-
-    Parameters
-    ----------
-    backend : PandasBackend | PolarsBackend
-        The backend to extract counts from.
-    backend_type : str
-        Either "pandas" or "polars".
-    column : str
-        Column name to count by.
-
-    Returns
-    -------
-    dict[str, int]
-        Mapping of category values to their counts.
-    """
-    if backend_type == "pandas":
-        df = backend.unwrap
-        return df[column].value_counts().to_dict()
-    else:
-        df = backend.unwrap
-        if isinstance(df, pl.LazyFrame):
-            df = df.collect()
-        counts_df = df.group_by(column).len()
-        return dict(
-            zip(
-                counts_df[column].to_list(),
-                counts_df["len"].to_list(),
-                strict=True,
-            )
-        )
-
-
 @pytest.mark.parametrize("backend_type", ["pandas", "polars"])
 def test_above_threshold_untouched(backend_type: str) -> None:
     """Categories at or above sufficient_threshold keep their original count."""
@@ -64,7 +26,7 @@ def test_above_threshold_untouched(backend_type: str) -> None:
     transform = LongTailUpsample.from_config(config)
     result, _ = transform(backend)
 
-    counts = _get_class_counts(result, backend_type)
+    counts = result.histogram("class")
     assert counts["common"] == 500
 
 
@@ -89,7 +51,7 @@ def test_below_threshold_upsampled_to_threshold(backend_type: str) -> None:
     transform = LongTailUpsample.from_config(config)
     result, _ = transform(backend)
 
-    counts = _get_class_counts(result, backend_type)
+    counts = result.histogram("class")
     assert counts["moderate"] == 300
 
 
@@ -114,7 +76,7 @@ def test_rare_capped_by_max_repeats(backend_type: str) -> None:
     transform = LongTailUpsample.from_config(config)
     result, _ = transform(backend)
 
-    counts = _get_class_counts(result, backend_type)
+    counts = result.histogram("class")
     assert counts["rare"] == 15
 
 
@@ -142,13 +104,16 @@ def test_long_tail_distribution(backend_type: str) -> None:
         seed=42,
     )
     transform = LongTailUpsample.from_config(config)
-    result, _ = transform(backend)
+    result, meta = transform(backend)
 
-    counts = _get_class_counts(result, backend_type)
+    counts = result.histogram("class")
     assert counts["common"] == 500  # untouched
     assert counts["moderate"] == 300  # min(300, 100*5=500) = 300
     assert counts["uncommon"] == 200  # min(300, 40*5=200) = 200
     assert counts["rare"] == 15  # min(300, 3*5=15) = 15
+
+    assert meta["histogram_before"] == {"common": 500, "moderate": 100, "uncommon": 40, "rare": 3}
+    assert meta["histogram_after"] == counts
 
 
 @pytest.mark.parametrize("backend_type", ["pandas", "polars"])
@@ -172,11 +137,12 @@ def test_max_repeats_one_leaves_data_unchanged(backend_type: str) -> None:
         seed=42,
     )
     transform = LongTailUpsample.from_config(config)
-    result, _ = transform(backend)
+    result, meta = transform(backend)
 
-    counts = _get_class_counts(result, backend_type)
+    counts = result.histogram("class")
     assert counts["common"] == 500
     assert counts["rare"] == 3
+    assert meta["histogram_before"] == meta["histogram_after"]
 
 
 @pytest.mark.parametrize("backend_type", ["pandas", "polars"])
@@ -217,7 +183,7 @@ def test_manual_vs_config(backend_type: str) -> None:
         max_repeats=4,
         seed=42,
     )
-    manual_result, _ = manual(backend)
+    manual_result, manual_meta = manual(backend)
 
     config = LongTailUpsampleConfig(
         type="long_tail_upsample",
@@ -226,12 +192,13 @@ def test_manual_vs_config(backend_type: str) -> None:
         max_repeats=4,
         seed=42,
     )
-    config_result, _ = LongTailUpsample.from_config(config)(backend)
+    config_result, config_meta = LongTailUpsample.from_config(config)(backend)
 
-    manual_counts = _get_class_counts(manual_result, backend_type)
-    config_counts = _get_class_counts(config_result, backend_type)
+    manual_counts = manual_result.histogram("class")
+    config_counts = config_result.histogram("class")
     assert manual_counts == config_counts
     assert len(manual_result) == len(config_result)
+    assert manual_meta == config_meta
 
 
 def test_config_validation_sufficient_threshold() -> None:

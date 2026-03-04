@@ -123,7 +123,8 @@ class LongTailUpsample:
         -------
         tuple[DataBackend, dict]
             A tuple containing the transformed backend (same type as input)
-            and an empty metadata dictionary.
+            and a metadata dictionary with keys ``histogram_before`` and
+            ``histogram_after``, each mapping category values to their counts.
 
         Raises
         ------
@@ -136,7 +137,7 @@ class LongTailUpsample:
         category_counts = backend.histogram(self.property)
 
         if not category_counts:
-            return backend, {}
+            return backend, {"histogram_before": {}, "histogram_after": {}}
 
         target_counts: dict[str, int] = {}
         for value, count in category_counts.items():
@@ -156,7 +157,12 @@ class LongTailUpsample:
             seed=self.seed,
         )
 
-        return sampled_backend, {}
+        histogram_after = sampled_backend.histogram(self.property)
+
+        return sampled_backend, {
+            "histogram_before": category_counts,
+            "histogram_after": histogram_after,
+        }
 
 
 register_transform(LongTailUpsampleConfig, LongTailUpsample)
