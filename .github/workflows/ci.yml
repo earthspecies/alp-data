@@ -1,4 +1,4 @@
-name: CI Debug (self-hosted runner)
+name: Tests CI
 
 on:    # yamllint disable-line rule:truthy
     workflow_dispatch:
