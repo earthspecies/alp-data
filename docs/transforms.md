@@ -166,10 +166,10 @@ The `SelectColumns` transform allows you to select a subset of columns from your
         show_source: true
 
 
-### LongtailUpsample Transform
-The `LongtailUpsample` transform performs upsampling of underrepresented classes in a long-tailed distribution. Example use case: Increasing the number of samples for rare species in a biodiversity dataset.
+### LongTailUpsample Transform
+The `LongTailUpsample` transform performs upsampling of underrepresented classes in a long-tailed distribution. Example use case: Increasing the number of samples for rare species in a biodiversity dataset.
 
-::: esp_data.transforms.LongtailUpsample
+::: esp_data.transforms.LongTailUpsample
     handler: python
     options:
         show_root_heading: true
