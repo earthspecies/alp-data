@@ -154,3 +154,33 @@ The `Deduplicate` transform removes duplicate rows from your dataset based on sp
     options:
         show_root_heading: true
         show_source: true
+
+
+### SelectColumns Transform
+The `SelectColumns` transform allows you to select a subset of columns from your dataset. Example use case: Keeping only the 'audio' and 'label' columns for a machine learning task.
+
+::: esp_data.transforms.SelectColumns
+    handler: python
+    options:
+        show_root_heading: true
+        show_source: true
+
+
+### LongtailUpsample Transform
+The `LongtailUpsample` transform performs upsampling of underrepresented classes in a long-tailed distribution. Example use case: Increasing the number of samples for rare species in a biodiversity dataset.
+
+::: esp_data.transforms.LongtailUpsample
+    handler: python
+    options:
+        show_root_heading: true
+        show_source: true
+
+
+### AddTaxonomy Transform
+The `AddTaxonomy` transform adds precomputed GBIF taxonomic information to your dataset based on existing features. Example use case: Adding family and order information to a dataset with a 'species' column using GBIF taxonomy.
+
+::: esp_data.discover.AddTaxonomy
+    handler: python
+    options:
+        show_root_heading: true
+        show_source: true
