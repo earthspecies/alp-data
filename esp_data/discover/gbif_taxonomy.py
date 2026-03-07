@@ -161,8 +161,11 @@ class AddTaxonomy:
     ----------
     feature : str
         Column name containing scientific names to look up.
-    precomputed_fp : str | AnyPathT
-        Path to precomputed GBIF taxonomy json file.
+    gbif_precomputed_taxonomy_path : str | AnyPathT
+        Path to GBIF taxonomy json file, preprocessed via
+        scripts/cache_gbif_taxonomy_conversion.py
+    add_taxonomic_name : bool
+        Whether to add a 'taxonomic_name' column with the full taxonomic name.
     """
 
     def __init__(
