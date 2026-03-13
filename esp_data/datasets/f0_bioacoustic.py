@@ -160,10 +160,7 @@ class F0Bioacoustic(Dataset):
             "val": "gs://esp-data-ingestion/f0-prediction/f0_bioacoustic_val.csv",
         },
         version="0.1.0",
-        description=(
-            "Are "
-            "with ground-truth fundamental frequency contours"
-        ),
+        description=("Are with ground-truth fundamental frequency contours"),
         sources="Musikhin et al. (2025) doi:10.1080/09524622.2025.2500380",
         license="CC0-1.0",
     )
@@ -226,9 +223,7 @@ class F0Bioacoustic(Dataset):
         if taxa is not None:
             unknown = set(taxa) - set(TAXA)
             if unknown:
-                raise ValueError(
-                    f"Unknown taxa: {sorted(unknown)}. Valid taxa: {TAXA}"
-                )
+                raise ValueError(f"Unknown taxa: {sorted(unknown)}. Valid taxa: {TAXA}")
             self._data = self._data.filter_isin("taxon", taxa)
 
         if self.data_root is None:
@@ -258,8 +253,7 @@ class F0Bioacoustic(Dataset):
     def _load(self) -> None:
         if self.split not in self.info.split_paths:
             raise LookupError(
-                f"Invalid split: {self.split}. "
-                f"Expected one of {list(self.info.split_paths.keys())}"
+                f"Invalid split: {self.split}. Expected one of {list(self.info.split_paths.keys())}"
             )
         location = self.info.split_paths[self.split]
         self._data = self._backend_class.from_csv(

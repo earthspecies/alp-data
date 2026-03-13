@@ -1,4 +1,4 @@
-"""SuperWhale Detection dataset — aggregate of 14 marine mammal detection datasets.
+"""SuperWhale Detection dataset — aggregate of 11 marine mammal detection datasets.
 
 Each row represents one audio file and carries a ``selection_table`` column: a
 TSV-encoded blob listing per-event annotations (begin/end times, frequencies,
@@ -8,7 +8,7 @@ also contain ``canonical_name``, ``genus``, ``family``, ``species_common``, and
 
 Component Datasets
 ------------------
-The merged detection CSV is built from 14 source datasets spanning baleen
+The merged detection CSV is built from 11 source datasets spanning baleen
 whales, odontocetes, and mixed-species recordings.  Each source dataset is
 identified by its ``source_dataset`` column value in the CSV.  See
 ``DETECTION_CATALOG`` for per-dataset documentation.
@@ -93,21 +93,10 @@ DETECTION_CATALOG: dict[str, dict[str, Any]] = {
             "Sousa plumbea",
             "Tursiops aduncus",
         ],
-        "call_types": ["unknown"],
+        "call_types": ["call", "whistle"],
         "license": "CC-BY-4.0",
         "rows": 13,
         "source_url": "https://zenodo.org/records/11100712",
-    },
-    "data_from_multi_platform_deployments_of_low_cost_devices_for_cetacean_passive_ac": {
-        "description": (
-            "Multi-platform low-cost PAM deployments: Risso's and "
-            "striped dolphin detections from Raven selection tables."
-        ),
-        "species": ["Grampus griseus", "Stenella coeruleoalba"],
-        "call_types": ["click", "whistle"],
-        "license": "CC-BY-4.0",
-        "rows": 9,
-        "source_url": "https://datadryad.org/stash/dataset/doi:10.5061/dryad.qz612jmjf",
     },
     "dclde_2013_nefsc_sbnms_allbaleen": {
         "description": (
@@ -137,27 +126,6 @@ DETECTION_CATALOG: dict[str, dict[str, Any]] = {
         "call_types": ["call"],
         "license": "CC0-1.0",
         "rows": 23,
-        "source_url": "https://www.cetus.ucsd.edu/dclde/datasetDocumentation.html",
-    },
-    "dclde_2018_hf_annotations": {
-        "description": (
-            "DCLDE 2018 high-frequency: odontocete click annotations "
-            "including pilot whales, beaked whales, Risso's dolphins, "
-            "and white-sided dolphins."
-        ),
-        "species": [
-            "Globicephala macrorhynchus",
-            "Grampus griseus",
-            "Lagenorhynchus acutus",
-            "Mesoplodon bidens",
-            "Mesoplodon europaeus",
-            "Odontoceti",
-            "Stenella sp.",
-            "Ziphius cavirostris",
-        ],
-        "call_types": ["click"],
-        "license": "CC0-1.0",
-        "rows": 1213,
         "source_url": "https://www.cetus.ucsd.edu/dclde/datasetDocumentation.html",
     },
     "dolphinfree": {
@@ -214,16 +182,6 @@ DETECTION_CATALOG: dict[str, dict[str, Any]] = {
         "license": "CC-BY-4.0",
         "rows": 4,
         "source_url": "https://zenodo.org/records/3624145",
-    },
-    "zenodo_17282717_mediterranean_sperm_whale_clicks": {
-        "description": (
-            "Mediterranean sperm whale click recordings from the Alboran Sea (Zenodo 17282717)."
-        ),
-        "species": ["Physeter macrocephalus"],
-        "call_types": ["click"],
-        "license": "CC-BY-4.0",
-        "rows": 10,
-        "source_url": "https://zenodo.org/records/17282717",
     },
     "delphinid_whistle_bbox_dryad_ferguson": {
         "description": (
@@ -295,7 +253,7 @@ class SuperWhaleDetectionConfig(DatasetConfig):
     split : str
         Split to load (default ``"train"``).
     include_datasets : list[str] | None
-        Source-dataset names to include.  ``None`` means *all* 14 datasets.
+        Source-dataset names to include.  ``None`` means *all* 11 datasets.
         Names must match the ``source_dataset`` column in the CSV — see
         ``DETECTION_CATALOG`` keys for the full list.
     positives_only : dict[str, bool]
@@ -315,7 +273,8 @@ class SuperWhaleDetectionConfig(DatasetConfig):
     include_datasets: list[str] | None = Field(
         default=None,
         description=(
-            "Source-dataset names to include.  None = all.  See DETECTION_CATALOG for valid names."
+            "Source-dataset names to include.  None = all.  "
+            "See DETECTION_CATALOG for valid names."
         ),
     )
     positives_only: dict[str, bool] = Field(
@@ -340,12 +299,11 @@ _GCS_ROOT = "gs://esp-data-ingestion/superwhale/v0.1.0/raw"
 
 @register_dataset
 class SuperWhaleDetection(Dataset):
-    """SuperWhale Detection: an aggregate of 14 marine mammal detection datasets.
+    """SuperWhale Detection: an aggregate of 11 marine mammal detection datasets.
 
     Each row is an audio file paired with a ``selection_table`` TSV blob
     containing per-event annotations.  The dataset covers baleen whales (blue,
-    fin, sei, right, humpback, bowhead, minke), sperm whales, beaked whales,
-    and several delphinid species.
+    fin, sei, right, humpback), and several delphinid species.
 
     Component Datasets
     ------------------
@@ -379,12 +337,11 @@ class SuperWhaleDetection(Dataset):
         },
         version="0.1.0",
         description=(
-            "Aggregate detection dataset of 14 marine mammal acoustic "
+            "Aggregate detection dataset of 11 marine mammal acoustic "
             "datasets.  Each row is an audio file with a selection-table "
             "TSV containing per-event annotations (species, call type, "
-            "time/frequency bounds).  Covers baleen whales, sperm whales, "
-            "beaked whales, and delphinids.  See DETECTION_CATALOG for "
-            "per-dataset documentation."
+            "time/frequency bounds).  Covers baleen whales and delphinids.  "
+            "See DETECTION_CATALOG for per-dataset documentation."
         ),
         sources=[info["source_url"] for info in DETECTION_CATALOG.values()],
         license="Mixed (CC-BY-4.0, CC0-1.0; see component datasets)",
@@ -448,7 +405,8 @@ class SuperWhaleDetection(Dataset):
         """Load the merged detection CSV, then apply dataset & positives filters."""
         if self.split not in self.info.split_paths:
             raise LookupError(
-                f"Invalid split: {self.split}. Expected one of {list(self.info.split_paths.keys())}"
+                f"Invalid split: {self.split}. "
+                f"Expected one of {list(self.info.split_paths.keys())}"
             )
 
         location = self.info.split_paths[self.split]
@@ -471,7 +429,9 @@ class SuperWhaleDetection(Dataset):
             is_positives_only = self.positives_only_map.get(source_ds, True)
             if is_positives_only:
                 ds_rows = df["source_dataset"] == source_ds
-                has_events = df.loc[ds_rows, "selection_table"].apply(_selection_table_has_events)
+                has_events = df.loc[ds_rows, "selection_table"].apply(
+                    _selection_table_has_events
+                )
                 keep_mask.loc[ds_rows] = has_events
 
         df = df[keep_mask].reset_index(drop=True)
@@ -501,11 +461,13 @@ class SuperWhaleDetection(Dataset):
         cls, dataset_config: SuperWhaleDetectionConfig
     ) -> tuple["SuperWhaleDetection", dict[str, Any]]:
         """Create a SuperWhaleDetection instance from a config."""
-        cfg = dataset_config.model_dump(exclude={"dataset_name", "transformations"})
+        cfg = dataset_config.model_dump(
+            exclude={"dataset_name", "transformations"}
+        )
         ds = cls(
             split=cfg["split"],
-            include_datasets=cfg["include_datasets"],
-            positives_only=cfg["positives_only"],
+            include_datasets=cfg.get("include_datasets"),
+            positives_only=cfg.get("positives_only"),
             output_take_and_give=cfg["output_take_and_give"],
             sample_rate=cfg["sample_rate"],
             data_root=cfg["data_root"],
@@ -530,7 +492,17 @@ class SuperWhaleDetection(Dataset):
     def _process(self, row: dict[str, Any]) -> dict[str, Any]:
         """Process a single row: load audio, parse selection table."""
         audio_path, is_presampled = self._resolve_audio_path(row)
-        audio, sr = read_audio(audio_path)
+        window_start = row.get("window_start_sec")
+        window_end = row.get("window_end_sec")
+
+        if window_start is not None and window_end is not None:
+            audio, sr = read_audio(
+                audio_path,
+                start_time=float(window_start),
+                end_time=float(window_end),
+            )
+        else:
+            audio, sr = read_audio(audio_path)
         audio = audio_stereo_to_mono(audio, mono_method="average").astype(np.float32)
 
         if not is_presampled and self.sample_rate is not None and sr != self.sample_rate:
@@ -543,26 +515,34 @@ class SuperWhaleDetection(Dataset):
             )
             sr = self.sample_rate
 
-        # Parse selection table TSV into a DataFrame
-        st = pd.read_csv(StringIO(row["selection_table"]), sep="\t")
-        for col in (
-            "species",
-            "taxon",
-            "taxon_rank",
-            "call_type",
-            "coarse_call_type",
-            "confidence",
-        ):
-            if col in st.columns:
-                st[col] = st[col].fillna("")
-
-        # Clip events that start after the audio ends
-        audio_dur = len(audio) / float(sr)
-        st = st[st["Begin Time (s)"] < audio_dur].copy()
-
         row["audio"] = audio
         row["sample_rate"] = sr
-        row["selection_table"] = st
+
+        raw_st = row.get("selection_table")
+        if raw_st is not None:
+            if isinstance(raw_st, str):
+                st = pd.read_csv(StringIO(raw_st), sep="\t", keep_default_na=False)
+            elif isinstance(raw_st, pd.DataFrame):
+                st = raw_st
+            else:
+                st = pd.DataFrame()
+
+            for col in (
+                "species",
+                "taxon",
+                "taxon_rank",
+                "call_type",
+                "coarse_call_type",
+                "confidence",
+            ):
+                if col in st.columns:
+                    st[col] = st[col].fillna("")
+
+            audio_dur = len(audio) / float(sr)
+            if "Begin Time (s)" in st.columns:
+                st = st[st["Begin Time (s)"] < audio_dur].copy()
+
+            row["selection_table"] = st
 
         if self.output_take_and_give:
             return {new: row[old] for old, new in self.output_take_and_give.items()}
@@ -585,7 +565,11 @@ class SuperWhaleDetection(Dataset):
 
     def __str__(self) -> str:
         n = len(self) if self._data is not None and not self._streaming else "?"
-        ds_count = len(self.include_datasets) if self.include_datasets else len(DETECTION_CATALOG)
+        ds_count = (
+            len(self.include_datasets)
+            if self.include_datasets
+            else len(DETECTION_CATALOG)
+        )
         return (
             f"{self.info.name} (v{self.info.version}), split='{self.split}'\n"
             f"  Rows: {n}  |  Source datasets: {ds_count}\n"

@@ -9,7 +9,7 @@ from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from esp_data.backends import BackendType
 from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
 
-_GCS_ROOT = "gs://esp-ml-datasets/birdset/v0.2.0/raw"
+_GCS_ROOT = "gs://esp-ml-datasets/birdset/v0.1.0/raw"
 
 
 @register_dataset
@@ -21,7 +21,7 @@ class BirdSet(Dataset):
     BirdSet is a large-scale benchmark dataset for audio classification focusing
     on avian bioacoustics.  It includes over 6,800 recording hours from nearly
     10,000 species for training and more than 400 hours across eight strongly
-    labeled evaluation datasets.  This version (v0.2.0) contains the eight
+    labeled evaluation datasets.  This version (v0.1.0) contains the eight
     evaluation subsets with test and test_5s splits, GBIF-linked taxonomy, and
     pre-resampled 16 kHz / 32 kHz WAV audio. The training data is not included in this dataset,
     but is a subset of the Xeno-canto dataset.
@@ -112,7 +112,7 @@ class BirdSet(Dataset):
             "UHH-test_5s": f"{_GCS_ROOT}/UHH_test_5s.csv",
             "all": f"{_GCS_ROOT}/birdset_all.csv",
         },
-        version="0.2.0",
+        version="0.1.0",
         description=(
             "BirdSet avian bioacoustics benchmark with GBIF-linked taxonomy. "
             "Pre-resampled audio available at 16 kHz and 32 kHz (WAV). "
@@ -182,18 +182,17 @@ class BirdSet(Dataset):
 
     @property
     def available_sample_rates(self) -> list[int]:
-        """Return pre-resampled sample rates available in the loaded data.
+        """Return sample rates supported by this dataset.
+
+        Pre-resampled audio is loaded directly when a matching column exists
+        in the data; otherwise the original audio is resampled on-the-fly.
 
         Returns
         -------
         list[int]
-            Sample rates (Hz) that can be loaded without on-the-fly resampling.
+            Sorted sample rates (Hz) declared in ``_sample_rate_paths``.
         """
-        available = []
-        for sr, col in self._sample_rate_paths.items():
-            if col in self._data.columns:
-                available.append(sr)
-        return sorted(available)
+        return sorted(self._sample_rate_paths.keys())
 
     def _load(self) -> None:
         if self.split not in self.info.split_paths:

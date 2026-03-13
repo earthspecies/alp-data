@@ -31,6 +31,8 @@ from .pipit_id import PipitId
 from .powdermill import Powdermill
 from .subsegmentation import Subsegmentation
 from .superb_starling import SuperbStarling
+from .superwhales_detection import SuperWhaleDetection
+from .synthetic_audio_conversations import SyntheticAudioConversations
 from .voxaboxen import Voxaboxen, VoxaboxenEvents
 from .wabad import WABAD
 from .watkins import Watkins
@@ -64,6 +66,8 @@ __all__ = [
     "F0Bioacoustic",
     "Subsegmentation",
     "SuperbStarling",
+    "SuperWhaleDetection",
+    "SyntheticAudioConversations",
     "WABAD",
     "XenoCanto",
     "XenoCantoAnnotatedJeantet23",
