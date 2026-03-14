@@ -1,9 +1,13 @@
+import sys
+from unittest.mock import patch
+
 import pytest
 
 from esp_data.utils import (
     cached_class_property,
     increment_version,
     make_id,
+    make_torch_iterable_compatible,
     utc_now,
     validate_datetime,
     validate_id,
@@ -54,6 +58,19 @@ def test_validate_datetime():
 def test_make_id():
     id = make_id()
     assert validate_id(id) == id
+
+
+def test_make_torch_iterable_compatible_noop_when_torch_missing():
+    class Dummy:
+        pass
+
+    obj = Dummy()
+    original_class = type(obj)
+
+    with patch.dict(sys.modules, {"torch": None, "torch.utils": None, "torch.utils.data": None}):
+        make_torch_iterable_compatible(obj)
+
+    assert type(obj) is original_class
 
 
 def test_cached_class_property_print_output(capsys):

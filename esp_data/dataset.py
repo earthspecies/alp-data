@@ -9,6 +9,7 @@ from esp_data.backends import BackendType, get_backend
 from esp_data.io import AnyPathT, read_yaml
 from esp_data.transforms import transform_from_config
 from esp_data.transforms.registry import RegisteredTransformConfigs
+from esp_data.utils import make_torch_iterable_compatible
 
 
 class DatasetConfig(BaseModel):
@@ -363,6 +364,20 @@ class Dataset(ABC):
     @property
     def streaming(self) -> bool:
         return self._streaming
+
+    def as_torch_iterable(self) -> "Dataset":
+        """Make the dataset compatible with PyTorch's IterableDataset.
+
+        This method modifies the dataset in-place to ensure that its __iter__
+        method yields dictionaries that can be directly used in PyTorch training loops.
+
+        Returns
+        -------
+        Dataset
+            The modified dataset instance, now compatible with PyTorch's IterableDataset.
+        """
+        make_torch_iterable_compatible(self)
+        return self
 
     @abstractmethod
     def _load(self) -> Sequence[Any] | None:

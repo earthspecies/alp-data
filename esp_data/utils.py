@@ -429,6 +429,68 @@ class CachedClassProperty:
         return getattr(owner, self.cache_attrname)
 
 
+# Cache for dynamically created streaming classes
+_streaming_class_cache: dict[type, type] = {}
+
+
+def make_torch_iterable_compatible(instance: object) -> None:
+    """If torch is available, make a streaming dataset instance compatible with
+    ``torch.utils.data.DataLoader`` by dynamically adding ``IterableDataset``
+    to the instance's class hierarchy.
+
+    PyTorch's ``DataLoader`` inspects ``isinstance(dataset, IterableDataset)``
+    to decide whether to use iterable-style or map-style loading. Without this,
+    streaming datasets raise ``NotImplementedError`` when DataLoader tries to
+    call ``__len__``.
+
+    This function modifies ``instance.__class__`` in-place, so no wrapping or
+    changes to the call site are needed. It is a no-op when torch is not installed.
+
+    Parameters
+    ----------
+    instance : object
+        The streaming dataset instance to patch.
+
+    Examples
+    --------
+    >>> import torch
+    >>> from esp_data import Beans
+    >>> beans = Beans(split="cbi_validation", streaming=True)
+    >>> from torch.utils.data import IterableDataset
+    >>> isinstance(beans, IterableDataset)
+    True
+    """
+    try:
+        from torch.utils.data import IterableDataset as TorchIterableDataset
+    except ImportError:
+        return
+
+    import sys
+    import warnings
+
+    warnings.warn(
+        f"{type(instance).__name__}.as_torch_iterable() does not handle multi-worker "
+        "DataLoader splitting. If you use DataLoader with num_workers > 0, each worker "
+        "will iterate the full dataset, resulting in duplicated samples. Pass a "
+        "worker_init_fn to the DataLoader to distribute indices across workers.",
+        UserWarning,
+        stacklevel=3,
+    )
+
+    base_cls = type(instance)
+    if base_cls not in _streaming_class_cache:
+        new_cls = type(
+            base_cls.__name__,
+            (base_cls, TorchIterableDataset),
+            {"__module__": base_cls.__module__},
+        )
+        # Register the patched class back into its module so pickle can find it
+        # by name (pickle verifies that module.classname resolves to the same object).
+        sys.modules[base_cls.__module__].__dict__[base_cls.__name__] = new_cls
+        _streaming_class_cache[base_cls] = new_cls
+    instance.__class__ = _streaming_class_cache[base_cls]
+
+
 def cached_class_property(method: Callable) -> Callable:
     """Decorator to create a cached, read-only property on a class.
 
