@@ -27,6 +27,7 @@ from .macaques_coo_calls import MacaquesCooCalls
 from .nocturnal_bird_migration import NocturnalBirdMigration
 from .pipit_id import PipitId
 from .powdermill import Powdermill
+from .spanish_carrion_crows import SpanishCarrionCrows
 from .subsegmentation import Subsegmentation
 from .superb_starling import SuperbStarling
 from .voxaboxen import Voxaboxen, VoxaboxenEvents
@@ -76,4 +77,5 @@ __all__ = [
     "CorvidWascher",
     "DCLDE2026",
     "Watkins",
+    "SpanishCarrionCrows",
 ]
