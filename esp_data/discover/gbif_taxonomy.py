@@ -13,6 +13,7 @@ import pandas as pd
 from pydantic import BaseModel, Field, field_validator
 
 from esp_data.backends import DataBackend
+from esp_data.discover.taxonomy_manual_corrections import SCI_NAME_CORRECTION_MANUAL
 from esp_data.io import AnyPathT, exists, filesystem_from_path
 from esp_data.transforms import register_transform
 
@@ -97,6 +98,7 @@ class GBIFConverter:
         GBIF taxonomic record.
 
         The method:
+        - Manually corrects scientific name to one that is searchable in GBIF
         - Resolves duplicate canonical-name matches by preferring accepted usages.
         - Walks up the taxonomy if the matched record is below species rank.
         - Redirects unaccepted names to their accepted usage.
@@ -114,6 +116,14 @@ class GBIFConverter:
             resolved GBIF taxonomic fields (empty on failure), and ``ok`` is a
             boolean indicating whether resolution succeeded.
         """
+
+        if lookup_name in SCI_NAME_CORRECTION_MANUAL:
+            lookup_name_corrected = SCI_NAME_CORRECTION_MANUAL[lookup_name]
+            logger.warning(
+                f"{lookup_name} manually corrected to {lookup_name_corrected}"
+                "before being passed to GBIFConverter"
+            )
+            lookup_name = lookup_name_corrected
 
         out = self.lookupdict.get(lookup_name, False)
         if not out:
