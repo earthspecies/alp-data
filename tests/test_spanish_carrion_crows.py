@@ -45,11 +45,11 @@ from esp_data.datasets import SpanishCarrionCrows
 # quit()
 # # # # #
 
-EXPECTED_LEN_ALL = 954  #
+EXPECTED_LEN_ALL = 953  #
 EXPECTED_FIRST_ITEM_AUDIO_SHA256 = (
     "1313ead69001c6f7bcd52672e90d51f3f138c73180afca19a7013d562b1877f9"
 )
-ANNOTATIONS_SHA256 = "ec39cccd782f6478dc22cc353fabcefc2a7efbb99e9734d5814b0e0c1ed3ccb2"
+ANNOTATIONS_SHA256 = "eb8f7f74193a0eedc611c2ae188583a8ab107d57afebc77db0697597ac8ae81c"
 # ---------------------------------------------------------------------------
 
 
