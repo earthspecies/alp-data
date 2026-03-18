@@ -6,6 +6,7 @@ from io import StringIO
 from typing import Any, Iterator
 
 import librosa
+import numpy as np
 import pandas as pd
 
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
@@ -38,7 +39,7 @@ class SpanishCarrionCrows(Dataset):
         - Synchronized UTC timestamps across biologgers.
         - Annotations of file quality
           e.g., some biologgers prematurely detached from the bird and recorded
-          background sounds only
+          background sounds only. Therefore some selection tables are empty.
         - Call types
     If any additional data are needed, please contact Maddie.
 
@@ -46,65 +47,21 @@ class SpanishCarrionCrows(Dataset):
 
     TODO: Add preprint link.
 
+    Should talk to collaborators (Daniela Canestrari and Vittorio Baglione)
+    about usage in work to be published.
+
     """
 
     info = DatasetInfo(
         name="spanish-carrion-crows",
         owner="maddie",
         split_paths={
-            "all": "gs://esp-ml-datasets/spanish-carrion-crows/v0.1.0/detections/all__spanish-carrion-crows_info.csv",
-            "2018_AW_Roja": "gs://esp-ml-datasets/spanish-carrion-crows/v0.1.0/detections/2018_AW_Roja__spanish-carrion-crows_info.csv",
-            "2018_AW_Azul": "gs://esp-ml-datasets/spanish-carrion-crows/v0.1.0/detections/2018_AW_Azul__spanish-carrion-crows_info.csv",
-            "2018_AY_Amarilla": "gs://esp-ml-datasets/spanish-carrion-crows/v0.1.0/detections/2018_AY_Amarilla__spanish-carrion-crows_info.csv",
-            "2018_AY_Verde": "gs://esp-ml-datasets/spanish-carrion-crows/v0.1.0/detections/2018_AY_Verde__spanish-carrion-crows_info.csv",
-            "2018_BC_Amarilla": "gs://esp-ml-datasets/spanish-carrion-crows/v0.1.0/detections/2018_BC_Amarilla__spanish-carrion-crows_info.csv",
-            "2018_BC_Naranja": "gs://esp-ml-datasets/spanish-carrion-crows/v0.1.0/detections/2018_BC_Naranja__spanish-carrion-crows_info.csv",
-            "2018_BC_Verde": "gs://esp-ml-datasets/spanish-carrion-crows/v0.1.0/detections/2018_BC_Verde__spanish-carrion-crows_info.csv",
-            "2018_CT_Rosa": "gs://esp-ml-datasets/spanish-carrion-crows/v0.1.0/detections/2018_CT_Rosa__spanish-carrion-crows_info.csv",
-            "2018_N1_Azul": "gs://esp-ml-datasets/spanish-carrion-crows/v0.1.0/detections/2018_N1_Azul__spanish-carrion-crows_info.csv",
-            "2018_O_Roja": "gs://esp-ml-datasets/spanish-carrion-crows/v0.1.0/detections/2018_O_Roja__spanish-carrion-crows_info.csv",
-            "2018_O_Verde": "gs://esp-ml-datasets/spanish-carrion-crows/v0.1.0/detections/2018_O_Verde__spanish-carrion-crows_info.csv",
-            "2018_VAE_Amarilla": "gs://esp-ml-datasets/spanish-carrion-crows/v0.1.0/detections/2018_VAE_Amarilla__spanish-carrion-crows_info.csv",
-            "2018_VAE_Roja": "gs://esp-ml-datasets/spanish-carrion-crows/v0.1.0/detections/2018_VAE_Roja__spanish-carrion-crows_info.csv",
-            "2019_AL_Azul": "gs://esp-ml-datasets/spanish-carrion-crows/v0.1.0/detections/2019_AL_Azul__spanish-carrion-crows_info.csv",
-            "2019_AL_Naranja": "gs://esp-ml-datasets/spanish-carrion-crows/v0.1.0/detections/2019_AL_Naranja__spanish-carrion-crows_info.csv",
-            "2019_AL_Rosa": "gs://esp-ml-datasets/spanish-carrion-crows/v0.1.0/detections/2019_AL_Rosa__spanish-carrion-crows_info.csv",
-            "2019_BA_Amarilla": "gs://esp-ml-datasets/spanish-carrion-crows/v0.1.0/detections/2019_BA_Amarilla__spanish-carrion-crows_info.csv",
-            "2019_BA_Roja": "gs://esp-ml-datasets/spanish-carrion-crows/v0.1.0/detections/2019_BA_Roja__spanish-carrion-crows_info.csv",
-            "2019_BD_Naranja": "gs://esp-ml-datasets/spanish-carrion-crows/v0.1.0/detections/2019_BD_Naranja__spanish-carrion-crows_info.csv",
-            "2019_BD_Rosa": "gs://esp-ml-datasets/spanish-carrion-crows/v0.1.0/detections/2019_BD_Rosa__spanish-carrion-crows_info.csv",
-            "2019_BPBO_Azul": "gs://esp-ml-datasets/spanish-carrion-crows/v0.1.0/detections/2019_BPBO_Azul__spanish-carrion-crows_info.csv",
-            "2019_BUCK_Azul": "gs://esp-ml-datasets/spanish-carrion-crows/v0.1.0/detections/2019_BUCK_Azul__spanish-carrion-crows_info.csv",
-            "2019_BUCK_Morado": "gs://esp-ml-datasets/spanish-carrion-crows/v0.1.0/detections/2019_BUCK_Morado__spanish-carrion-crows_info.csv",
-            "2019_BUCK_Rosa": "gs://esp-ml-datasets/spanish-carrion-crows/v0.1.0/detections/2019_BUCK_Rosa__spanish-carrion-crows_info.csv",
-            "2019_BV_Azul": "gs://esp-ml-datasets/spanish-carrion-crows/v0.1.0/detections/2019_BV_Azul__spanish-carrion-crows_info.csv",
-            "2019_BV_Morado": "gs://esp-ml-datasets/spanish-carrion-crows/v0.1.0/detections/2019_BV_Morado__spanish-carrion-crows_info.csv",
-            "2019_CA_Rosa": "gs://esp-ml-datasets/spanish-carrion-crows/v0.1.0/detections/2019_CA_Rosa__spanish-carrion-crows_info.csv",
-            "2019_CV_Azul": "gs://esp-ml-datasets/spanish-carrion-crows/v0.1.0/detections/2019_CV_Azul__spanish-carrion-crows_info.csv",
-            "2019_CV_Roja": "gs://esp-ml-datasets/spanish-carrion-crows/v0.1.0/detections/2019_CV_Roja__spanish-carrion-crows_info.csv",
-            "2019_CW_Amarillo": "gs://esp-ml-datasets/spanish-carrion-crows/v0.1.0/detections/2019_CW_Amarillo__spanish-carrion-crows_info.csv",
-            "2019_EB_Rojo": "gs://esp-ml-datasets/spanish-carrion-crows/v0.1.0/detections/2019_EB_Rojo__spanish-carrion-crows_info.csv",
-            "2019_EB_Verde": "gs://esp-ml-datasets/spanish-carrion-crows/v0.1.0/detections/2019_EB_Verde__spanish-carrion-crows_info.csv",
-            "2019_N7_Amarillo": "gs://esp-ml-datasets/spanish-carrion-crows/v0.1.0/detections/2019_N7_Amarillo__spanish-carrion-crows_info.csv",
-            "2019_N7_Morado": "gs://esp-ml-datasets/spanish-carrion-crows/v0.1.0/detections/2019_N7_Morado__spanish-carrion-crows_info.csv",
-            "2021_BPBO_Azul": "gs://esp-ml-datasets/spanish-carrion-crows/v0.1.0/detections/2021_BPBO_Azul__spanish-carrion-crows_info.csv",
-            "2021_BPBO_Verde": "gs://esp-ml-datasets/spanish-carrion-crows/v0.1.0/detections/2021_BPBO_Verde__spanish-carrion-crows_info.csv",
-            "2021_BQ_Naranja": "gs://esp-ml-datasets/spanish-carrion-crows/v0.1.0/detections/2021_BQ_Naranja__spanish-carrion-crows_info.csv",
-            "2021_EB_Amarillo": "gs://esp-ml-datasets/spanish-carrion-crows/v0.1.0/detections/2021_EB_Amarillo__spanish-carrion-crows_info.csv",
-            "2021_FA_Amarillo": "gs://esp-ml-datasets/spanish-carrion-crows/v0.1.0/detections/2021_FA_Amarillo__spanish-carrion-crows_info.csv",
-            "2021_FA_Rojo": "gs://esp-ml-datasets/spanish-carrion-crows/v0.1.0/detections/2021_FA_Rojo__spanish-carrion-crows_info.csv",
-            "2021_LL_Amarillo": "gs://esp-ml-datasets/spanish-carrion-crows/v0.1.0/detections/2021_LL_Amarillo__spanish-carrion-crows_info.csv",
-            "2021_LL_Verde": "gs://esp-ml-datasets/spanish-carrion-crows/v0.1.0/detections/2021_LL_Verde__spanish-carrion-crows_info.csv",
-            "2021_N4_Naranja": "gs://esp-ml-datasets/spanish-carrion-crows/v0.1.0/detections/2021_N4_Naranja__spanish-carrion-crows_info.csv",
-            "2021_N4_Verde": "gs://esp-ml-datasets/spanish-carrion-crows/v0.1.0/detections/2021_N4_Verde__spanish-carrion-crows_info.csv",
+            "all": "gs://esp-ml-datasets/spanish-carrion-crows/v0.1.0/detections/all__spanish-carrion-crows_info.csv"
         },
         version="0.1.0",
         description="Crow biologger audio with Voxaboxen detections",
         sources="University of Leon",
-        license=(
-            "For ESP internal, non-commerical use only. "
-            "Should talk to collaborators about usage in work to be published."
-        ),
+        license="private",
     )
 
     _sample_rate_paths: dict[int, str] = {}
@@ -116,7 +73,7 @@ class SpanishCarrionCrows(Dataset):
         output_take_and_give: dict[str, str] | None = None,
         sample_rate: int | None = 16000,
         data_root: str | AnyPathT | None = None,
-        backend: BackendType = "pandas",
+        backend: BackendType = "polars",
         streaming: bool = False,
     ) -> None:
         """
@@ -227,8 +184,7 @@ class SpanishCarrionCrows(Dataset):
             audio_path = anypath(self.data_root) / row[self._originals_path_column]
 
         audio, sr = read_audio(audio_path)
-        # Should all be mono
-        # audio = audio_stereo_to_mono(audio, mono_method="average").astype(np.float32)
+        audio = audio.astype(np.float32)
 
         if not use_presampled and self.sample_rate is not None and sr != self.sample_rate:
             audio = librosa.resample(

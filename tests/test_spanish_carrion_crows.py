@@ -22,47 +22,36 @@ from esp_data.datasets import SpanishCarrionCrows
 
 # # Code to generate snapshot:
 # from esp_data.datasets import SpanishCarrionCrows
-# ds = SpanishCarrionCrows(split="all", sample_rate=16000, backend="pandas")
-
+# import hashlib
+# ds = SpanishCarrionCrows(split="all", sample_rate=16000, backend="polars")
 # print("len(ds) =", len(ds))
-
 # audio0 = ds[0]["audio"]
 # print("dtype:", audio0.dtype, "shape:", audio0.shape)
-
 # h = hashlib.sha256(audio0.tobytes()).hexdigest()
 # print("sha256:", h)
-
-# csv_bytes = (
-#         ds._data.unwrap.sort_index(axis=0)
-#         .sort_index(axis=1)
-#         .to_csv(index=True)
-#         .encode("utf-8")
-#     )
+# df = ds._data.unwrap
+# csv_bytes = df.sort(df.columns).write_csv().encode("utf-8")
 # h = hashlib.sha256(csv_bytes).hexdigest()
-
 # print("annotations sha256:", h)
-
 # quit()
 # # # # #
 
 EXPECTED_LEN_ALL = 953  #
 EXPECTED_FIRST_ITEM_AUDIO_SHA256 = (
-    "1313ead69001c6f7bcd52672e90d51f3f138c73180afca19a7013d562b1877f9"
+    "08b28fcc371250e424e2de0ac613e56d296659e0f3ccd55365e61a2629e988b7"
 )
-ANNOTATIONS_SHA256 = "eb8f7f74193a0eedc611c2ae188583a8ab107d57afebc77db0697597ac8ae81c"
+ANNOTATIONS_SHA256 = "ed692970908e8413ef9003130af29d083e4ebfa3d217315edad9d665aaf07009"
 # ---------------------------------------------------------------------------
-
-
-@pytest.fixture(scope="module")
-def ds() -> SpanishCarrionCrows:
-    """Load SpanishCarrionCrows dataset for testing."""
-    return SpanishCarrionCrows(split="all", sample_rate=16000, backend="pandas")
-
 
 @pytest.fixture(scope="module", autouse=True)
 def ds_polars() -> SpanishCarrionCrows:
     """Load SpanishCarrionCrows dataset for testing."""
-    return SpanishCarrionCrows(split="all", sample_rate=16000, backend="polars")
+    return SpanishCarrionCrows(split="all", sample_rate=16000, backend="polars", streaming=False)
+
+@pytest.fixture(scope="module", autouse=True)
+def ds_streaming() -> SpanishCarrionCrows:
+    """Load SpanishCarrionCrows dataset for testing."""
+    return SpanishCarrionCrows(split="all", sample_rate=16000, backend="polars", streaming=True)
 
 
 @pytest.fixture(scope="module")
@@ -73,13 +62,13 @@ def sample_indices(ds_polars: SpanishCarrionCrows) -> List[int]:
     return [rng.randrange(n) for _ in range(min(5, n))]
 
 
-def test_ds_not_empty(ds: SpanishCarrionCrows):
+def test_ds_not_empty(ds_polars: SpanishCarrionCrows):
     """Dataset should have at least one example."""
-    assert len(ds) > 0, "Dataset appears empty"
+    assert len(ds_polars) > 0, "Dataset appears empty"
 
-def test_get_available_labels(ds: SpanishCarrionCrows):
+def test_get_available_labels(ds_streaming: SpanishCarrionCrows):
     """Test get_available_labels for caller ID column."""
-    labels = ds.get_available_labels(anno_column="Annotation")
+    labels = ds_streaming.get_available_labels(anno_column="Annotation")
     assert isinstance(labels, list), "get_available_labels should return a list"
     assert len(labels) > 0, "Should have at least one caller ID"
     # Check that all labels can be converted to strings
@@ -95,25 +84,25 @@ def test_check_audio(ds_polars: SpanishCarrionCrows, sample_indices: List[int]):
 
         assert isinstance(audio, np.ndarray), f"[{idx}] audio is not a numpy array"
         assert (
-            audio.dtype == np.float64
-        ), f"[{idx}] audio dtype is {audio.dtype}, expected float64"
+            audio.dtype == np.float32
+        ), f"[{idx}] audio dtype is {audio.dtype}, expected float32"
         assert audio.size >= 10, f"[{idx}] audio too short (size={audio.size})"
         assert not np.any(np.isnan(audio)), f"[{idx}] audio contains NaN values"
         assert not np.all(audio == 0), f"[{idx}] audio is all zeros"
+        assert len(audio.shape) == 1, f"[{idx}] is not 1D, expected (N_samples,) but got shape={audio.shape}"
 
-
-def test_available_splits(ds: SpanishCarrionCrows) -> None:
+def test_available_splits(ds_streaming: SpanishCarrionCrows) -> None:
     """Test if available_splits returns correct split names."""
     # Available splits should contain these
     expected_splits = ["all"]
-    assert all(split in ds.available_splits for split in expected_splits)
+    assert all(split in ds_streaming.available_splits for split in expected_splits)
 
 
-def test_reference_item_stability(ds: SpanishCarrionCrows):
+def test_reference_item_stability(ds_polars: SpanishCarrionCrows):
     """
     Check that a canonical item (index 0) is bitwise-stable.
 
-    We hash the raw float64 audio buffer. This catches:
+    We hash the raw float32 audio buffer. This catches:
     - sample rate changes (resampling -> different samples)
     - channel handling changes (stereo->mono logic changed)
     - dtype changes
@@ -126,17 +115,17 @@ def test_reference_item_stability(ds: SpanishCarrionCrows):
     """
     # choose deterministic index
     idx = 0
-    item = ds[idx]
+    item = ds_polars[idx]
 
     # audio presence/type checks (defensive, so the hash failure message is clearer)
     assert "audio" in item, "[0] missing 'audio' key"
     audio = item["audio"]
     assert isinstance(audio, np.ndarray), "[0] audio is not a numpy array"
     assert (
-        audio.dtype == np.float64
-    ), f"[0] audio dtype is {audio.dtype}, expected float64"
+        audio.dtype == np.float32
+    ), f"[0] audio dtype is {audio.dtype}, expected float32"
 
-    # compute sha256 over raw bytes of the float64 array
+    # compute sha256 over raw bytes of the float32 array
     h = hashlib.sha256(audio.tobytes()).hexdigest()
 
     assert h == EXPECTED_FIRST_ITEM_AUDIO_SHA256, (
@@ -147,13 +136,9 @@ def test_reference_item_stability(ds: SpanishCarrionCrows):
         "replace EXPECTED_FIRST_ITEM_AUDIO_SHA256 with the new hash."
     )
 
-    # compute sha256 over raw bytes of the float64 array of annotations
-    csv_bytes = (
-        ds._data.unwrap.sort_index(axis=0)
-        .sort_index(axis=1)
-        .to_csv(index=True)
-        .encode("utf-8")
-    )
+    # compute sha256 over raw bytes of the float32 array of annotations
+    df = ds_polars._data.unwrap
+    csv_bytes = df.sort(df.columns).write_csv().encode("utf-8")
     h = hashlib.sha256(csv_bytes).hexdigest()
 
     assert h == ANNOTATIONS_SHA256, (
@@ -165,7 +150,7 @@ def test_reference_item_stability(ds: SpanishCarrionCrows):
     )
 
 
-def test_check_selection_table(ds: SpanishCarrionCrows, sample_indices: List[int]):
+def test_check_selection_table(ds_polars: SpanishCarrionCrows, sample_indices: List[int]):
     """Selection table should be a DataFrame with required columns and sane times."""
     required = {
         "Begin Time (s)",
@@ -177,7 +162,7 @@ def test_check_selection_table(ds: SpanishCarrionCrows, sample_indices: List[int
     }
 
     for idx in sample_indices:
-        item = ds[idx]
+        item = ds_polars[idx]
         assert "selection_table" in item, f"[{idx}] missing 'selection_table' key"
         st = item["selection_table"]
 
