@@ -71,3 +71,28 @@ def test_chained_dataset_streaming() -> None:
 
     sample = next(iter(ds))
     assert "audio" in sample
+
+
+@pytest.mark.skipif(
+    not pytest.importorskip("torch", reason="torch not installed"),
+    reason="torch not installed",
+)
+def test_chained_dataset_streaming_with_torch_dataloader() -> None:
+    """Test that a streaming ChainedDataset works with torch DataLoader."""
+    from torch.utils.data import DataLoader
+
+    nbm = NocturnalBirdMigration(split="test", backend="polars", streaming=True)
+    hb = HawaiianBirds(split="all", backend="polars", streaming=True)
+
+    ds = ChainedDataset([nbm, hb])
+    ds.as_torch_iterable()
+
+    def collate_fn(batch):
+        # Simple collate function that just returns the batch as a list of dicts
+        return batch
+
+    loader = DataLoader(ds, batch_size=2, collate_fn=collate_fn)
+    batch = next(iter(loader))[0]
+
+    assert isinstance(batch, dict)
+    assert "audio" in batch

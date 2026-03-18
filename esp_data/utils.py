@@ -450,15 +450,6 @@ def make_torch_iterable_compatible(instance: object) -> None:
     ----------
     instance : object
         The streaming dataset instance to patch.
-
-    Examples
-    --------
-    >>> import torch
-    >>> from esp_data import Beans
-    >>> beans = Beans(split="cbi_validation", streaming=True)
-    >>> from torch.utils.data import IterableDataset
-    >>> isinstance(beans, IterableDataset)
-    True
     """
     try:
         from torch.utils.data import IterableDataset as TorchIterableDataset

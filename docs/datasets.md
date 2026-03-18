@@ -167,6 +167,53 @@ print(metadata["label_from_feature"].keys())
 # dict_keys(['label_feature', 'label_map', 'num_classes'])
 ```
 
+## Using Datasets with PyTorch DataLoader
+
+ESP datasets work with `torch.utils.data.DataLoader` out of the box for both map-style and iterable-style loading.
+
+### Map-style datasets (default)
+
+By default, ESP datasets are map-style: they support `__len__` and `__getitem__`, so you can pass them directly to a `DataLoader`:
+
+```python
+from torch.utils.data import DataLoader
+from esp_data.datasets import AnimalSpeak
+
+dataset = AnimalSpeak(split="train", sample_rate=16000)
+
+loader = DataLoader(dataset, batch_size=8, shuffle=True, num_workers=4)
+
+for batch in loader:
+    # batch is a dict of tensors/arrays, one key per column
+    print(batch.keys())
+    break
+```
+
+### Iterable-style datasets (streaming mode)
+
+For large datasets that you want to stream rather than load into memory, create the dataset with `streaming=True` and call `.as_torch_iterable()` to make it compatible with `DataLoader`:
+
+```python
+from torch.utils.data import DataLoader
+from esp_data.datasets import AnimalSpeak
+
+dataset = AnimalSpeak(split="train", sample_rate=16000, streaming=True)
+
+# Patch the dataset so DataLoader recognises it as an IterableDataset
+dataset.as_torch_iterable()
+
+loader = DataLoader(dataset, batch_size=8)
+
+for batch in loader:
+    print(batch.keys())
+    break
+```
+
+Under the hood, `as_torch_iterable()` dynamically inserts PyTorch's `IterableDataset` into the class hierarchy so that `DataLoader` uses iterable-style loading (no `__len__` required).
+
+!!! warning "Multi-worker DataLoader"
+    When using `num_workers > 0`, each worker will iterate over the **full** dataset, producing duplicated samples. You must provide a `worker_init_fn` to your `DataLoader` that partitions the data across workers to avoid this.
+
 ## Available Datasets
 
 The list of available dataset will grow over time. Please refer to the next section if you wish to use your own Dataset or add a new one to the list of officially supported ones.
