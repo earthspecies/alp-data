@@ -131,3 +131,6 @@ ignore = ["DEP003"]
 
 [tool.deptry.per_rule_ignores]
 DEP002 = ["resampy"]
+DEP004 = [
+  "torch", # torch is defined in groups and deptry doesn't seem to understand uv groups
+]

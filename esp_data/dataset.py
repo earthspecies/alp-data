@@ -375,7 +375,13 @@ class Dataset(ABC):
         -------
         Dataset
             The modified dataset instance, now compatible with PyTorch's IterableDataset.
+
+        Raises
+        ------
+        RuntimeError
         """
+        if not self._streaming:
+            raise RuntimeError("as_torch_iterable() is only supported in streaming mode.")
         make_torch_iterable_compatible(self)
         return self
 
