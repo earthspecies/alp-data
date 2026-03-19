@@ -4,9 +4,6 @@ from .ebird_taxonomy import (
     EBirdConverter,
     EBirdToClements,
     EBirdToClementsConfig,
-    GBIFToClements,
-    GBIFToClementsConfig,
-    GBIFToClementsConverter,
 )
 from .gbif_taxonomy import AddTaxonomy, AddTaxonomyConfig, GBIFConverter
 
@@ -19,7 +16,4 @@ __all__ = [
     "EBirdToClementsConfig",
     "ClementsToEBird",
     "ClementsToEBirdConfig",
-    "GBIFToClementsConverter",
-    "GBIFToClementsConfig",
-    "GBIFToClements",
 ]
