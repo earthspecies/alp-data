@@ -81,7 +81,7 @@ def _create_gbif_json_with_taxonomy(tmp_path: Path) -> str:
 
 def test_gbif_converter(tmp_path: Path) -> None:
     gbif_path = _create_gbif_json_with_taxonomy(tmp_path)
-    converter = GBIFConverter(precomputed_fp = gbif_path)
+    converter = GBIFConverter(precomputed_fp=gbif_path, precomputed_cache_path=None)
     info, ok = converter("Puma concolor")
     assert ok
 
@@ -116,7 +116,7 @@ def _create_gbif_json_with_manual_correction_target(tmp_path: Path) -> str:
 def test_gbif_converter_sci_name_correction_manual(tmp_path: Path) -> None:
     """Test that GBIFConverter applies SCI_NAME_CORRECTION_MANUAL before lookup."""
     gbif_path = _create_gbif_json_with_manual_correction_target(tmp_path)
-    converter = GBIFConverter(precomputed_fp=gbif_path)
+    converter = GBIFConverter(precomputed_fp=gbif_path, precomputed_cache_path=None)
 
     # The uncorrected name is not in the GBIF data directly
     info, ok = converter("Eupodotis rueppellii")
