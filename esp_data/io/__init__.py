@@ -1,3 +1,5 @@
+from read_audio_ffmpeg import read_audio_ffmpeg
+
 from esp_data.io.file_utils import exists, rm
 from esp_data.io.filesystem import filesystem, filesystem_from_path
 from esp_data.io.paths import AnyPathT, PureGSPath, PureR2Path, PureS3Path, anypath
@@ -17,6 +19,7 @@ __all__ = [
     "PureR2Path",
     "PureS3Path",
     "read_audio",
+    "read_audio_ffmpeg",
     "read_text",
     "audio_stereo_to_mono",
     "get_audio_info",
