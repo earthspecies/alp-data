@@ -31,7 +31,7 @@ dev = [
     "mkdocs>=1.6.1",
     "mkdocs-material>=9.6.11",
     "mkdocstrings-python>=1.16.10",
-    "pre-commit>=4.0.1",
+    "prek>=0.2.28",
     "pytest>=7.1.2",
     "ruff>=0.14.1",
     "deptry>=0.23.0",
@@ -40,6 +40,12 @@ dev = [
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.uv]
+exclude-newer = "7 days"
+
+[tool.uv.exclude-newer-package]
+torch = false
 
 [tool.uv.sources]
 torch = [
