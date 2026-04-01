@@ -2,138 +2,423 @@
 #    uv export --frozen --output-file=requirements.txt --no-dev --no-hashes
 -e .
 adbc-driver-manager==1.10.0
+    # via
+    #   adbc-driver-sqlite
+    #   polars
 adbc-driver-sqlite==1.10.0
+    # via polars
 aiobotocore==3.3.0
+    # via s3fs
 aiohappyeyeballs==2.6.1
-aiohttp==3.13.5
+    # via aiohttp
+aiohttp==3.13.3
+    # via
+    #   aiobotocore
+    #   gcsfs
+    #   s3fs
 aioitertools==0.13.0
+    # via aiobotocore
 aiosignal==1.4.0
+    # via aiohttp
 altair==6.0.0
+    # via polars
 annotated-types==0.7.0
+    # via pydantic
 arro3-core==0.8.0
+    # via deltalake
 async-timeout==5.0.1 ; python_full_version < '3.11'
+    # via aiohttp
 attrs==26.1.0
+    # via
+    #   aiohttp
+    #   jsonschema
+    #   referencing
 audioop-lts==0.2.2 ; python_full_version >= '3.13'
+    # via
+    #   standard-aifc
+    #   standard-sunau
 audioread==3.1.0
+    # via librosa
 babel==2.18.0
+    # via great-tables
 botocore==1.42.70
+    # via aiobotocore
 cachetools==6.2.6
+    # via pyiceberg
 certifi==2026.2.25
+    # via requests
 cffi==2.0.0
+    # via
+    #   cryptography
+    #   gevent
+    #   soundfile
 charset-normalizer==3.4.6
+    # via requests
 click==8.3.1
+    # via pyiceberg
 cloudpickle==3.1.2
-colorama==0.4.6 ; platform_system == 'Windows'
+    # via polars
+colorama==0.4.6 ; sys_platform == 'win32'
+    # via click
 commonmark==0.9.1
+    # via great-tables
 connectorx==0.4.5
+    # via polars
 contourpy==1.3.2
-cryptography==46.0.6
+    # via matplotlib
+cryptography==46.0.5
+    # via google-auth
 cycler==0.12.1
+    # via matplotlib
 decorator==5.2.1
+    # via
+    #   gcsfs
+    #   librosa
 deltalake==1.5.0
+    # via polars
 deprecated==1.3.1
+    # via deltalake
 et-xmlfile==2.0.0
+    # via openpyxl
 faicons==0.2.2
+    # via great-tables
 fastexcel==0.19.0
+    # via polars
 fonttools==4.62.1
+    # via matplotlib
 frozenlist==1.8.0
-fsspec==2026.3.0
-gcsfs==2026.3.0
+    # via
+    #   aiohttp
+    #   aiosignal
+fsspec==2026.2.0
+    # via
+    #   gcsfs
+    #   polars
+    #   pyiceberg
+    #   s3fs
+gcsfs==2026.2.0
+    # via esp-data
 gevent==25.9.1
-google-api-core==2.30.1
+    # via polars
+google-api-core==2.30.0
+    # via
+    #   google-cloud-core
+    #   google-cloud-secret-manager
+    #   google-cloud-storage
+    #   google-cloud-storage-control
 google-auth==2.49.1
-google-auth-oauthlib==1.3.1
-google-cloud-core==2.5.1
-google-cloud-secret-manager==2.27.0
+    # via
+    #   gcsfs
+    #   google-api-core
+    #   google-auth-oauthlib
+    #   google-cloud-core
+    #   google-cloud-secret-manager
+    #   google-cloud-storage
+    #   google-cloud-storage-control
+google-auth-oauthlib==1.3.0
+    # via gcsfs
+google-cloud-core==2.5.0
+    # via google-cloud-storage
+google-cloud-secret-manager==2.26.0
+    # via esp-data
 google-cloud-storage==3.10.1
-google-cloud-storage-control==1.11.0
+    # via
+    #   esp-data
+    #   gcsfs
+google-cloud-storage-control==1.10.0
+    # via gcsfs
 google-crc32c==1.8.0
-google-resumable-media==2.8.2
-googleapis-common-protos==1.73.1
+    # via
+    #   google-cloud-storage
+    #   google-resumable-media
+google-resumable-media==2.8.0
+    # via google-cloud-storage
+googleapis-common-protos==1.73.0
+    # via
+    #   google-api-core
+    #   grpc-google-iam-v1
+    #   grpcio-status
 great-tables==0.21.0
-greenlet==3.3.2 ; platform_python_implementation == 'CPython' or platform_machine == 'AMD64' or platform_machine == 'WIN32' or platform_machine == 'aarch64' or platform_machine == 'amd64' or platform_machine == 'ppc64le' or platform_machine == 'win32' or platform_machine == 'x86_64'
-grpc-google-iam-v1==0.14.4
-grpcio==1.80.0
-grpcio-status==1.80.0
+    # via polars
+greenlet==3.3.2 ; platform_machine == 'AMD64' or platform_machine == 'WIN32' or platform_machine == 'aarch64' or platform_machine == 'amd64' or platform_machine == 'ppc64le' or platform_machine == 'win32' or platform_machine == 'x86_64' or platform_python_implementation == 'CPython'
+    # via
+    #   gevent
+    #   sqlalchemy
+grpc-google-iam-v1==0.14.3
+    # via
+    #   google-cloud-secret-manager
+    #   google-cloud-storage-control
+grpcio==1.78.0
+    # via
+    #   google-api-core
+    #   google-cloud-secret-manager
+    #   google-cloud-storage-control
+    #   googleapis-common-protos
+    #   grpc-google-iam-v1
+    #   grpcio-status
+grpcio-status==1.78.0
+    # via google-api-core
 htmltools==0.6.0
+    # via
+    #   faicons
+    #   great-tables
 idna==3.11
+    # via
+    #   requests
+    #   yarl
 importlib-metadata==9.0.0
+    # via great-tables
 importlib-resources==6.5.2
+    # via
+    #   adbc-driver-sqlite
+    #   great-tables
 intervaltree==3.2.1
+    # via esp-data
 jinja2==3.1.6
+    # via altair
 jmespath==1.1.0
+    # via
+    #   aiobotocore
+    #   botocore
 joblib==1.5.3
+    # via
+    #   librosa
+    #   scikit-learn
 jsonschema==4.26.0
+    # via altair
 jsonschema-specifications==2025.9.1
+    # via jsonschema
 kiwisolver==1.5.0
+    # via matplotlib
 lazy-loader==0.5
+    # via librosa
 librosa==0.11.0
-llvmlite==0.47.0
+    # via esp-data
+llvmlite==0.46.0
+    # via numba
 markdown-it-py==4.0.0
+    # via rich
 markupsafe==3.0.3
+    # via jinja2
 matplotlib==3.10.8
+    # via polars
 mdurl==0.1.2
+    # via markdown-it-py
 mmh3==5.2.1
+    # via pyiceberg
 msgpack==1.1.2
+    # via librosa
 multidict==6.7.1
+    # via
+    #   aiobotocore
+    #   aiohttp
+    #   yarl
 narwhals==2.18.1
-numba==0.65.0
+    # via altair
+numba==0.64.0
+    # via
+    #   librosa
+    #   resampy
 numpy==2.2.6
+    # via
+    #   contourpy
+    #   librosa
+    #   matplotlib
+    #   numba
+    #   pandas
+    #   polars
+    #   resampy
+    #   scikit-learn
+    #   scipy
+    #   soundfile
+    #   soxr
 oauthlib==3.3.1
+    # via requests-oauthlib
 openpyxl==3.1.5
+    # via polars
 packaging==26.0
+    # via
+    #   altair
+    #   htmltools
+    #   lazy-loader
+    #   matplotlib
+    #   pooch
 pandas==2.3.3
+    # via
+    #   adbc-driver-manager
+    #   adbc-driver-sqlite
+    #   esp-data
+    #   polars
 pillow==12.1.1
+    # via matplotlib
 platformdirs==4.9.4
+    # via pooch
 polars==1.39.3
+    # via esp-data
 polars-runtime-32==1.39.3
+    # via polars
 pooch==1.9.0
+    # via librosa
 propcache==0.4.1
-proto-plus==1.27.2
+    # via
+    #   aiohttp
+    #   yarl
+proto-plus==1.27.1
+    # via
+    #   google-api-core
+    #   google-cloud-secret-manager
+    #   google-cloud-storage-control
 protobuf==6.33.6
+    # via
+    #   google-api-core
+    #   google-cloud-secret-manager
+    #   google-cloud-storage-control
+    #   googleapis-common-protos
+    #   grpc-google-iam-v1
+    #   grpcio-status
+    #   proto-plus
 pyarrow==23.0.1
+    # via
+    #   adbc-driver-manager
+    #   adbc-driver-sqlite
+    #   polars
 pyasn1==0.6.3
+    # via pyasn1-modules
 pyasn1-modules==0.4.2
+    # via google-auth
 pycparser==3.0 ; implementation_name != 'PyPy'
+    # via cffi
 pydantic==2.12.5
+    # via
+    #   esp-data
+    #   polars
+    #   pyiceberg
 pydantic-core==2.41.5
-pygments==2.20.0
+    # via pydantic
+pygments==2.19.2
+    # via rich
 pyiceberg==0.11.1
+    # via polars
 pyparsing==3.3.2
+    # via
+    #   matplotlib
+    #   pyiceberg
 pyroaring==1.0.4
+    # via pyiceberg
 python-dateutil==2.9.0.post0
+    # via
+    #   aiobotocore
+    #   botocore
+    #   matplotlib
+    #   pandas
+    #   strictyaml
 pytz==2026.1.post1
+    # via pandas
 pyyaml==6.0.3
+    # via esp-data
 referencing==0.37.0
-requests==2.33.1
+    # via
+    #   jsonschema
+    #   jsonschema-specifications
+requests==2.32.5
+    # via
+    #   gcsfs
+    #   google-api-core
+    #   google-cloud-storage
+    #   pooch
+    #   pyiceberg
+    #   requests-oauthlib
 requests-oauthlib==2.0.0
+    # via google-auth-oauthlib
 resampy==0.4.3
+    # via esp-data
 rich==14.3.3
+    # via pyiceberg
 rpds-py==0.30.0
-s3fs==2026.3.0
+    # via
+    #   jsonschema
+    #   referencing
+s3fs==2026.2.0
+    # via esp-data
 scikit-learn==1.7.2
+    # via librosa
 scipy==1.15.3
+    # via
+    #   librosa
+    #   scikit-learn
 semver==3.0.4
+    # via esp-data
 six==1.17.0
+    # via python-dateutil
 sortedcontainers==2.4.0
+    # via intervaltree
 soundfile==0.13.1
+    # via
+    #   esp-data
+    #   librosa
 soxr==1.0.0
+    # via librosa
 sqlalchemy==2.0.48
+    # via polars
 standard-aifc==3.13.0 ; python_full_version >= '3.13'
+    # via
+    #   audioread
+    #   librosa
 standard-chunk==3.13.0 ; python_full_version >= '3.13'
+    # via standard-aifc
 standard-sunau==3.13.0 ; python_full_version >= '3.13'
+    # via
+    #   audioread
+    #   librosa
 strictyaml==1.7.3
+    # via pyiceberg
 tenacity==9.1.4
+    # via pyiceberg
 threadpoolctl==3.6.0
+    # via scikit-learn
 typing-extensions==4.15.0
+    # via
+    #   adbc-driver-manager
+    #   aiobotocore
+    #   aiosignal
+    #   altair
+    #   arro3-core
+    #   cryptography
+    #   great-tables
+    #   grpcio
+    #   htmltools
+    #   librosa
+    #   multidict
+    #   pydantic
+    #   pydantic-core
+    #   referencing
+    #   sqlalchemy
+    #   typing-inspection
 typing-inspection==0.4.2
+    # via pydantic
 tzdata==2025.3
+    # via
+    #   pandas
+    #   polars
 urllib3==2.6.3
+    # via
+    #   botocore
+    #   requests
 wrapt==2.1.2
+    # via
+    #   aiobotocore
+    #   deprecated
 xlsx2csv==0.8.6
+    # via polars
 xlsxwriter==3.2.9
+    # via polars
 yarl==1.23.0
+    # via aiohttp
 zipp==3.23.0
+    # via importlib-metadata
 zope-event==6.1
+    # via gevent
 zope-interface==8.2
+    # via gevent
 zstandard==0.25.0
+    # via pyiceberg
