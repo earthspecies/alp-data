@@ -30,6 +30,9 @@ class NocturnalBirdMigration(Dataset):
     split consists of recordings submitted by French citizen-scientists, as well as
     xeno-canto recordings annotated by the dataset authors.
 
+    Note that the license is mixed (due to origins on xeno-canto); most restrictive
+    is CC-BY-NC-SA 4.0. See zenodo page for full license details.
+
     Description from the paper:
 
     The persisting threats on migratory bird populations
@@ -69,7 +72,7 @@ class NocturnalBirdMigration(Dataset):
 
     References
     ----------
-    https://zenodo.org/records/14039937
+    https://zenodo.org/records/17573913
     https://arxiv.org/pdf/2412.03633
 
     """
@@ -90,7 +93,7 @@ class NocturnalBirdMigration(Dataset):
         version="0.1.0",
         description="[MISSING]",
         sources="Zenodo, xeno-canto",
-        license="CC BY-ND 3.0",
+        license="CC-BY-NC-SA 4.0",
     )
 
     _sample_rate_paths: dict[int, str] = {16000: "16khz_path", 32000: "32khz_path"}
