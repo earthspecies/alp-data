@@ -41,8 +41,8 @@ class AnimalSpeak(Dataset):
         name="animalspeak",
         owner="david; marius; masato",
         split_paths={
-            "train": "gs://esp-ml-datasets/animalspeak/v0.1.0/raw/16KHz/animalspeak2_train.csv",
-            "validation": "gs://esp-ml-datasets/animalspeak/v0.1.0/raw/16KHz/animalspeak2_validation.csv",
+            "train": "gs://esp-ml-datasets/animalspeak/v0.1.0/raw/16KHz/train.csv",
+            "validation": "gs://esp-ml-datasets/animalspeak/v0.1.0/raw/16KHz/validation.csv",
         },
         version="0.1.0",
         description="AnimalSpeak dataset",
@@ -86,8 +86,7 @@ class AnimalSpeak(Dataset):
         self.sample_rate = sample_rate
 
         if data_root is None:
-            # TODO switch to gs://esp-ml-datasets/animalspeak once we're sure everything is there
-            self.data_root = "gs://animalspeak2"
+            self.data_root = "gs://esp-ml-datasets/animalspeak/v0.1.0/raw/16KHz/"
         else:
             self.data_root = data_root
 
@@ -191,11 +190,7 @@ class AnimalSpeak(Dataset):
         dict[str, Any]
             The processed row.
         """
-        # TODO (milad) this column shouldn't start with the bucket name because that is
-        # essentially the root. We only need the relative paths there. Removing so that
-        # audio_path assignment works with or without root
-        # An example of the local_path: local_path = "animalspeak2/16khz/WavCaps/253918.flac"
-        relative_path = row["local_path"].removeprefix("animalspeak2/")
+        relative_path = row["audio_path"]
 
         audio_path = anypath(self.data_root) / relative_path
 
