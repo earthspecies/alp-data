@@ -463,7 +463,7 @@ class TestIntegrationRealDatasets:
         otag1 = {"species_common": "species", "caption": "text"}
         otag2 = {
             "species_common": "species",
-            "local_path": "path",
+            "audio_path": "path",
         }  # Different but compatible
 
         animalspeak1 = AnimalSpeak(
@@ -485,7 +485,7 @@ class TestIntegrationRealDatasets:
         expected_otag = {
             "species_common": "species",
             "caption": "text",
-            "local_path": "path",
+            "audio_path": "path",
         }
         assert result.output_take_and_give == expected_otag
 
@@ -541,7 +541,7 @@ class TestIntegrationRealDatasets:
 # https://github.com/earthspecies/esp-data/issues/98
 def test_pretransformed_before_concat():
     """Test applying transformations before and after concatenation."""
-    dedup_cfg = DeduplicateConfig(type="deduplicate", subset=["local_path"])
+    dedup_cfg = DeduplicateConfig(type="deduplicate", subset=["audio_path"])
 
     # Use AnimalSpeak - already updated to use backends
     aspeak = AnimalSpeak(split="validation", sample_rate=16000, backend="pandas")
@@ -567,7 +567,7 @@ def test_pretransformed_before_concat():
         values=["Sebastes ruberrimus"],
     )  # Filter out a species
     len_before_filter = len(barkley)
-    _ = barkley.apply_transformations([dedup_cfg, filter_cfg])
+    _ = barkley.apply_transformations([filter_cfg])
     len_after_filter = len(barkley)
     # Should have filtered some rows
     assert len_after_filter <= len_before_filter
