@@ -1,10 +1,18 @@
 """Test suite for the AnimalSpeak dataset."""
 
 import pytest
+import numpy as np
 
 from esp_data.datasets import AnimalSpeak
 from esp_data import Dataset, DatasetConfig
-from esp_data.io import anypath, exists
+from esp_data.io import exists
+from esp_data.utils import create_hash
+
+
+VAL_EXPECTED_FIRST_ITEM_AUDIO_SHA256 = "28061661586286684f61a92f14bf66a7f5a207a48bd8ec0809b1b8e1924d7d99"
+VAL_ANNOTATIONS_SHA256 = "3746a67f45c80013ecc7e977e3ee222d2dab7ceba3cde6c8d52bb5ac39aa6c44"
+TRAIN_EXPECTED_FIRST_ITEM_AUDIO_SHA256 = "20bedf2fcaf335f711748cb0fa6bbd6fb233dd142ad61209e5dfdbd2e9d09f4c"
+TRAIN_ANNOTATIONS_SHA256 = "ad50765e087368b0e435b78d807ffd2858f9d678cf6bf368c9e072de1f53a591"
 
 
 @pytest.fixture
@@ -16,7 +24,7 @@ def dataset() -> Dataset:
     Dataset
         An instance of the AnimalSpeak dataset.
     """
-    ds = AnimalSpeak(split="validation")
+    ds = AnimalSpeak(split="validation", backend="pandas")
     return ds
 
 
@@ -51,39 +59,6 @@ def dataset_with_transforms() -> Dataset:
     ds.apply_transformations(dataset_config.transformations)
     return ds
 
-
-@pytest.fixture
-def dataset_with_transforms_from_config() -> tuple[Dataset, dict]:
-    """Fixture providing an AnimalSpeak dataset instance with transformations
-    applied.
-
-    Returns
-    -------
-    Dataset
-        An instance of the AnimalSpeak dataset with transformations applied.
-    dict
-        Metadata dictionary containing information about the transformations applied.
-    """
-
-    dataset_config = DatasetConfig(
-        dataset_name="animalspeak",
-        split="validation",
-        transformations=[
-            {
-                "type": "label_from_feature",
-                "feature": "canonical_name",
-                "output_feature": "label",
-            },
-            {
-                "type": "filter",
-                "mode": "include",
-                "property": "source",
-                "values": ["xeno-canto", "iNaturalist"],
-            },
-        ],
-    )
-    ds, metadata = AnimalSpeak.from_config(dataset_config)
-    return ds, metadata
 
 
 @pytest.fixture
@@ -163,7 +138,7 @@ def test_data_property(dataset: Dataset) -> None:
 def test_columns_property(dataset: Dataset) -> None:
     """Test if the columns property returns correct column names."""
     # Columns should match the dataframe columns
-    expected_columns = ["local_path", "country", "species_scientific"]
+    expected_columns = ["audio_path", "country", "species_scientific"]
     assert all(col in list(dataset.columns) for col in expected_columns)
 
 
@@ -204,6 +179,7 @@ def test_load_from_config() -> None:
     dataset_config = DatasetConfig(
         dataset_name="animalspeak",
         split="validation",
+        streaming=True,
     )
     dataset, _ = AnimalSpeak.from_config(dataset_config)
     assert isinstance(dataset, AnimalSpeak)
@@ -246,7 +222,7 @@ def test_transformations(dataset_with_transforms: Dataset) -> None:
     assert "Watkins" not in sources
 
 
-def test_transformations_from_config(dataset_with_transforms_from_config: tuple[Dataset, dict]) -> None:
+def test_transformations_from_config(dataset_with_transforms_streaming_from_config: tuple[Dataset, dict]) -> None:
     """Test if transformations from config are applied correctly.
 
     This test verifies that:
@@ -254,7 +230,7 @@ def test_transformations_from_config(dataset_with_transforms_from_config: tuple[
     2. The filter transformation only keeps specified sources
     """
     # Check that label column was created
-    ds, metadata = dataset_with_transforms_from_config
+    ds, metadata = dataset_with_transforms_streaming_from_config
     assert "label" in ds._data.columns
 
     # Check that only specified sources are present
@@ -314,3 +290,141 @@ def test_streaming_mode_with_transformations(dataset_with_transforms_streaming_f
     # check that the metadata contains a key for "label_from_feature"
     assert "label_from_feature" in metadata
     assert "label_map" in metadata["label_from_feature"]
+
+
+def test_validation_reference_item_stability(dataset: Dataset) -> None:
+    """
+    Check that a canonical item (index 0) is bitwise-stable.
+
+    We hash the raw float32 audio buffer. This catches:
+    - sample rate changes (resampling -> different samples)
+    - channel handling changes (stereo->mono logic changed)
+    - dtype changes
+    - ordering changes in the split (if a different recording moved to idx 0)
+
+    If this fails for a legitimate/intentional reason, recompute the hash below
+    and update EXPECTED_FIRST_ITEM_AUDIO_SHA256.
+
+    We do the same for the annotations csv.
+    """
+    # choose deterministic index
+    idx = 0
+    item = dataset[idx]
+
+    # audio presence/type checks (defensive, so the hash failure message is clearer)
+    assert "audio" in item, "[0] missing 'audio' key"
+    audio = item["audio"]
+    assert isinstance(audio, np.ndarray), "[0] audio is not a numpy array"
+    assert (
+        audio.dtype == np.float32
+    ), f"[0] audio dtype is {audio.dtype}, expected float32"
+
+    # compute sha256 over raw bytes of the float32 array
+    h1 = create_hash(audio.tobytes())
+
+    assert h1 == VAL_EXPECTED_FIRST_ITEM_AUDIO_SHA256, (
+        "First item's audio hash changed.\n"
+        f"Got    {h}\n"
+        f"Expect {VAL_EXPECTED_FIRST_ITEM_AUDIO_SHA256}\n\n"
+        "If this is an intentional dataset/content update, "
+        "replace EXPECTED_FIRST_ITEM_AUDIO_SHA256 with the new hash."
+    )
+
+    # compute sha256 over raw bytes of the float32 array of annotations
+    csv_bytes = (
+        dataset._data.unwrap.sort_index(axis=0)
+        .sort_index(axis=1)
+        .to_csv(index=True)
+        .encode("utf-8")
+    )
+    h2 = create_hash(csv_bytes)
+
+    assert h2 == VAL_ANNOTATIONS_SHA256, (
+        "Annotation's hash changed.\n"
+        f"Got    {h}\n"
+        f"Expect {VAL_ANNOTATIONS_SHA256}\n\n"
+        "If this is an intentional dataset/content update, "
+        "replace EXPECTED_FIRST_ITEM_AUDIO_SHA256 with the new hash."
+    )
+
+
+@pytest.mark.skip(reason="This test takes a very long time")
+def test_train_reference_item_stability() -> None:
+    """
+    Check that a canonical item (index 0) is bitwise-stable.
+
+    We hash the raw float32 audio buffer. This catches:
+    - sample rate changes (resampling -> different samples)
+    - channel handling changes (stereo->mono logic changed)
+    - dtype changes
+    - ordering changes in the split (if a different recording moved to idx 0)
+
+    If this fails for a legitimate/intentional reason, recompute the hash below
+    and update EXPECTED_FIRST_ITEM_AUDIO_SHA256.
+
+    We do the same for the annotations csv.
+    """
+    ds_train = AnimalSpeak(split="train", sample_rate=16000, backend="pandas")
+    # choose deterministic index
+    idx = 0
+    item = ds_train[idx]
+
+    # audio presence/type checks (defensive, so the hash failure message is clearer)
+    assert "audio" in item, "[0] missing 'audio' key"
+    audio = item["audio"]
+    assert isinstance(audio, np.ndarray), "[0] audio is not a numpy array"
+    assert (
+        audio.dtype == np.float32
+    ), f"[0] audio dtype is {audio.dtype}, expected float32"
+
+    # compute sha256 over raw bytes of the float32 array
+    h1 = create_hash(audio.tobytes())
+
+    assert h1 == TRAIN_EXPECTED_FIRST_ITEM_AUDIO_SHA256, (
+        "First item's audio hash changed.\n"
+        f"Got    {h}\n"
+        f"Expect {TRAIN_EXPECTED_FIRST_ITEM_AUDIO_SHA256}\n\n"
+        "If this is an intentional dataset/content update, "
+        "replace EXPECTED_FIRST_ITEM_AUDIO_SHA256 with the new hash."
+    )
+
+    # compute sha256 over raw bytes of the float32 array of annotations
+    csv_bytes = (
+        ds_train._data.unwrap.sort_index(axis=0)
+        .sort_index(axis=1)
+        .to_csv(index=True)
+        .encode("utf-8")
+    )
+    h2 = create_hash(csv_bytes)
+
+    assert h2 == TRAIN_ANNOTATIONS_SHA256, (
+        "Annotation's hash changed.\n"
+        f"Got    {h}\n"
+        f"Expect {TRAIN_ANNOTATIONS_SHA256}\n\n"
+        "If this is an intentional dataset/content update, "
+        "replace EXPECTED_FIRST_ITEM_AUDIO_SHA256 with the new hash."
+    )
+
+
+# if __name__ == "__main__":
+    # generate hash
+    # from esp_data.utils import create_hash
+    # ds_train = AnimalSpeak(split="train", sample_rate=16000, backend="pandas")
+
+    # # print("len(ds) =", len(ds))
+
+    # audio0 = ds_train[0]["audio"]
+    # print("dtype:", audio0.dtype, "shape:", audio0.shape)
+
+    # h = create_hash(audio0.tobytes())
+    # print("sha256:", h)
+
+    # csv_bytes = (
+    #         ds_train._data.unwrap.sort_index(axis=0)
+    #         .sort_index(axis=1)
+    #         .to_csv(index=True)
+    #         .encode("utf-8")
+    #     )
+    # h = create_hash(csv_bytes)
+
+    # print("annotations sha256:", h)
