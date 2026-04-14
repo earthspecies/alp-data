@@ -158,8 +158,18 @@ class XenoCantoAnnotatedJeantet23(Dataset):
             (self.data_root / row["audio_path"]) if self.data_root else anypath(row["audio_path"])
         )
 
-        # Read audio
-        audio, sample_rate = read_audio(audio_path)
+        window_start = row.get("window_start_sec")
+        window_end = row.get("window_end_sec")
+
+        # Read either the full recording or a requested sub-window.
+        if window_start is not None and window_end is not None:
+            audio, sample_rate = read_audio(
+                audio_path,
+                start_time=float(window_start),
+                end_time=float(window_end),
+            )
+        else:
+            audio, sample_rate = read_audio(audio_path)
         audio = audio_stereo_to_mono(audio, mono_method="average").astype(np.float32)
 
         # Resample if necessary

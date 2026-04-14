@@ -84,6 +84,7 @@ class Watkins(Dataset):
         owner="david",
         split_paths={
             "train": "gs://esp-data-ingestion/watkins/v0.1.0/watkins.csv",
+            "train_unseen": "gs://esp-data-ingestion/watkins/v0.1.0/train_unseen.csv",
         },
         version="0.1.0",
         description=(
@@ -101,6 +102,8 @@ class Watkins(Dataset):
         16000: "16khz_path",
         32000: "32khz_path",
     }
+
+    _mixup_group = "marine_mammal"
 
     _originals_path_column = "audio_path"
 
@@ -245,6 +248,7 @@ class Watkins(Dataset):
 
         row["audio"] = audio
         row["sample_rate"] = sr
+        row["mixup_group"] = self._mixup_group
 
         if self.output_take_and_give:
             return {new: row[old] for old, new in self.output_take_and_give.items()}

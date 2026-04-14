@@ -129,6 +129,8 @@ class INaturalist(Dataset):
         16000: "16khz_path",  # Pre-resampled to 16kHz
     }
 
+    _mixup_group = "mixed_taxa"
+
     # Column name for original variable-rate audio files
     _originals_path_column = "originals_path"
 
@@ -325,6 +327,7 @@ class INaturalist(Dataset):
 
         row["audio"] = audio
         row["sample_rate"] = sample_rate
+        row["mixup_group"] = self._mixup_group
 
         if self.output_take_and_give:
             item = {}

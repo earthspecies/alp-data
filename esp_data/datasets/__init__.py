@@ -8,6 +8,7 @@ from .audioset_strong import AudioSetStrong
 from .barkley_canyon import BarkleyCanyon, BarkleyCanyonDetection
 from .beans import Beans
 from .beans_zero import BeansZero
+from .beans_zero_call_variants import BeansZeroCallVariants
 from .bengalese_finch_calls import BengaleseFinchCalls
 from .birdeep import Birdeep
 from .birdset import BirdSet
@@ -29,10 +30,12 @@ from .macaques_coo_calls import MacaquesCooCalls
 from .nocturnal_bird_migration import NocturnalBirdMigration
 from .pipit_id import PipitId
 from .powdermill import Powdermill
+from .spanish_carrion_crows_flight_clips import SpanishCarrionCrowsFlightClips
 from .subsegmentation import Subsegmentation
 from .superb_starling import SuperbStarling
 from .superwhales_detection import SuperWhaleDetection
 from .synthetic_audio_conversations import SyntheticAudioConversations
+from .synthetic_scenes import SyntheticScenes
 from .voxaboxen import Voxaboxen, VoxaboxenEvents
 from .wabad import WABAD
 from .watkins import Watkins
@@ -50,6 +53,7 @@ __all__ = [
     "INaturalist",
     "InsectSet459",
     "Beans",
+    "BeansZeroCallVariants",
     "BeansZero",
     "ZebraFinchJulieElie",
     "BirdSet",
@@ -68,12 +72,14 @@ __all__ = [
     "SuperbStarling",
     "SuperWhaleDetection",
     "SyntheticAudioConversations",
+    "SyntheticScenes",
     "WABAD",
     "XenoCanto",
     "XenoCantoAnnotatedJeantet23",
     "HawaiianBirds",
     "AnuraSetStrong",
     "Powdermill",
+    "SpanishCarrionCrowsFlightClips",
     "ArcticBirdSounds",
     "NocturnalBirdMigration",
     "Birdeep",

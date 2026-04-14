@@ -142,6 +142,12 @@ class Birdeep(Dataset):
     def _process(self, row: dict[str, Any]) -> dict[str, Any]:
         """Process a single row of the dataset.
 
+        When the row contains ``window_start_sec`` / ``window_end_sec``
+        (added by the ``window_annotations`` transform), only the matching
+        audio segment is loaded. If ``selection_table`` has been removed by
+        upstream transforms such as ``select_columns``, audio loading still
+        proceeds and the missing table is ignored.
+
         Parameters
         ----------
         row : dict[str, Any]
@@ -158,8 +164,18 @@ class Birdeep(Dataset):
             (self.data_root / row["audio_path"]) if self.data_root else anypath(row["audio_path"])
         )
 
+        window_start = row.get("window_start_sec")
+        window_end = row.get("window_end_sec")
+
         # Read audio
-        audio, sample_rate = read_audio(audio_path)
+        if window_start is not None and window_end is not None:
+            audio, sample_rate = read_audio(
+                audio_path,
+                start_time=float(window_start),
+                end_time=float(window_end),
+            )
+        else:
+            audio, sample_rate = read_audio(audio_path)
         audio = audio_stereo_to_mono(audio, mono_method="average").astype(np.float32)
 
         # Resample if necessary
@@ -173,17 +189,25 @@ class Birdeep(Dataset):
             )
             sample_rate = self.sample_rate
 
-        # Selection table
-        st = pd.read_csv(StringIO(row["selection_table"]), sep="\t")
+        raw_st = row.get("selection_table")
+        if raw_st is not None:
+            if isinstance(raw_st, str):
+                st = pd.read_csv(StringIO(raw_st), sep="\t")
+            elif isinstance(raw_st, pd.DataFrame):
+                st = raw_st
+            else:
+                st = pd.DataFrame()
 
-        # Clip events outside audio (keep only events that begin before audio end)
-        audio_dur = len(audio) / float(sample_rate)
-        st = st[st["Begin Time (s)"] < audio_dur].copy()
+            # Clip events outside audio (keep only events that begin before audio end)
+            audio_dur = len(audio) / float(sample_rate)
+            if "Begin Time (s)" in st.columns:
+                st = st[st["Begin Time (s)"] < audio_dur].copy()
+
+            row["selection_table"] = st
 
         # Build output
         row["audio"] = audio
         row["sample_rate"] = sample_rate
-        row["selection_table"] = st
 
         if self.output_take_and_give:
             item = {}

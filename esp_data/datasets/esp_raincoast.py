@@ -240,8 +240,28 @@ class ESPRaincoast(Dataset):
 
         # Read the audio clip
         if self.load_audio_segments:
-            start_time = row.get("Begin Time (s)", 0.0)
-            end_time = row.get("End Time (s)", None)
+            def _maybe_float(value: Any) -> float | None:
+                if value is None or value == "":
+                    return None
+                try:
+                    value_f = float(value)
+                except (TypeError, ValueError):
+                    return None
+                if np.isnan(value_f):
+                    return None
+                return value_f
+
+            # Raincoast selection tables store clip boundaries relative to the file
+            # in File Offset / Delta Time; Begin/End are annotation times and can
+            # produce empty reads for segmented clips.
+            file_offset = _maybe_float(row.get("File Offset (s)"))
+            delta_time = _maybe_float(row.get("Delta Time (s)"))
+            if file_offset is not None:
+                start_time = file_offset
+                end_time = None if delta_time is None else file_offset + delta_time
+            else:
+                start_time = _maybe_float(row.get("Begin Time (s)")) or 0.0
+                end_time = _maybe_float(row.get("End Time (s)"))
             audio, sample_rate = read_audio(audio_path, start_time=start_time, end_time=end_time)
         else:
             audio, sample_rate = read_audio(audio_path)
