@@ -186,7 +186,10 @@ class PolarsBackend(DataBackend):
             Backend instance wrapping the loaded DataFrame or LazyFrame
         """
         # Filter out kwargs for any non-polars argument
-        valid_params = set(inspect.signature(pl.scan_csv).parameters.keys())
+        if streaming:
+            valid_params = set(inspect.signature(pl.scan_parquet).parameters.keys())
+        else:
+            valid_params = set(inspect.signature(pl.read_parquet).parameters.keys())
         filtered_kwargs = {k: v for k, v in kwargs.items() if k in valid_params}
         if streaming:
             # Use scan_parquet for lazy/streaming mode
@@ -309,7 +312,9 @@ class PolarsBackend(DataBackend):
     def __iter__(self) -> Iterator[dict[str, Any]]:
         """Iterate over DataFrame rows as dictionaries.
 
-        In streaming mode (LazyFrame), collects and yields rows.
+        In streaming mode (LazyFrame), uses `LazyFrame.collect_batches()` to
+        materialize the query one chunk at a time, so the full result never
+        needs to live in memory at once.
         In eager mode (DataFrame), yields rows directly.
 
         Yields
@@ -317,9 +322,13 @@ class PolarsBackend(DataBackend):
         dict[str, Any]
             Dictionary for each row mapping column names to values
         """
-        df = self._ensure_collected()
-        for row in df.iter_rows(named=True):
-            yield row
+        if isinstance(self._df, pl.LazyFrame):
+            for batch in self._df.collect_batches():
+                for row in batch.iter_rows(named=True):
+                    yield row
+        else:
+            for row in self._df.iter_rows(named=True):
+                yield row
 
     def iter_batches(self, batch_size: int = 1000) -> Iterator["PolarsBackend"]:
         """Iterate over DataFrame in batches.
@@ -332,17 +341,25 @@ class PolarsBackend(DataBackend):
         Yields
         ------
         PolarsBackend
-            Backend instances wrapping batches of up to batch_size rows
+            Backend instances wrapping batches of up to batch_size rows.
+            Yielded backends are always in eager mode.
 
-        Note
-        ----
-        In streaming mode, polars LazyFrame will be collected in one go.
-        For truly streaming batch processing, iterate and manually batch.
+        Notes
+        -----
+        In streaming mode, uses `LazyFrame.collect_batches(chunk_size=batch_size)`
+        to produce batches incrementally, so the full result never needs to
+        live in memory at once. Note that polars may return chunks that are
+        smaller than `batch_size`; it treats it as a hint rather than a strict
+        cap.
         """
-        df = self._ensure_collected()
-        for start_idx in range(0, len(df), batch_size):
-            end_idx = min(start_idx + batch_size, len(df))
-            yield PolarsBackend(df[start_idx:end_idx], streaming=False)
+        if isinstance(self._df, pl.LazyFrame):
+            for batch in self._df.collect_batches(chunk_size=batch_size):
+                yield PolarsBackend(batch, streaming=False)
+        else:
+            df = self._df
+            for start_idx in range(0, len(df), batch_size):
+                end_idx = min(start_idx + batch_size, len(df))
+                yield PolarsBackend(df[start_idx:end_idx], streaming=False)
 
     def filter_isin(
         self,
@@ -456,7 +473,21 @@ class PolarsBackend(DataBackend):
         -------
         list[Any]
             Sorted list of unique values (nulls excluded)
+
+        Notes
+        -----
+        In streaming mode (LazyFrame), materializes the full column to
+        compute uniques. A UserWarning is emitted because this forces
+        collection of the underlying query.
         """
+        if self._streaming:
+            warnings.warn(
+                "get_unique() requires collection of LazyFrame to compute uniques. "
+                "The backend itself is not modified, but the underlying query will "
+                "be executed in full.",
+                UserWarning,
+                stacklevel=2,
+            )
         df = self._ensure_collected()
         # Drop nulls and get unique values
         unique_values = df[column].drop_nulls().unique().to_list()
@@ -474,7 +505,21 @@ class PolarsBackend(DataBackend):
         -------
         dict[Any, int]
             Dictionary mapping unique values to their counts (nulls excluded)
+
+        Notes
+        -----
+        In streaming mode (LazyFrame), materializes the full column to
+        compute counts. A UserWarning is emitted because this forces
+        collection of the underlying query.
         """
+        if self._streaming:
+            warnings.warn(
+                "histogram() requires collection of LazyFrame to compute counts. "
+                "The backend itself is not modified, but the underlying query will "
+                "be executed in full.",
+                UserWarning,
+                stacklevel=2,
+            )
         df = self._ensure_collected()
         # Drop nulls and group by column to get counts
         counts_df = df.drop_nulls(subset=[column]).group_by(column).len()
@@ -656,7 +701,7 @@ class PolarsBackend(DataBackend):
         bool
             True if column exists, False otherwise
         """
-        return column in self._df.columns
+        return column in self._df.collect_schema().names()
 
     @property
     def unwrap(self) -> pl.DataFrame | pl.LazyFrame:
