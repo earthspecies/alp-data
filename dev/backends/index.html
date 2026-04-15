@@ -7724,7 +7724,9 @@ for DataFrame operations that can work across different backend implementations.
     <div class="doc doc-contents ">
 
         <p>Iterate over DataFrame rows as dictionaries.</p>
-<p>In streaming mode (LazyFrame), collects and yields rows.
+<p>In streaming mode (LazyFrame), uses <code>LazyFrame.collect_batches()</code> to
+materialize the query one chunk at a time, so the full result never
+needs to live in memory at once.
 In eager mode (DataFrame), yields rows directly.</p>
 
 
@@ -8981,6 +8983,13 @@ Call <code>.collect()</code> to materialize the filtered result into an eager ba
     </table>
 
 
+<details class="note" open>
+  <summary>Notes</summary>
+  <p>In streaming mode (LazyFrame), materializes the full column to
+compute uniques. A UserWarning is emitted because this forces
+collection of the underlying query.</p>
+</details>
+
     </div>
 
 </div>
@@ -9053,6 +9062,13 @@ Call <code>.collect()</code> to materialize the filtered result into an eager ba
     </table>
 
 
+<details class="note" open>
+  <summary>Notes</summary>
+  <p>In streaming mode (LazyFrame), materializes the full column to
+compute counts. A UserWarning is emitted because this forces
+collection of the underlying query.</p>
+</details>
+
     </div>
 
 </div>
@@ -9117,7 +9133,8 @@ Call <code>.collect()</code> to materialize the filtered result into an eager ba
             </td>
             <td>
               <div class="doc-md-description">
-                <p>Backend instances wrapping batches of up to batch_size rows</p>
+                <p>Backend instances wrapping batches of up to batch_size rows.
+Yielded backends are always in eager mode.</p>
               </div>
             </td>
           </tr>
@@ -9126,9 +9143,12 @@ Call <code>.collect()</code> to materialize the filtered result into an eager ba
 
 
 <details class="note" open>
-  <summary>Note</summary>
-  <p>In streaming mode, polars LazyFrame will be collected in one go.
-For truly streaming batch processing, iterate and manually batch.</p>
+  <summary>Notes</summary>
+  <p>In streaming mode, uses <code>LazyFrame.collect_batches(chunk_size=batch_size)</code>
+to produce batches incrementally, so the full result never needs to
+live in memory at once. Note that polars may return chunks that are
+smaller than <code>batch_size</code>; it treats it as a hint rather than a strict
+cap.</p>
 </details>
 
     </div>
