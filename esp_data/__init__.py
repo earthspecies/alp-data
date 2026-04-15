@@ -50,12 +50,16 @@ from .datasets import (
     XenoCantoAnnotatedJeantet23,
     ZebraFinchJulieElie,
 )
+from .schema import ColumnSchema, DatasetSchema, SchemaValidationError
 
 __all__ = [
     "dataset_from_config",
     "Dataset",
     "DatasetInfo",
     "DatasetConfig",
+    "DatasetSchema",
+    "ColumnSchema",
+    "SchemaValidationError",
     "ConcatConfig",
     "ChainedDatasetConfig",
     "list_registered_datasets",

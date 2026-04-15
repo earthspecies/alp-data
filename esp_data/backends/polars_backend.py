@@ -658,6 +658,67 @@ class PolarsBackend(DataBackend):
         """
         return column in self._df.columns
 
+    def get_dtype(self, column: str) -> str:
+        """Return the dtype of a column as a normalized string.
+
+        Parameters
+        ----------
+        column : str
+            Column name
+
+        Returns
+        -------
+        str
+            Normalized dtype string
+        """
+        schema = self._df.collect_schema()
+        dtype = schema[column]
+
+        # Handle list types first
+        if dtype.base_type() == pl.List:
+            inner = dtype.inner
+            if inner in (pl.Utf8, pl.String):
+                return "list[str]"
+            elif inner in (
+                pl.Int8,
+                pl.Int16,
+                pl.Int32,
+                pl.Int64,
+                pl.UInt8,
+                pl.UInt16,
+                pl.UInt32,
+                pl.UInt64,
+            ):
+                return "list[int]"
+            elif inner in (pl.Float32, pl.Float64):
+                return "list[float]"
+            else:
+                return f"list[{inner}]"
+
+        # Map polars types to normalized strings
+        if dtype in (pl.Utf8, pl.String):
+            return "str"
+        elif dtype in (
+            pl.Int8,
+            pl.Int16,
+            pl.Int32,
+            pl.Int64,
+            pl.UInt8,
+            pl.UInt16,
+            pl.UInt32,
+            pl.UInt64,
+        ):
+            return "int"
+        elif dtype in (pl.Float32, pl.Float64):
+            return "float"
+        elif dtype == pl.Boolean:
+            return "bool"
+        elif dtype in (pl.Datetime, pl.Date, pl.Time):
+            return "datetime"
+        else:
+            # Return string representation for unknown types
+            return str(dtype)
+
     @property
     def unwrap(self) -> pl.DataFrame | pl.LazyFrame:
         """Get the underlying DataFrame object.

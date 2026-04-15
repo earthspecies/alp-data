@@ -8,6 +8,7 @@ import numpy as np
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from esp_data.backends import BackendType
 from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
+from esp_data.schema import ColumnSchema, DatasetSchema
 
 
 @register_dataset
@@ -48,6 +49,15 @@ class AnimalSpeak(Dataset):
         description="AnimalSpeak dataset",
         sources=["Xeno-canto", "iNaturalist", "Watkins"],
         license="CC BY",
+    )
+
+    schema = DatasetSchema(
+        columns=[
+            ColumnSchema(name="local_path", dtype="str", required=True),
+            ColumnSchema(name="species_scientific", dtype="str", required=True),
+            ColumnSchema(name="species_common", dtype="str", required=True),
+            ColumnSchema(name="caption", dtype="str", required=True),
+        ]
     )
 
     def __init__(
@@ -124,6 +134,9 @@ class AnimalSpeak(Dataset):
             keep_default_na=False,
             na_values=[""],
         )
+
+        # Validate schema after load
+        self._validate_schema()
 
     @classmethod
     def from_config(cls, dataset_config: DatasetConfig) -> tuple["AnimalSpeak", dict[str, Any]]:
