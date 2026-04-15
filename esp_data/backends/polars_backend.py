@@ -323,6 +323,8 @@ class PolarsBackend(DataBackend):
             Dictionary for each row mapping column names to values
         """
         if isinstance(self._df, pl.LazyFrame):
+            # TODO: polars LazyFrame.collect_batches is marked unstable!
+            # see: https://docs.pola.rs/api/python/dev/reference/lazyframe/api/polars.LazyFrame.collect_batches.html
             for batch in self._df.collect_batches():
                 for row in batch.iter_rows(named=True):
                     yield row
@@ -352,7 +354,8 @@ class PolarsBackend(DataBackend):
         smaller than `batch_size`; it treats it as a hint rather than a strict
         cap.
         """
-        if isinstance(self._df, pl.LazyFrame):
+        if self._streaming:
+            # TODO: collect_batches is unstable
             for batch in self._df.collect_batches(chunk_size=batch_size):
                 yield PolarsBackend(batch, streaming=False)
         else:
@@ -686,7 +689,10 @@ class PolarsBackend(DataBackend):
         list[str]
             List of column names
         """
-        return self._df.collect_schema().names()
+        if self._streaming:
+            return self._df.collect_schema().names()
+        else:
+            return self._df.columns
 
     def column_exists(self, column: str) -> bool:
         """Check if a column exists in the DataFrame.
@@ -701,7 +707,10 @@ class PolarsBackend(DataBackend):
         bool
             True if column exists, False otherwise
         """
-        return column in self._df.collect_schema().names()
+        if self._streaming:
+            return column in self._df.collect_schema().names()
+        else:
+            return column in self._df.columns
 
     @property
     def unwrap(self) -> pl.DataFrame | pl.LazyFrame:
