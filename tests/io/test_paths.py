@@ -8,6 +8,7 @@ import uuid
 from pathlib import Path
 
 import pytest
+from fsspec.implementations.http import HTTPFileSystem
 
 from esp_data.io import anypath, filesystem_from_path
 
@@ -61,3 +62,8 @@ def test_filesystem_from_path():
     local_path = anypath("local/file.txt")
     fs = filesystem_from_path(local_path)
     assert fs is not None
+
+    # Test with HTTPS path
+    https_path = anypath("https://example.com/datasets/file.json")
+    fs = filesystem_from_path(https_path)
+    assert isinstance(fs, HTTPFileSystem)
