@@ -13,7 +13,7 @@ repos:
         args: [--maxkb=1024]
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.15.11
+    rev: v0.15.10
     hooks:
       - id: ruff
         args: [--fix]
