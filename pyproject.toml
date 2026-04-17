@@ -108,7 +108,6 @@ fixable = ["ALL"]
 unfixable = []
 preview = true
 
-
 [tool.ruff.format]
 quote-style = "double"
 indent-style = "space"
