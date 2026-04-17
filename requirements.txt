@@ -26,8 +26,6 @@ annotated-types==0.7.0
     # via pydantic
 arro3-core==0.8.0
     # via deltalake
-async-timeout==5.0.1 ; python_full_version < '3.11'
-    # via aiohttp
 attrs==26.1.0
     # via
     #   aiohttp
@@ -379,16 +377,13 @@ threadpoolctl==3.6.0
 typing-extensions==4.15.0
     # via
     #   adbc-driver-manager
-    #   aiobotocore
     #   aiosignal
     #   altair
     #   arro3-core
-    #   cryptography
     #   great-tables
     #   grpcio
     #   htmltools
     #   librosa
-    #   multidict
     #   pydantic
     #   pydantic-core
     #   referencing
