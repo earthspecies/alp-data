@@ -217,9 +217,7 @@ class BeansZeroCallVariants(Dataset):
         if original_path is not None:
             return original_path
 
-        raise ValueError(
-            "Expected a BEANS-Zero audio path in the manifest row."
-        )
+        raise ValueError("Expected a BEANS-Zero audio path in the manifest row.")
 
     def _process(self, row: dict[str, Any]) -> dict[str, Any]:
         """Process one manifest row into an in-memory audio example.

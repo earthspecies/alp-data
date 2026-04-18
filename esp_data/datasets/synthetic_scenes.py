@@ -240,9 +240,7 @@ class SyntheticScenes(Dataset):
 
     def __getitem__(self, idx: int) -> dict[str, Any]:
         if idx < 0 or idx >= len(self._data):
-            raise IndexError(
-                f"Index {idx} out of bounds for dataset length {len(self._data)}"
-            )
+            raise IndexError(f"Index {idx} out of bounds for dataset length {len(self._data)}")
         row = self._data[idx]
         return self._process(row)
 
@@ -251,9 +249,7 @@ class SyntheticScenes(Dataset):
             yield self._process(row)
 
     @classmethod
-    def from_config(
-        cls, dataset_config: DatasetConfig
-    ) -> tuple["SyntheticScenes", dict[str, Any]]:
+    def from_config(cls, dataset_config: DatasetConfig) -> tuple["SyntheticScenes", dict[str, Any]]:
         """Create a SyntheticScenes instance from a configuration.
 
         Parameters
