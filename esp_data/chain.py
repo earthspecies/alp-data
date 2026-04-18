@@ -343,9 +343,7 @@ class ChainedDataset(Dataset):
                         break
 
                 if best_prefix_len > 0:
-                    prefix_key = _transforms_prefix_key(
-                        cache_key, transforms[:best_prefix_len]
-                    )
+                    prefix_key = _transforms_prefix_key(cache_key, transforms[:best_prefix_len])
                     cached_data, cached_meta = transform_cache[prefix_key]
                     ds._data = cached_data.copy()
                     meta = dict(cached_meta)
@@ -384,9 +382,7 @@ class ChainedDataset(Dataset):
                     prefix_refcount[pk] -= 1
                     if prefix_refcount[pk] <= 0 and pk in transform_cache:
                         del transform_cache[pk]
-                        logger.debug(
-                            "ChainedDataset: evicted cache for prefix %s", pk[:80]
-                        )
+                        logger.debug("ChainedDataset: evicted cache for prefix %s", pk[:80])
             else:
                 ds._data = base_cache[cache_key]._data.copy()
 
@@ -473,9 +469,7 @@ class ChainedDataset(Dataset):
             mmap_dfs.append(pl.read_ipc(f, memory_map=True))
         for entry_idx, backend in in_memory_backends.items():
             mmap_dfs.append(
-                backend._df.with_columns(
-                    pl.lit(entry_idx).cast(pl.Int32).alias("_chain_idx")
-                )
+                backend._df.with_columns(pl.lit(entry_idx).cast(pl.Int32).alias("_chain_idx"))
             )
         del in_memory_backends
 

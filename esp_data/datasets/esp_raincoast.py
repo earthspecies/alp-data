@@ -240,6 +240,7 @@ class ESPRaincoast(Dataset):
 
         # Read the audio clip
         if self.load_audio_segments:
+
             def _maybe_float(value: Any) -> float | None:
                 if value is None or value == "":
                     return None
