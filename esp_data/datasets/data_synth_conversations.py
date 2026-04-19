@@ -122,7 +122,8 @@ class DataSynthConversations(Dataset):
                 f"No audio root configured for dataset {dataset!r}. "
                 f"Add it to _AUDIO_ROOTS in data_synth_conversations.py."
             )
-        return root + path
+        stem = path.rsplit(".", 1)[0] if "." in path.split("/")[-1] else path
+        return root + stem + ".wav"
 
     def _process(self, row: dict[str, Any], _retries: int = 0) -> dict[str, Any]:
         import random
