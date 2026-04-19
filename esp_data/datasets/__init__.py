@@ -3,6 +3,7 @@ from .animalspeak import AnimalSpeak
 from .anuraset import AnuraSetStrong
 from .arctic_bird_sounds import ArcticBirdSounds
 from .audio_skills_xl import AudioSkillsXL
+from .data_synth_conversations import DataSynthConversations
 from .audioset import AudioSet
 from .audioset_strong import AudioSetStrong
 from .barkley_canyon import BarkleyCanyon, BarkleyCanyonDetection
@@ -47,6 +48,7 @@ __all__ = [
     "AnimalSoundArchive",
     "AnimalSpeak",
     "AudioSkillsXL",
+    "DataSynthConversations",
     "BarkleyCanyon",
     "BarkleyCanyonDetection",
     "GiantOtters",
