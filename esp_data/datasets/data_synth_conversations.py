@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import json
 from typing import Any, Iterator
+from urllib.parse import unquote
 
 import librosa
 import numpy as np
@@ -111,6 +112,7 @@ class DataSynthConversations(Dataset):
                 f"Empty audio_paths for audio_id={row.get('audio_id')!r}"
             )
         path = audio_paths[0]
+        path = unquote(path)
         if path.startswith("gs://") or path.startswith("/"):
             return path
         dataset = row.get("dataset", "")
