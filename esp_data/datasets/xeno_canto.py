@@ -99,6 +99,10 @@ class XenoCanto(Dataset):
     - ``train_single_clean_unseen_logitneg15_focal95``: Unseen-safe high-quality
       single-label subset with no background-species metadata, focal top-1 in at
       least 95% of windows, and strongest non-focal logit < -1.5 across windows.
+    - ``beanszero``: Xeno-canto recordings that appear in the BEANS-Zero benchmark
+      test set, with metadata fetched from GBIF. Audio is sourced directly from the
+      BeansZero GCS bucket (``gs://esp-ml-datasets/beans-zero/v0.1.0/raw/``).
+      Useful for evaluating models on BEANS-Zero using the full XenoCanto metadata schema.
 
     The ``_unseen`` splits are designed for training models that will be evaluated
     on BEANS-Zero's unseen taxa benchmark, ensuring no test taxa leak into the training data.
@@ -145,6 +149,7 @@ class XenoCanto(Dataset):
             "train_strong_unseen_thr02_bgdet": "gs://esp-data-ingestion/xeno-canto/v0.1.0/raw/train_strong_unseen_thr02_bgdet.csv",
             "train_strong_unseen_top100_bgdet": "gs://esp-data-ingestion/xeno-canto/v0.1.0/raw/train_strong_unseen_top100_bgdet.csv",
             "train_single_clean_unseen_logitneg15_focal95": "gs://esp-data-ingestion/xeno-canto/v0.1.0/raw/train_single_clean_unseen_logitneg15_focal95.csv",
+            "beanszero": "gs://esp-data-ingestion/xeno-canto/v0.1.0/raw/beanszero_test.csv",
         },
         version="0.1.0",
         description="Xeno-canto audio dataset with taxonomic metadata. "
@@ -207,9 +212,15 @@ class XenoCanto(Dataset):
         self.sample_rate = sample_rate
 
         if data_root is None:
-            self.data_root = anypath("gs://esp-ml-datasets/xeno-canto/v0.1.0/raw/")
-            self._data_root_32k = anypath("gs://esp-ml-datasets/xeno-canto/v0.1.0/raw/audio_32k/")
-            self._data_root_16k = anypath("gs://esp-ml-datasets/xeno-canto/v0.1.0/raw/audio_16k/")
+            if split == "beanszero":
+                _bz_root = anypath("gs://esp-ml-datasets/beans-zero/v0.1.0/raw/")
+                self.data_root = _bz_root
+                self._data_root_32k = _bz_root
+                self._data_root_16k = _bz_root
+            else:
+                self.data_root = anypath("gs://esp-ml-datasets/xeno-canto/v0.1.0/raw/")
+                self._data_root_32k = anypath("gs://esp-ml-datasets/xeno-canto/v0.1.0/raw/audio_32k/")
+                self._data_root_16k = anypath("gs://esp-ml-datasets/xeno-canto/v0.1.0/raw/audio_16k/")
         else:
             self.data_root = anypath(data_root)
             self._data_root_32k = anypath(data_root)

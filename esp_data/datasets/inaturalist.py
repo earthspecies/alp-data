@@ -73,6 +73,10 @@ class INaturalist(Dataset):
     - ``train_unseen``: Training set excluding unseen taxa evaluated in BEANS-Zero benchmark
     - ``val_unseen``: Validation set excluding unseen taxa evaluated in BEANS-Zero benchmark
     - ``all_unseen``: Complete dataset excluding BEANS-Zero unseen taxa
+    - ``beanszero``: iNaturalist recordings that appear in the BEANS-Zero benchmark
+      test set, with metadata fetched from GBIF. Audio is sourced directly from the
+      BeansZero GCS bucket (``gs://esp-ml-datasets/beans-zero/v0.1.0/raw/``).
+      Useful for evaluating models on BEANS-Zero using the full iNaturalist metadata schema.
 
     The ``_unseen`` splits are designed for training models that will be evaluated
     on BEANS-Zero's unseen taxa benchmark, ensuring no test taxa leak into the training data.
@@ -114,6 +118,7 @@ class INaturalist(Dataset):
             "val_unseen": "gs://esp-ml-datasets/inaturalist/v0.1.0/raw/val_unseen_20260201.csv",
             "all": "gs://esp-ml-datasets/inaturalist/v0.1.0/raw/all_20260201.csv",
             "all_unseen": "gs://esp-ml-datasets/inaturalist/v0.1.0/raw/all_unseen_20260201.csv",
+            "beanszero": "gs://esp-data-ingestion/inaturalist/v0.1.0/raw/beanszero_test.csv",
         },
         version="0.1.0",
         description="iNaturalist audio dataset with taxonomic metadata. "
@@ -174,9 +179,12 @@ class INaturalist(Dataset):
         self.sample_rate = sample_rate
 
         if data_root is None:
-            self.data_root = anypath("gs://esp-ml-datasets/inaturalist/v0.1.0/raw/")
+            if split == "beanszero":
+                self.data_root = anypath("gs://esp-ml-datasets/beans-zero/v0.1.0/raw/")
+            else:
+                self.data_root = anypath("gs://esp-ml-datasets/inaturalist/v0.1.0/raw/")
         else:
-            self.data_root = data_root
+            self.data_root = anypath(data_root)
 
     @property
     def columns(self) -> list[str]:
