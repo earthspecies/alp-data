@@ -18,7 +18,9 @@ known dataset roots defined in ``_AUDIO_ROOTS``.
 from __future__ import annotations
 
 import json
+import re
 from typing import Any, Iterator
+from urllib.parse import unquote
 import librosa
 import numpy as np
 
@@ -110,6 +112,10 @@ class DataSynthConversations(Dataset):
                 f"Empty audio_paths for audio_id={row.get('audio_id')!r}"
             )
         path = audio_paths[0]
+        # Some paths were double-encoded by the synthesis pipeline (%25XX).
+        # Decode once so gcsfs sees the single-encoded form that matches GCS object names.
+        if re.search(r'%25[0-9A-Fa-f]{2}', path):
+            path = unquote(path)
         if path.startswith("gs://") or path.startswith("/"):
             return path
         dataset = row.get("dataset", "")
@@ -124,17 +130,9 @@ class DataSynthConversations(Dataset):
             path = stem + ".wav"
         return root + path
 
-    def _process(self, row: dict[str, Any], _retries: int = 0) -> dict[str, Any]:
-        import random
-
+    def _process(self, row: dict[str, Any]) -> dict[str, Any]:
         audio_path = self._resolve_audio_path(row)
-        try:
-            audio, sr = read_audio(anypath(audio_path))
-        except (FileNotFoundError, OSError):
-            if _retries >= 10:
-                raise
-            fallback_row = self._data[random.randint(0, len(self) - 1)]
-            return self._process(fallback_row, _retries=_retries + 1)
+        audio, sr = read_audio(anypath(audio_path))
         audio = audio_stereo_to_mono(audio, mono_method="average").astype(np.float32)
 
         if self.sample_rate is not None and sr != self.sample_rate:
