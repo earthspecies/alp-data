@@ -4,6 +4,7 @@ import hashlib
 import json
 import logging
 import os
+import random
 import shutil
 import tempfile
 from pathlib import Path
@@ -215,9 +216,18 @@ class ChainedDataset(Dataset):
             )
 
         if self._data is not None:
-            row = self._data[idx]
-            chain_idx = int(row.pop("_chain_idx"))
-            return self._source_datasets[chain_idx]._process(row)
+            for attempt in range(11):
+                _idx = idx if attempt == 0 else random.randint(0, len(self._data) - 1)
+                row = dict(self._data[_idx])
+                chain_idx = int(row.pop("_chain_idx"))
+                try:
+                    return self._source_datasets[chain_idx]._process(row)
+                except (FileNotFoundError, OSError):
+                    if attempt >= 10:
+                        raise
+                    logging.warning(
+                        f"ChainedDataset: skipping missing audio at idx={_idx}, attempt {attempt + 1}/10"
+                    )
 
         cumulative_length = 0
         for dataset, length in zip(self._source_datasets, self._lengths, strict=True):
