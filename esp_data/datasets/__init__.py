@@ -12,7 +12,9 @@ from .beans_zero import BeansZero
 from .beans_zero_call_variants import BeansZeroCallVariants
 from .bengalese_finch_calls import BengaleseFinchCalls
 from .birdeep import Birdeep
+from .birdeep_cropped import BirdeepCropped
 from .birdset import BirdSet
+from .birdvox_full_night_cropped import BirdVoxFullNightCropped
 from .chiffchaff_id import ChiffchaffId
 from .corvid_wascher import CorvidWascher
 from .dclde2026 import DCLDE2026
@@ -31,6 +33,7 @@ from .macaques_coo_calls import MacaquesCooCalls
 from .nocturnal_bird_migration import NocturnalBirdMigration
 from .pipit_id import PipitId
 from .powdermill import Powdermill
+from .powdermill_cropped import PowdermillCropped
 from .spanish_carrion_crows_flight_clips import SpanishCarrionCrowsFlightClips
 from .subsegmentation import Subsegmentation
 from .superb_starling import SuperbStarling
@@ -39,6 +42,7 @@ from .synthetic_audio_conversations import SyntheticAudioConversations
 from .synthetic_scenes import SyntheticScenes
 from .voxaboxen import Voxaboxen, VoxaboxenEvents
 from .wabad import WABAD
+from .wabad_cropped import WABADCropped
 from .watkins import Watkins
 from .xeno_canto import XenoCanto
 from .xeno_canto_annotated_jeantet_23 import XenoCantoAnnotatedJeantet23
@@ -76,15 +80,19 @@ __all__ = [
     "SyntheticAudioConversations",
     "SyntheticScenes",
     "WABAD",
+    "WABADCropped",
     "XenoCanto",
     "XenoCantoAnnotatedJeantet23",
     "HawaiianBirds",
     "AnuraSetStrong",
     "Powdermill",
+    "PowdermillCropped",
     "SpanishCarrionCrowsFlightClips",
     "ArcticBirdSounds",
     "NocturnalBirdMigration",
     "Birdeep",
+    "BirdeepCropped",
+    "BirdVoxFullNightCropped",
     "Geladas",
     "DinardoDolphinWhistles",
     "GibbonSolos",
