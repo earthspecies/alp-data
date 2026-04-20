@@ -132,7 +132,14 @@ class DataSynthConversations(Dataset):
 
     def _process(self, row: dict[str, Any]) -> dict[str, Any]:
         audio_path = self._resolve_audio_path(row)
-        audio, sr = read_audio(anypath(audio_path))
+        try:
+            audio, sr = read_audio(anypath(audio_path))
+        except (FileNotFoundError, OSError):
+            # XenoCanto bucket has a mix of .wav and .WAV extensions
+            if audio_path.endswith(".wav"):
+                audio, sr = read_audio(anypath(audio_path[:-4] + ".WAV"))
+            else:
+                raise
         audio = audio_stereo_to_mono(audio, mono_method="average").astype(np.float32)
 
         if self.sample_rate is not None and sr != self.sample_rate:
