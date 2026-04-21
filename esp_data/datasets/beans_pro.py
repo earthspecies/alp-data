@@ -32,6 +32,24 @@ class BeansPro(Dataset):
       carrion crow (*Corvus corone*). Source: ESP cooperative crows preprint.
     - ``zebra-description``: 40 examples, 4 call types, plains zebra
       (*Equus quagga*). Source: Xie et al. 2024, R. Soc. Open Sci.
+    - ``f0-mean-seen-taxa``: 2086 examples, mean F0 prediction across
+      9 seen taxa. Source: Musikhin et al. 2025, F0 Bioacoustic Benchmark.
+    - ``f0-mean-heldout-taxa``: 571 examples, mean F0 prediction for
+      spotted hyenas (held-out taxon). Source: Musikhin et al. 2025.
+    - ``bird-presence``: 3478 balanced examples, bird vocalization
+      detection (Yes/No). Source: XC + iNat val_unseen.
+    - ``mammal-presence``: 468 balanced examples, mammal vocalization
+      detection. Source: XC + iNat val_unseen.
+    - ``insect-presence``: 1176 balanced examples, insect sound
+      detection. Source: XC + iNat val_unseen.
+    - ``amphibian-presence``: 1818 balanced examples, amphibian
+      vocalization detection. Source: XC + iNat val_unseen.
+    - ``alarm-call-presence``: 36 balanced examples, alarm call binary
+      detection. Source: BEANS-Zero call variants.
+    - ``flight-call-presence``: 192 balanced examples, flight call
+      binary detection. Source: BEANS-Zero call variants.
+    - ``call-type-fixed-vocab``: 999 examples, 5-label multilabel
+      call-type classification. Source: BEANS-Zero call variants.
 
     Schema
     ------
@@ -58,18 +76,28 @@ class BeansPro(Dataset):
         split_paths={
             "crow-description": "gs://esp-data-ingestion/beans-pro/v0.1.0/raw/carrion_crow_descriptions/test.jsonl",
             "zebra-description": "gs://esp-data-ingestion/beans-pro/v0.1.0/raw/zebra_descriptions/test.jsonl",
+            "f0-mean-seen-taxa": "gs://esp-data-ingestion/beans-pro/v0.1.0/raw/f0_mean_seen_taxa/test.jsonl",
+            "f0-mean-heldout-taxa": "gs://esp-data-ingestion/beans-pro/v0.1.0/raw/f0_mean_heldout_taxa/test.jsonl",
+            "bird-presence": "gs://esp-data-ingestion/beans-pro/v0.1.0/raw/bird_presence/test.jsonl",
+            "mammal-presence": "gs://esp-data-ingestion/beans-pro/v0.1.0/raw/mammal_presence/test.jsonl",
+            "insect-presence": "gs://esp-data-ingestion/beans-pro/v0.1.0/raw/insect_presence/test.jsonl",
+            "amphibian-presence": "gs://esp-data-ingestion/beans-pro/v0.1.0/raw/amphibian_presence/test.jsonl",
+            "alarm-call-presence": "gs://esp-data-ingestion/beans-pro/v0.1.0/raw/alarm_call_presence/test.jsonl",
+            "flight-call-presence": "gs://esp-data-ingestion/beans-pro/v0.1.0/raw/flight_call_presence/test.jsonl",
+            "call-type-fixed-vocab": "gs://esp-data-ingestion/beans-pro/v0.1.0/raw/call_type_fixed_vocab/test.jsonl",
         },
         version="0.1.0",
         description=(
-            "BEANS-Pro acoustic description matching benchmark. "
-            "4-choice multiple choice: given audio, pick the correct acoustic "
-            "description from paper-verified options. "
-            "Crow split: 200 examples, 25 call types (Corvus corone). "
-            "Zebra split: 40 examples, 4 call types (Equus quagga)."
+            "BEANS-Pro evaluation benchmark. "
+            "Includes acoustic description matching, mean F0 prediction, "
+            "binary taxonomic presence, and call-type tasks."
         ),
         sources=[
             "ESP cooperative crows preprint",
             "Xie et al. 2024, R. Soc. Open Sci.",
+            "Musikhin et al. 2025, F0 Bioacoustic Benchmark",
+            "Xeno-canto / iNaturalist (val_unseen splits)",
+            "BEANS-Zero call variants",
         ],
         license="CC-BY-NC-4.0, CC0-1.0",
     )
@@ -78,6 +106,15 @@ class BeansPro(Dataset):
     _default_data_roots = {
         "crow-description": "gs://esp-data-ingestion/beans-pro/v0.1.0/raw/carrion_crow_descriptions/",
         "zebra-description": "gs://esp-data-ingestion/beans-pro/v0.1.0/raw/zebra_descriptions/",
+        "f0-mean-seen-taxa": "gs://esp-data-ingestion/f0-prediction/audio/",
+        "f0-mean-heldout-taxa": "gs://esp-data-ingestion/f0-prediction/audio/",
+        "bird-presence": "gs://esp-ml-datasets/",
+        "mammal-presence": "gs://esp-ml-datasets/",
+        "insect-presence": "gs://esp-ml-datasets/",
+        "amphibian-presence": "gs://esp-ml-datasets/",
+        "alarm-call-presence": "gs://esp-ml-datasets/",
+        "flight-call-presence": "gs://esp-ml-datasets/",
+        "call-type-fixed-vocab": "gs://esp-ml-datasets/",
     }
 
     _originals_path_column = "audio_path_original_sample_rate"
@@ -137,13 +174,10 @@ class BeansPro(Dataset):
     def _load(self) -> None:
         if self.split not in self.info.split_paths:
             raise LookupError(
-                f"Invalid split: {self.split}. "
-                f"Expected one of {list(self.info.split_paths.keys())}"
+                f"Invalid split: {self.split}. Expected one of {list(self.info.split_paths.keys())}"
             )
         location = self.info.split_paths[self.split]
-        self._data = self._backend_class.from_json(
-            location, lines=True, orient="records"
-        )
+        self._data = self._backend_class.from_json(location, lines=True, orient="records")
 
     @classmethod
     def from_config(cls, dataset_config: DatasetConfig) -> tuple["BeansPro", dict[str, Any]]:
