@@ -16,7 +16,8 @@ See [documentation](http://esp/docs/esp-data).
    ```
 2. Set up pre-commit hooks:
    ```
-   uv run pre-commit install
+   # Append '--overwrite' to overwrite existing hooks if you have them for e.g. from 'pre-commit' lib
+   uv run prek install
    ```
 
 ## Running tests

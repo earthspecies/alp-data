@@ -33,6 +33,12 @@ class Subsegmentation(Dataset):
     - a boolean indicating if it passed quality control (i.e. if it was sub-segmentable)
     - annotations of Species, Genus, Order, and Family.
 
+    Splits
+    ------
+    Original (multi-song recordings): "all", "train", "val", "test"
+    Single-song (one song per item, times re-zeroed): "single_song_all",
+        "single_song_train", "single_song_val", "single_song_test"
+
     Each selection table has, for each syllable, column for the Species, Genus, Order,
     and Family, as well as an Annotation:
 
@@ -58,6 +64,10 @@ class Subsegmentation(Dataset):
             "train": "gs://subsegmentation/xeno_canto_annotations/train.csv",
             "val": "gs://subsegmentation/xeno_canto_annotations/val.csv",
             "test": "gs://subsegmentation/xeno_canto_annotations/test.csv",
+            "single_song_all": "gs://subsegmentation/single_song/all.csv",
+            "single_song_train": "gs://subsegmentation/single_song/train.csv",
+            "single_song_val": "gs://subsegmentation/single_song/val.csv",
+            "single_song_test": "gs://subsegmentation/single_song/test.csv",
         },
         version="0.1.0",
         description="[MISSING]",
@@ -152,30 +162,30 @@ class Subsegmentation(Dataset):
         )
 
         # Read audio
-        audio, sr = read_audio(audio_path)
+        audio, sample_rate = read_audio(audio_path)
         audio = audio_stereo_to_mono(audio, mono_method="average").astype(np.float32)
 
         # Resample if necessary
-        target_sr = self.sample_rate
-        if target_sr is not None and sr != target_sr:
+        if self.sample_rate is not None and sample_rate != self.sample_rate:
             audio = librosa.resample(
                 y=audio,
-                orig_sr=sr,
-                target_sr=target_sr,
+                orig_sr=sample_rate,
+                target_sr=self.sample_rate,
                 scale=True,
                 res_type="kaiser_best",
             )
-            sr = target_sr
+            sample_rate = self.sample_rate
 
         # Selection table
         st = pd.read_csv(StringIO(row["selection_table"]), sep="\t")
 
         # Clip events outside audio (keep only events that begin before audio end)
-        audio_dur = len(audio) / float(sr)
+        audio_dur = len(audio) / float(sample_rate)
         st = st[st["Begin Time (s)"] < audio_dur].copy()
 
         # Build output
         row["audio"] = audio
+        row["sample_rate"] = sample_rate
         row["selection_table"] = st
 
         if self.output_take_and_give:
@@ -229,7 +239,7 @@ class Subsegmentation(Dataset):
             return ds, meta
         return ds, {}
 
-    def get_available_labels(self, anno_column: str) -> List[str]:
+    def get_available_labels(self, anno_column: str = "Species") -> List[str]:
         """
         Return all possible labels for a given annotation column
 
@@ -239,7 +249,7 @@ class Subsegmentation(Dataset):
         """
         available_labels = set()
         for row in self._data:
-            st = pd.read_csv(StringIO(row["selection_table_str"]), sep="\t")
+            st = pd.read_csv(StringIO(row["selection_table"]), sep="\t")
             available_labels.update(st[anno_column].astype(str).tolist())
         return sorted(available_labels)
 

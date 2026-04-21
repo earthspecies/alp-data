@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import warnings
 from io import StringIO
 from typing import Any, Iterator, List
 
@@ -163,30 +164,30 @@ class ArcticBirdSounds(Dataset):
         audio_path = self.data_root / row["audio_path"]
 
         # Read audio
-        audio, sr = read_audio(audio_path)
+        audio, sample_rate = read_audio(audio_path)
         audio = audio_stereo_to_mono(audio, mono_method="average").astype(np.float32)
 
         # Resample if necessary
-        target_sr = self.sample_rate
-        if target_sr is not None and sr != target_sr:
+        if self.sample_rate is not None and sample_rate != self.sample_rate:
             audio = librosa.resample(
                 y=audio,
-                orig_sr=sr,
-                target_sr=target_sr,
+                orig_sr=sample_rate,
+                target_sr=self.sample_rate,
                 scale=True,
                 res_type="kaiser_best",
             )
-            sr = target_sr
+            sample_rate = self.sample_rate
 
         # Selection table
         st = pd.read_csv(StringIO(row["selection_table"]), sep="\t")
 
         # Clip events outside audio (keep only events that begin before audio end)
-        audio_dur = len(audio) / float(sr)
+        audio_dur = len(audio) / float(sample_rate)
         st = st[st["Begin Time (s)"] < audio_dur].copy()
 
         # Build output
         row["audio"] = audio
+        row["sample_rate"] = sample_rate
         row["selection_table"] = st
 
         if self.output_take_and_give:
@@ -266,9 +267,17 @@ class ArcticBirdSounds(Dataset):
         A list of all the available labels for anno_column
         """
         available_labels = set()
-        for _, row in self._data.iterrows():
+        for row in self._data:
             st = pd.read_csv(StringIO(row["selection_table"]), sep="\t")
             available_labels.update(st[anno_column].astype(str).tolist())
+        if self.unknown_label in available_labels:
+            available_labels.remove(self.unknown_label)
+
+        warnings.warn(
+            f"Events with unknown label={self.unknown_label} exist in dataset"
+            f"but {self.unknown_label} suppressed from get_available_labels output",
+            stacklevel=2,
+        )
 
         return sorted(available_labels)
 

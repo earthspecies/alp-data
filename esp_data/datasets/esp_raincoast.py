@@ -242,26 +242,27 @@ class ESPRaincoast(Dataset):
         if self.load_audio_segments:
             start_time = row.get("Begin Time (s)", 0.0)
             end_time = row.get("End Time (s)", None)
-            audio, sr = read_audio(audio_path, start_time=start_time, end_time=end_time)
+            audio, sample_rate = read_audio(audio_path, start_time=start_time, end_time=end_time)
         else:
-            audio, sr = read_audio(audio_path)
+            audio, sample_rate = read_audio(audio_path)
         audio = audio.astype(np.float32)
 
         # Stereo to mono if necessary.
         if self.mono_method is not None:
             audio = audio_stereo_to_mono(audio, mono_method="average")
 
-        if self.sample_rate is not None and sr != self.sample_rate:
+        if self.sample_rate is not None and sample_rate != self.sample_rate:
             audio = librosa.resample(
                 y=audio,
-                orig_sr=sr,
+                orig_sr=sample_rate,
                 target_sr=self.sample_rate,
                 scale=True,
                 res_type="kaiser_best",
             )
+            sample_rate = self.sample_rate
 
         row["audio"] = audio
-        row["sample_rate"] = self.sample_rate or sr
+        row["sample_rate"] = sample_rate
 
         if self.output_take_and_give:
             item = {}

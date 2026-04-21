@@ -1,6 +1,6 @@
 [project]
 name = "esp-data"
-version = "1.5.0"
+version = "1.8.0"
 description = "Data tools for ESP projects"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -31,7 +31,7 @@ dev = [
     "mkdocs>=1.6.1",
     "mkdocs-material>=9.6.11",
     "mkdocstrings-python>=1.16.10",
-    "pre-commit>=4.0.1",
+    "prek>=0.2.28",
     "pytest>=7.1.2",
     "ruff>=0.14.1",
     "deptry>=0.23.0",
@@ -40,6 +40,12 @@ dev = [
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.uv]
+exclude-newer = "7 days"
+
+[tool.uv.exclude-newer-package]
+torch = false
 
 [tool.uv.sources]
 torch = [
@@ -118,7 +124,7 @@ max-complexity = 10
 allow-star-arg-any = true # suppress ANN401 for *args and **kwargs arguments
 
 [tool.codespell]
-skip = "*.csv"
+skip = "*.csv, *.ipynb"
 
 [[tool.uv.index]]
 name = "esp-pypi"

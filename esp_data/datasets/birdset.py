@@ -1,86 +1,137 @@
 """BirdSet dataset"""
 
-from typing import Any, Dict, Iterator
+from typing import Any, Iterator
 
 import librosa
 import numpy as np
-import pandas as pd
 
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from esp_data.backends import BackendType
 from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
 
+_GCS_ROOT = "gs://esp-ml-datasets/birdset/v0.1.0/raw"
+
 
 @register_dataset
 class BirdSet(Dataset):
-    """BirdSet dataset
+    """BirdSet avian bioacoustics benchmark dataset.
 
     Description
     -----------
-    BirdSet a large-scale benchmark dataset for audio classification focusing on avian
-    bioacoustics. BirdSet surpasses AudioSet with over 6,800 recording hours from nearly
-    10,000 classes for training and more than 400 hours across eight strongly labeled
-    evaluation datasets. It serves as a versatile resource for use cases such as
-    multi-label classification, covariate shift or self-supervised learning.
+    BirdSet is a large-scale benchmark dataset for audio classification focusing
+    on avian bioacoustics.  It includes over 6,800 recording hours from nearly
+    10,000 species for training and more than 400 hours across eight strongly
+    labeled evaluation datasets.  This version (v0.1.0) contains the eight
+    evaluation subsets with test and test_5s splits, GBIF-linked taxonomy, and
+    pre-resampled 16 kHz / 32 kHz WAV audio. The training data is not included in this dataset,
+    but is a subset of the Xeno-canto dataset.
+
+    Available Metadata Fields
+    -------------------------
+    **Taxonomic Information:**
+        - ``species``: Scientific species name (resolved from eBird code)
+        - ``species_common``: Common English name
+        - ``ebird_code``: eBird species code (primary label)
+        - ``ebird_code_multilabel``: JSON list of all species codes in recording
+        - ``species_multispecies``: JSON list of scientific names for all species
+        - ``canonical_name_multispecies``: JSON list of canonical names for all species
+        - ``gbifID_multispecies``: JSON list of GBIF backbone IDs for all species
+        - ``genus``, ``order``: Taxonomic hierarchy
+        - ``gbifID``: GBIF backbone identifier
+
+    **Audio File Paths:**
+        - ``audio_path``: Relative path to original 32 kHz OGG audio
+        - ``16khz_path``: Relative path to pre-resampled 16 kHz WAV
+        - ``32khz_path``: Relative path to pre-resampled 32 kHz WAV
+
+    **Recording Metadata:**
+        - ``duration``: Recording length in seconds
+        - ``lat``, ``long``: GPS coordinates
+        - ``source``: Data provenance (e.g. xeno-canto recording ID)
+        - ``microphone``: Recording equipment
+        - ``license``: License string
+
+    **Annotation Boundaries (test splits only):**
+        - ``start_time``, ``end_time``: Temporal boundaries (seconds)
+        - ``low_freq``, ``high_freq``: Frequency range (Hz); present for
+          ``test`` soundscape splits, empty for ``test_5s`` clips
+
+    Available Splits
+    ----------------
+    Each of the eight evaluation subsets has two splits:
+
+    - ``{SUBSET}-test``: Full-length soundscape recordings (variable duration)
+    - ``{SUBSET}-test_5s``: 5-second clips extracted from test recordings
+
+    Subsets: HSN, NBP, NES, PER, POW, SSW, SNE, UHH.
+
+    - ``all``: Combined dataset across all subsets and splits.
 
     References
     ----------
-    Birdset: A multi-task benchmark for classification in avian bioacoustics
-    Rauch, Lukas, et al. "Birdset: A multi-task benchmark for classification in avian
-    bioacoustics."
+    Rauch, Lukas, et al. "BirdSet: A multi-task benchmark for classification
+    in avian bioacoustics." https://arxiv.org/abs/2403.10380
+
     https://github.com/DBD-research-group/BirdSet
-    https://arxiv.org/abs/2403.10380
 
     Examples
     --------
     >>> from esp_data.datasets import BirdSet
-    >>> dataset = BirdSet(
-    ...     split="HSN-test",
-    ...     output_take_and_give={"label": "label"},
-    ...     sample_rate=16000,
-    ...     data_root="gs://foundation-model-data/"
-    ... )
+    >>> dataset = BirdSet(split="HSN-test_5s", sample_rate=16000)
+    >>> print(dataset.available_sample_rates)
+    [16000, 32000]
+
+    Load with pre-resampled 16 kHz audio (no on-the-fly resampling):
+
+    >>> dataset_16k = BirdSet(split="POW-test_5s", sample_rate=16000)
+
+    Load original 32 kHz OGG (returned at native sample rate):
+
+    >>> dataset_raw = BirdSet(split="POW-test_5s")
     """
 
     info = DatasetInfo(
         name="birdset",
-        owner="marius; gagan",
+        owner="marius; gagan; david",
         split_paths={
-            "HSN-train": "gs://foundation-model-data/data/birdset-train/HSN/HSN_taxonomic.jsonl",
-            "HSN-validation": "gs://foundation-model-data/data/birdset-train/HSN/HSN_taxonomic.jsonl",
-            "HSN-test": "gs://foundation-model-data/data/birdset-test/HSN/HSN_taxonomic.jsonl",
-            "NBP-train": "gs://foundation-model-data/data/birdset-train/NBP/NBP_taxonomic.jsonl",
-            "NBP-validation": "gs://foundation-model-data/data/birdset-train/NBP/NBP_taxonomic.jsonl",
-            "NBP-test": "gs://foundation-model-data/data/birdset-test/NBP/NBP_taxonomic.jsonl",
-            "NES-train": "gs://foundation-model-data/data/birdset-train/NES/NES_taxonomic.jsonl",
-            "NES-validation": "gs://foundation-model-data/data/birdset-train/NES/NES_taxonomic.jsonl",
-            "NES-test": "gs://foundation-model-data/data/birdset-test/NES/NES_taxonomic.jsonl",
-            "PER-train": "gs://foundation-model-data/data/birdset-train/PER/PER_taxonomic.jsonl",
-            "PER-validation": "gs://foundation-model-data/data/birdset-train/PER/PER_taxonomic.jsonl",
-            "PER-test": "gs://foundation-model-data/data/birdset-test/PER/PER_taxonomic.jsonl",
-            "POW-train": "gs://foundation-model-data/data/birdset-train/POW/POW_taxonomic.jsonl",
-            "POW-validation": "gs://foundation-model-data/data/birdset-train/POW/POW_taxonomic.jsonl",
-            "POW-test": "gs://foundation-model-data/data/birdset-test/POW/POW_taxonomic.jsonl",
-            "UHH-train": "gs://foundation-model-data/data/birdset-train/UHH/UHH_taxonomic.jsonl",
-            "UHH-validation": "gs://foundation-model-data/data/birdset-train/UHH/UHH_taxonomic.jsonl",
-            "UHH-test": "gs://foundation-model-data/data/birdset-test/UHH/UHH_taxonomic.jsonl",
-            "SSW-train": "gs://foundation-model-data/data/birdset-train/SSW/SSW_taxonomic.jsonl",
-            "SSW-validation": "gs://foundation-model-data/data/birdset-train/SSW/SSW_taxonomic.jsonl",
-            "SSW-test": "gs://foundation-model-data/data/birdset-test/SSW/SSW_taxonomic.jsonl",
-            "SNE-train": "gs://foundation-model-data/data/birdset-train/SNE/SNE_taxonomic.jsonl",
-            "SNE-validation": "gs://foundation-model-data/data/birdset-train/SNE/SNE_taxonomic.jsonl",
-            "SNE-test": "gs://foundation-model-data/data/birdset-test/SNE/SNE_taxonomic.jsonl",
-            "XCM": "gs://foundation-model-data/data/birdset-train/XCM/XCM_taxonomic.jsonl",
+            "HSN-test": f"{_GCS_ROOT}/HSN_test.csv",
+            "HSN-test_5s": f"{_GCS_ROOT}/HSN_test_5s.csv",
+            "NBP-test": f"{_GCS_ROOT}/NBP_test.csv",
+            "NBP-test_5s": f"{_GCS_ROOT}/NBP_test_5s.csv",
+            "NES-test": f"{_GCS_ROOT}/NES_test.csv",
+            "NES-test_5s": f"{_GCS_ROOT}/NES_test_5s.csv",
+            "PER-test": f"{_GCS_ROOT}/PER_test.csv",
+            "PER-test_5s": f"{_GCS_ROOT}/PER_test_5s.csv",
+            "POW-test": f"{_GCS_ROOT}/POW_test.csv",
+            "POW-test_5s": f"{_GCS_ROOT}/POW_test_5s.csv",
+            "SSW-test": f"{_GCS_ROOT}/SSW_test.csv",
+            "SSW-test_5s": f"{_GCS_ROOT}/SSW_test_5s.csv",
+            "SNE-test": f"{_GCS_ROOT}/SNE_test.csv",
+            "SNE-test_5s": f"{_GCS_ROOT}/SNE_test_5s.csv",
+            "UHH-test": f"{_GCS_ROOT}/UHH_test.csv",
+            "UHH-test_5s": f"{_GCS_ROOT}/UHH_test_5s.csv",
+            "all": f"{_GCS_ROOT}/birdset_all.csv",
         },
         version="0.1.0",
-        description="BirdSet dataset",
-        sources=["HSN", "NBP", "NES", "PER", "POW"],
+        description=(
+            "BirdSet avian bioacoustics benchmark with GBIF-linked taxonomy. "
+            "Pre-resampled audio available at 16 kHz and 32 kHz (WAV). "
+            "Original audio is 32 kHz OGG from the BirdSet HuggingFace repository."
+        ),
+        sources=["HSN", "NBP", "NES", "PER", "POW", "SSW", "SNE", "UHH"],
         license="CC-BY-4.0, CC0",
     )
 
+    _sample_rate_paths: dict[int, str] = {
+        16000: "16khz_path",
+        32000: "32khz_path",
+    }
+
+    _originals_path_column = "audio_path"
+
     def __init__(
         self,
-        split: str = "HSN-train",
+        split: str = "HSN-test_5s",
         output_take_and_give: dict[str, str] | None = None,
         sample_rate: int | None = None,
         data_root: str | AnyPathT | None = None,
@@ -91,37 +142,33 @@ class BirdSet(Dataset):
 
         Parameters
         ----------
-        split : str
-            The split to load. One of info.split_paths keys.
-        output_take_and_give : dict[str, str]
-            A dictionary mapping the original column names to the new column names.
-            It acts as a filter as well.
-        sample_rate : int
-            The sample rate to which audio files should be resampled.
+        split : str, default="HSN-test_5s"
+            The split to load.  One of ``info.split_paths`` keys, e.g.
+            ``"HSN-test"``, ``"SSW-test_5s"``, or ``"all"``.
+        output_take_and_give : dict[str, str], optional
+            Column rename / filter mapping.
+        sample_rate : int, optional
+            Target sample rate.  If a pre-resampled version exists (16 kHz or
+            32 kHz), the corresponding WAV is loaded directly.  Otherwise the
+            original 32 kHz OGG is loaded and resampled on-the-fly.
         data_root : str | AnyPathT, optional
-            The root directory for the dataset. This is optionally appended to the
-            path item of a sample in the dataset.
-            If None, the default is the parent directory of the split path.
+            Root directory prepended to relative audio paths.  Defaults to the
+            GCS path for this dataset version.
         backend : BackendType, optional
-            The backend to use ("pandas" or "polars"), by default "polars"
+            Backend engine ("pandas" or "polars"), by default "polars".
         streaming : bool, optional
-            Whether to use streaming mode, by default False
+            Whether to use streaming mode, by default False.
         """
         super().__init__(output_take_and_give, backend=backend, streaming=streaming)
         self.split = split
-        self._data: pd.DataFrame = None
-        self._load()  # Load the dataset (fills self._data)
+        self._data = None
+        self._load()
         self.sample_rate = sample_rate
 
         if data_root is None:
-            # TODO: This is a temporary fix and should eventually change to something
-            # like gs://esp-ml-datasets/audioset. The __getitem__ method uses the "path"
-            # field in the CSV which represents the relative path to the root but it's
-            # currently not relative enough. We need to regenerate the CSV with the
-            # correct relative path.
-            self.data_root = anypath("gs://foundation-model-data/")
+            self.data_root = anypath(f"{_GCS_ROOT}/")
         else:
-            self.data_root = data_root
+            self.data_root = anypath(data_root)
 
     @property
     def columns(self) -> list[str]:
@@ -133,52 +180,31 @@ class BirdSet(Dataset):
         """Return the available splits of the dataset."""
         return list(self.info.split_paths.keys())
 
-    def _load(self) -> None:
-        """Load the dataset.
+    @property
+    def available_sample_rates(self) -> list[int]:
+        """Return sample rates supported by this dataset.
 
-        Raises
-        ------
-        LookupError
-            If the split is not valid.
-        """
-        if self.split not in self.info.split_paths:
-            raise LookupError(
-                f"Invalid split: {self.split}.Expected one of {list(self.info.split_paths.keys())}"
-            )
-
-        location = self.info.split_paths[self.split]
-        if anypath(location).suffix == ".jsonl":
-            # For JSONL files, read them directly into a DataFrame
-            self._data = self._backend_class.from_json(
-                location, lines=True, streaming=self._streaming
-            )
-        else:
-            # Read CSV content
-            self._data = self._backend_class.from_csv(
-                location,
-                streaming=self._streaming,
-                # keep_default_na=False,
-                # na_values=[""],
-            )
-
-    @classmethod
-    def from_config(cls, dataset_config: DatasetConfig) -> tuple["BirdSet", dict[str, Any]]:
-        """Create a Dataset instance from a configuration dictionary.
-
-        Parameters
-        ----------
-        dataset_config : DatasetConfig
-            Configuration dictionary containing dataset parameters
+        Pre-resampled audio is loaded directly when a matching column exists
+        in the data; otherwise the original audio is resampled on-the-fly.
 
         Returns
         -------
-        tuple[Dataset, dict[str, Any]]
-            A tuple containing the dataset instance and metadata.
-            If the dataset_config contains transformations, they will be applied
-            and the metadata will be returned as dict, otherwise empty dict.
+        list[int]
+            Sorted sample rates (Hz) declared in ``_sample_rate_paths``.
         """
-        cfg = dataset_config.model_dump(exclude={"dataset_name", "transformations"})
+        return sorted(self._sample_rate_paths.keys())
 
+    def _load(self) -> None:
+        if self.split not in self.info.split_paths:
+            raise LookupError(
+                f"Invalid split: {self.split}. Expected one of {list(self.info.split_paths.keys())}"
+            )
+        location = self.info.split_paths[self.split]
+        self._data = self._backend_class.from_csv(location, streaming=self._streaming)
+
+    @classmethod
+    def from_config(cls, dataset_config: DatasetConfig) -> tuple["BirdSet", dict[str, Any]]:
+        cfg = dataset_config.model_dump(exclude={"dataset_name", "transformations"})
         ds = cls(
             split=cfg["split"],
             output_take_and_give=cfg["output_take_and_give"],
@@ -187,102 +213,71 @@ class BirdSet(Dataset):
             backend=cfg["backend"],
             streaming=cfg["streaming"],
         )
-
         if dataset_config.transformations:
-            transform_metadata = ds.apply_transformations(dataset_config.transformations)
-            return ds, transform_metadata
-
+            meta = ds.apply_transformations(dataset_config.transformations)
+            return ds, meta
         return ds, {}
 
     def __len__(self) -> int:
-        """Return the number of samples in the dataset.
-
-        Returns
-        -------
-        int
-            Number of samples in the current split.
-
-        Raises
-        ------
-        RuntimeError
-            If no split has been loaded yet.
-        """
         if self._data is None:
-            raise RuntimeError("No split has been loaded yet. Call load() first.")
+            raise RuntimeError("No split has been loaded yet.")
         if self._streaming:
             raise NotImplementedError(
-                "Length is not available in streaming mode.Iterate over the dataset instead."
+                "Length is not available in streaming mode. Iterate over the dataset instead."
             )
         return len(self._data)
 
     def _process(self, row: dict[str, Any]) -> dict[str, Any]:
-        audio_path = anypath(self.data_root) / row["path"]
+        use_presampled = False
+        if self.sample_rate is not None and self.sample_rate in self._sample_rate_paths:
+            col = self._sample_rate_paths[self.sample_rate]
+            if col in row and row[col] is not None and str(row[col]).strip():
+                audio_path = self.data_root / row[col]
+                use_presampled = True
 
-        # Read the audio clip
-        audio, sr = read_audio(audio_path)
-        audio = audio.astype(np.float32)
-        # Stereo to mono if necessary.
-        audio = audio_stereo_to_mono(audio, mono_method="average")
+        if use_presampled:
+            audio, sr = read_audio(audio_path)
+            audio = audio.astype(np.float32)
+            audio = audio_stereo_to_mono(audio, mono_method="average")
+        else:
+            audio_path = self.data_root / row[self._originals_path_column]
+            audio, sr = read_audio(audio_path)
+            audio = audio.astype(np.float32)
+            audio = audio_stereo_to_mono(audio, mono_method="average")
 
-        if self.sample_rate is not None and sr != self.sample_rate:
-            audio = librosa.resample(
-                y=audio,
-                orig_sr=sr,
-                target_sr=self.sample_rate,
-                scale=True,
-                res_type="kaiser_best",
-            )
+            if self.sample_rate is not None and sr != self.sample_rate:
+                audio = librosa.resample(
+                    y=audio,
+                    orig_sr=sr,
+                    target_sr=self.sample_rate,
+                    scale=True,
+                    res_type="kaiser_best",
+                )
+                sr = self.sample_rate
 
         row["audio"] = audio
+        row["sample_rate"] = sr
 
         if self.output_take_and_give:
             item = {}
             for key, value in self.output_take_and_give.items():
                 item[value] = row[key]
-        else:
-            item = row
+            return item
 
-        return item
+        return row
 
     def __getitem__(self, idx: int) -> dict[str, Any]:
-        """Get a specific sample from the dataset.
-        Parameters
-        ----------
-        idx : int
-            Index of the sample to get.
-
-        Returns
-        -------
-        dict[str, Any]
-            A dictionary containing the data.
-        """
         row = self._data[idx]
         return self._process(row)
 
-    def __iter__(self) -> Iterator[Dict[str, Any]]:
-        """Iterate over samples in the dataset.
-
-        Yields
-        -------
-        Dict[str, Any]
-            Each sample in the dataset.
-        """
+    def __iter__(self) -> Iterator[dict[str, Any]]:
         for row in self._data:
             yield self._process(row)
 
     def __str__(self) -> str:
-        """Return a string representation of the dataset.
-
-        Returns
-        -------
-        str
-            A string representation of the dataset including its name, version,
-            and basic statistics if data is loaded.
-        """
-        base_info = f"{self.info.name} (v{self.info.version}), split={self.split}"
-
+        base = f"{self.info.name} (v{self.info.version}), split={self.split}"
         return (
-            f"{base_info}\n"
+            f"{base}\n"
             f"Description: {self.info.description}\n"
             f"Sources: {', '.join(self.info.sources)}\n"
             f"License: {self.info.license}\n"
