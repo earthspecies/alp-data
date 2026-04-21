@@ -1,5 +1,6 @@
 from .animal_sound_archive import AnimalSoundArchive
 from .animalspeak import AnimalSpeak
+from .animalspeak_pseudovox import AnimalSpeakPseudovox
 from .anuraset import AnuraSetStrong
 from .arctic_bird_sounds import ArcticBirdSounds
 from .audio_skills_xl import AudioSkillsXL
@@ -14,6 +15,7 @@ from .bengalese_finch_calls import BengaleseFinchCalls
 from .birdeep import Birdeep
 from .birdeep_cropped import BirdeepCropped
 from .birdset import BirdSet
+from .birdvox_dcase_20k import BirdVoxDCASE20k
 from .birdvox_full_night_cropped import BirdVoxFullNightCropped
 from .chiffchaff_id import ChiffchaffId
 from .corvid_wascher import CorvidWascher
@@ -40,6 +42,8 @@ from .superb_starling import SuperbStarling
 from .superwhales_detection import SuperWhaleDetection
 from .synthetic_audio_conversations import SyntheticAudioConversations
 from .synthetic_scenes import SyntheticScenes
+from .synthetic_sed import SyntheticSED
+from .synthetic_sed_diarization import SyntheticSEDDiarization
 from .voxaboxen import Voxaboxen, VoxaboxenEvents
 from .wabad import WABAD
 from .wabad_cropped import WABADCropped
@@ -51,6 +55,7 @@ from .zebra_finch_julie_elie import ZebraFinchJulieElie
 __all__ = [
     "AnimalSoundArchive",
     "AnimalSpeak",
+    "AnimalSpeakPseudovox",
     "AudioSkillsXL",
     "DataSynthConversations",
     "BarkleyCanyon",
@@ -63,6 +68,7 @@ __all__ = [
     "BeansZero",
     "ZebraFinchJulieElie",
     "BirdSet",
+    "BirdVoxDCASE20k",
     "BengaleseFinchCalls",
     "ChiffchaffId",
     "LittleOwlId",
@@ -79,6 +85,8 @@ __all__ = [
     "SuperWhaleDetection",
     "SyntheticAudioConversations",
     "SyntheticScenes",
+    "SyntheticSED",
+    "SyntheticSEDDiarization",
     "WABAD",
     "WABADCropped",
     "XenoCanto",
