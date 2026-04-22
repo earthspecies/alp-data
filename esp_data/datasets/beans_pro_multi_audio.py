@@ -13,6 +13,10 @@ Available splits
 - ``gibbon-fewshot-tiny``: 24 examples, balanced mix for pipeline testing.
 - ``same-species``: ~200k examples, few-shot same-species identification
   with 2-5 support clips from XC + iNat (biased toward rare species).
+- ``giant-otter-same-different``: 1000 examples, same/different call-type
+  pairs from the giant otter vocal repertoire (22 call types).
+- ``giant-otter-4way``: 500 examples, 4-way multiple-choice call-type
+  matching from the giant otter vocal repertoire.
 """
 
 from __future__ import annotations
@@ -42,6 +46,8 @@ _SPLITS: dict[str, str] = {
     "gibbon-fewshot-duet": f"{_GCS_BASE}/gibbon_fewshot_duet/test.jsonl",
     "gibbon-fewshot-tiny": f"{_GCS_BASE}/gibbon_fewshot_tiny/test.jsonl",
     "same-species": f"{_GCS_BASE}/same_species/test.jsonl",
+    "giant-otter-same-different": f"{_GCS_BASE}/giant_otter_same_different/test.jsonl",
+    "giant-otter-4way": f"{_GCS_BASE}/giant_otter_4way/test.jsonl",
 }
 
 # Default audio root — gibbon audio is copied into the beans-pro folder,
