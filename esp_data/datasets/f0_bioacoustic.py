@@ -115,6 +115,12 @@ class F0Bioacoustic(Dataset):
         Finer taxonomic detail when available (e.g. canid subspecies).
     16khz_path, 32khz_path : str | None
         Paths to pre-resampled audio (when available).
+    mean_f0_hz : float | None
+        Mean fundamental frequency in Hz across the contour; None if contour is empty.
+    min_f0_hz : float | None
+        Minimum fundamental frequency in Hz across the contour; None if contour is empty.
+    max_f0_hz : float | None
+        Maximum fundamental frequency in Hz across the contour; None if contour is empty.
 
     Available tasks
     ---------------
@@ -325,6 +331,12 @@ class F0Bioacoustic(Dataset):
         if self.sample_rate is not None:
             nyquist = self.sample_rate / 2.0
             f0["above_nyquist"] = f0["freq_hz"] > nyquist
+
+        # Compute F0 summary statistics (None when contour is empty)
+        valid_f0 = f0["freq_hz"] if not f0.empty else pd.Series([], dtype=float)
+        row["mean_f0_hz"] = float(valid_f0.mean()) if not valid_f0.empty else None
+        row["min_f0_hz"] = float(valid_f0.min()) if not valid_f0.empty else None
+        row["max_f0_hz"] = float(valid_f0.max()) if not valid_f0.empty else None
 
         # Build output
         row["audio"] = audio
