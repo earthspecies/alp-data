@@ -11,6 +11,8 @@ Available splits
 - ``gibbon-fewshot-singlepulse``: 84 examples, single-pulse gibbon calls.
 - ``gibbon-fewshot-duet``: 44 examples, gibbon duets.
 - ``gibbon-fewshot-tiny``: 24 examples, balanced mix for pipeline testing.
+- ``same-species``: ~200k examples, few-shot same-species identification
+  with 2-5 support clips from XC + iNat (biased toward rare species).
 """
 
 from __future__ import annotations
@@ -39,11 +41,16 @@ _SPLITS: dict[str, str] = {
     "gibbon-fewshot-singlepulse": f"{_GCS_BASE}/gibbon_fewshot_singlepulse/test.jsonl",
     "gibbon-fewshot-duet": f"{_GCS_BASE}/gibbon_fewshot_duet/test.jsonl",
     "gibbon-fewshot-tiny": f"{_GCS_BASE}/gibbon_fewshot_tiny/test.jsonl",
+    "same-species": f"{_GCS_BASE}/same_species/test.jsonl",
 }
 
-# Audio paths in the JSONL are relative to the BEANS-Zero raw directory
-# (e.g. "audio/gibbons/32KHz/file.wav").
-_AUDIO_ROOT = "gs://esp-ml-datasets/beans-zero/v0.1.0/raw/"
+# Default audio root for gibbon splits (relative to BEANS-Zero raw dir).
+_DEFAULT_AUDIO_ROOT = "gs://esp-ml-datasets/beans-zero/v0.1.0/raw/"
+
+# Per-split overrides when audio paths use a different root.
+_AUDIO_ROOT_OVERRIDES: dict[str, str] = {
+    "same-species": "gs://esp-ml-datasets/",
+}
 
 
 @register_dataset
@@ -120,7 +127,8 @@ class BeansProMultiAudio(Dataset):
         self.split = split
         self.sample_rate = sample_rate
         self._data = None
-        self.data_root = anypath(data_root) if data_root else anypath(_AUDIO_ROOT)
+        default_root = _AUDIO_ROOT_OVERRIDES.get(split, _DEFAULT_AUDIO_ROOT)
+        self.data_root = anypath(data_root) if data_root else anypath(default_root)
         self._load()
 
     def _load(self) -> None:
