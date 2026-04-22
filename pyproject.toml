@@ -33,7 +33,7 @@ dev = [
     "mkdocstrings-python>=1.16.10",
     "prek>=0.2.28",
     "pytest>=7.1.2",
-    "ruff>=0.14.1",
+    "ruff>=0.15.10",
     "deptry>=0.23.0",
 ]
 
@@ -107,7 +107,6 @@ extend-select = ["DOC", "B9", "B", "E", "W", "ANN", "I"]
 fixable = ["ALL"]
 unfixable = []
 preview = true
-
 
 [tool.ruff.format]
 quote-style = "double"
