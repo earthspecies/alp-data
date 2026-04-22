@@ -27,11 +27,11 @@ from typing import Any, Iterator
 
 import librosa
 import numpy as np
-import pandas as pd
+import polars as pl
 
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from esp_data.backends import BackendType
-from esp_data.backends.pandas_backend import PandasBackend
+from esp_data.backends.polars_backend import PolarsBackend
 from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, filesystem_from_path, read_audio
 
 logger = logging.getLogger(__name__)
@@ -195,7 +195,7 @@ class DRASDIC(Dataset):
         if skipped:
             logger.warning("Skipped %d malformed lines in %s", skipped, jsonl_path)
 
-        self._data = PandasBackend(pd.DataFrame(records))
+        self._data = PolarsBackend(pl.DataFrame(records))
 
         # Filter by template_path for call-type sub-splits
         if self.split in _CALL_TYPE_SUBSPLITS:
