@@ -39,12 +39,12 @@ jobs:
             - name: Run tests
               run: uv run pytest tests
 
-    test-multi-version-self-hosted:
+    test-py-versions-self-hosted:
         name: Run tests on multiple Python versions
         runs-on: self-hosted
         strategy:
             matrix:
-                python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
+                python-version: ["3.11", "3.12", "3.13", "3.14"]
 
         steps:
             - uses: actions/checkout@v4
