@@ -16,6 +16,7 @@ from .chiffchaff_id import ChiffchaffId
 from .corvid_wascher import CorvidWascher
 from .dclde2026 import DCLDE2026
 from .dinardo_dolphin_whistles import DinardoDolphinWhistles
+from .drasdic import DRASDIC
 from .esp_raincoast import ESPRaincoast
 from .f0_bioacoustic import F0Bioacoustic
 from .geladas import Geladas
@@ -89,5 +90,6 @@ __all__ = [
     "InfantMarmosetsVox",
     "CorvidWascher",
     "DCLDE2026",
+    "DRASDIC",
     "Watkins",
 ]
