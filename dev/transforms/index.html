@@ -2752,7 +2752,8 @@ not explicitly listed in the ratios dictionary.</p>
 <span class="normal"><a href="#__codelineno-0-108">108</a></span>
 <span class="normal"><a href="#__codelineno-0-109">109</a></span>
 <span class="normal"><a href="#__codelineno-0-110">110</a></span>
-<span class="normal"><a href="#__codelineno-0-111">111</a></span></pre></div></td><td class="code"><div><pre><span></span><code><span id="__span-0-27"><a id="__codelineno-0-27" name="__codelineno-0-27"></a><span class="k">class</span><span class="w"> </span><span class="nc">Subsample</span><span class="p">:</span>
+<span class="normal"><a href="#__codelineno-0-111">111</a></span>
+<span class="normal"><a href="#__codelineno-0-112">112</a></span></pre></div></td><td class="code"><div><pre><span></span><code><span id="__span-0-27"><a id="__codelineno-0-27" name="__codelineno-0-27"></a><span class="k">class</span><span class="w"> </span><span class="nc">Subsample</span><span class="p">:</span>
 </span><span id="__span-0-28"><a id="__codelineno-0-28" name="__codelineno-0-28"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Subsample data based on property ratios.</span>
 </span><span id="__span-0-29"><a id="__codelineno-0-29" name="__codelineno-0-29"></a>
 </span><span id="__span-0-30"><a id="__codelineno-0-30" name="__codelineno-0-30"></a><span class="sd">    This transform subsamples a DataFrame based on the specified ratios for each value</span>
@@ -2824,19 +2825,20 @@ not explicitly listed in the ratios dictionary.</p>
 </span><span id="__span-0-96"><a id="__codelineno-0-96" name="__codelineno-0-96"></a>
 </span><span id="__span-0-97"><a id="__codelineno-0-97" name="__codelineno-0-97"></a><span class="sd">        Raises</span>
 </span><span id="__span-0-98"><a id="__codelineno-0-98" name="__codelineno-0-98"></a><span class="sd">        ------</span>
-</span><span id="__span-0-99"><a id="__codelineno-0-99" name="__codelineno-0-99"></a><span class="sd">            KeyError: If the specified property is not found in the DataFrame columns.</span>
-</span><span id="__span-0-100"><a id="__codelineno-0-100" name="__codelineno-0-100"></a><span class="sd">        &quot;&quot;&quot;</span>
-</span><span id="__span-0-101"><a id="__codelineno-0-101" name="__codelineno-0-101"></a>        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">property</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">backend</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
-</span><span id="__span-0-102"><a id="__codelineno-0-102" name="__codelineno-0-102"></a>            <span class="k">raise</span> <span class="ne">KeyError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Property &#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">property</span><span class="si">}</span><span class="s2">&#39; not found in the DataFrame columns.&quot;</span><span class="p">)</span>
-</span><span id="__span-0-103"><a id="__codelineno-0-103" name="__codelineno-0-103"></a>
-</span><span id="__span-0-104"><a id="__codelineno-0-104" name="__codelineno-0-104"></a>        <span class="c1"># Use backend&#39;s subsample_by_column method</span>
-</span><span id="__span-0-105"><a id="__codelineno-0-105" name="__codelineno-0-105"></a>        <span class="n">subsampled_backend</span> <span class="o">=</span> <span class="n">backend</span><span class="o">.</span><span class="n">subsample_by_column</span><span class="p">(</span>
-</span><span id="__span-0-106"><a id="__codelineno-0-106" name="__codelineno-0-106"></a>            <span class="n">column</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">property</span><span class="p">,</span>
-</span><span id="__span-0-107"><a id="__codelineno-0-107" name="__codelineno-0-107"></a>            <span class="n">ratios</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">ratios</span><span class="p">,</span>
-</span><span id="__span-0-108"><a id="__codelineno-0-108" name="__codelineno-0-108"></a>            <span class="n">seed</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">seed</span><span class="p">,</span>
-</span><span id="__span-0-109"><a id="__codelineno-0-109" name="__codelineno-0-109"></a>        <span class="p">)</span>
-</span><span id="__span-0-110"><a id="__codelineno-0-110" name="__codelineno-0-110"></a>
-</span><span id="__span-0-111"><a id="__codelineno-0-111" name="__codelineno-0-111"></a>        <span class="k">return</span> <span class="n">subsampled_backend</span><span class="p">,</span> <span class="p">{}</span>
+</span><span id="__span-0-99"><a id="__codelineno-0-99" name="__codelineno-0-99"></a><span class="sd">        KeyError</span>
+</span><span id="__span-0-100"><a id="__codelineno-0-100" name="__codelineno-0-100"></a><span class="sd">            If the specified property is not found in the DataFrame columns.</span>
+</span><span id="__span-0-101"><a id="__codelineno-0-101" name="__codelineno-0-101"></a><span class="sd">        &quot;&quot;&quot;</span>
+</span><span id="__span-0-102"><a id="__codelineno-0-102" name="__codelineno-0-102"></a>        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">property</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">backend</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
+</span><span id="__span-0-103"><a id="__codelineno-0-103" name="__codelineno-0-103"></a>            <span class="k">raise</span> <span class="ne">KeyError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Property &#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">property</span><span class="si">}</span><span class="s2">&#39; not found in the DataFrame columns.&quot;</span><span class="p">)</span>
+</span><span id="__span-0-104"><a id="__codelineno-0-104" name="__codelineno-0-104"></a>
+</span><span id="__span-0-105"><a id="__codelineno-0-105" name="__codelineno-0-105"></a>        <span class="c1"># Use backend&#39;s subsample_by_column method</span>
+</span><span id="__span-0-106"><a id="__codelineno-0-106" name="__codelineno-0-106"></a>        <span class="n">subsampled_backend</span> <span class="o">=</span> <span class="n">backend</span><span class="o">.</span><span class="n">subsample_by_column</span><span class="p">(</span>
+</span><span id="__span-0-107"><a id="__codelineno-0-107" name="__codelineno-0-107"></a>            <span class="n">column</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">property</span><span class="p">,</span>
+</span><span id="__span-0-108"><a id="__codelineno-0-108" name="__codelineno-0-108"></a>            <span class="n">ratios</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">ratios</span><span class="p">,</span>
+</span><span id="__span-0-109"><a id="__codelineno-0-109" name="__codelineno-0-109"></a>            <span class="n">seed</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">seed</span><span class="p">,</span>
+</span><span id="__span-0-110"><a id="__codelineno-0-110" name="__codelineno-0-110"></a>        <span class="p">)</span>
+</span><span id="__span-0-111"><a id="__codelineno-0-111" name="__codelineno-0-111"></a>
+</span><span id="__span-0-112"><a id="__codelineno-0-112" name="__codelineno-0-112"></a>        <span class="k">return</span> <span class="n">subsampled_backend</span><span class="p">,</span> <span class="p">{}</span>
 </span></code></pre></div></td></tr></table></div>
               </details>
 
@@ -2933,11 +2935,11 @@ The metadata dictionary (empty placeholder for future use).</p>
       <tbody>
           <tr class="doc-section-item">
             <td>
-                  <code>    KeyError: If the specified property is not found in the DataFrame columns.</code>
+                  <code><span title="KeyError">KeyError</span></code>
             </td>
             <td>
               <div class="doc-md-description">
-                
+                <p>If the specified property is not found in the DataFrame columns.</p>
               </div>
             </td>
           </tr>
@@ -2976,7 +2978,8 @@ The metadata dictionary (empty placeholder for future use).</p>
 <span class="normal"><a href="#__codelineno-0-108">108</a></span>
 <span class="normal"><a href="#__codelineno-0-109">109</a></span>
 <span class="normal"><a href="#__codelineno-0-110">110</a></span>
-<span class="normal"><a href="#__codelineno-0-111">111</a></span></pre></div></td><td class="code"><div><pre><span></span><code><span id="__span-0-82"><a id="__codelineno-0-82" name="__codelineno-0-82"></a><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">backend</span><span class="p">:</span> <span class="n">DataBackend</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">DataBackend</span><span class="p">,</span> <span class="nb">dict</span><span class="p">]:</span>
+<span class="normal"><a href="#__codelineno-0-111">111</a></span>
+<span class="normal"><a href="#__codelineno-0-112">112</a></span></pre></div></td><td class="code"><div><pre><span></span><code><span id="__span-0-82"><a id="__codelineno-0-82" name="__codelineno-0-82"></a><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">backend</span><span class="p">:</span> <span class="n">DataBackend</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">DataBackend</span><span class="p">,</span> <span class="nb">dict</span><span class="p">]:</span>
 </span><span id="__span-0-83"><a id="__codelineno-0-83" name="__codelineno-0-83"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 </span><span id="__span-0-84"><a id="__codelineno-0-84" name="__codelineno-0-84"></a><span class="sd">    Apply the subsample transformation.</span>
 </span><span id="__span-0-85"><a id="__codelineno-0-85" name="__codelineno-0-85"></a>
@@ -2993,19 +2996,20 @@ The metadata dictionary (empty placeholder for future use).</p>
 </span><span id="__span-0-96"><a id="__codelineno-0-96" name="__codelineno-0-96"></a>
 </span><span id="__span-0-97"><a id="__codelineno-0-97" name="__codelineno-0-97"></a><span class="sd">    Raises</span>
 </span><span id="__span-0-98"><a id="__codelineno-0-98" name="__codelineno-0-98"></a><span class="sd">    ------</span>
-</span><span id="__span-0-99"><a id="__codelineno-0-99" name="__codelineno-0-99"></a><span class="sd">        KeyError: If the specified property is not found in the DataFrame columns.</span>
-</span><span id="__span-0-100"><a id="__codelineno-0-100" name="__codelineno-0-100"></a><span class="sd">    &quot;&quot;&quot;</span>
-</span><span id="__span-0-101"><a id="__codelineno-0-101" name="__codelineno-0-101"></a>    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">property</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">backend</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
-</span><span id="__span-0-102"><a id="__codelineno-0-102" name="__codelineno-0-102"></a>        <span class="k">raise</span> <span class="ne">KeyError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Property &#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">property</span><span class="si">}</span><span class="s2">&#39; not found in the DataFrame columns.&quot;</span><span class="p">)</span>
-</span><span id="__span-0-103"><a id="__codelineno-0-103" name="__codelineno-0-103"></a>
-</span><span id="__span-0-104"><a id="__codelineno-0-104" name="__codelineno-0-104"></a>    <span class="c1"># Use backend&#39;s subsample_by_column method</span>
-</span><span id="__span-0-105"><a id="__codelineno-0-105" name="__codelineno-0-105"></a>    <span class="n">subsampled_backend</span> <span class="o">=</span> <span class="n">backend</span><span class="o">.</span><span class="n">subsample_by_column</span><span class="p">(</span>
-</span><span id="__span-0-106"><a id="__codelineno-0-106" name="__codelineno-0-106"></a>        <span class="n">column</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">property</span><span class="p">,</span>
-</span><span id="__span-0-107"><a id="__codelineno-0-107" name="__codelineno-0-107"></a>        <span class="n">ratios</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">ratios</span><span class="p">,</span>
-</span><span id="__span-0-108"><a id="__codelineno-0-108" name="__codelineno-0-108"></a>        <span class="n">seed</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">seed</span><span class="p">,</span>
-</span><span id="__span-0-109"><a id="__codelineno-0-109" name="__codelineno-0-109"></a>    <span class="p">)</span>
-</span><span id="__span-0-110"><a id="__codelineno-0-110" name="__codelineno-0-110"></a>
-</span><span id="__span-0-111"><a id="__codelineno-0-111" name="__codelineno-0-111"></a>    <span class="k">return</span> <span class="n">subsampled_backend</span><span class="p">,</span> <span class="p">{}</span>
+</span><span id="__span-0-99"><a id="__codelineno-0-99" name="__codelineno-0-99"></a><span class="sd">    KeyError</span>
+</span><span id="__span-0-100"><a id="__codelineno-0-100" name="__codelineno-0-100"></a><span class="sd">        If the specified property is not found in the DataFrame columns.</span>
+</span><span id="__span-0-101"><a id="__codelineno-0-101" name="__codelineno-0-101"></a><span class="sd">    &quot;&quot;&quot;</span>
+</span><span id="__span-0-102"><a id="__codelineno-0-102" name="__codelineno-0-102"></a>    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">property</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">backend</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
+</span><span id="__span-0-103"><a id="__codelineno-0-103" name="__codelineno-0-103"></a>        <span class="k">raise</span> <span class="ne">KeyError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Property &#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">property</span><span class="si">}</span><span class="s2">&#39; not found in the DataFrame columns.&quot;</span><span class="p">)</span>
+</span><span id="__span-0-104"><a id="__codelineno-0-104" name="__codelineno-0-104"></a>
+</span><span id="__span-0-105"><a id="__codelineno-0-105" name="__codelineno-0-105"></a>    <span class="c1"># Use backend&#39;s subsample_by_column method</span>
+</span><span id="__span-0-106"><a id="__codelineno-0-106" name="__codelineno-0-106"></a>    <span class="n">subsampled_backend</span> <span class="o">=</span> <span class="n">backend</span><span class="o">.</span><span class="n">subsample_by_column</span><span class="p">(</span>
+</span><span id="__span-0-107"><a id="__codelineno-0-107" name="__codelineno-0-107"></a>        <span class="n">column</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">property</span><span class="p">,</span>
+</span><span id="__span-0-108"><a id="__codelineno-0-108" name="__codelineno-0-108"></a>        <span class="n">ratios</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">ratios</span><span class="p">,</span>
+</span><span id="__span-0-109"><a id="__codelineno-0-109" name="__codelineno-0-109"></a>        <span class="n">seed</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">seed</span><span class="p">,</span>
+</span><span id="__span-0-110"><a id="__codelineno-0-110" name="__codelineno-0-110"></a>    <span class="p">)</span>
+</span><span id="__span-0-111"><a id="__codelineno-0-111" name="__codelineno-0-111"></a>
+</span><span id="__span-0-112"><a id="__codelineno-0-112" name="__codelineno-0-112"></a>    <span class="k">return</span> <span class="n">subsampled_backend</span><span class="p">,</span> <span class="p">{}</span>
 </span></code></pre></div></td></tr></table></div>
             </details>
     </div>
