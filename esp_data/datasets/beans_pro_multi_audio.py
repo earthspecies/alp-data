@@ -34,7 +34,7 @@ logger = logging.getLogger(__name__)
 
 # ── Split configuration ──────────────────────────────────────────────────
 
-_GCS_BASE = "gs://esp-data-ingestion/beans-pro-multi-audio/v0.1.0/raw"
+_GCS_BASE = "gs://esp-data-ingestion/beans-pro/v0.1.0/raw"
 
 _SPLITS: dict[str, str] = {
     "gibbon-fewshot-multipulse": f"{_GCS_BASE}/gibbon_fewshot_multipulse/test.jsonl",
@@ -44,10 +44,12 @@ _SPLITS: dict[str, str] = {
     "same-species": f"{_GCS_BASE}/same_species/test.jsonl",
 }
 
-# Default audio root for gibbon splits (relative to BEANS-Zero raw dir).
-_DEFAULT_AUDIO_ROOT = "gs://esp-ml-datasets/beans-zero/v0.1.0/raw/"
+# Default audio root — gibbon audio is copied into the beans-pro folder,
+# so audio paths like "audio/gibbons/32KHz/file.wav" resolve correctly.
+_DEFAULT_AUDIO_ROOT = f"{_GCS_BASE}/"
 
 # Per-split overrides when audio paths use a different root.
+# same-species audio lives in XC/iNat under gs://esp-ml-datasets/.
 _AUDIO_ROOT_OVERRIDES: dict[str, str] = {
     "same-species": "gs://esp-ml-datasets/",
 }
