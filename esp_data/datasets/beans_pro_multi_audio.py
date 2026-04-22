@@ -17,6 +17,8 @@ Available splits
   pairs from the giant otter vocal repertoire (22 call types).
 - ``giant-otter-4way``: 500 examples, 4-way multiple-choice call-type
   matching from the giant otter vocal repertoire.
+- ``dcase-4way``: 1378 examples, 4-way multiple-choice species/sound
+  detection from DCASE 2021 Task 5 (17 sound types).
 """
 
 from __future__ import annotations
@@ -48,6 +50,7 @@ _SPLITS: dict[str, str] = {
     "same-species": f"{_GCS_BASE}/same_species/test.jsonl",
     "giant-otter-same-different": f"{_GCS_BASE}/giant_otter_same_different/test.jsonl",
     "giant-otter-4way": f"{_GCS_BASE}/giant_otter_4way/test.jsonl",
+    "dcase-4way": f"{_GCS_BASE}/dcase_4way/test.jsonl",
 }
 
 # Default audio root — gibbon audio is copied into the beans-pro folder,
