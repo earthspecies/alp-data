@@ -15,6 +15,28 @@ Splits:
   ``pseudovox_train_unseen.csv``); default object is
   ``gs://foundation-model-data/synthetic/pseudovox_train_unseen.csv``.
 
+**Writing the train_unseen split CSV (``pseudovox_audio_fp``)**
+
+Each cell is the GCS object path **relative to** the audio bucket root (default
+``gs://fewshot/data_large_clean/``), so it should start with
+``"animalspeak_pseudovox/"`` and end with ``".wav"``. That string must point at the
+**same object name** you see in the Google Cloud Storage console (UTF-8 object keys).
+
+You can author paths in two equivalent styles:
+
+1. **Literal path** — Use real space characters, commas, parentheses, *etc.*, exactly as
+   in the object name. If a path contains a comma or a double quote, wrap the field in
+   **double quotes** and escape internal quotes per RFC 4180 (standard CSV). Save the
+   file as **UTF-8** (a BOM is fine).
+2. **Percent-encoded** — Encode reserved characters the usual way (``%20`` for space,
+   ``%2C`` for comma, ``%28``/``%29`` for parentheses, *etc.*). The loader decodes
+   with :func:`urllib.parse.unquote_plus` (treating ``+`` as space) and repeats until
+   stable, to repair CSVs that were double-escaped in export.
+
+Avoid triple-encoding (``%252525…``) unless the object key on GCS truly requires it.
+The loader’s goal is a single string that matches the **raw object key** after one
+logical “CSV export to console key” pass.
+
 For large-scale runs, pass ``n_samples`` or ``percentage`` to subset any split.
 """
 
@@ -105,7 +127,7 @@ class AnimalSpeakPseudovox(Dataset):
             "full": _DEFAULT_MANIFEST_PATH,
             "train_unseen": _DEFAULT_TRAIN_UNSEEN_CSV_PATH,
         },
-        version="1.1.3",
+        version="1.1.4",
         description=(
             "Silence-trimmed single-vocalization clips from AnimalSpeak "
             "(full manifest ~4.6 M; optional train_unseen CSV split)."
@@ -229,7 +251,7 @@ class AnimalSpeakPseudovox(Dataset):
         """Load sample ids and GCS object paths (relative to ``_DEFAULT_AUDIO_BUCKET_ROOT``)."""
         import polars as pl
 
-        df = pl.read_csv(path)
+        df = pl.read_csv(path, encoding="utf8")
         col = "pseudovox_audio_fp"
         if col not in df.columns:
             raise ValueError(
