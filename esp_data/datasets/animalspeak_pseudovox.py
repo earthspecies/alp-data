@@ -24,7 +24,7 @@ import json
 import random
 from pathlib import Path
 from typing import Any, Iterator, Sequence
-from urllib.parse import unquote
+from urllib.parse import unquote_plus
 
 import numpy as np
 
@@ -45,16 +45,31 @@ _DEFAULT_AUDIO_BUCKET_ROOT = "gs://animalspeak2"
 _PSEUD_PREFIX = "animalspeak_pseudovox/"
 
 
+def _decode_csv_uri_path(raw: str) -> str:
+    """Normalize ``pseudovox_audio_fp`` values from CSV for real GCS object keys.
+
+    Handles ``%xx`` escapes, ``+`` as space (common CSV exports), backslashes, and
+    a few rounds of decoding when paths were double-encoded (e.g. ``%252F``).
+    """
+    s = str(raw).strip().replace("\\", "/")
+    for _ in range(5):
+        nxt = unquote_plus(s)
+        if nxt == s:
+            break
+        s = nxt
+    return s.lstrip("/")
+
+
 def _clip_stem_from_pseudovox_audio_fp(pseudovox_audio_fp: str) -> str:
     """Strip ``animalspeak_pseudovox/`` and ``.wav`` to match GCS object basename.
 
-    CSV paths are often percent-encoded (``%20`` for space). Object keys on GCS use the
-    decoded characters, so we ``unquote`` the stem.
+    Applies the same CSV decoding as :func:`_decode_csv_uri_path` so ``%20``, ``+``,
+    and double-encoded segments match object keys on GCS.
     """
-    p = str(pseudovox_audio_fp).strip().replace("\\", "/")
+    p = _decode_csv_uri_path(str(pseudovox_audio_fp).strip().replace("\\", "/"))
     if p.lower().startswith(_PSEUD_PREFIX):
         p = p[len(_PSEUD_PREFIX) :]
-    return unquote(Path(p).stem)
+    return Path(p).stem
 
 
 @register_dataset
@@ -91,7 +106,7 @@ class AnimalSpeakPseudovox(Dataset):
             "full": _DEFAULT_MANIFEST_PATH,
             "train_unseen": _DEFAULT_TRAIN_UNSEEN_CSV_PATH,
         },
-        version="1.1.1",
+        version="1.1.2",
         description=(
             "Silence-trimmed single-vocalization clips from AnimalSpeak "
             "(full manifest ~4.6 M; optional train_unseen CSV split)."
@@ -225,7 +240,8 @@ class AnimalSpeakPseudovox(Dataset):
         rels: list[str] = []
         for raw in df[col].to_list():
             raw_s = str(raw).strip().replace("\\", "/")
-            rels.append(unquote(raw_s))
+            decoded = _decode_csv_uri_path(raw_s)
+            rels.append(decoded)
             ids.append(_clip_stem_from_pseudovox_audio_fp(raw_s))
         return ids, rels
 
@@ -264,9 +280,13 @@ class AnimalSpeakPseudovox(Dataset):
             ``audio`` and ``sample_rate``.
         """
         if object_gcs_relpath is not None:
-            audio_path = f"{_DEFAULT_AUDIO_BUCKET_ROOT.rstrip('/')}/{object_gcs_relpath}"
+            og = object_gcs_relpath.strip()
+            if og.startswith("gs://"):
+                audio_path = og
+            else:
+                audio_path = f"{_DEFAULT_AUDIO_BUCKET_ROOT.rstrip('/')}/{og}"
         else:
-            rel = unquote(clip_name)
+            rel = _decode_csv_uri_path(clip_name)
             audio_path = f"{self.gcs_path.rstrip('/')}/{rel}.wav"
         need_audio = self.output_take_and_give is None or "audio" in self.output_take_and_give
 
