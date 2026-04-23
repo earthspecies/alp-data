@@ -32,15 +32,14 @@ from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from esp_data.backends import BackendType
 from esp_data.io import audio_stereo_to_mono, read_audio
 
-# Same bucket / prefix as AnimalSpeak CSV ``local_path`` entries
-# (e.g. ``animalspeak_pseudovox/<stem>.wav`` under ``gs://animalspeak2``).
-_DEFAULT_GCS_PATH = "gs://animalspeak2/animalspeak_pseudovox"
+# Pseudovox WAV clips live under gs://fewshot/data_large_clean/animalspeak_pseudovox/.
+_DEFAULT_GCS_PATH = "gs://fewshot/data_large_clean/animalspeak_pseudovox"
 _DEFAULT_MANIFEST_PATH = "gs://foundation-model-data/synthetic/animalspeak_pseudovox_manifest.json"
 # Train-unseen split table (``pseudovox_audio_fp`` column). Upload the CSV from
 # ``pseudovox_train_unseen.csv`` to this object before using the split.
 _DEFAULT_TRAIN_UNSEEN_CSV_PATH = "gs://foundation-model-data/synthetic/pseudovox_train_unseen.csv"
-# Object keys in ``pseudovox_audio_fp`` are relative to this bucket (matches AnimalSpeak).
-_DEFAULT_AUDIO_BUCKET_ROOT = "gs://animalspeak2"
+# Object keys in ``pseudovox_audio_fp`` are relative to this GCS prefix.
+_DEFAULT_AUDIO_BUCKET_ROOT = "gs://fewshot/data_large_clean"
 
 _PSEUD_PREFIX = "animalspeak_pseudovox/"
 
@@ -106,12 +105,12 @@ class AnimalSpeakPseudovox(Dataset):
             "full": _DEFAULT_MANIFEST_PATH,
             "train_unseen": _DEFAULT_TRAIN_UNSEEN_CSV_PATH,
         },
-        version="1.1.2",
+        version="1.1.3",
         description=(
             "Silence-trimmed single-vocalization clips from AnimalSpeak "
             "(full manifest ~4.6 M; optional train_unseen CSV split)."
         ),
-        sources="gs://animalspeak2/animalspeak_pseudovox",
+        sources="gs://fewshot/data_large_clean/animalspeak_pseudovox",
         license="CC-BY-NC-4.0",
     )
 
