@@ -177,6 +177,8 @@ protobuf==6.33.6
     #   grpc-google-iam-v1
     #   grpcio-status
     #   proto-plus
+pyarrow==23.0.1
+    # via esp-data
 pyasn1==0.6.3
     # via pyasn1-modules
 pyasn1-modules==0.4.2
