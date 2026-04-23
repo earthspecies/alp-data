@@ -11,7 +11,7 @@ dependencies = [
     "intervaltree>=3.1.0",
     "librosa>=0.11.0",
     "pandas",
-    "polars[all]>=1.33.1",
+    "polars[pyarrow]>=1.33.1",
     "pydantic>=2",
     "pyyaml>=6.0.2",
     "resampy",
