@@ -300,37 +300,36 @@ class F0Bioacoustic(Dataset):
     # ------------------------------------------------------------------
 
     def _process(self, row: dict[str, Any]) -> dict[str, Any]:
-        audio_fp, is_presampled = self._resolve_audio_path(row)
-
-        # Read audio
-        audio, sr = read_audio(audio_fp)
-        audio = audio_stereo_to_mono(audio, mono_method="average").astype(np.float32)
-
-        # Resample on-the-fly only when no pre-resampled file was used
-        if not is_presampled and self.sample_rate is not None and sr != self.sample_rate:
-            audio = librosa.resample(
-                y=audio,
-                orig_sr=sr,
-                target_sr=self.sample_rate,
-                scale=True,
-                res_type="kaiser_best",
-            )
-            sr = self.sample_rate
-
         # Parse F0 contour from serialised TSV
         f0 = _parse_f0_contour(row.get("f0_contour", ""))
 
-        # Clip F0 annotations to audio duration
-        audio_dur = len(audio) / float(sr)
-        if not f0.empty:
-            f0 = f0[f0["time_s"] <= audio_dur].copy()
-
-        # Rescale F0 times if audio was resampled (times are in seconds, so
-        # they don't change — but frequency values above the new Nyquist
-        # should be flagged)
         if self.sample_rate is not None:
+            # Load and resample audio
+            audio_fp, is_presampled = self._resolve_audio_path(row)
+            audio, sr = read_audio(audio_fp)
+            audio = audio_stereo_to_mono(audio, mono_method="average").astype(np.float32)
+
+            if not is_presampled and sr != self.sample_rate:
+                audio = librosa.resample(
+                    y=audio,
+                    orig_sr=sr,
+                    target_sr=self.sample_rate,
+                    scale=True,
+                    res_type="kaiser_best",
+                )
+                sr = self.sample_rate
+
+            # Clip F0 annotations to audio duration
+            audio_dur = len(audio) / float(sr)
+            if not f0.empty:
+                f0 = f0[f0["time_s"] <= audio_dur].copy()
+
+            # Flag frequencies above Nyquist for the current sample rate
             nyquist = self.sample_rate / 2.0
             f0["above_nyquist"] = f0["freq_hz"] > nyquist
+
+            row["audio"] = audio
+            row["sample_rate"] = sr
 
         # Compute F0 summary statistics (None when contour is empty)
         valid_f0 = f0["freq_hz"] if not f0.empty else pd.Series([], dtype=float)
@@ -339,8 +338,6 @@ class F0Bioacoustic(Dataset):
         row["max_f0_hz"] = float(valid_f0.max()) if not valid_f0.empty else None
 
         # Build output
-        row["audio"] = audio
-        row["sample_rate"] = sr
         row["f0_contour"] = f0
 
         if self.output_take_and_give:
