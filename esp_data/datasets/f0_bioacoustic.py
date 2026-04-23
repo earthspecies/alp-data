@@ -164,6 +164,7 @@ class F0Bioacoustic(Dataset):
             "all": "gs://esp-data-ingestion/f0-prediction/f0_bioacoustic_normalized.csv",
             "train": "gs://esp-data-ingestion/f0-prediction/f0_bioacoustic_train.csv",
             "val": "gs://esp-data-ingestion/f0-prediction/f0_bioacoustic_val.csv",
+            "train_unseen": "gs://esp-data-ingestion/f0-prediction/f0_bioacoustic_train_unseen.csv",
         },
         version="0.1.0",
         description=("Are with ground-truth fundamental frequency contours"),
@@ -284,7 +285,8 @@ class F0Bioacoustic(Dataset):
         """Return ``(full_audio_path, is_presampled)``.
 
         Prefers pre-resampled paths when available for the requested
-        sample rate. Falls back to original ``audio_path``.
+        sample rate. Falls back to ``gcs_path`` if present (train_unseen
+        split), then to ``data_root / audio_path``.
         """
         if self.sample_rate is not None and self.sample_rate in self._sample_rate_paths:
             col = self._sample_rate_paths[self.sample_rate]
@@ -293,6 +295,8 @@ class F0Bioacoustic(Dataset):
                 if subdir:
                     return self.data_root / subdir / row[col], True
                 return self.data_root / row[col], True
+        if row.get("gcs_path"):
+            return anypath(row["gcs_path"]), False
         return self.data_root / row["audio_path"], False
 
     # ------------------------------------------------------------------
