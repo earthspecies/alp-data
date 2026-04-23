@@ -14,6 +14,10 @@ Available splits
 - ``call_type_binary_timestamps``: ~25k binary detection with timestamps.
 - ``call_type_same_different``: ~12.5k same/different call-type comparison.
 - ``call_type_counting``: ~12.4k target-sound counting.
+- ``fewshot_detection``: ~100k few-shot multi-label detection (examples +
+  query, predict which call types are present).
+- ``feature_conditioned_detection``: ~100k feature-conditioned detection
+  (acoustic feature descriptions + examples + query, predict label).
 
 All audio is 16 kHz WAV. Each row returns a list of numpy arrays in
 ``audios``, ordered to match the ``<AudioHere>`` positions in the prompt.
@@ -39,15 +43,27 @@ logger = logging.getLogger(__name__)
 # ── Split configuration ──────────────────────────────────────────────────
 
 _BASE_ROOT = "gs://foundation-model-data/synthetic/multi-audio"
+_V1_ROOT = "gs://foundation-model-data/synthetic"
 
 _SPLIT_DIRS: dict[str, str] = {
     "sed_fewshot": f"{_BASE_ROOT}/synthetic_sed_fewshot_16k",
     "call_type_all": f"{_BASE_ROOT}/synthetic_call_type_tasks_16k",
+    "call_type_all_v1": f"{_V1_ROOT}/synthetic_call_type_tasks_16k_v1",
+    "fewshot_detection": f"{_BASE_ROOT}/synthetic_fewshot_detection_16k",
+    "feature_conditioned_detection": f"{_BASE_ROOT}/synthetic_feature_conditioned_detection_16k",
 }
 
-# Audio paths in the JSONL are relative to _BASE_ROOT (they include the
-# dataset subdirectory, e.g. "synthetic_sed_fewshot_16k/audio/file.wav").
-_AUDIO_ROOT = _BASE_ROOT
+# Default audio root for v0 splits (audio paths include the dataset subdir).
+_DEFAULT_AUDIO_ROOT = _BASE_ROOT
+
+# Per-split audio root overrides (v1 audio paths are relative to a different root).
+_AUDIO_ROOT_OVERRIDES: dict[str, str] = {
+    "call_type_all_v1": _V1_ROOT,
+    "call_type_multiple_choice_v1": _V1_ROOT,
+    "call_type_binary_v1": _V1_ROOT,
+    "call_type_same_different_v1": _V1_ROOT,
+    "call_type_counting_v1": _V1_ROOT,
+}
 
 # Sub-splits that filter call_type_all by template_path
 _CALL_TYPE_SUBSPLITS: dict[str, str] = {
@@ -58,6 +74,14 @@ _CALL_TYPE_SUBSPLITS: dict[str, str] = {
     "call_type_counting": "audio_synth/counting",
 }
 
+# v1 sub-splits (filter call_type_all_v1 — excludes timestamps)
+_CALL_TYPE_V1_SUBSPLITS: dict[str, str] = {
+    "call_type_multiple_choice_v1": "audio_synth/multiple_choice",
+    "call_type_binary_v1": "audio_synth/binary_audio",
+    "call_type_same_different_v1": "audio_synth/same_different",
+    "call_type_counting_v1": "audio_synth/counting",
+}
+
 _TASK_BY_TEMPLATE: dict[str, str] = {
     "audio_synth/fewshot_sed": "few_shot_sed",
     "audio_synth/multiple_choice": "call_type_multiple_choice",
@@ -65,9 +89,11 @@ _TASK_BY_TEMPLATE: dict[str, str] = {
     "audio_synth/binary_audio_timestamps": "call_type_binary_timestamps",
     "audio_synth/same_different": "call_type_same_different",
     "audio_synth/counting": "call_type_counting",
+    "audio_synth/fewshot_detection": "fewshot_detection",
+    "audio_synth/feature_conditioned_detection": "feature_conditioned_detection",
 }
 
-_ALL_SPLITS = list(_SPLIT_DIRS) + list(_CALL_TYPE_SUBSPLITS)
+_ALL_SPLITS = list(_SPLIT_DIRS) + list(_CALL_TYPE_SUBSPLITS) + list(_CALL_TYPE_V1_SUBSPLITS)
 
 
 # ── Dataset class ────────────────────────────────────────────────────────
@@ -109,19 +135,31 @@ class DRASDIC(Dataset):
         split_paths={
             "sed_fewshot": f"{_SPLIT_DIRS['sed_fewshot']}/conversations.jsonl",
             "call_type_all": f"{_SPLIT_DIRS['call_type_all']}/conversations.jsonl",
+            "fewshot_detection": f"{_SPLIT_DIRS['fewshot_detection']}/conversations.jsonl",
+            "feature_conditioned_detection": (
+                f"{_SPLIT_DIRS['feature_conditioned_detection']}/conversations.jsonl"
+            ),
             **{
                 sub: f"{_SPLIT_DIRS['call_type_all']}/conversations.jsonl"
                 for sub in _CALL_TYPE_SUBSPLITS
             },
+            "call_type_all_v1": f"{_SPLIT_DIRS['call_type_all_v1']}/conversations.jsonl",
+            **{
+                sub: f"{_SPLIT_DIRS['call_type_all_v1']}/conversations.jsonl"
+                for sub in _CALL_TYPE_V1_SUBSPLITS
+            },
         },
         version="0.1.0",
         description=(
-            "DRASDIC multi-audio synthetic tasks: few-shot SED and "
-            "call-type classification/detection with 2-7 audio clips per example."
+            "DRASDIC multi-audio synthetic tasks: few-shot SED, "
+            "call-type classification/detection, few-shot detection, and "
+            "feature-conditioned detection with 2-7 audio clips per example."
         ),
         sources=[
             "gs://foundation-model-data/synthetic/multi-audio/synthetic_sed_fewshot_16k",
             "gs://foundation-model-data/synthetic/multi-audio/synthetic_call_type_tasks_16k",
+            "gs://foundation-model-data/synthetic/multi-audio/synthetic_fewshot_detection_16k",
+            "gs://foundation-model-data/synthetic/multi-audio/synthetic_feature_conditioned_detection_16k",
         ],
         license="internal",
     )
@@ -143,7 +181,8 @@ class DRASDIC(Dataset):
             Split to load. One of: ``sed_fewshot``, ``call_type_all``,
             ``call_type_multiple_choice``, ``call_type_binary``,
             ``call_type_binary_timestamps``, ``call_type_same_different``,
-            ``call_type_counting``.
+            ``call_type_counting``, ``fewshot_detection``,
+            ``feature_conditioned_detection``.
         output_take_and_give : dict[str, str] | None
             Optional column rename mapping.
         sample_rate : int | None
@@ -170,8 +209,9 @@ class DRASDIC(Dataset):
 
         # Audio paths in the JSONL include the dataset subdirectory name
         # (e.g. "synthetic_sed_fewshot_16k/audio/file.wav"), so the audio
-        # root is the shared parent directory.
-        self.data_root = anypath(data_root) if data_root else anypath(_AUDIO_ROOT)
+        # root is the shared parent directory.  v1 splits use a different root.
+        default_root = _AUDIO_ROOT_OVERRIDES.get(split, _DEFAULT_AUDIO_ROOT)
+        self.data_root = anypath(data_root) if data_root else anypath(default_root)
 
         self._load()
 
@@ -197,9 +237,12 @@ class DRASDIC(Dataset):
 
         self._data = PolarsBackend(pl.DataFrame(records))
 
-        # Filter by template_path for call-type sub-splits
+        # Filter by template_path for call-type sub-splits (v0 and v1)
         if self.split in _CALL_TYPE_SUBSPLITS:
             template = _CALL_TYPE_SUBSPLITS[self.split]
+            self._data = self._data.filter_isin("template_path", [template])
+        elif self.split in _CALL_TYPE_V1_SUBSPLITS:
+            template = _CALL_TYPE_V1_SUBSPLITS[self.split]
             self._data = self._data.filter_isin("template_path", [template])
 
     @property
