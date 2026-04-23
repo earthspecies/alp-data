@@ -145,7 +145,7 @@ class DRASDIC(Dataset):
             },
             "call_type_all_v1": f"{_SPLIT_DIRS['call_type_all_v1']}/conversations.jsonl",
             **{
-                sub: f"{_SPLIT_DIRS['call_type_all_v1']}/conversations.jsonl"
+                sub: f"{_SPLIT_DIRS['call_type_all_v1']}/{sub}.jsonl"
                 for sub in _CALL_TYPE_V1_SUBSPLITS
             },
         },
@@ -237,12 +237,10 @@ class DRASDIC(Dataset):
 
         self._data = PolarsBackend(pl.DataFrame(records))
 
-        # Filter by template_path for call-type sub-splits (v0 and v1)
+        # Filter by template_path for v0 call-type sub-splits.
+        # v1 sub-splits have pre-split JSONL files and don't need filtering.
         if self.split in _CALL_TYPE_SUBSPLITS:
             template = _CALL_TYPE_SUBSPLITS[self.split]
-            self._data = self._data.filter_isin("template_path", [template])
-        elif self.split in _CALL_TYPE_V1_SUBSPLITS:
-            template = _CALL_TYPE_V1_SUBSPLITS[self.split]
             self._data = self._data.filter_isin("template_path", [template])
 
     @property
