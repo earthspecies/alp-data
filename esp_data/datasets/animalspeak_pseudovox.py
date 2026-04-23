@@ -39,6 +39,8 @@ _DEFAULT_MANIFEST_PATH = "gs://foundation-model-data/synthetic/animalspeak_pseud
 # Train-unseen split table (``pseudovox_audio_fp`` column). Upload the CSV from
 # ``pseudovox_train_unseen.csv`` to this object before using the split.
 _DEFAULT_TRAIN_UNSEEN_CSV_PATH = "gs://foundation-model-data/synthetic/pseudovox_train_unseen.csv"
+# Object keys in ``pseudovox_audio_fp`` are relative to this bucket (matches AnimalSpeak).
+_DEFAULT_AUDIO_BUCKET_ROOT = "gs://animalspeak2"
 
 _PSEUD_PREFIX = "animalspeak_pseudovox/"
 
@@ -89,7 +91,7 @@ class AnimalSpeakPseudovox(Dataset):
             "full": _DEFAULT_MANIFEST_PATH,
             "train_unseen": _DEFAULT_TRAIN_UNSEEN_CSV_PATH,
         },
-        version="1.1.0",
+        version="1.1.1",
         description=(
             "Silence-trimmed single-vocalization clips from AnimalSpeak "
             "(full manifest ~4.6 M; optional train_unseen CSV split)."
@@ -158,6 +160,7 @@ class AnimalSpeakPseudovox(Dataset):
         self.split = split
         self.gcs_path = gcs_path.rstrip("/")
         self.sample_rate = sample_rate
+        self._pseudovox_gcs_relpath: list[str] | None = None
 
         path = self.info.split_paths[split]
         if split == "full" and manifest_path is not None:
@@ -165,28 +168,33 @@ class AnimalSpeakPseudovox(Dataset):
         if split_path is not None:
             path = split_path
 
-        clip_names = self._load_clip_list_for_split(path)
+        if str(path).lower().endswith(".csv"):
+            clip_names, self._pseudovox_gcs_relpath = self._load_train_unseen_id_and_relpaths(path)
+        else:
+            clip_names = self._load_json_manifest(path)
 
         if shuffle:
             rng = random.Random(random_seed)
-            rng.shuffle(clip_names)
+            order = list(range(len(clip_names)))
+            rng.shuffle(order)
+            clip_names = [clip_names[i] for i in order]
+            if self._pseudovox_gcs_relpath is not None:
+                self._pseudovox_gcs_relpath = [self._pseudovox_gcs_relpath[i] for i in order]
         if percentage < 1.0:
-            clip_names = clip_names[: max(1, int(len(clip_names) * percentage))]
+            n_keep = max(1, int(len(clip_names) * percentage))
+            clip_names = clip_names[:n_keep]
+            if self._pseudovox_gcs_relpath is not None:
+                self._pseudovox_gcs_relpath = self._pseudovox_gcs_relpath[:n_keep]
         if n_samples is not None:
             clip_names = clip_names[:n_samples]
+            if self._pseudovox_gcs_relpath is not None:
+                self._pseudovox_gcs_relpath = self._pseudovox_gcs_relpath[:n_samples]
 
         self._clip_names = clip_names
 
     def _load(self) -> Sequence[Any] | None:
         """Tabular backend is unused; clips are indexed from ``_clip_names``."""
         return None
-
-    def _load_clip_list_for_split(self, path: str) -> list[str]:
-        """Load clip stems from a JSON manifest or a train-unseen-style CSV."""
-        lower = path.lower()
-        if lower.endswith(".csv"):
-            return self._load_clip_names_from_train_unseen_csv(path)
-        return self._load_json_manifest(path)
 
     def _load_json_manifest(self, path: str) -> list[str]:
         """Load the clip listing from a JSON manifest file."""
@@ -203,8 +211,8 @@ class AnimalSpeakPseudovox(Dataset):
             raise ValueError(f"Manifest at {path!r} has no valid 'clip_names' list.")
         return clip_names
 
-    def _load_clip_names_from_train_unseen_csv(self, path: str) -> list[str]:
-        """Load clip stems from ``pseudovox_train_unseen``-style CSV."""
+    def _load_train_unseen_id_and_relpaths(self, path: str) -> tuple[list[str], list[str]]:
+        """Load sample ids and GCS object paths (relative to ``_DEFAULT_AUDIO_BUCKET_ROOT``)."""
         import polars as pl
 
         df = pl.read_csv(path)
@@ -213,7 +221,13 @@ class AnimalSpeakPseudovox(Dataset):
             raise ValueError(
                 f"Train-unseen CSV at {path!r} must contain a {col!r} column; got {df.columns!r}"
             )
-        return [_clip_stem_from_pseudovox_audio_fp(s) for s in df[col].to_list()]
+        ids: list[str] = []
+        rels: list[str] = []
+        for raw in df[col].to_list():
+            raw_s = str(raw).strip().replace("\\", "/")
+            rels.append(unquote(raw_s))
+            ids.append(_clip_stem_from_pseudovox_audio_fp(raw_s))
+        return ids, rels
 
     @property
     def columns(self) -> list[str]:
@@ -226,13 +240,22 @@ class AnimalSpeakPseudovox(Dataset):
     def __len__(self) -> int:
         return len(self._clip_names)
 
-    def _process(self, clip_name: str) -> dict[str, Any]:
+    def _process(
+        self,
+        clip_name: str,
+        *,
+        object_gcs_relpath: str | None = None,
+    ) -> dict[str, Any]:
         """Build a sample dict for a single clip.
 
         Parameters
         ----------
         clip_name : str
-            Clip name (filename stem).
+            Clip name (filename stem), used as sample id.
+        object_gcs_relpath : str | None
+            For ``train_unseen``, full object path under ``_DEFAULT_AUDIO_BUCKET_ROOT``
+            (e.g. ``animalspeak_pseudovox/foo.wav``). When ``None``, use ``gcs_path`` +
+            ``{clip_name}.wav`` (``full`` manifest split).
 
         Returns
         -------
@@ -240,9 +263,11 @@ class AnimalSpeakPseudovox(Dataset):
             Sample with ``clip_name``, ``audio_path``, and optionally
             ``audio`` and ``sample_rate``.
         """
-        # Plain gs:// string avoids CloudPath/fsspec re-encoding ``%`` or ``/`` in clip_name.
-        rel = unquote(clip_name)
-        audio_path = f"{self.gcs_path.rstrip('/')}/{rel}.wav"
+        if object_gcs_relpath is not None:
+            audio_path = f"{_DEFAULT_AUDIO_BUCKET_ROOT.rstrip('/')}/{object_gcs_relpath}"
+        else:
+            rel = unquote(clip_name)
+            audio_path = f"{self.gcs_path.rstrip('/')}/{rel}.wav"
         need_audio = self.output_take_and_give is None or "audio" in self.output_take_and_give
 
         item: dict[str, Any] = {"clip_name": clip_name, "audio_path": audio_path}
@@ -283,7 +308,8 @@ class AnimalSpeakPseudovox(Dataset):
         """
         if idx < 0 or idx >= len(self._clip_names):
             raise IndexError(f"index {idx} out of range for AnimalSpeakPseudovox with {len(self)} clips")
-        return self._process(self._clip_names[idx])
+        rel = self._pseudovox_gcs_relpath[idx] if self._pseudovox_gcs_relpath is not None else None
+        return self._process(self._clip_names[idx], object_gcs_relpath=rel)
 
     def __iter__(self) -> Iterator[dict[str, Any]]:
         for i in range(len(self)):
