@@ -11,8 +11,7 @@ dependencies = [
     "intervaltree>=3.1.0",
     "librosa>=0.11.0",
     "pandas",
-    "polars>=1.33.1",
-    "pyarrow",
+    "polars[pyarrow]>=1.33.1",
     "pydantic>=2",
     "pyyaml>=6.0.2",
     "resampy",
@@ -136,4 +135,4 @@ exclude = ["conftest.py", ".venv", "tests", "scripts", "docs/hooks/.*"]
 ignore = ["DEP003"]
 
 [tool.deptry.per_rule_ignores]
-DEP002 = ["resampy", "pyarrow"]
+DEP002 = ["resampy"]
