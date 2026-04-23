@@ -24,12 +24,13 @@ import json
 import random
 from pathlib import Path
 from typing import Any, Iterator, Sequence
+from urllib.parse import unquote
 
 import numpy as np
 
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from esp_data.backends import BackendType
-from esp_data.io import anypath, audio_stereo_to_mono, read_audio
+from esp_data.io import audio_stereo_to_mono, read_audio
 
 # Same bucket / prefix as AnimalSpeak CSV ``local_path`` entries
 # (e.g. ``animalspeak_pseudovox/<stem>.wav`` under ``gs://animalspeak2``).
@@ -43,11 +44,15 @@ _PSEUD_PREFIX = "animalspeak_pseudovox/"
 
 
 def _clip_stem_from_pseudovox_audio_fp(pseudovox_audio_fp: str) -> str:
-    """Strip ``animalspeak_pseudovox/`` and ``.wav`` to match manifest-style clip stems."""
+    """Strip ``animalspeak_pseudovox/`` and ``.wav`` to match GCS object basename.
+
+    CSV paths are often percent-encoded (``%20`` for space). Object keys on GCS use the
+    decoded characters, so we ``unquote`` the stem.
+    """
     p = str(pseudovox_audio_fp).strip().replace("\\", "/")
     if p.lower().startswith(_PSEUD_PREFIX):
         p = p[len(_PSEUD_PREFIX) :]
-    return Path(p).stem
+    return unquote(Path(p).stem)
 
 
 @register_dataset
@@ -235,7 +240,9 @@ class AnimalSpeakPseudovox(Dataset):
             Sample with ``clip_name``, ``audio_path``, and optionally
             ``audio`` and ``sample_rate``.
         """
-        audio_path = str(anypath(self.gcs_path) / f"{clip_name}.wav")
+        # Plain gs:// string avoids CloudPath/fsspec re-encoding ``%`` or ``/`` in clip_name.
+        rel = unquote(clip_name)
+        audio_path = f"{self.gcs_path.rstrip('/')}/{rel}.wav"
         need_audio = self.output_take_and_give is None or "audio" in self.output_take_and_give
 
         item: dict[str, Any] = {"clip_name": clip_name, "audio_path": audio_path}
