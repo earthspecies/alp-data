@@ -18,24 +18,18 @@ Splits:
 **Writing the train_unseen split CSV (``pseudovox_audio_fp``)**
 
 Each cell is the GCS object path **relative to** the audio bucket root (default
-``gs://fewshot/data_large_clean/``), so it should start with
-``"animalspeak_pseudovox/"`` and end with ``".wav"``. That string must point at the
-**same object name** you see in the Google Cloud Storage console (UTF-8 object keys).
+``gs://fewshot/data_large_clean/``), e.g. ``animalspeak_pseudovox/…``. The text must
+match the object **name** in that bucket **character for character** (UTF-8).
 
-You can author paths in two equivalent styles:
+Important: a key like ``…RPPN%20Serra%20Bonita…`` is **not** the same as
+``…RPPN Serra Bonita…``. If the object was stored with the three characters ``%20``
+in the filename, the CSV must keep those characters; the loader does **not** apply
+URL-decoding to ``pseudovox_audio_fp``. Use **UTF-8** CSV; double-quote fields that
+contain commas (RFC 4180).
 
-1. **Literal path** — Use real space characters, commas, parentheses, *etc.*, exactly as
-   in the object name. If a path contains a comma or a double quote, wrap the field in
-   **double quotes** and escape internal quotes per RFC 4180 (standard CSV). Save the
-   file as **UTF-8** (a BOM is fine).
-2. **Percent-encoded** — Encode reserved characters the usual way (``%20`` for space,
-   ``%2C`` for comma, ``%28``/``%29`` for parentheses, *etc.*). The loader decodes
-   with :func:`urllib.parse.unquote_plus` (treating ``+`` as space) and repeats until
-   stable, to repair CSVs that were double-escaped in export.
-
-Avoid triple-encoding (``%252525…``) unless the object key on GCS truly requires it.
-The loader’s goal is a single string that matches the **raw object key** after one
-logical “CSV export to console key” pass.
+:func:`_decode_csv_uri_path` is retained for the ``full`` manifest split if clip
+stems are ever percent-encoded, but **train_unseen** uses raw ``pseudovox_audio_fp``
+cells as object-relpath strings.
 
 For large-scale runs, pass ``n_samples`` or ``percentage`` to subset any split.
 """
@@ -82,12 +76,12 @@ def _decode_csv_uri_path(raw: str) -> str:
 
 
 def _clip_stem_from_pseudovox_audio_fp(pseudovox_audio_fp: str) -> str:
-    """Strip ``animalspeak_pseudovox/`` and ``.wav`` to match GCS object basename.
+    """Return the ``.wav`` filename stem (sample id) for ``pseudovox_audio_fp`` cells.
 
-    Applies the same CSV decoding as :func:`_decode_csv_uri_path` so ``%20``, ``+``,
-    and double-encoded segments match object keys on GCS.
+    Does not URL-decode: object names in GCS can contain the three literal characters
+    ``%20``; decoding would point at a *different* object than the CSV row.
     """
-    p = _decode_csv_uri_path(str(pseudovox_audio_fp).strip().replace("\\", "/"))
+    p = str(pseudovox_audio_fp).strip().replace("\\", "/")
     if p.lower().startswith(_PSEUD_PREFIX):
         p = p[len(_PSEUD_PREFIX) :]
     return Path(p).stem
@@ -127,7 +121,7 @@ class AnimalSpeakPseudovox(Dataset):
             "full": _DEFAULT_MANIFEST_PATH,
             "train_unseen": _DEFAULT_TRAIN_UNSEEN_CSV_PATH,
         },
-        version="1.1.4",
+        version="1.1.5",
         description=(
             "Silence-trimmed single-vocalization clips from AnimalSpeak "
             "(full manifest ~4.6 M; optional train_unseen CSV split)."
@@ -260,9 +254,9 @@ class AnimalSpeakPseudovox(Dataset):
         ids: list[str] = []
         rels: list[str] = []
         for raw in df[col].to_list():
-            raw_s = str(raw).strip().replace("\\", "/")
-            decoded = _decode_csv_uri_path(raw_s)
-            rels.append(decoded)
+            raw_s = str(raw).strip().replace("\\", "/").lstrip("/")
+            # Match GCS object relpath exactly (see module docstring); do not unquote.
+            rels.append(raw_s)
             ids.append(_clip_stem_from_pseudovox_audio_fp(raw_s))
         return ids, rels
 
