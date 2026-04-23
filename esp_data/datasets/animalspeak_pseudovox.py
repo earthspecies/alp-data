@@ -8,25 +8,46 @@ the species name and source/clip indices, e.g.::
 The only structured metadata is the clip name itself, which is exposed as
 ``clip_name`` and used as the sample ID.
 
-A pre-built manifest JSON (~4.6 M clips) lives on GCS and is loaded at
-construction time. For large-scale runs, pass ``n_samples`` or ``percentage``
-to work with a subset.
+Splits:
+
+- ``full`` — JSON manifest of clip stems on GCS (~4.6 M clips).
+- ``train_unseen`` — CSV with a ``pseudovox_audio_fp`` column (see
+  ``pseudovox_train_unseen.csv``); default object is
+  ``gs://foundation-model-data/synthetic/pseudovox_train_unseen.csv``.
+
+For large-scale runs, pass ``n_samples`` or ``percentage`` to subset any split.
 """
 
 from __future__ import annotations
 
 import json
 import random
-from typing import Any, Iterator
+from pathlib import Path
+from typing import Any, Iterator, Sequence
 
 import numpy as np
 
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from esp_data.backends import BackendType
-from esp_data.io import audio_stereo_to_mono, read_audio
+from esp_data.io import anypath, audio_stereo_to_mono, read_audio
 
-_DEFAULT_GCS_PATH = "gs://fewshot/data_large_clean/animalspeak_pseudovox"
+# Same bucket / prefix as AnimalSpeak CSV ``local_path`` entries
+# (e.g. ``animalspeak_pseudovox/<stem>.wav`` under ``gs://animalspeak2``).
+_DEFAULT_GCS_PATH = "gs://animalspeak2/animalspeak_pseudovox"
 _DEFAULT_MANIFEST_PATH = "gs://foundation-model-data/synthetic/animalspeak_pseudovox_manifest.json"
+# Train-unseen split table (``pseudovox_audio_fp`` column). Upload the CSV from
+# ``pseudovox_train_unseen.csv`` to this object before using the split.
+_DEFAULT_TRAIN_UNSEEN_CSV_PATH = "gs://foundation-model-data/synthetic/pseudovox_train_unseen.csv"
+
+_PSEUD_PREFIX = "animalspeak_pseudovox/"
+
+
+def _clip_stem_from_pseudovox_audio_fp(pseudovox_audio_fp: str) -> str:
+    """Strip ``animalspeak_pseudovox/`` and ``.wav`` to match manifest-style clip stems."""
+    p = str(pseudovox_audio_fp).strip().replace("\\", "/")
+    if p.lower().startswith(_PSEUD_PREFIX):
+        p = p[len(_PSEUD_PREFIX) :]
+    return Path(p).stem
 
 
 @register_dataset
@@ -41,8 +62,9 @@ class AnimalSpeakPseudovox(Dataset):
     The ``clip_name`` field is the only structured metadata; it serves as
     both the sample ID and a species hint.
 
-    The full manifest (~4.6 M clips) is loaded from a pre-built JSON on GCS.
-    Use ``n_samples`` or ``percentage`` to work with a subset.
+    Use ``split="full"`` for the JSON manifest (~4.6 M clips), or
+    ``split="train_unseen"`` for the CSV split (column ``pseudovox_audio_fp``).
+    Use ``n_samples`` or ``percentage`` to subset either split.
 
     Each entry contains:
 
@@ -58,17 +80,25 @@ class AnimalSpeakPseudovox(Dataset):
     info = DatasetInfo(
         name="animalspeak_pseudovox",
         owner="christos",
-        split_paths={},
-        version="1.0.0",
-        description="Silence-trimmed single-vocalization clips from AnimalSpeak (~4.6 M clips).",
-        sources="gs://fewshot/data_large_clean/animalspeak_pseudovox",
+        split_paths={
+            "full": _DEFAULT_MANIFEST_PATH,
+            "train_unseen": _DEFAULT_TRAIN_UNSEEN_CSV_PATH,
+        },
+        version="1.1.0",
+        description=(
+            "Silence-trimmed single-vocalization clips from AnimalSpeak "
+            "(full manifest ~4.6 M; optional train_unseen CSV split)."
+        ),
+        sources="gs://animalspeak2/animalspeak_pseudovox",
         license="CC-BY-NC-4.0",
     )
 
     def __init__(
         self,
+        split: str = "full",
         gcs_path: str = _DEFAULT_GCS_PATH,
-        manifest_path: str = _DEFAULT_MANIFEST_PATH,
+        manifest_path: str | None = None,
+        split_path: str | None = None,
         n_samples: int | None = None,
         percentage: float = 1.0,
         shuffle: bool = False,
@@ -81,10 +111,19 @@ class AnimalSpeakPseudovox(Dataset):
         """
         Parameters
         ----------
+        split : str
+            ``"full"`` loads the JSON manifest (~4.6 M clip stems). ``"train_unseen"``
+            loads stems from the CSV split (column ``pseudovox_audio_fp``). See
+            ``info.split_paths`` for default URIs.
         gcs_path : str
-            GCS URI of the directory containing ``.wav`` files.
-        manifest_path : str
-            Path (local or GCS URI) to the pre-built JSON manifest.
+            URI of the directory containing ``.wav`` files (default: under
+            ``gs://animalspeak2``, same root as :class:`~esp_data.datasets.animalspeak.AnimalSpeak`).
+        manifest_path : str | None
+            When ``split == "full"``, optional override for the JSON manifest path
+            (default: ``info.split_paths["full"]``). Ignored for other splits.
+        split_path : str | None
+            Override the URI/path for the active ``split`` (e.g. local CSV for
+            ``train_unseen``).
         n_samples : int | None
             If given, restrict to at most this many clips (applied after
             shuffling and ``percentage``).
@@ -106,11 +145,22 @@ class AnimalSpeakPseudovox(Dataset):
             Unused; present for API consistency.
         """
         super().__init__(output_take_and_give, backend=backend, streaming=streaming)
+        if split not in self.info.split_paths:
+            raise LookupError(
+                f"Invalid split {split!r} for AnimalSpeakPseudovox. "
+                f"Expected one of {list(self.info.split_paths.keys())}"
+            )
+        self.split = split
         self.gcs_path = gcs_path.rstrip("/")
-        self.manifest_path = manifest_path
         self.sample_rate = sample_rate
 
-        clip_names = self._load_manifest(manifest_path)
+        path = self.info.split_paths[split]
+        if split == "full" and manifest_path is not None:
+            path = manifest_path
+        if split_path is not None:
+            path = split_path
+
+        clip_names = self._load_clip_list_for_split(path)
 
         if shuffle:
             rng = random.Random(random_seed)
@@ -122,37 +172,43 @@ class AnimalSpeakPseudovox(Dataset):
 
         self._clip_names = clip_names
 
-    def _load_manifest(self, path: str) -> list[str]:
-        """Load the clip listing from a JSON manifest file.
+    def _load(self) -> Sequence[Any] | None:
+        """Tabular backend is unused; clips are indexed from ``_clip_names``."""
+        return None
 
-        Parameters
-        ----------
-        path : str
-            Local path or GCS URI to the JSON manifest.
+    def _load_clip_list_for_split(self, path: str) -> list[str]:
+        """Load clip stems from a JSON manifest or a train-unseen-style CSV."""
+        lower = path.lower()
+        if lower.endswith(".csv"):
+            return self._load_clip_names_from_train_unseen_csv(path)
+        return self._load_json_manifest(path)
 
-        Returns
-        -------
-        list[str]
-            List of clip names (filenames without extension).
-
-        Raises
-        ------
-        ValueError
-            If the manifest contains no clip names or has an unexpected format.
-        """
+    def _load_json_manifest(self, path: str) -> list[str]:
+        """Load the clip listing from a JSON manifest file."""
         import fsspec
 
         if path.startswith("gs://"):
             with fsspec.open(path, "r") as f:
                 data = json.load(f)
         else:
-            import pathlib
-            data = json.loads(pathlib.Path(path).read_text())
+            data = json.loads(Path(path).read_text())
 
         clip_names = data.get("clip_names")
         if not isinstance(clip_names, list) or not clip_names:
             raise ValueError(f"Manifest at {path!r} has no valid 'clip_names' list.")
         return clip_names
+
+    def _load_clip_names_from_train_unseen_csv(self, path: str) -> list[str]:
+        """Load clip stems from ``pseudovox_train_unseen``-style CSV."""
+        import polars as pl
+
+        df = pl.read_csv(path)
+        col = "pseudovox_audio_fp"
+        if col not in df.columns:
+            raise ValueError(
+                f"Train-unseen CSV at {path!r} must contain a {col!r} column; got {df.columns!r}"
+            )
+        return [_clip_stem_from_pseudovox_audio_fp(s) for s in df[col].to_list()]
 
     @property
     def columns(self) -> list[str]:
@@ -160,7 +216,7 @@ class AnimalSpeakPseudovox(Dataset):
 
     @property
     def available_splits(self) -> list[str]:
-        return []
+        return list(self.info.split_paths.keys())
 
     def __len__(self) -> int:
         return len(self._clip_names)
@@ -179,14 +235,15 @@ class AnimalSpeakPseudovox(Dataset):
             Sample with ``clip_name``, ``audio_path``, and optionally
             ``audio`` and ``sample_rate``.
         """
-        audio_path = f"{self.gcs_path}/{clip_name}.wav"
+        audio_path = str(anypath(self.gcs_path) / f"{clip_name}.wav")
         need_audio = self.output_take_and_give is None or "audio" in self.output_take_and_give
 
         item: dict[str, Any] = {"clip_name": clip_name, "audio_path": audio_path}
 
         if need_audio:
             audio, sr = read_audio(audio_path)
-            audio = audio_stereo_to_mono(audio, mono_method="average").astype(np.float32)
+            audio = audio.astype(np.float32)
+            audio = audio_stereo_to_mono(audio, mono_method="average")
             if self.sample_rate is not None and sr != self.sample_rate:
                 import librosa
                 audio = librosa.resample(y=audio, orig_sr=sr, target_sr=self.sample_rate,
@@ -229,6 +286,11 @@ class AnimalSpeakPseudovox(Dataset):
     def from_config(cls, dataset_config: DatasetConfig) -> tuple["AnimalSpeakPseudovox", dict[str, Any]]:
         """Create an instance from a DatasetConfig.
 
+        Extra config keys (allowed by ``DatasetConfig``) include ``gcs_path``,
+        ``manifest_path``, ``n_samples``, ``percentage``, ``shuffle``,
+        ``random_seed``. ``data_root`` is accepted as an alias for ``gcs_path``
+        to match :class:`~esp_data.datasets.animalspeak.AnimalSpeak`.
+
         Parameters
         ----------
         dataset_config : DatasetConfig
@@ -240,11 +302,25 @@ class AnimalSpeakPseudovox(Dataset):
             Dataset instance and transformation metadata.
         """
         cfg = dataset_config.model_dump(exclude={"dataset_name", "transformations"})
+        split = cfg.get("split") or "full"
+        if split == "train":
+            split = "full"
+        gcs_path = cfg.get("gcs_path") or cfg.get("data_root") or _DEFAULT_GCS_PATH
+        manifest_path = cfg.get("manifest_path")
+        split_path = cfg.get("split_path")
         ds = cls(
-            output_take_and_give=cfg["output_take_and_give"],
-            sample_rate=cfg["sample_rate"],
-            backend=cfg["backend"],
-            streaming=cfg["streaming"],
+            split=split,
+            gcs_path=gcs_path,
+            manifest_path=manifest_path,
+            split_path=split_path,
+            n_samples=cfg.get("n_samples"),
+            percentage=cfg.get("percentage", 1.0),
+            shuffle=cfg.get("shuffle", False),
+            random_seed=cfg.get("random_seed", 42),
+            output_take_and_give=cfg.get("output_take_and_give"),
+            sample_rate=cfg.get("sample_rate"),
+            backend=cfg.get("backend", "polars"),
+            streaming=cfg.get("streaming", False),
         )
         if dataset_config.transformations:
             meta = ds.apply_transformations(dataset_config.transformations)
