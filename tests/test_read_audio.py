@@ -4,13 +4,28 @@ import numpy as np
 import soundfile as sf
 
 from esp_data.io.read_utils import (
+    _audio_open_uri_and_suffix,
     _read_audio_from_file,
     read_audio,
     audio_stereo_to_mono,
     get_audio_info,
     read_audio_by_time,
-    _read_audio_from_tmpfile
+    _read_audio_from_tmpfile,
 )
+
+
+def test_audio_open_uri_preserves_gs_string() -> None:
+    """GCS URIs from strings must be opened verbatim (no %2F-style re-encoding)."""
+    raw = "gs://animalspeak2/animalspeak_pseudovox/sub%2Fdir/file.wav"
+    open_uri, suffix = _audio_open_uri_and_suffix(raw)
+    assert open_uri == raw
+    assert suffix == ".wav"
+
+
+def test_audio_open_uri_r2_to_s3() -> None:
+    open_uri, suffix = _audio_open_uri_and_suffix("r2://mybucket/folder/a.ogg")
+    assert open_uri == "s3://mybucket/folder/a.ogg"
+    assert suffix == ".ogg"
 
 
 def test_read_from_file() -> None:

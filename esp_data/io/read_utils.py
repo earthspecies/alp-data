@@ -3,6 +3,7 @@
 import json
 import logging
 import tempfile
+from pathlib import Path
 from typing import Any, BinaryIO, Literal
 
 import numpy as np
@@ -16,6 +17,28 @@ from esp_data.io.paths import AnyPathT, anypath
 logger = logging.getLogger("esp_data")
 
 _AUDIO_FORMATS = (".wav", ".flac", ".ogg", ".mp3")
+
+
+def _audio_open_uri_and_suffix(file_path: str | AnyPathT) -> tuple[str, str]:
+    """Return ``(uri_for_open, suffix)`` for fsspec/gcsfs ``open``.
+
+    Cloud URIs passed as plain strings are returned unchanged for the open call so
+    path layers cannot re-encode slashes (``%2F``) or spaces in object keys.
+    ``r2://`` URIs are normalized to ``s3://`` to match :func:`anypath` / R2 fs.
+    """
+    if isinstance(file_path, str):
+        if file_path.startswith("gs://"):
+            path_for_suffix = file_path.split("?", 1)[0]
+            return file_path, Path(path_for_suffix).suffix
+        if file_path.startswith("s3://"):
+            path_for_suffix = file_path.split("?", 1)[0]
+            return file_path, Path(path_for_suffix).suffix
+        if file_path.startswith("r2://"):
+            open_uri = "s3://" + file_path.removeprefix("r2://")
+            path_for_suffix = open_uri.split("?", 1)[0]
+            return open_uri, Path(path_for_suffix).suffix
+    resolved = anypath(file_path)
+    return str(resolved), resolved.suffix
 
 
 def _read_audio_from_tmpfile(
@@ -201,7 +224,8 @@ def read_audio(
 ) -> tuple[np.ndarray, int]:
     """Reads audio data from a file path.
 
-    Handles various path types (local, GCS, R2) via the `anypath` utility.
+    Handles various path types (local, GCS, R2). Cloud URIs given as strings are
+    opened with that exact string so object keys are not re-encoded.
     Checks if the file extension is a supported audio format.
     Allows specifying a number of frames to read and a starting frame offset.
     Allow specifying a starting time (in seconds) to read from with an ending time.
@@ -245,18 +269,17 @@ def read_audio(
     >>> sr
     16000
     """
-    file_path = anypath(file_path)
-    extension = file_path.suffix
+    open_uri, extension = _audio_open_uri_and_suffix(file_path)
 
     if extension.lower() not in _AUDIO_FORMATS:
         raise ValueError(f"Unsupported audio format: {extension}")
 
     if start_time is not None:
-        return read_audio_by_time(file_path, start_time, end_time, input_sr)
+        return read_audio_by_time(open_uri, start_time, end_time, input_sr)
 
     try:
-        fs = filesystem_from_path(file_path)
-        with fs.open(str(file_path), "rb") as f:
+        fs = filesystem_from_path(open_uri)
+        with fs.open(open_uri, "rb") as f:
             audio_format = extension.lstrip(".").upper()
             return _read_audio_from_file(f, frames, start, format=audio_format)
     except Exception as e:
@@ -353,21 +376,20 @@ def get_audio_info(
     >>> info["sr"]
     16000
     """
-    file_path = anypath(file_path)
-    extension = file_path.suffix
+    open_uri, extension = _audio_open_uri_and_suffix(file_path)
 
     if extension.lower() not in _AUDIO_FORMATS:
         raise ValueError(f"Unsupported audio format: {extension}")
 
     try:
-        with filesystem_from_path(file_path).open(str(file_path), "rb") as f:
+        with filesystem_from_path(open_uri).open(open_uri, "rb") as f:
             info = sf.info(f)
     except LibsndfileError as e:
         logger.warning(
             "Failed to read audio from file-like object directly, "
             f"falling back to temporary file method: {e}"
         )
-        with filesystem_from_path(file_path).open(str(file_path), "rb") as f:
+        with filesystem_from_path(open_uri).open(open_uri, "rb") as f:
             file_bytes = f.read()
         with tempfile.NamedTemporaryFile(suffix=extension, delete=True) as tmp_file:
             tmp_file.write(file_bytes)
@@ -423,16 +445,15 @@ def read_audio_by_time(
     >>> audio.shape
     (16000,)
     """
-    file_path = anypath(file_path)
-    extension = file_path.suffix
+    open_uri, extension = _audio_open_uri_and_suffix(file_path)
     format = extension.lstrip(".").upper()
 
     if extension.lower() not in _AUDIO_FORMATS:
         raise ValueError(f"Unsupported audio format: {extension}")
 
     try:
-        fs = filesystem_from_path(file_path)
-        fp = fs.open(str(file_path), "rb")
+        fs = filesystem_from_path(open_uri)
+        fp = fs.open(open_uri, "rb")
 
         try:
             info = sf.info(fp)
