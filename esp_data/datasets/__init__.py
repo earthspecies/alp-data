@@ -4,7 +4,6 @@ from .anuraset import AnuraSetStrong
 from .arctic_bird_sounds import ArcticBirdSounds
 from .audioset import AudioSet
 from .audioset_strong import AudioSetStrong
-from .barkley_canyon import BarkleyCanyon, BarkleyCanyonDetection
 from .beans import Beans
 from .beans_zero import BeansZero
 from .bengalese_finch_calls import BengaleseFinchCalls
@@ -39,8 +38,6 @@ from .zebra_finch_julie_elie import ZebraFinchJulieElie
 __all__ = [
     "AnimalSoundArchive",
     "AnimalSpeak",
-    "BarkleyCanyon",
-    "BarkleyCanyonDetection",
     "GiantOtters",
     "INaturalist",
     "InsectSet459",
