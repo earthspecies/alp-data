@@ -34,7 +34,6 @@ class AnimalSoundArchive(Dataset):
 
     **Audio File Paths:**
         - ``originals_path``: Path to original MP3 audio relative to data root
-        - ``gcs_path``: Full GCS path to original audio
         - ``32khz_path``: Path to pre-resampled 32kHz WAV audio relative to data root
         - ``16khz_path``: Path to pre-resampled 16kHz WAV audio relative to data root
 
@@ -85,30 +84,27 @@ class AnimalSoundArchive(Dataset):
     >>> from esp_data.datasets import AnimalSoundArchive
     >>> dataset = AnimalSoundArchive(
     ...     split="train",
-    ...     output_take_and_give={"canonical_name": "species"}
+    ...     output_take_and_give={"canonical_name": "species"},
+    ...     streaming=True
     ... )
     >>> print(dataset.info.name)
     animal-sound-archive
     >>> print(dataset.available_sample_rates)
     [32000, 16000]
 
-    # Load with pre-resampled 32kHz audio (when available)
-    >>> dataset_32k = AnimalSoundArchive(split="train", sample_rate=32000)
-
-    # Load with pre-resampled 16kHz audio (when available)
-    >>> dataset_16k = AnimalSoundArchive(split="train", sample_rate=16000)
+    >>> dataset_32k = AnimalSoundArchive(split="train", sample_rate=32000, streaming=True)
     """
 
     info = DatasetInfo(
         name="animal-sound-archive",
         owner="david",
         split_paths={
-            "train": "gs://esp-ml-datasets/tierstimmenarchiv/v0.1.0/raw/train.csv",
-            "validation": "gs://esp-ml-datasets/tierstimmenarchiv/v0.1.0/raw/val.csv",
-            "all": "gs://esp-ml-datasets/tierstimmenarchiv/v0.1.0/raw/all.csv",
-            "train_excl_beanszero": "gs://esp-ml-datasets/tierstimmenarchiv/v0.1.0/raw/train_unseen.csv",
-            "validation_excl_beanszero": "gs://esp-ml-datasets/tierstimmenarchiv/v0.1.0/raw/val_unseen.csv",
-            "all_excl_beanszero": "gs://esp-ml-datasets/tierstimmenarchiv/v0.1.0/raw/all_unseen.csv",
+            "train": "gs://esp-ml-datasets/tierstimmenarchiv/v0.1.0/raw/train_v2.csv",
+            "validation": "gs://esp-ml-datasets/tierstimmenarchiv/v0.1.0/raw/val_v2.csv",
+            "all": "gs://esp-ml-datasets/tierstimmenarchiv/v0.1.0/raw/all_v2.csv",
+            "train_excl_beanszero": "gs://esp-ml-datasets/tierstimmenarchiv/v0.1.0/raw/train_unseen_v2.csv",
+            "validation_excl_beanszero": "gs://esp-ml-datasets/tierstimmenarchiv/v0.1.0/raw/val_unseen_v2.csv",
+            "all_excl_beanszero": "gs://esp-ml-datasets/tierstimmenarchiv/v0.1.0/raw/all_unseen_v2.csv",
         },
         version="0.1.0",
         description="Animal Sound Archive (Tierstimmenarchiv) audio dataset with "
