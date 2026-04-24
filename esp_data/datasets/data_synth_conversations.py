@@ -35,6 +35,7 @@ _GCS_ROOT = "gs://foundation-model-data/synthetic/data-synth/merged"
 _AUDIO_ROOTS: dict[str, str] = {
     "XenoCanto": "gs://esp-ml-datasets/xeno-canto/v0.1.0/raw/audio_16k/",
     "INaturalist": "gs://esp-ml-datasets/inaturalist/v0.1.0/raw/",
+    "F0Bioacoustic": "gs://esp-data-ingestion/f0-prediction/audio/",
 }
 
 
@@ -61,6 +62,7 @@ class DataSynthConversations(Dataset):
         owner="chrispla",
         split_paths={
             "tier1_tier2_xc_inat_v1": f"{_GCS_ROOT}/tier1_tier2_xc_inat_v1.parquet",
+            "t1": "gs://foundation-model-data/synthetic/merged/t1.parquet",
         },
         version="0.1.0",
         description=(
