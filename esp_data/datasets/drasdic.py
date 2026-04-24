@@ -63,6 +63,7 @@ _AUDIO_ROOT_OVERRIDES: dict[str, str] = {
     "call_type_binary_v1": _V1_ROOT,
     "call_type_same_different_v1": _V1_ROOT,
     "call_type_counting_v1": _V1_ROOT,
+    "species_mcq": "gs://esp-ml-datasets/",
 }
 
 # Sub-splits that filter call_type_all by template_path
@@ -90,10 +91,13 @@ _TASK_BY_TEMPLATE: dict[str, str] = {
     "audio_synth/same_different": "call_type_same_different",
     "audio_synth/counting": "call_type_counting",
     "audio_synth/fewshot_detection": "fewshot_detection",
+    "species_mcq": "species_mcq",
     "audio_synth/feature_conditioned_detection": "feature_conditioned_detection",
 }
 
-_ALL_SPLITS = list(_SPLIT_DIRS) + list(_CALL_TYPE_SUBSPLITS) + list(_CALL_TYPE_V1_SUBSPLITS)
+_ALL_SPLITS = (
+    list(_SPLIT_DIRS) + list(_CALL_TYPE_SUBSPLITS) + list(_CALL_TYPE_V1_SUBSPLITS) + ["species_mcq"]
+)
 
 
 # ── Dataset class ────────────────────────────────────────────────────────
@@ -148,6 +152,7 @@ class DRASDIC(Dataset):
                 sub: f"{_SPLIT_DIRS['call_type_all_v1']}/{sub}.jsonl"
                 for sub in _CALL_TYPE_V1_SUBSPLITS
             },
+            "species_mcq": "gs://esp-data-ingestion/drasdic/v0.1.0/species_mcq.jsonl",
         },
         version="0.1.0",
         description=(
