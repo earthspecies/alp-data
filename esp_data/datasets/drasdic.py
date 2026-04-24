@@ -14,10 +14,11 @@ Available splits
 - ``call_type_binary_timestamps``: ~25k binary detection with timestamps.
 - ``call_type_same_different``: ~12.5k same/different call-type comparison.
 - ``call_type_counting``: ~12.4k target-sound counting.
-- ``fewshot_detection``: ~100k few-shot multi-label detection (examples +
-  query, predict which call types are present).
-- ``feature_conditioned_detection``: ~100k feature-conditioned detection
-  (acoustic feature descriptions + examples + query, predict label).
+- ``fewshot_detection``: ~100k v2 few-shot multi-label detection
+  examples (examples + query, predict which call types are present).
+- ``feature_conditioned_detection``: ~100k v2 feature-conditioned
+  detection examples (acoustic feature descriptions + examples + query,
+  predict label).
 
 All audio is 16 kHz WAV. Each row returns a list of numpy arrays in
 ``audios``, ordered to match the ``<AudioHere>`` positions in the prompt.
@@ -49,8 +50,8 @@ _SPLIT_DIRS: dict[str, str] = {
     "sed_fewshot": f"{_BASE_ROOT}/synthetic_sed_fewshot_16k",
     "call_type_all": f"{_BASE_ROOT}/synthetic_call_type_tasks_16k",
     "call_type_all_v1": f"{_V1_ROOT}/synthetic_call_type_tasks_16k_v1",
-    "fewshot_detection": f"{_BASE_ROOT}/synthetic_fewshot_detection_16k",
-    "feature_conditioned_detection": f"{_BASE_ROOT}/synthetic_feature_conditioned_detection_16k",
+    "fewshot_detection": f"{_BASE_ROOT}/synthetic_fewshot_detection_16k_v2",
+    "feature_conditioned_detection": (f"{_BASE_ROOT}/synthetic_feature_detection_gcs_16k_v2"),
 }
 
 # Default audio root for v0 splits (audio paths include the dataset subdir).
@@ -92,7 +93,7 @@ _TASK_BY_TEMPLATE: dict[str, str] = {
     "audio_synth/counting": "call_type_counting",
     "audio_synth/fewshot_detection": "fewshot_detection",
     "species_mcq": "species_mcq",
-    "audio_synth/feature_conditioned_detection": "feature_conditioned_detection",
+    "audio_synth/feature_conditioned_detection_gcs": "feature_conditioned_detection",
 }
 
 _ALL_SPLITS = (
@@ -163,8 +164,8 @@ class DRASDIC(Dataset):
         sources=[
             "gs://foundation-model-data/synthetic/multi-audio/synthetic_sed_fewshot_16k",
             "gs://foundation-model-data/synthetic/multi-audio/synthetic_call_type_tasks_16k",
-            "gs://foundation-model-data/synthetic/multi-audio/synthetic_fewshot_detection_16k",
-            "gs://foundation-model-data/synthetic/multi-audio/synthetic_feature_conditioned_detection_16k",
+            "gs://foundation-model-data/synthetic/multi-audio/synthetic_fewshot_detection_16k_v2",
+            "gs://foundation-model-data/synthetic/multi-audio/synthetic_feature_detection_gcs_16k_v2",
         ],
         license="internal",
     )

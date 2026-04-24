@@ -2,29 +2,46 @@
 
 Pre-computed multi-audio evaluation tasks where each example contains
 2+ audio files and a conversation with multiple ``<AudioHere>``
-placeholders. Currently includes few-shot gibbon call-type detection.
+placeholders. Includes few-shot gibbon detection and other multi-audio
+evaluation tasks.
 
 Available splits
 ----------------
-- ``gibbon-fewshot-multipulse``: 740 examples, binary detection of
-  multiple-pulse gibbon calls with 2 support clips.
-- ``gibbon-fewshot-singlepulse``: 84 examples, single-pulse gibbon calls.
-- ``gibbon-fewshot-duet``: 44 examples, gibbon duets.
-- ``gibbon-fewshot-tiny``: 24 examples, balanced mix for pipeline testing.
-- ``same-species``: ~200k examples, few-shot same-species identification
-  with 2-5 support clips from XC + iNat (biased toward rare species).
+
+- ``gibbon-fewshot-detection``: 18,554 examples, 3-way gibbon call
+  detection with fixed A/B/C support exemplars and optional background
+  environment audio.
+- ``gibbon-fewshot-detection-balanced``: 868 examples, balanced
+  present-vs-none subset of the same task.
 - ``giant-otter-same-different``: 1000 examples, same/different call-type
   pairs from the giant otter vocal repertoire (22 call types).
 - ``giant-otter-4way``: 500 examples, 4-way multiple-choice call-type
   matching from the giant otter vocal repertoire.
 - ``dcase-4way``: 1378 examples, 4-way multiple-choice species/sound
   detection from DCASE 2021 Task 5 (17 sound types).
+- ``dcase-fewshot-detection``: 13,688 examples, 4-way few-shot multi-label
+  sound detection from DCASE 2021 Task 5 with fixed support exemplars and
+  optional background environment audio.
+- ``dcase-fewshot-detection-balanced``: 3,158 examples, balanced
+  present-vs-none subset of the same task.
 - ``crow-4way``: 200 examples, 4-way multiple-choice call-type matching
   for carrion crow (*Corvus corone*, 25 call types). Aligned 1:1 with
   the ``crow-description`` split in `BeansPro`.
 - ``zebra-4way``: 40 examples, 4-way multiple-choice call-type matching
   for plains zebra (*Equus quagga*, 4 call types). Aligned 1:1 with
   the ``zebra-description`` split in `BeansPro`.
+- ``unseen-species-4way``: 1227 examples, 4-way species classification
+  for 172 held-out species (genus seen), random confusers.
+- ``unseen-species-4way-hard``: 1227 examples, same targets as above
+  with same-genus confusers where available (~50%).
+- ``unseen-genus-4way``: 927 examples, 4-way species classification
+  for 77 species from held-out genera (family seen), random confusers.
+- ``unseen-genus-4way-hard``: 927 examples, same targets as above
+  with same-family confusers where available (~61%).
+- ``unseen-family-4way``: 440 examples, 4-way species classification
+  for 25 species from held-out families, random confusers.
+- ``unseen-family-4way-hard``: 440 examples, same targets as above
+  with same-genus confusers where available (~47%).
 """
 
 from __future__ import annotations
@@ -53,12 +70,26 @@ _SPLITS: dict[str, str] = {
     "gibbon-fewshot-singlepulse": f"{_GCS_BASE}/gibbon_fewshot_singlepulse/test.jsonl",
     "gibbon-fewshot-duet": f"{_GCS_BASE}/gibbon_fewshot_duet/test.jsonl",
     "gibbon-fewshot-tiny": f"{_GCS_BASE}/gibbon_fewshot_tiny/test.jsonl",
+    "gibbon-fewshot-detection": f"{_GCS_BASE}/gibbon_fewshot_detection/test.jsonl",
+    "gibbon-fewshot-detection-balanced": (
+        f"{_GCS_BASE}/gibbon_fewshot_detection_balanced/test.jsonl"
+    ),
     "same-species": f"{_GCS_BASE}/same_species/test.jsonl",
     "giant-otter-same-different": f"{_GCS_BASE}/giant_otter_same_different/test.jsonl",
     "giant-otter-4way": f"{_GCS_BASE}/giant_otter_4way/test.jsonl",
     "dcase-4way": f"{_GCS_BASE}/dcase_4way/test.jsonl",
+    "dcase-fewshot-detection": f"{_GCS_BASE}/dcase_fewshot_detection/test.jsonl",
+    "dcase-fewshot-detection-balanced": (
+        f"{_GCS_BASE}/dcase_fewshot_detection_balanced/test.jsonl"
+    ),
     "crow-4way": f"{_GCS_BASE}/crow_4way/test.jsonl",
     "zebra-4way": f"{_GCS_BASE}/zebra_4way/test.jsonl",
+    "unseen-species-4way": f"{_GCS_BASE}/unseen_species_4way/test.jsonl",
+    "unseen-species-4way-hard": f"{_GCS_BASE}/unseen_species_4way_hard/test.jsonl",
+    "unseen-genus-4way": f"{_GCS_BASE}/unseen_genus_4way/test.jsonl",
+    "unseen-genus-4way-hard": f"{_GCS_BASE}/unseen_genus_4way_hard/test.jsonl",
+    "unseen-family-4way": f"{_GCS_BASE}/unseen_family_4way/test.jsonl",
+    "unseen-family-4way-hard": f"{_GCS_BASE}/unseen_family_4way_hard/test.jsonl",
 }
 
 # Default audio root — gibbon audio is copied into the beans-pro folder,
@@ -68,9 +99,19 @@ _DEFAULT_AUDIO_ROOT = f"{_GCS_BASE}/"
 # Per-split overrides when audio paths use a different root.
 # same-species audio lives in XC/iNat under gs://esp-ml-datasets/.
 _AUDIO_ROOT_OVERRIDES: dict[str, str] = {
+    "gibbon-fewshot-detection": "gs://esp-ml-datasets/beans-zero/v0.1.0/raw/",
+    "gibbon-fewshot-detection-balanced": ("gs://esp-ml-datasets/beans-zero/v0.1.0/raw/"),
     "same-species": "gs://esp-ml-datasets/",
+    "dcase-fewshot-detection": "gs://esp-ml-datasets/beans-zero/v0.1.0/raw/",
+    "dcase-fewshot-detection-balanced": "gs://esp-ml-datasets/beans-zero/v0.1.0/raw/",
     "crow-4way": f"{_GCS_BASE}/carrion_crow_descriptions/",
     "zebra-4way": f"{_GCS_BASE}/zebra_descriptions/",
+    "unseen-species-4way": "gs://esp-ml-datasets/beans-zero/v0.1.0/raw/",
+    "unseen-species-4way-hard": "gs://esp-ml-datasets/beans-zero/v0.1.0/raw/",
+    "unseen-genus-4way": "gs://esp-ml-datasets/beans-zero/v0.1.0/raw/",
+    "unseen-genus-4way-hard": "gs://esp-ml-datasets/beans-zero/v0.1.0/raw/",
+    "unseen-family-4way": "gs://esp-ml-datasets/beans-zero/v0.1.0/raw/",
+    "unseen-family-4way-hard": "gs://esp-ml-datasets/beans-zero/v0.1.0/raw/",
 }
 
 
@@ -84,9 +125,11 @@ class BeansProMultiAudio(Dataset):
     list of audio arrays via the ``audios`` field, ordered to match
     ``<AudioHere>`` placeholder positions in the prompt.
 
-    Currently includes few-shot gibbon call-type detection: given 2
-    support clips of a target call type, determine whether a query clip
-    contains that call type (Yes/No).
+    Includes both binary gibbon call-type detection (2 support clips for
+    one target type, answer Yes/No), fixed-label gibbon detection
+    (A/B/C exemplars plus optional background environment, answer
+    A/B/C/None), and DCASE few-shot multi-label detection with answer
+    sets such as ``A, C`` or ``None``.
 
     Examples
     --------
@@ -104,7 +147,8 @@ class BeansProMultiAudio(Dataset):
         version="0.1.0",
         description=(
             "BEANS-Pro multi-audio evaluation benchmark. "
-            "Few-shot gibbon call-type detection with 2 support clips per query."
+            "Includes few-shot gibbon detection and other multi-audio "
+            "evaluation tasks."
         ),
         sources=["Hainan Gibbons (BEANS-Zero)"],
         license="CC-BY-NC-SA",
