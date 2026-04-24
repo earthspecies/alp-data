@@ -3,10 +3,11 @@ from collections.abc import Sequence
 from typing import Any, Dict, Iterator, Literal
 
 import semver
-from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, field_validator
+from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, field_validator, model_validator
 
 from esp_data.backends import BackendType, get_backend
 from esp_data.io import AnyPathT, read_yaml
+from esp_data.io.datarepo import resolve as _resolve_repo_url
 from esp_data.transforms import transform_from_config
 from esp_data.transforms.registry import RegisteredTransformConfigs
 
@@ -229,9 +230,38 @@ class DatasetInfo(BaseModel):
 
     owner: str = Field(min_length=1, description="ESP team owner(s) of the dataset")
 
-    split_paths: dict = Field(
+    split_paths: dict | None = Field(
+        default=None,
         description="""Paths to the dataset splits. The keys are the split names
-        and the values are the paths to the splits""",
+        and the values are the paths to the splits. May be provided directly
+        (legacy shape), or auto-derived from repos+folder+splits (modern shape).""",
+    )
+
+    # ------------------------------------------------------------------
+    # Modern-shape fields (optional). When set instead of `split_paths`,
+    # `split_paths` is auto-derived via the DataRepo resolver. See
+    # `esp_data/io/datarepo.py`.
+    # ------------------------------------------------------------------
+    repos: list[str] | None = Field(
+        default=None,
+        description="""IDs of DataRepos where this dataset is available.
+        If set (together with `folder` and `splits`), `split_paths` is
+        auto-derived at validation time by running the resolver against
+        the registered DataRepos.""",
+    )
+
+    folder: str | None = Field(
+        default=None,
+        description="""Path to this dataset's root folder relative to each
+        repo's base_url. Combined with repo.base_url + split relpath to
+        produce absolute URLs.""",
+    )
+
+    splits: dict | None = Field(
+        default=None,
+        description="""Map of split name to the split manifest's relative
+        path within `folder`. E.g. {"train": "train.csv"}. Used by the
+        resolver to populate `split_paths`.""",
     )
 
     version: str = Field(min_length=5, description="Version of the dataset")
@@ -256,6 +286,61 @@ class DatasetInfo(BaseModel):
     changelog: str = Field(
         default_factory=lambda: "", description="Changelog from previous version"
     )
+
+    @model_validator(mode="after")
+    def _resolve_or_require_split_paths(self) -> "DatasetInfo":
+        """Ensure split_paths is populated, either directly or via the DataRepo resolver.
+
+        Three valid cases:
+          1. `split_paths` provided directly (legacy): use as-is.
+          2. `repos` + `folder` + `splits` provided (modern): auto-derive
+             `split_paths` by running the resolver once per split.
+          3. Both provided: error — ambiguous intent.
+
+        Neither shape = error — a DatasetInfo without any split info isn't useful.
+
+        Returns
+        -------
+        DatasetInfo
+            The validated instance with `split_paths` guaranteed non-None.
+
+        Raises
+        ------
+        ValueError
+            If both legacy and modern shapes are provided simultaneously, or
+            if neither is provided, or if the modern shape is incomplete
+            (missing any of `repos`, `folder`, `splits`).
+        """
+        modern_set = self.repos is not None or self.folder is not None or self.splits is not None
+        if self.split_paths is not None and modern_set:
+            raise ValueError(
+                "DatasetInfo: provide either `split_paths` (legacy) OR "
+                "`repos`+`folder`+`splits` (modern), not both."
+            )
+
+        if self.split_paths is None:
+            # Modern shape — require all three new fields and derive split_paths
+            missing = [
+                name
+                for name, val in (
+                    ("repos", self.repos),
+                    ("folder", self.folder),
+                    ("splits", self.splits),
+                )
+                if val is None
+            ]
+            if missing:
+                raise ValueError(
+                    f"DatasetInfo: modern shape requires `repos`, `folder`, "
+                    f"and `splits` to all be set. Missing: {missing}."
+                )
+            derived = {
+                split_name: _resolve_repo_url(self.repos, self.folder, relpath)
+                for split_name, relpath in self.splits.items()
+            }
+            # Bypass validate_assignment to avoid re-running this validator
+            object.__setattr__(self, "split_paths", derived)
+        return self
 
     @field_validator("version")
     @classmethod
