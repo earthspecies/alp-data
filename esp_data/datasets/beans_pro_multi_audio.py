@@ -19,6 +19,12 @@ Available splits
   matching from the giant otter vocal repertoire.
 - ``dcase-4way``: 1378 examples, 4-way multiple-choice species/sound
   detection from DCASE 2021 Task 5 (17 sound types).
+- ``crow-4way``: 200 examples, 4-way multiple-choice call-type matching
+  for carrion crow (*Corvus corone*, 25 call types). Aligned 1:1 with
+  the ``crow-description`` split in `BeansPro`.
+- ``zebra-4way``: 40 examples, 4-way multiple-choice call-type matching
+  for plains zebra (*Equus quagga*, 4 call types). Aligned 1:1 with
+  the ``zebra-description`` split in `BeansPro`.
 """
 
 from __future__ import annotations
@@ -51,6 +57,8 @@ _SPLITS: dict[str, str] = {
     "giant-otter-same-different": f"{_GCS_BASE}/giant_otter_same_different/test.jsonl",
     "giant-otter-4way": f"{_GCS_BASE}/giant_otter_4way/test.jsonl",
     "dcase-4way": f"{_GCS_BASE}/dcase_4way/test.jsonl",
+    "crow-4way": f"{_GCS_BASE}/crow_4way/test.jsonl",
+    "zebra-4way": f"{_GCS_BASE}/zebra_4way/test.jsonl",
 }
 
 # Default audio root — gibbon audio is copied into the beans-pro folder,
@@ -61,6 +69,8 @@ _DEFAULT_AUDIO_ROOT = f"{_GCS_BASE}/"
 # same-species audio lives in XC/iNat under gs://esp-ml-datasets/.
 _AUDIO_ROOT_OVERRIDES: dict[str, str] = {
     "same-species": "gs://esp-ml-datasets/",
+    "crow-4way": f"{_GCS_BASE}/carrion_crow_descriptions/",
+    "zebra-4way": f"{_GCS_BASE}/zebra_descriptions/",
 }
 
 
