@@ -2,6 +2,7 @@ from .animal_sound_archive import AnimalSoundArchive
 from .animalspeak import AnimalSpeak
 from .anuraset import AnuraSetStrong
 from .arctic_bird_sounds import ArcticBirdSounds
+from .audio_skills_xl import AudioSkillsXL
 from .audioset import AudioSet
 from .audioset_strong import AudioSetStrong
 from .barkley_canyon import BarkleyCanyon, BarkleyCanyonDetection
@@ -15,6 +16,7 @@ from .corvid_wascher import CorvidWascher
 from .dclde2026 import DCLDE2026
 from .dinardo_dolphin_whistles import DinardoDolphinWhistles
 from .esp_raincoast import ESPRaincoast
+from .f0_bioacoustic import F0Bioacoustic
 from .geladas import Geladas
 from .giant_otters import GiantOtters
 from .gibbon_solos import GibbonSolos
@@ -39,6 +41,7 @@ from .zebra_finch_julie_elie import ZebraFinchJulieElie
 __all__ = [
     "AnimalSoundArchive",
     "AnimalSpeak",
+    "AudioSkillsXL",
     "BarkleyCanyon",
     "BarkleyCanyonDetection",
     "GiantOtters",
@@ -58,6 +61,7 @@ __all__ = [
     "Voxaboxen",
     "VoxaboxenEvents",
     "ESPRaincoast",
+    "F0Bioacoustic",
     "Subsegmentation",
     "SuperbStarling",
     "WABAD",
