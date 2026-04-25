@@ -70,6 +70,8 @@ class DataSynthConversations(Dataset):
             "t1_val_f0_mean_heldout": "gs://foundation-model-data/synthetic/merged/t1_val_f0_mean_heldout.parquet",
             "t1_val_voc_desc_xc": "gs://foundation-model-data/synthetic/merged/t1_val_voc_desc_xc.parquet",
             "t1_with_captions": "gs://foundation-model-data/synthetic/merged/t1_with_captions.parquet",
+            "t1_with_captions_qa_only": "gs://foundation-model-data/synthetic/merged/t1_with_captions_qa_only.parquet",
+            "t1_captions": "gs://foundation-model-data/synthetic/merged/t1_captions.parquet",
             "t1_val_acoustic_caption_xc": "gs://foundation-model-data/synthetic/merged/t1_val_acoustic_caption_xc.parquet",
             "t1_val_acoustic_caption_inat": "gs://foundation-model-data/synthetic/merged/t1_val_acoustic_caption_inat.parquet",
             "t3": "gs://foundation-model-data/synthetic/merged/t3.parquet",
