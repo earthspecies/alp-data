@@ -63,6 +63,10 @@ class DataSynthConversations(Dataset):
         split_paths={
             "tier1_tier2_xc_inat_v1": f"{_GCS_ROOT}/tier1_tier2_xc_inat_v1.parquet",
             "t1": "gs://foundation-model-data/synthetic/merged/t1.parquet",
+            "t1_val_existing_5k": "gs://foundation-model-data/synthetic/merged/t1_val_existing_5k.parquet",
+            "t1_val_f0_mean_seen": "gs://foundation-model-data/synthetic/merged/t1_val_f0_mean_seen.parquet",
+            "t1_val_f0_mean_heldout": "gs://foundation-model-data/synthetic/merged/t1_val_f0_mean_heldout.parquet",
+            "t1_val_voc_desc_xc": "gs://foundation-model-data/synthetic/merged/t1_val_voc_desc_xc.parquet",
         },
         version="0.1.0",
         description=(
