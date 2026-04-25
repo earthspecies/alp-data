@@ -138,6 +138,8 @@ class DataSynthConversations(Dataset):
         if dataset == "XenoCanto":
             stem = path.rsplit(".", 1)[0] if "." in path.split("/")[-1] else path
             path = stem + ".wav"
+        elif dataset == "BirdVoxDCASE20k":
+            path = path.rsplit("/", 1)[-1]
         return root + path
 
     def _process(self, row: dict[str, Any]) -> dict[str, Any]:
