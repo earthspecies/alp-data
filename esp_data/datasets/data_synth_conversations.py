@@ -36,6 +36,7 @@ _AUDIO_ROOTS: dict[str, str] = {
     "XenoCanto": "gs://esp-ml-datasets/xeno-canto/v0.1.0/raw/audio_16k/",
     "INaturalist": "gs://esp-ml-datasets/inaturalist/v0.1.0/raw/",
     "F0Bioacoustic": "gs://esp-data-ingestion/f0-prediction/audio/",
+    "NocturnalBirdMigration": "gs://esp-ml-datasets/nocturnal_bird_migration/",
 }
 
 
@@ -67,6 +68,8 @@ class DataSynthConversations(Dataset):
             "t1_val_f0_mean_seen": "gs://foundation-model-data/synthetic/merged/t1_val_f0_mean_seen.parquet",
             "t1_val_f0_mean_heldout": "gs://foundation-model-data/synthetic/merged/t1_val_f0_mean_heldout.parquet",
             "t1_val_voc_desc_xc": "gs://foundation-model-data/synthetic/merged/t1_val_voc_desc_xc.parquet",
+            "t3": "gs://foundation-model-data/synthetic/merged/t3.parquet",
+            "t3_val": "gs://foundation-model-data/synthetic/merged/t3_val.parquet",
         },
         version="0.1.0",
         description=(
