@@ -37,6 +37,7 @@ _AUDIO_ROOTS: dict[str, str] = {
     "INaturalist": "gs://esp-ml-datasets/inaturalist/v0.1.0/raw/",
     "F0Bioacoustic": "gs://esp-data-ingestion/f0-prediction/audio/",
     "NocturnalBirdMigration": "gs://esp-ml-datasets/nocturnal_bird_migration/",
+    "BirdVoxDCASE20k": "gs://foundation-model-data/synthetic/cropped/birdvox_dcase_20k/audio/",
 }
 
 
