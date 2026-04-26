@@ -9,6 +9,8 @@ from .audioset import AudioSet
 from .audioset_strong import AudioSetStrong
 from .barkley_canyon import BarkleyCanyon, BarkleyCanyonDetection
 from .beans import Beans
+from .beans_pro import BeansPro
+from .beans_pro_multiaudio import BeansProMultiAudio
 from .beans_zero import BeansZero
 from .beans_zero_call_variants import BeansZeroCallVariants
 from .bengalese_finch_calls import BengaleseFinchCalls
@@ -64,6 +66,8 @@ __all__ = [
     "INaturalist",
     "InsectSet459",
     "Beans",
+    "BeansPro",
+    "BeansProMultiAudio",
     "BeansZeroCallVariants",
     "BeansZero",
     "ZebraFinchJulieElie",
