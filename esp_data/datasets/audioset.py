@@ -103,7 +103,9 @@ class AudioSet(Dataset):
     >>> from esp_data.datasets import AudioSet
     >>> dataset = AudioSet(
     ...     split="train",
-    ...     output_take_and_give={"label": "audio_label"}
+    ...     output_take_and_give={"label": "audio_label"},
+    ...     version="0.1.0",
+    ...     streaming=True
     ... )
     >>> print(dataset.info.name)
     audioset
