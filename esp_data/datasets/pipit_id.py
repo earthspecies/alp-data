@@ -40,7 +40,8 @@ class PipitId(Dataset):
     >>> dataset = PipitId(
     ...     split="test_within_year",
     ...     sample_rate=16000,
-    ...     data_root="gs://esp-ml-datasets/pipit_id/v0.1.0/raw/"
+    ...     data_root="gs://esp-ml-datasets/pipit_id/v0.1.0/raw/",
+    ...     streaming=True,
     ... )
     """
 
