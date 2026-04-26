@@ -43,10 +43,13 @@ class BeansZero(Dataset):
     >>> from esp_data.datasets import Beans
     >>> dataset = BeansZero(
     ...     split="test",
-    ...     output_take_and_give={"species_scientific": "species"},
+    ...     output_take_and_give={"output": "species"},
     ...     sample_rate=16000,
-    ...     data_root="gs://esp-ml-datasets/beans-zero/v0.1.0/raw/"
+    ...     streaming=True,
     ... )
+    >>> sample = next(iter(dataset))
+    >>> print(sample["species"])
+    None
     """
 
     info = DatasetInfo(
