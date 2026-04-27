@@ -78,6 +78,7 @@ class DataSynthConversations(Dataset):
             "t3_val": "gs://foundation-model-data/synthetic/merged/t3_val.parquet",
             "t3_with_captions_qa_only": "gs://foundation-model-data/synthetic/merged/t3_with_captions_qa_only.parquet",
             "t3_captions": "gs://foundation-model-data/synthetic/merged/t3_captions.parquet",
+            "t3_captions_subsampled": "gs://foundation-model-data/synthetic/merged/t3_captions_subsampled.parquet",
             "t3_val_with_captions_qa_only": "gs://foundation-model-data/synthetic/merged/t3_val_with_captions_qa_only.parquet",
             "t3_val_structural_caption_nbm": "gs://foundation-model-data/synthetic/merged/t3_val_structural_caption_nbm.parquet",
         },
