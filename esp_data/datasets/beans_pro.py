@@ -12,6 +12,7 @@ from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
 
 _GCS_SYNTH = "gs://foundation-model-data/synthetic/data-synth"
 _NBM_AUDIO_ROOT = "gs://esp-ml-datasets/nocturnal_bird_migration/"
+_POWDERMILL_CROPPED_AUDIO_ROOT = "gs://foundation-model-data/synthetic/cropped/powdermill/audio/"
 
 # Mapping from BeansPro split name → data-synth run key (used to build GCS path).
 _SYNTH_SPLIT_KEYS: dict[str, str] = {
@@ -52,10 +53,11 @@ _SYNTH_SPLIT_PATHS: dict[str, str] = {
     for split, key in _SYNTH_SPLIT_KEYS.items()
 }
 
-# NBM audio paths in conversations are relative to the NBM audio root.
-# Powdermill audio paths are absolute GCS paths (no root needed → None).
-_SYNTH_DATA_ROOTS: dict[str, str | None] = {
-    **{s: None for s in _SYNTH_SPLIT_KEYS if s.endswith("-powdermill")},
+# Powdermill: audio_ids[0] is the crop ID; pre-cropped WAV lives at
+#   {_POWDERMILL_CROPPED_AUDIO_ROOT}/{crop_id}.wav
+# NBM: audio_paths[0] is a relative path; resolved against the NBM audio root.
+_SYNTH_DATA_ROOTS: dict[str, str] = {
+    **{s: _POWDERMILL_CROPPED_AUDIO_ROOT for s in _SYNTH_SPLIT_KEYS if s.endswith("-powdermill")},
     **{s: _NBM_AUDIO_ROOT for s in _SYNTH_SPLIT_KEYS if s.endswith("-nbm")},
 }
 
@@ -103,7 +105,10 @@ class BeansPro(Dataset):
     Powdermill data-synth splits (Conversation schema)
     ---------------------------------------------------
     Generated from PowdermillCropped dawn-chorus recordings; stored in
-    data-synth Conversation format (``audio_paths``, ``messages``).
+    data-synth Conversation format (``audio_ids``, ``audio_paths``, ``messages``).
+    ``audio_ids[0]`` is the crop ID; audio is loaded from the esp-data
+    ``PowdermillCropped`` pre-cropped WAVs at
+    ``gs://foundation-model-data/synthetic/cropped/powdermill/audio/{crop_id}.wav``.
     ``_process`` normalises these to ``instruction`` / ``output`` / ``audio``.
 
     - ``species-count-oe-powdermill``: 1,632 OE species-counting questions.
@@ -204,7 +209,7 @@ class BeansPro(Dataset):
     )
 
     # Data roots per split (used when data_root is None).
-    _default_data_roots: dict[str, str | None] = {
+    _default_data_roots: dict[str, str] = {
         "crow-description": "gs://esp-data-ingestion/beans-pro/v0.1.0/raw/carrion_crow_descriptions/",
         "zebra-description": "gs://esp-data-ingestion/beans-pro/v0.1.0/raw/zebra_descriptions/",
         "f0-mean-seen-taxa": "gs://esp-data-ingestion/f0-prediction/audio/",
@@ -223,6 +228,10 @@ class BeansPro(Dataset):
 
     # Splits stored in data-synth Conversation format (audio_paths + messages).
     _synth_format_splits: frozenset[str] = frozenset(_SYNTH_SPLIT_KEYS)
+    # Powdermill synth splits: audio resolved via audio_ids[0] (crop ID) + cropped audio root.
+    _powdermill_synth_splits: frozenset[str] = frozenset(
+        s for s in _SYNTH_SPLIT_KEYS if s.endswith("-powdermill")
+    )
 
     def __init__(
         self,
@@ -302,15 +311,18 @@ class BeansPro(Dataset):
 
     def _process(self, row: dict[str, Any]) -> dict[str, Any]:
         if self.split in self._synth_format_splits:
-            # data-synth Conversation format: audio_paths is a list; messages holds the QA.
-            audio_path_raw = row["audio_paths"][0]
-            if self.data_root is not None:
-                audio_path = anypath(self.data_root) / audio_path_raw
-            else:
-                audio_path = anypath(audio_path_raw)
+            # data-synth Conversation format: messages holds the QA.
             messages = row["messages"]
             row["instruction"] = messages[0]["content"]
             row["output"] = messages[-1]["content"]
+
+            if self.split in self._powdermill_synth_splits:
+                # audio_ids[0] is the crop ID; pre-cropped WAV = {root}/{crop_id}.wav
+                crop_id = row["audio_ids"][0]
+                audio_path = anypath(self.data_root) / f"{crop_id}.wav"
+            else:
+                # NBM: audio_paths[0] is a relative path resolved against the audio root.
+                audio_path = anypath(self.data_root) / row["audio_paths"][0]
         else:
             audio_path = anypath(self.data_root) / row[self._originals_path_column]
 
