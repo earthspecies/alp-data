@@ -10,6 +10,55 @@ from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from esp_data.backends import BackendType
 from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
 
+_GCS_SYNTH = "gs://foundation-model-data/synthetic/data-synth"
+_NBM_AUDIO_ROOT = "gs://esp-ml-datasets/nocturnal_bird_migration/"
+
+# Mapping from BeansPro split name → data-synth run key (used to build GCS path).
+_SYNTH_SPLIT_KEYS: dict[str, str] = {
+    # Powdermill
+    "species-count-oe-powdermill": "species_count_oe_powdermill_v1_clean",
+    "voc-loc-mcq-powdermill": "voc_loc_mcq_powdermill_v1_clean",
+    "voc-cooccurrence-binary-powdermill": "voc_cooccurrence_binary_powdermill_v1_clean",
+    "vocal-dominance-oe-powdermill": "vocal_dominance_oe_powdermill_v1_clean",
+    "vocal-dominance-mcq-powdermill": "vocal_dominance_mcq_powdermill_v1_clean",
+    "species-voc-order-oe-powdermill": "species_voc_order_oe_powdermill_v1_clean",
+    "species-voc-order-mcq-powdermill": "species_voc_order_mcq_powdermill_v1_clean",
+    "highest-pitch-species-oe-powdermill": "highest_pitch_species_oe_powdermill_v1_clean",
+    "highest-pitch-species-mcq-powdermill": "highest_pitch_species_mcq_powdermill_v1_clean",
+    "lowest-pitch-species-oe-powdermill": "lowest_pitch_species_oe_powdermill_v1_clean",
+    "lowest-pitch-species-mcq-powdermill": "lowest_pitch_species_mcq_powdermill_v1_clean",
+    "longest-voc-species-oe-powdermill": "longest_voc_species_oe_powdermill_v1_clean",
+    "longest-voc-species-mcq-powdermill": "longest_voc_species_mcq_powdermill_v1_clean",
+    "structural-caption-powdermill": "tier1_structural_caption_powdermill_v1_clean",
+    # NBM (Nocturnal Bird Migration)
+    "species-count-oe-nbm": "species_count_oe_nbm_v1_clean",
+    "voc-loc-mcq-nbm": "voc_loc_mcq_nbm_v1_clean",
+    "voc-cooccurrence-binary-nbm": "voc_cooccurrence_binary_nbm_v1_clean",
+    "vocal-dominance-oe-nbm": "vocal_dominance_oe_nbm_v1_clean",
+    "vocal-dominance-mcq-nbm": "vocal_dominance_mcq_nbm_v1_clean",
+    "species-voc-order-oe-nbm": "species_voc_order_oe_nbm_v1_clean",
+    "species-voc-order-mcq-nbm": "species_voc_order_mcq_nbm_v1_clean",
+    "highest-pitch-species-oe-nbm": "highest_pitch_species_oe_nbm_v1_clean",
+    "highest-pitch-species-mcq-nbm": "highest_pitch_species_mcq_nbm_v1_clean",
+    "lowest-pitch-species-oe-nbm": "lowest_pitch_species_oe_nbm_v1_clean",
+    "lowest-pitch-species-mcq-nbm": "lowest_pitch_species_mcq_nbm_v1_clean",
+    "longest-voc-species-oe-nbm": "longest_voc_species_oe_nbm_v1_clean",
+    "longest-voc-species-mcq-nbm": "longest_voc_species_mcq_nbm_v1_clean",
+    "structural-caption-nbm": "tier1_structural_caption_nbm_v1_clean",
+}
+
+_SYNTH_SPLIT_PATHS: dict[str, str] = {
+    split: f"{_GCS_SYNTH}/{key}.jsonl"
+    for split, key in _SYNTH_SPLIT_KEYS.items()
+}
+
+# NBM audio paths in conversations are relative to the NBM audio root.
+# Powdermill audio paths are absolute GCS paths (no root needed → None).
+_SYNTH_DATA_ROOTS: dict[str, str | None] = {
+    **{s: None for s in _SYNTH_SPLIT_KEYS if s.endswith("-powdermill")},
+    **{s: _NBM_AUDIO_ROOT for s in _SYNTH_SPLIT_KEYS if s.endswith("-nbm")},
+}
+
 
 @register_dataset
 class BeansPro(Dataset):
@@ -26,8 +75,8 @@ class BeansPro(Dataset):
     Descriptions are sourced verbatim from published bioacoustics papers
     and verified against the original figures and tables.
 
-    Available splits
-    ----------------
+    Original BEANS-Pro splits (BEANS-Zero schema)
+    ---------------------------------------------
     - ``crow-description``: 200 examples, 25 call types (merged from 40),
       carrion crow (*Corvus corone*). Source: ESP cooperative crows preprint.
     - ``zebra-description``: 40 examples, 4 call types, plains zebra
@@ -51,14 +100,61 @@ class BeansPro(Dataset):
     - ``call-type-fixed-vocab``: 999 examples, 5-label multilabel
       call-type classification. Source: BEANS-Zero call variants.
 
+    Powdermill data-synth splits (Conversation schema)
+    ---------------------------------------------------
+    Generated from PowdermillCropped dawn-chorus recordings; stored in
+    data-synth Conversation format (``audio_paths``, ``messages``).
+    ``_process`` normalises these to ``instruction`` / ``output`` / ``audio``.
+
+    - ``species-count-oe-powdermill``: 1,632 OE species-counting questions.
+    - ``voc-loc-mcq-powdermill``: 892 MCQ vocalization-location questions.
+    - ``voc-cooccurrence-binary-powdermill``: 902 binary co-occurrence questions.
+    - ``vocal-dominance-oe-powdermill``: 1,177 OE vocal-dominance questions.
+    - ``vocal-dominance-mcq-powdermill``: 901 MCQ vocal-dominance questions.
+    - ``species-voc-order-oe-powdermill``: 1,308 OE species-by-vocalization-order questions.
+    - ``species-voc-order-mcq-powdermill``: 868 MCQ species-by-vocalization-order questions.
+    - ``highest-pitch-species-oe-powdermill``: 963 OE highest-pitch-species questions.
+    - ``highest-pitch-species-mcq-powdermill``: 566 MCQ highest-pitch-species questions.
+    - ``lowest-pitch-species-oe-powdermill``: 684 OE lowest-pitch-species questions.
+    - ``lowest-pitch-species-mcq-powdermill``: 401 MCQ lowest-pitch-species questions.
+    - ``longest-voc-species-oe-powdermill``: 1,113 OE longest-vocalization-species questions.
+    - ``longest-voc-species-mcq-powdermill``: 752 MCQ longest-vocalization-species questions.
+    - ``structural-caption-powdermill``: 1,586 structural captions.
+
+    NBM data-synth splits (Conversation schema)
+    --------------------------------------------
+    Generated from NocturnalBirdMigration train recordings; same schema as
+    Powdermill synth splits above. Audio paths are relative to
+    ``gs://esp-ml-datasets/nocturnal_bird_migration/``.
+
+    - ``species-count-oe-nbm``: 883 OE species-counting questions.
+    - ``voc-loc-mcq-nbm``: 115 MCQ vocalization-location questions.
+    - ``voc-cooccurrence-binary-nbm``: 88 binary co-occurrence questions.
+    - ``vocal-dominance-oe-nbm``: 113 OE vocal-dominance questions.
+    - ``vocal-dominance-mcq-nbm``: 117 MCQ vocal-dominance questions.
+    - ``species-voc-order-oe-nbm``: 438 OE species-by-vocalization-order questions.
+    - ``species-voc-order-mcq-nbm``: 185 MCQ species-by-vocalization-order questions.
+    - ``highest-pitch-species-oe-nbm``: 136 OE highest-pitch-species questions.
+    - ``highest-pitch-species-mcq-nbm``: 108 MCQ highest-pitch-species questions.
+    - ``lowest-pitch-species-oe-nbm``: 128 OE lowest-pitch-species questions.
+    - ``lowest-pitch-species-mcq-nbm``: 99 MCQ lowest-pitch-species questions.
+    - ``longest-voc-species-oe-nbm``: 110 OE longest-vocalization-species questions.
+    - ``longest-voc-species-mcq-nbm``: 98 MCQ longest-vocalization-species questions.
+    - ``structural-caption-nbm``: 883 structural captions.
+
     Schema
     ------
-    Each row is a JSONL record with fields matching BEANS-Zero:
+    Original splits — each row is a JSONL record with fields:
     - ``instruction``: Full prompt with ``<Audio><AudioHere></Audio>`` tag,
       question text, and four labelled choices (A-D).
     - ``output``: Correct answer letter (A, B, C, or D).
     - ``audio_path_original_sample_rate``: Relative path to audio file.
     - ``metadata``: JSON string with call_type, species, duration, etc.
+
+    Powdermill / NBM synth splits — each row is a data-synth Conversation:
+    - ``audio_paths``: List of audio file paths (one element per clip).
+    - ``messages``: List of ``{role, content}`` dicts (user + assistant).
+    ``_process`` adds ``instruction`` and ``output`` keys derived from messages.
 
     Examples
     --------
@@ -68,6 +164,7 @@ class BeansPro(Dataset):
     ...     sample_rate=16000,
     ...     data_root="gs://esp-data-ingestion/beans-pro/v0.1.0/raw/carrion_crow_descriptions/"
     ... )
+    >>> synth = BeansPro(split="species-count-oe-powdermill", sample_rate=16000)
     """
 
     info = DatasetInfo(
@@ -85,12 +182,14 @@ class BeansPro(Dataset):
             "alarm-call-presence": "gs://esp-data-ingestion/beans-pro/v0.1.0/raw/alarm_call_presence/test.jsonl",
             "flight-call-presence": "gs://esp-data-ingestion/beans-pro/v0.1.0/raw/flight_call_presence/test.jsonl",
             "call-type-fixed-vocab": "gs://esp-data-ingestion/beans-pro/v0.1.0/raw/call_type_fixed_vocab/test.jsonl",
+            **_SYNTH_SPLIT_PATHS,
         },
         version="0.1.0",
         description=(
             "BEANS-Pro evaluation benchmark. "
             "Includes acoustic description matching, mean F0 prediction, "
-            "binary taxonomic presence, and call-type tasks."
+            "binary taxonomic presence, call-type tasks, and data-synth "
+            "multi-species reasoning splits from Powdermill and NBM."
         ),
         sources=[
             "ESP cooperative crows preprint",
@@ -98,12 +197,14 @@ class BeansPro(Dataset):
             "Musikhin et al. 2025, F0 Bioacoustic Benchmark",
             "Xeno-canto / iNaturalist (val_unseen splits)",
             "BEANS-Zero call variants",
+            "Powdermill / Chronister et al. 2021",
+            "NocturnalBirdMigration / Zenodo 14039937",
         ],
-        license="CC-BY-NC-4.0, CC0-1.0",
+        license="CC-BY-NC-4.0, CC0-1.0, Public Domain, CC BY-ND 3.0",
     )
 
-    # Data roots per split (used when data_root is None)
-    _default_data_roots = {
+    # Data roots per split (used when data_root is None).
+    _default_data_roots: dict[str, str | None] = {
         "crow-description": "gs://esp-data-ingestion/beans-pro/v0.1.0/raw/carrion_crow_descriptions/",
         "zebra-description": "gs://esp-data-ingestion/beans-pro/v0.1.0/raw/zebra_descriptions/",
         "f0-mean-seen-taxa": "gs://esp-data-ingestion/f0-prediction/audio/",
@@ -115,9 +216,13 @@ class BeansPro(Dataset):
         "alarm-call-presence": "gs://esp-ml-datasets/",
         "flight-call-presence": "gs://esp-ml-datasets/",
         "call-type-fixed-vocab": "gs://esp-ml-datasets/",
+        **_SYNTH_DATA_ROOTS,
     }
 
     _originals_path_column = "audio_path_original_sample_rate"
+
+    # Splits stored in data-synth Conversation format (audio_paths + messages).
+    _synth_format_splits: frozenset[str] = frozenset(_SYNTH_SPLIT_KEYS)
 
     def __init__(
         self,
@@ -196,7 +301,19 @@ class BeansPro(Dataset):
         return ds, {}
 
     def _process(self, row: dict[str, Any]) -> dict[str, Any]:
-        audio_path = anypath(self.data_root) / row[self._originals_path_column]
+        if self.split in self._synth_format_splits:
+            # data-synth Conversation format: audio_paths is a list; messages holds the QA.
+            audio_path_raw = row["audio_paths"][0]
+            if self.data_root is not None:
+                audio_path = anypath(self.data_root) / audio_path_raw
+            else:
+                audio_path = anypath(audio_path_raw)
+            messages = row["messages"]
+            row["instruction"] = messages[0]["content"]
+            row["output"] = messages[-1]["content"]
+        else:
+            audio_path = anypath(self.data_root) / row[self._originals_path_column]
+
         audio, sr = read_audio(audio_path)
         audio = audio.astype(np.float32)
         audio = audio_stereo_to_mono(audio, mono_method="average")
