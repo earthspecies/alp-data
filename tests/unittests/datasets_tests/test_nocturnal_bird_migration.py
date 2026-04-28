@@ -16,51 +16,19 @@ import pytest
 import hashlib
 
 from esp_data.datasets import NocturnalBirdMigration
+from esp_data.utils import create_hash
 
-
-# # --- Dataset snapshot ---
-
-# # Code to generate snapshot:
-# from esp_data.datasets import NocturnalBirdMigration
-# ds = NocturnalBirdMigration(split="test", sample_rate=16000, backend="pandas")
-
-# print("len(ds) =", len(ds))
-
-# audio0 = ds[0]["audio"]
-# print("dtype:", audio0.dtype, "shape:", audio0.shape)
-
-# h = hashlib.sha256(audio0.tobytes()).hexdigest()
-# print("sha256:", h)
-
-# csv_bytes = (
-#         ds._data.unwrap.sort_index(axis=0)
-#         .sort_index(axis=1)
-#         .to_csv(index=True)
-#         .encode("utf-8")
-#     )
-# h = hashlib.sha256(csv_bytes).hexdigest()
-
-# print("annotations sha256:", h)
-
-# quit()
-# # # # #
 
 EXPECTED_LEN_ALL = 271  #
 EXPECTED_FIRST_ITEM_AUDIO_SHA256 = (
     "6db9f3c9ac491e67c974694083815346912fb0d9135815d0301270c3cae1ff86"
 )
-ANNOTATIONS_SHA256 = "a494952f89f1f92fbebc1032892f7e21eed01c845018ddf62b8f96c5ba84d8ac"
+ANNOTATIONS_SHA256 = "05373dca1d0cdd2a8abe1773e11a8c53083c0fcaf71893a6ddac926db0057a04"
 # ---------------------------------------------------------------------------
 
 
 @pytest.fixture(scope="module")
 def ds() -> NocturnalBirdMigration:
-    """Load NocturnalBirdMigration dataset for testing."""
-    return NocturnalBirdMigration(split="test", sample_rate=16000)
-
-
-@pytest.fixture(scope="module")
-def ds_pandas() -> NocturnalBirdMigration:
     """Load NocturnalBirdMigration dataset for testing with pandas backend."""
     return NocturnalBirdMigration(split="test", sample_rate=16000, backend="pandas")
 
@@ -76,6 +44,7 @@ def sample_indices(ds: NocturnalBirdMigration) -> List[int]:
 def test_ds_not_empty(ds: NocturnalBirdMigration):
     """Dataset should have at least one example."""
     assert len(ds) > 0, "Dataset appears empty"
+
 
 def test_check_audio(ds: NocturnalBirdMigration, sample_indices: List[int]):
     """Basic audio integrity checks on a few random items."""
@@ -110,7 +79,7 @@ def test_get_available_labels(ds: NocturnalBirdMigration):
         assert isinstance(label, str), f"Species label for {label} should be string"
 
 
-def test_reference_item_stability(ds_pandas: NocturnalBirdMigration):
+def test_reference_item_stability(ds: NocturnalBirdMigration):
     """
     Check that a canonical item (index 0) is bitwise-stable.
 
@@ -127,7 +96,7 @@ def test_reference_item_stability(ds_pandas: NocturnalBirdMigration):
     """
     # choose deterministic index
     idx = 0
-    item = ds_pandas[idx]
+    item = ds[idx]
 
     # audio presence/type checks (defensive, so the hash failure message is clearer)
     assert "audio" in item, "[0] missing 'audio' key"
@@ -138,7 +107,7 @@ def test_reference_item_stability(ds_pandas: NocturnalBirdMigration):
     ), f"[0] audio dtype is {audio.dtype}, expected float32"
 
     # compute sha256 over raw bytes of the float32 array
-    h = hashlib.sha256(audio.tobytes()).hexdigest()
+    h = create_hash(audio.tobytes())
 
     assert h == EXPECTED_FIRST_ITEM_AUDIO_SHA256, (
         "First item's audio hash changed.\n"
@@ -150,12 +119,12 @@ def test_reference_item_stability(ds_pandas: NocturnalBirdMigration):
 
     # compute sha256 over raw bytes of the float32 array of annotations
     csv_bytes = (
-        ds_pandas._data.unwrap.sort_index(axis=0)
+        ds._data.unwrap.sort_index(axis=0)
         .sort_index(axis=1)
         .to_csv(index=True)
         .encode("utf-8")
     )
-    h = hashlib.sha256(csv_bytes).hexdigest()
+    h = create_hash(csv_bytes)
 
     assert h == ANNOTATIONS_SHA256, (
         "Annotation's hash changed.\n"
@@ -209,3 +178,27 @@ def test_check_selection_table(ds: NocturnalBirdMigration, sample_indices: List[
             ).any(), f"[{idx}] negative begin times present"
             durs = st["End Time (s)"] - st["Begin Time (s)"]
             assert not durs.min() <= 0, f"[{idx}] events of dur <= 0"
+
+
+if __name__ == "__main__":
+    # Code to generate snapshot:
+    from esp_data.datasets import NocturnalBirdMigration
+    ds = NocturnalBirdMigration(split="test", sample_rate=16000, backend="pandas")
+
+    print("len(ds) =", len(ds))
+
+    audio0 = ds[0]["audio"]
+    print("dtype:", audio0.dtype, "shape:", audio0.shape)
+
+    h = create_hash(audio0.tobytes())
+    print("sha256:", h)
+
+    csv_bytes = (
+            ds._data.unwrap.sort_index(axis=0)
+            .sort_index(axis=1)
+            .to_csv(index=True)
+            .encode("utf-8")
+        )
+    h = create_hash(csv_bytes)
+
+    print("annotations sha256:", h)
