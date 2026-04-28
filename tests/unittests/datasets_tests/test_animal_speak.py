@@ -406,25 +406,25 @@ def test_train_reference_item_stability() -> None:
     )
 
 
-if __name__ == "__main__":
-    # generate hash
-    from esp_data.utils import create_hash
-    ds_train = AnimalSpeak(split="validation", sample_rate=16000, backend="pandas")
+# if __name__ == "__main__":
+#     # generate hash
+#     from esp_data.utils import create_hash
+#     ds_train = AnimalSpeak(split="validation", sample_rate=16000, backend="pandas")
 
-    # print("len(ds) =", len(ds))
+#     # print("len(ds) =", len(ds))
 
-    audio0 = ds_train[0]["audio"]
-    print("dtype:", audio0.dtype, "shape:", audio0.shape)
+#     audio0 = ds_train[0]["audio"]
+#     print("dtype:", audio0.dtype, "shape:", audio0.shape)
 
-    h = create_hash(audio0.tobytes())
-    print("sha256:", h)
+#     h = create_hash(audio0.tobytes())
+#     print("sha256:", h)
 
-    csv_bytes = (
-            ds_train._data.unwrap.sort_index(axis=0)
-            .sort_index(axis=1)
-            .to_csv(index=True)
-            .encode("utf-8")
-        )
-    h = create_hash(csv_bytes)
+#     csv_bytes = (
+#             ds_train._data.unwrap.sort_index(axis=0)
+#             .sort_index(axis=1)
+#             .to_csv(index=True)
+#             .encode("utf-8")
+#         )
+#     h = create_hash(csv_bytes)
 
-    print("annotations sha256:", h)
+#     print("annotations sha256:", h)

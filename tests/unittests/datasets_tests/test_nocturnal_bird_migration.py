@@ -180,25 +180,25 @@ def test_check_selection_table(ds: NocturnalBirdMigration, sample_indices: List[
             assert not durs.min() <= 0, f"[{idx}] events of dur <= 0"
 
 
-if __name__ == "__main__":
-    # Code to generate snapshot:
-    from esp_data.datasets import NocturnalBirdMigration
-    ds = NocturnalBirdMigration(split="test", sample_rate=16000, backend="pandas")
+# if __name__ == "__main__":
+#     # Code to generate snapshot:
+#     from esp_data.datasets import NocturnalBirdMigration
+#     ds = NocturnalBirdMigration(split="test", sample_rate=16000, backend="pandas")
 
-    print("len(ds) =", len(ds))
+#     print("len(ds) =", len(ds))
 
-    audio0 = ds[0]["audio"]
-    print("dtype:", audio0.dtype, "shape:", audio0.shape)
+#     audio0 = ds[0]["audio"]
+#     print("dtype:", audio0.dtype, "shape:", audio0.shape)
 
-    h = create_hash(audio0.tobytes())
-    print("sha256:", h)
+#     h = create_hash(audio0.tobytes())
+#     print("sha256:", h)
 
-    csv_bytes = (
-            ds._data.unwrap.sort_index(axis=0)
-            .sort_index(axis=1)
-            .to_csv(index=True)
-            .encode("utf-8")
-        )
-    h = create_hash(csv_bytes)
+#     csv_bytes = (
+#             ds._data.unwrap.sort_index(axis=0)
+#             .sort_index(axis=1)
+#             .to_csv(index=True)
+#             .encode("utf-8")
+#         )
+#     h = create_hash(csv_bytes)
 
-    print("annotations sha256:", h)
+#     print("annotations sha256:", h)
