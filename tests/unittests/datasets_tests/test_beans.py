@@ -165,7 +165,7 @@ def test_reference_item_stability(dataset: Beans):
     - ordering changes in the split (if a different recording moved to idx 0)
 
     If this fails for a legitimate/intentional reason, recompute the hash below
-    and update EXPECTED_FIRST_ITEM_AUDIO_SHA256.
+    and update EXPECTED_FIRST_VAL_ITEM_AUDIO_SHA256.
 
     We do the same for the annotations csv.
     """
@@ -189,7 +189,7 @@ def test_reference_item_stability(dataset: Beans):
         f"Got    {h}\n"
         f"Expect {EXPECTED_FIRST_VAL_ITEM_AUDIO_SHA256}\n\n"
         "If this is an intentional dataset/content update, "
-        "replace EXPECTED_FIRST_ITEM_AUDIO_SHA256 with the new hash."
+        "replace EXPECTED_FIRST_VAL_ITEM_AUDIO_SHA256 with the new hash."
     )
 
     # compute sha256 over raw bytes of the float32 array of annotations
@@ -206,7 +206,7 @@ def test_reference_item_stability(dataset: Beans):
         f"Got    {h}\n"
         f"Expect {EXPECTED_VAL_ANNOTATIONS_SHA256}\n\n"
         "If this is an intentional dataset/content update, "
-        "replace EXPECTED_FIRST_ITEM_AUDIO_SHA256 with the new hash."
+        "replace EXPECTED_VAL_ANNOTATIONS_SHA256 with the new hash."
     )
 
 
