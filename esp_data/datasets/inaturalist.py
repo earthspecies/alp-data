@@ -77,6 +77,8 @@ class INaturalist(Dataset):
       test set, with metadata fetched from GBIF. Audio is sourced directly from the
       BeansZero GCS bucket (``gs://esp-ml-datasets/beans-zero/v0.1.0/raw/``).
       Useful for evaluating models on BEANS-Zero using the full iNaturalist metadata schema.
+    - ``new``: Newly ingested iNaturalist recordings (as of 2026-04-26) that are not
+      in any of the other splits.
 
     The ``_unseen`` splits are designed for training models that will be evaluated
     on BEANS-Zero's unseen taxa benchmark, ensuring no test taxa leak into the training data.
@@ -119,6 +121,7 @@ class INaturalist(Dataset):
             "all": "gs://esp-ml-datasets/inaturalist/v0.1.0/raw/all_20260201.csv",
             "all_unseen": "gs://esp-ml-datasets/inaturalist/v0.1.0/raw/all_unseen_20260201.csv",
             "beanszero": "gs://esp-data-ingestion/inaturalist/v0.1.0/raw/beanszero_test.csv",
+            "new": "gs://esp-data-ingestion/inaturalist/v0.1.0/raw/all_unseen_new_only_20260426.csv",
         },
         version="0.1.0",
         description="iNaturalist audio dataset with taxonomic metadata. "

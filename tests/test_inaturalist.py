@@ -79,8 +79,16 @@ def test_columns_property(dataset_with_transforms_from_config: Dataset) -> None:
 
 def test_available_splits(dataset_with_transforms_from_config: Dataset) -> None:
     """Test if available_splits returns correct split names."""
-    # Available splits should contain train, val, all, and unseen variants
-    expected_splits = ["train", "val", "all", "train_unseen", "val_unseen", "all_unseen"]
+    expected_splits = [
+        "train",
+        "val",
+        "all",
+        "train_unseen",
+        "val_unseen",
+        "all_unseen",
+        "beanszero",
+        "new",
+    ]
     assert set(dataset_with_transforms_from_config.available_splits) == set(
         expected_splits
     )
