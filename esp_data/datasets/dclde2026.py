@@ -158,7 +158,7 @@ class DCLDE2026(Dataset):
         name="dclde2026",
         owner="david",
         split_paths={
-            "all": "gs://esp-ml-datasets/dclde2026/v0.1.0/raw/2026/dclde_2026_killer_whales/processed_enriched.csv",
+            "all": "gs://esp-ml-datasets/dclde2026/v0.1.0/raw/2026/dclde_2026_killer_whales/processed_enriched_v2.csv",
         },
         version="0.1.0",
         description="DCLDE 2026 killer whale dataset with species, ecotype, call type, "

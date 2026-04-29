@@ -82,16 +82,18 @@ class NocturnalBirdMigration(Dataset):
         owner="benjamin",
         split_paths={
             # Full training set
-            "train": "gs://esp-ml-datasets/nocturnal_bird_migration/train_v2.csv",
+            "train": "gs://esp-ml-datasets/nocturnal_bird_migration/train_v2_1.csv",
             # Training subset: no xeno-canto
-            "train_nonxc": "gs://esp-ml-datasets/nocturnal_bird_migration/train_nonxc_v2.csv",
+            "train_nonxc": "gs://esp-ml-datasets/nocturnal_bird_migration/train_nonxc_v2_1.csv",
             # Training subset: xeno-canto recordings only
-            "train_xc": "gs://esp-ml-datasets/nocturnal_bird_migration/train_xc_v2.csv",
+            "train_xc": "gs://esp-ml-datasets/nocturnal_bird_migration/train_xc_v2_1.csv",
             # Held-out test set
-            "test": "gs://esp-ml-datasets/nocturnal_bird_migration/test_v2.csv",
+            "test": "gs://esp-ml-datasets/nocturnal_bird_migration/test_v2_1.csv",
         },
         version="0.1.0",
-        description="[MISSING]",
+        description="Dataset of nocturnal vocalizations from migratory birds in Europe. "
+        "Vocalizations are annotated with start- and end- times, as well as high- and"
+        "low-frequencies.",
         sources="Zenodo, xeno-canto",
         license="CC-BY-NC-SA 4.0",
     )

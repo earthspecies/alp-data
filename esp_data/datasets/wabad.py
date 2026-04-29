@@ -78,7 +78,7 @@ class WABAD(Dataset):
         name="wabad",
         owner="benjamin",
         split_paths={
-            "all": "gs://esp-ml-datasets/wabad/v0.1.0/raw/all_info_gbif_v2.csv",
+            "all": "gs://esp-ml-datasets/wabad/v0.1.0/raw/all_info_gbif_v3.csv",
             "CAT": "gs://esp-ml-datasets/wabad/v0.1.0/raw/CAT_info_gbif_v2.csv",
             "POZO": "gs://esp-ml-datasets/wabad/v0.1.0/raw/POZO_info_gbif_v2.csv",
             "BRE": "gs://esp-ml-datasets/wabad/v0.1.0/raw/BRE_info_gbif_v2.csv",
@@ -153,7 +153,12 @@ class WABAD(Dataset):
             "EFFOU": "gs://esp-ml-datasets/wabad/v0.1.0/raw/EFFOU_info_gbif_v2.csv",
         },
         version="0.1.0",
-        description="[MISSING]",
+        description="WABAD: This database includes 5,047 minutes of audio files "
+        "annotated to species-level by local experts with the start and end time, "
+        "and the upper and lower frequencies of each identified bird vocalisation "
+        "in the recordings. The database has a wide taxonomic and spatial coverage, "
+        "including information on 91,931 vocalisations from 1,192 bird species "
+        "recorded at 72 recording sites in 29 recording locations",
         sources="zenodo.org",
         license="CC-BY-4.0",
     )

@@ -7,7 +7,6 @@ Run with:
 
 from __future__ import annotations
 
-import hashlib
 import random
 from typing import List
 
@@ -16,51 +15,19 @@ import pandas as pd
 import pytest
 
 from esp_data.datasets import XenoCantoAnnotatedJeantet23
-
-
-# # --- Dataset snapshot ---
-
-# # Code to generate snapshot:
-# ds = XenoCantoAnnotatedJeantet23(split="all", sample_rate=16000, backend="pandas")
-
-# print("len(ds) =", len(ds))
-
-# audio0 = ds[0]["audio"]
-# print("dtype:", audio0.dtype, "shape:", audio0.shape)
-
-# h = hashlib.sha256(audio0.tobytes()).hexdigest()
-# print("sha256:", h)
-
-# csv_bytes = (
-#         ds._data.unwrap.sort_index(axis=0)
-#         .sort_index(axis=1)
-#         .to_csv(index=True)
-#         .encode("utf-8")
-#     )
-# h = hashlib.sha256(csv_bytes).hexdigest()
-
-# print("annotations sha256:", h)
-
-# quit()
-# # # #
+from esp_data.utils import create_hash
 
 
 EXPECTED_LEN_ALL = 967  #
 EXPECTED_FIRST_ITEM_AUDIO_SHA256 = (
     "bb8adcd2d870552f35771a7bf36675e7cb6d300020a5c8c9849bd9fc993ef980"
 )
-ANNOTATIONS_SHA256 = "f6e89a84b15cff2796a0d9fb325c424e3d6ac693416106d7d7cc1f6ccc18f7fc"
+ANNOTATIONS_SHA256 = "dee61a62cb17d28b578944f26a5b245501cbfb289428e72a721a234ffda132c4"
 # ---------------------------------------------------------------------------
 
 
 @pytest.fixture(scope="module")
 def ds() -> XenoCantoAnnotatedJeantet23:
-    """Load XenoCantoAnnotatedJeantet23 dataset for testing."""
-    return XenoCantoAnnotatedJeantet23(split="all", sample_rate=16000)
-
-
-@pytest.fixture(scope="module")
-def ds_pandas() -> XenoCantoAnnotatedJeantet23:
     """Load XenoCantoAnnotatedJeantet23 dataset for testing."""
     return XenoCantoAnnotatedJeantet23(split="all", sample_rate=16000, backend="pandas")
 
@@ -122,7 +89,7 @@ def test_dataset_length_matches_expected(ds: XenoCantoAnnotatedJeantet23):
     )
 
 
-def test_reference_item_stability(ds_pandas: XenoCantoAnnotatedJeantet23):
+def test_reference_item_stability(ds: XenoCantoAnnotatedJeantet23):
     """
     Check that a canonical item (index 0) is bitwise-stable.
 
@@ -137,7 +104,7 @@ def test_reference_item_stability(ds_pandas: XenoCantoAnnotatedJeantet23):
     """
     # choose deterministic index
     idx = 0
-    item = ds_pandas[idx]
+    item = ds[idx]
 
     # audio presence/type checks (defensive, so the hash failure message is clearer)
     assert "audio" in item, "[0] missing 'audio' key"
@@ -148,7 +115,7 @@ def test_reference_item_stability(ds_pandas: XenoCantoAnnotatedJeantet23):
     ), f"[0] audio dtype is {audio.dtype}, expected float32"
 
     # compute sha256 over raw bytes of the float32 array
-    h = hashlib.sha256(audio.tobytes()).hexdigest()
+    h = create_hash(audio.tobytes())
 
     assert h == EXPECTED_FIRST_ITEM_AUDIO_SHA256, (
         "First item's audio hash changed.\n"
@@ -160,13 +127,13 @@ def test_reference_item_stability(ds_pandas: XenoCantoAnnotatedJeantet23):
 
     # compute sha256 over raw bytes of the float32 array of annotations
     csv_bytes = (
-        ds_pandas._data.unwrap.sort_index(axis=0)
+        ds._data.unwrap.sort_index(axis=0)
         .sort_index(axis=1)
         .to_csv(index=True)
         .encode("utf-8")
     )
 
-    h = hashlib.sha256(csv_bytes).hexdigest()
+    h = create_hash(csv_bytes)
 
     assert h == ANNOTATIONS_SHA256, (
         "Annotation's hash changed.\n"
@@ -220,3 +187,26 @@ def test_check_selection_table(
             assert not (
                 st["Begin Time (s)"] < 0
             ).any(), f"[{idx}] negative begin times present"
+
+
+
+# if __name__ == "__main__":
+#     ds = XenoCantoAnnotatedJeantet23(split="all", sample_rate=16000, backend="pandas")
+
+#     print("len(ds) =", len(ds))
+
+#     audio0 = ds[0]["audio"]
+#     print("dtype:", audio0.dtype, "shape:", audio0.shape)
+
+#     h = create_hash(audio0.tobytes())
+#     print("sha256:", h)
+
+#     csv_bytes = (
+#             ds._data.unwrap.sort_index(axis=0)
+#             .sort_index(axis=1)
+#             .to_csv(index=True)
+#             .encode("utf-8")
+#         )
+#     h = create_hash(csv_bytes)
+
+#     print("annotations sha256:", h)

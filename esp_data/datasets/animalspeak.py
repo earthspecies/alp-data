@@ -41,8 +41,8 @@ class AnimalSpeak(Dataset):
         name="animalspeak",
         owner="david; marius; masato",
         split_paths={
-            "train": "gs://esp-ml-datasets/animalspeak/v0.1.0/raw/16KHz/train.csv",
-            "validation": "gs://esp-ml-datasets/animalspeak/v0.1.0/raw/16KHz/validation.csv",
+            "train": "gs://esp-ml-datasets/animalspeak/v0.1.0/raw/16KHz/train_v2.csv",
+            "validation": "gs://esp-ml-datasets/animalspeak/v0.1.0/raw/16KHz/validation_v2.csv",
         },
         version="0.1.0",
         description="AnimalSpeak dataset",

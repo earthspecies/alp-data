@@ -10,9 +10,9 @@ from esp_data.utils import create_hash
 
 
 VAL_EXPECTED_FIRST_ITEM_AUDIO_SHA256 = "28061661586286684f61a92f14bf66a7f5a207a48bd8ec0809b1b8e1924d7d99"
-VAL_ANNOTATIONS_SHA256 = "3746a67f45c80013ecc7e977e3ee222d2dab7ceba3cde6c8d52bb5ac39aa6c44"
+VAL_ANNOTATIONS_SHA256 = "9be21d795102c21718a8de7ff4b6991203d1df1aa85300a865ac9895cedb6b15"
 TRAIN_EXPECTED_FIRST_ITEM_AUDIO_SHA256 = "20bedf2fcaf335f711748cb0fa6bbd6fb233dd142ad61209e5dfdbd2e9d09f4c"
-TRAIN_ANNOTATIONS_SHA256 = "ad50765e087368b0e435b78d807ffd2858f9d678cf6bf368c9e072de1f53a591"
+TRAIN_ANNOTATIONS_SHA256 = "12adb75e8dc5fb1aaff2e2c579ac10fc487687187a2baea1f26e1025874bce68"
 
 
 @pytest.fixture
@@ -407,24 +407,24 @@ def test_train_reference_item_stability() -> None:
 
 
 # if __name__ == "__main__":
-    # generate hash
-    # from esp_data.utils import create_hash
-    # ds_train = AnimalSpeak(split="train", sample_rate=16000, backend="pandas")
+#     # generate hash
+#     from esp_data.utils import create_hash
+#     ds_train = AnimalSpeak(split="validation", sample_rate=16000, backend="pandas")
 
-    # # print("len(ds) =", len(ds))
+#     # print("len(ds) =", len(ds))
 
-    # audio0 = ds_train[0]["audio"]
-    # print("dtype:", audio0.dtype, "shape:", audio0.shape)
+#     audio0 = ds_train[0]["audio"]
+#     print("dtype:", audio0.dtype, "shape:", audio0.shape)
 
-    # h = create_hash(audio0.tobytes())
-    # print("sha256:", h)
+#     h = create_hash(audio0.tobytes())
+#     print("sha256:", h)
 
-    # csv_bytes = (
-    #         ds_train._data.unwrap.sort_index(axis=0)
-    #         .sort_index(axis=1)
-    #         .to_csv(index=True)
-    #         .encode("utf-8")
-    #     )
-    # h = create_hash(csv_bytes)
+#     csv_bytes = (
+#             ds_train._data.unwrap.sort_index(axis=0)
+#             .sort_index(axis=1)
+#             .to_csv(index=True)
+#             .encode("utf-8")
+#         )
+#     h = create_hash(csv_bytes)
 
-    # print("annotations sha256:", h)
+#     print("annotations sha256:", h)
