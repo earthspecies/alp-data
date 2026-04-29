@@ -33,7 +33,8 @@ class GiantOtters(Dataset):
     ...     split="test",
     ...     output_take_and_give={"label": "label"},
     ...     sample_rate=16000,
-    ...     data_root="gs://esp-ml-datasets/giant_otters/v0.1.0/raw/"
+    ...     data_root="gs://esp-ml-datasets/giant_otters/v0.1.0/raw/",
+    ...     streaming=True
     ... )
     """
 

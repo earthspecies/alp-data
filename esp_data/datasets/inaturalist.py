@@ -98,10 +98,10 @@ class INaturalist(Dataset):
     [32000, 16000]
 
     Load with pre-resampled 32kHz audio (no on-the-fly resampling needed)
-    >>> dataset_32k = INaturalist(split="train", sample_rate=32000)
+    >>> dataset_32k = INaturalist(split="train", sample_rate=32000, streaming=True)
 
     Load with pre-resampled 16kHz audio (no on-the-fly resampling needed)
-    >>> dataset_16k = INaturalist(split="train", sample_rate=16000)
+    >>> dataset_16k = INaturalist(split="train", sample_rate=16000, streaming=True)
     """
 
     info = DatasetInfo(

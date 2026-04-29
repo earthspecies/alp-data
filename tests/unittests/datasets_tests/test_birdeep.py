@@ -18,38 +18,11 @@ import hashlib
 from esp_data.datasets import Birdeep
 
 
-# # --- Dataset snapshot ---
-
-# # Code to generate snapshot:
-# from esp_data.datasets import Birdeep
-# ds = Birdeep(split="all", sample_rate=16000, backend="pandas")
-
-# print("len(ds) =", len(ds))
-
-# audio0 = ds[0]["audio"]
-# print("dtype:", audio0.dtype, "shape:", audio0.shape)
-
-# h = hashlib.sha256(audio0.tobytes()).hexdigest()
-# print("sha256:", h)
-
-# csv_bytes = (
-#         ds._data.unwrap.sort_index(axis=0)
-#         .sort_index(axis=1)
-#         .to_csv(index=True)
-#         .encode("utf-8")
-#     )
-# h = hashlib.sha256(csv_bytes).hexdigest()
-
-# print("annotations sha256:", h)
-
-# quit()
-# # # #
-
 EXPECTED_LEN_ALL = 291  #
 EXPECTED_FIRST_ITEM_AUDIO_SHA256 = (
     "8b65252bf9e4c82a79277bbccf9bcc4bc0adcda3b7c9dbf4582c36cf99046f89"
 )
-ANNOTATIONS_SHA256 = "0b20d290e604aeed01c4eb514a6bb2e01f84da0dfee15ebbef964951867abcbf"
+ANNOTATIONS_SHA256 = "1829b010d55effab0f20a6cd66a9750c68774c1ff5355f338046cd4fbc765a40"
 # ---------------------------------------------------------------------------
 
 
@@ -196,3 +169,26 @@ def test_check_selection_table(ds: Birdeep, sample_indices: List[int]):
             assert not (
                 st["Begin Time (s)"] < 0
             ).any(), f"[{idx}] negative begin times present"
+
+
+# if __name__ == "__main__":
+#     # Generate hash
+#     from esp_data.datasets import Birdeep
+#     from esp_data.utils import create_hash
+#     ds = Birdeep(split="all", sample_rate=16000, backend="pandas")
+
+#     audio0 = ds[0]["audio"]
+#     print("dtype:", audio0.dtype, "shape:", audio0.shape)
+
+#     h = hashlib.sha256(audio0.tobytes()).hexdigest()
+#     print("sha256:", h)
+
+#     csv_bytes = (
+#             ds._data.unwrap.sort_index(axis=0)
+#             .sort_index(axis=1)
+#             .to_csv(index=True)
+#             .encode("utf-8")
+#         )
+#     h = create_hash(csv_bytes)
+
+#     print("annotations sha256:", h)

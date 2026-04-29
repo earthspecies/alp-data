@@ -108,11 +108,11 @@ class XenoCanto(Dataset):
     >>> print(dataset.available_sample_rates)
     [32000, 16000]
 
-    # Load with pre-resampled 32kHz audio (when available)
-    >>> dataset_32k = XenoCanto(split="train", sample_rate=32000)
+    Load with pre-resampled 32kHz audio (when available)
+    >>> dataset_32k = XenoCanto(split="train", sample_rate=32000, streaming=True)
 
-    # Load with pre-resampled 16kHz audio (when available)
-    >>> dataset_16k = XenoCanto(split="train", sample_rate=16000)
+    Load with pre-resampled 16kHz audio (when available)
+    >>> dataset_16k = XenoCanto(split="train", sample_rate=16000, streaming=True)
     """
 
     info = DatasetInfo(
