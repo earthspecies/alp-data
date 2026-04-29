@@ -7,11 +7,9 @@ placeholders. Includes few-shot detection and 4-way audio MCQ tasks.
 Available splits
 ----------------
 
-- ``gibbon-fewshot-detection``: 18,554 examples, 3-way gibbon call
-  detection with fixed A/B/C support exemplars and optional background
-  environment audio.
 - ``gibbon-fewshot-detection-balanced``: 868 examples, balanced
-  present-vs-none subset of the same task.
+  present-vs-none 3-way gibbon call detection with fixed A/B/C support
+  exemplars and optional background environment audio.
 - ``giant-otter-4way``: 500 examples, 4-way multiple-choice call-type
   matching from the giant otter vocal repertoire.
 - ``dcase-fewshot-detection-balanced``: 3,158 examples, balanced
@@ -49,7 +47,6 @@ logger = logging.getLogger(__name__)
 _GCS_BASE = "gs://esp-data-ingestion/beans-pro/v0.1.0/raw"
 
 _SPLITS: dict[str, str] = {
-    "gibbon-fewshot-detection": f"{_GCS_BASE}/gibbon_fewshot_detection/test.jsonl",
     "gibbon-fewshot-detection-balanced": (
         f"{_GCS_BASE}/gibbon_fewshot_detection_balanced/test.jsonl"
     ),
@@ -67,8 +64,7 @@ _DEFAULT_AUDIO_ROOT = f"{_GCS_BASE}/"
 
 # Per-split overrides when audio paths use a different root.
 _AUDIO_ROOT_OVERRIDES: dict[str, str] = {
-    "gibbon-fewshot-detection": "gs://esp-ml-datasets/beans-zero/v0.1.0/raw/",
-    "gibbon-fewshot-detection-balanced": ("gs://esp-ml-datasets/beans-zero/v0.1.0/raw/"),
+    "gibbon-fewshot-detection-balanced": "gs://esp-ml-datasets/beans-zero/v0.1.0/raw/",
     "dcase-fewshot-detection-balanced": "gs://esp-ml-datasets/beans-zero/v0.1.0/raw/",
     "crow-4way": f"{_GCS_BASE}/carrion_crow_descriptions/",
     "zebra-4way": f"{_GCS_BASE}/zebra_descriptions/",
