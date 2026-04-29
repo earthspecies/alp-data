@@ -13,7 +13,6 @@ from typing import List
 import numpy as np
 import pandas as pd
 import pytest
-import hashlib
 
 from esp_data.datasets import NocturnalBirdMigration
 from esp_data.utils import create_hash

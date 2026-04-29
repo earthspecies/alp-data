@@ -201,6 +201,7 @@ def test_check_selection_table(ds: WABAD, sample_indices: List[int]):
                 st["Begin Time (s)"] < 0
             ).any(), f"[{idx}] negative begin times present"
             durs = st["End Time (s)"] - st["Begin Time (s)"]
+            assert not durs.min() <= 0, f"[{idx}] events of dur <= 0"
 
 
 if __name__ == "__main__":

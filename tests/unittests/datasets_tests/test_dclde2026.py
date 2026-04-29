@@ -7,7 +7,6 @@ Run with:
 
 from __future__ import annotations
 
-import hashlib
 import random
 from typing import List
 
@@ -74,7 +73,7 @@ def test_dataset_length_matches_expected(ds_pandas: DCLDE2026) -> None:
     If this fails intentionally (e.g. dataset grew), update EXPECTED_LEN_ALL.
     """
     assert len(ds_pandas) == EXPECTED_LEN_ALL, (
-        f"Dataset length mismatch: got {len(ds)}, expected {EXPECTED_LEN_ALL}. "
+        f"Dataset length mismatch: got {len(ds_pandas)}, expected {EXPECTED_LEN_ALL}. "
         "If this change is intentional (new data / new filtering), update EXPECTED_LEN_ALL "
         "in the test."
     )
