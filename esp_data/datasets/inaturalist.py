@@ -184,6 +184,8 @@ class INaturalist(Dataset):
         if data_root is None:
             if split == "beanszero":
                 self.data_root = anypath("gs://esp-ml-datasets/beans-zero/v0.1.0/raw/")
+            elif split == "new":
+                self.data_root = anypath("gs://esp-data-ingestion/inaturalist/v0.1.0/raw/")
             else:
                 self.data_root = anypath("gs://esp-ml-datasets/inaturalist/v0.1.0/raw/")
         else:

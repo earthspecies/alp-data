@@ -103,6 +103,7 @@ class XenoCanto(Dataset):
       test set, with metadata fetched from GBIF. Audio is sourced directly from the
       BeansZero GCS bucket (``gs://esp-ml-datasets/beans-zero/v0.1.0/raw/``).
       Useful for evaluating models on BEANS-Zero using the full XenoCanto metadata schema.
+    - ``new``: Recently ingested Xeno-canto recordings not present in the original dump.
 
     The ``_unseen`` splits are designed for training models that will be evaluated
     on BEANS-Zero's unseen taxa benchmark, ensuring no test taxa leak into the training data.
@@ -150,6 +151,7 @@ class XenoCanto(Dataset):
             "train_strong_unseen_top100_bgdet": "gs://esp-data-ingestion/xeno-canto/v0.1.0/raw/train_strong_unseen_top100_bgdet.csv",
             "train_single_clean_unseen_logitneg15_focal95": "gs://esp-data-ingestion/xeno-canto/v0.1.0/raw/train_single_clean_unseen_logitneg15_focal95.csv",
             "beanszero": "gs://esp-data-ingestion/xeno-canto/v0.1.0/raw/beanszero_test.csv",
+            "new": "gs://esp-data-ingestion/xeno-canto/v0.1.0/raw/all_unseen_new_only_20260429.csv",
         },
         version="0.1.0",
         description="Xeno-canto audio dataset with taxonomic metadata. "
@@ -217,6 +219,10 @@ class XenoCanto(Dataset):
                 self.data_root = _bz_root
                 self._data_root_32k = _bz_root
                 self._data_root_16k = _bz_root
+            elif split == "new":
+                self.data_root = anypath("gs://esp-data-ingestion/xeno-canto/v0.1.0/raw/audio/")
+                self._data_root_32k = anypath("gs://esp-data-ingestion/xeno-canto/v0.1.0/raw/audio_32k/")
+                self._data_root_16k = anypath("gs://esp-data-ingestion/xeno-canto/v0.1.0/raw/audio_16k/")
             else:
                 self.data_root = anypath("gs://esp-ml-datasets/xeno-canto/v0.1.0/raw/")
                 self._data_root_32k = anypath("gs://esp-ml-datasets/xeno-canto/v0.1.0/raw/audio_32k/")
