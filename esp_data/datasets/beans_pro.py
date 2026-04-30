@@ -108,13 +108,13 @@ class BeansPro(Dataset):
         "zebra-description": "gs://esp-data-ingestion/beans-pro/v0.1.0/raw/zebra_descriptions/",
         "f0-mean-seen-taxa": "gs://esp-data-ingestion/f0-prediction/audio/",
         "f0-mean-heldout-taxa": "gs://esp-data-ingestion/f0-prediction/audio/",
-        "bird-presence": "gs://esp-ml-datasets/",
-        "mammal-presence": "gs://esp-ml-datasets/",
-        "insect-presence": "gs://esp-ml-datasets/",
-        "amphibian-presence": "gs://esp-ml-datasets/",
-        "alarm-call-presence": "gs://esp-ml-datasets/",
-        "flight-call-presence": "gs://esp-ml-datasets/",
-        "call-type-fixed-vocab": "gs://esp-ml-datasets/",
+        "bird-presence": "gs://esp-data-ingestion/xeno-canto/v0.1.0/raw/",
+        "mammal-presence": "gs://esp-data-ingestion/xeno-canto/v0.1.0/raw/",
+        "insect-presence": "gs://esp-data-ingestion/xeno-canto/v0.1.0/raw/",
+        "amphibian-presence": "gs://esp-data-ingestion/xeno-canto/v0.1.0/raw/",
+        "alarm-call-presence": "gs://esp-data-ingestion/xeno-canto/v0.1.0/raw/",
+        "flight-call-presence": "gs://esp-data-ingestion/xeno-canto/v0.1.0/raw/",
+        "call-type-fixed-vocab": "gs://esp-data-ingestion/xeno-canto/v0.1.0/raw/",
     }
 
     _originals_path_column = "audio_path_original_sample_rate"
