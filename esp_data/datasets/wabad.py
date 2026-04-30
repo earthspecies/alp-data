@@ -252,12 +252,6 @@ class WABAD(Dataset):
     def _process(self, row: dict[str, Any]) -> dict[str, Any]:
         """Process a single row of the dataset.
 
-        When the row contains ``window_start_sec`` / ``window_end_sec``
-        (set by the ``window_annotations`` transform), only the
-        corresponding audio segment is loaded from disk/GCS instead of
-        the full recording.  This drastically reduces peak memory and
-        network IO.
-
         Parameters
         ----------
         row : dict[str, Any]
@@ -278,16 +272,7 @@ class WABAD(Dataset):
         if not use_presampled:
             audio_path = anypath(self.data_root) / row[self._originals_path_column]
 
-        window_start = row.get("window_start_sec")
-        window_end = row.get("window_end_sec")
-
-        if window_start is not None and window_end is not None:
-            audio, sr = read_audio(
-                audio_path, start_time=float(window_start), end_time=float(window_end)
-            )
-        else:
-            audio, sr = read_audio(audio_path)
-
+        audio, sr = read_audio(audio_path)
         audio = audio_stereo_to_mono(audio, mono_method="average").astype(np.float32)
 
         if not use_presampled and self.sample_rate is not None and sr != self.sample_rate:
@@ -300,22 +285,13 @@ class WABAD(Dataset):
             )
             sr = self.sample_rate
 
+        st = pd.read_csv(StringIO(row["selection_table"]), sep="\t")
+        audio_dur = len(audio) / float(sr)
+        st = st[st["Begin Time (s)"] < audio_dur].copy()
+
         row["audio"] = audio
         row["sample_rate"] = sr
-
-        raw_st = row.get("selection_table")
-        if raw_st is not None:
-            if isinstance(raw_st, str):
-                st = pd.read_csv(StringIO(raw_st), sep="\t")
-            elif isinstance(raw_st, pd.DataFrame):
-                st = raw_st
-            else:
-                st = pd.DataFrame()
-
-            audio_dur = len(audio) / float(sr)
-            if "Begin Time (s)" in st.columns:
-                st = st[st["Begin Time (s)"] < audio_dur].copy()
-            row["selection_table"] = st
+        row["selection_table"] = st
 
         if self.output_take_and_give:
             item = {}

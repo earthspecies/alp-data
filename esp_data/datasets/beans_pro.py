@@ -10,97 +10,6 @@ from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from esp_data.backends import BackendType
 from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
 
-_GCS_SYNTH = "gs://foundation-model-data/synthetic/data-synth"
-
-# Audio roots for each synth-format source dataset.
-# Cropped datasets: audio_ids[0] is crop_id → {root}/{crop_id}.wav
-# Non-cropped datasets: audio_paths[0] is a relative path → {root}/{audio_paths[0]}
-_NBM_AUDIO_ROOT = "gs://esp-ml-datasets/nocturnal_bird_migration/"
-_BIRDEEP_AUDIO_ROOT = "gs://esp-ml-datasets/birdeep/"
-_POWDERMILL_CROPPED_AUDIO_ROOT = "gs://foundation-model-data/synthetic/cropped/powdermill/audio/"
-_BIRDEEP_CROPPED_AUDIO_ROOT = "gs://foundation-model-data/synthetic/cropped/birdeep/audio/"
-_BIRDVOX_CROPPED_AUDIO_ROOT = "gs://foundation-model-data/synthetic/cropped/birdvox_full_night/audio/"
-
-# Mapping: BeansPro split name → data-synth run key (builds GCS JSONL path).
-_SYNTH_SPLIT_KEYS: dict[str, str] = {
-    # --- Powdermill (cropped, crop-id audio) ---
-    "species-count-oe-powdermill": "species_count_oe_powdermill_v1_clean",
-    "voc-loc-mcq-powdermill": "voc_loc_mcq_powdermill_v1_clean",
-    "voc-cooccurrence-binary-powdermill": "voc_cooccurrence_binary_powdermill_v1_clean",
-    "vocal-dominance-oe-powdermill": "vocal_dominance_oe_powdermill_v1_clean",
-    "vocal-dominance-mcq-powdermill": "vocal_dominance_mcq_powdermill_v1_clean",
-    "species-voc-order-oe-powdermill": "species_voc_order_oe_powdermill_v1_clean",
-    "species-voc-order-mcq-powdermill": "species_voc_order_mcq_powdermill_v1_clean",
-    "highest-pitch-species-oe-powdermill": "highest_pitch_species_oe_powdermill_v1_clean",
-    "highest-pitch-species-mcq-powdermill": "highest_pitch_species_mcq_powdermill_v1_clean",
-    "lowest-pitch-species-oe-powdermill": "lowest_pitch_species_oe_powdermill_v1_clean",
-    "lowest-pitch-species-mcq-powdermill": "lowest_pitch_species_mcq_powdermill_v1_clean",
-    "longest-voc-species-oe-powdermill": "longest_voc_species_oe_powdermill_v1_clean",
-    "longest-voc-species-mcq-powdermill": "longest_voc_species_mcq_powdermill_v1_clean",
-    "structural-caption-powdermill": "tier1_structural_caption_powdermill_v1_clean",
-    # --- NBM / NocturnalBirdMigration (relative audio paths) ---
-    "species-count-oe-nbm": "species_count_oe_nbm_v1_clean",
-    "voc-loc-mcq-nbm": "voc_loc_mcq_nbm_v1_clean",
-    "voc-cooccurrence-binary-nbm": "voc_cooccurrence_binary_nbm_v1_clean",
-    "vocal-dominance-oe-nbm": "vocal_dominance_oe_nbm_v1_clean",
-    "vocal-dominance-mcq-nbm": "vocal_dominance_mcq_nbm_v1_clean",
-    "species-voc-order-oe-nbm": "species_voc_order_oe_nbm_v1_clean",
-    "species-voc-order-mcq-nbm": "species_voc_order_mcq_nbm_v1_clean",
-    "highest-pitch-species-oe-nbm": "highest_pitch_species_oe_nbm_v1_clean",
-    "highest-pitch-species-mcq-nbm": "highest_pitch_species_mcq_nbm_v1_clean",
-    "lowest-pitch-species-oe-nbm": "lowest_pitch_species_oe_nbm_v1_clean",
-    "lowest-pitch-species-mcq-nbm": "lowest_pitch_species_mcq_nbm_v1_clean",
-    "longest-voc-species-oe-nbm": "longest_voc_species_oe_nbm_v1_clean",
-    "longest-voc-species-mcq-nbm": "longest_voc_species_mcq_nbm_v1_clean",
-    "structural-caption-nbm": "tier1_structural_caption_nbm_v1_clean",
-    # --- Birdeep non-cropped (relative audio paths) ---
-    # GCS keys: most lack _clean suffix; structural caption is the exception.
-    "voc-cooccurrence-binary-birdeep": "voc_cooccurrence_binary_birdeep_v1",
-    "vocal-dominance-oe-birdeep": "vocal_dominance_oe_birdeep_v1",
-    "vocal-dominance-mcq-birdeep": "vocal_dominance_mcq_birdeep_v1",
-    "species-voc-order-oe-birdeep": "species_voc_order_oe_birdeep_v1",
-    "species-voc-order-mcq-birdeep": "species_voc_order_mcq_birdeep_v1",
-    "highest-pitch-species-oe-birdeep": "highest_pitch_species_oe_birdeep_v1",
-    "highest-pitch-species-mcq-birdeep": "highest_pitch_species_mcq_birdeep_v1",
-    "lowest-pitch-species-oe-birdeep": "lowest_pitch_species_oe_birdeep_v1",
-    "lowest-pitch-species-mcq-birdeep": "lowest_pitch_species_mcq_birdeep_v1",
-    "longest-voc-species-oe-birdeep": "longest_voc_species_oe_birdeep_v1",
-    "longest-voc-species-mcq-birdeep": "longest_voc_species_mcq_birdeep_v1",
-    "structural-caption-birdeep": "tier1_structural_caption_birdeep_v1_clean",
-    # --- BirdeepCropped (crop-id audio) ---
-    # GCS keys: most lack _clean suffix; structural caption is the exception.
-    "voc-loc-mcq-birdeep-cropped": "voc_loc_mcq_birdeep_cropped_v1",
-    "voc-cooccurrence-binary-birdeep-cropped": "voc_cooccurrence_binary_birdeep_cropped_v1",
-    "vocal-dominance-oe-birdeep-cropped": "vocal_dominance_oe_birdeep_cropped_v1",
-    "vocal-dominance-mcq-birdeep-cropped": "vocal_dominance_mcq_birdeep_cropped_v1",
-    "species-voc-order-oe-birdeep-cropped": "species_voc_order_oe_birdeep_cropped_v1",
-    "species-voc-order-mcq-birdeep-cropped": "species_voc_order_mcq_birdeep_cropped_v1",
-    "highest-pitch-species-oe-birdeep-cropped": "highest_pitch_species_oe_birdeep_cropped_v1",
-    "highest-pitch-species-mcq-birdeep-cropped": "highest_pitch_species_mcq_birdeep_cropped_v1",
-    "lowest-pitch-species-oe-birdeep-cropped": "lowest_pitch_species_oe_birdeep_cropped_v1",
-    "lowest-pitch-species-mcq-birdeep-cropped": "lowest_pitch_species_mcq_birdeep_cropped_v1",
-    "longest-voc-species-oe-birdeep-cropped": "longest_voc_species_oe_birdeep_cropped_v1",
-    "longest-voc-species-mcq-birdeep-cropped": "longest_voc_species_mcq_birdeep_cropped_v1",
-    "structural-caption-birdeep-cropped": "tier1_structural_caption_birdeep_cropped_v1_clean",
-    # --- BirdVoxFullNightCropped (crop-id audio) ---
-    "voc-loc-mcq-birdvox": "voc_loc_mcq_birdvox_cropped_v1_clean",
-    "voc-count-oe-birdvox": "voc_count_oe_birdvox_cropped_v1_clean",
-    "voc-presence-binary-birdvox": "voc_presence_binary_birdvox_cropped_v1_clean",
-}
-
-_SYNTH_SPLIT_PATHS: dict[str, str] = {
-    split: f"{_GCS_SYNTH}/{key}.jsonl"
-    for split, key in _SYNTH_SPLIT_KEYS.items()
-}
-
-_SYNTH_DATA_ROOTS: dict[str, str] = {
-    **{s: _POWDERMILL_CROPPED_AUDIO_ROOT for s in _SYNTH_SPLIT_KEYS if s.endswith("-powdermill")},
-    **{s: _NBM_AUDIO_ROOT for s in _SYNTH_SPLIT_KEYS if s.endswith("-nbm")},
-    **{s: _BIRDEEP_AUDIO_ROOT for s in _SYNTH_SPLIT_KEYS if s.endswith("-birdeep")},
-    **{s: _BIRDEEP_CROPPED_AUDIO_ROOT for s in _SYNTH_SPLIT_KEYS if s.endswith("-birdeep-cropped")},
-    **{s: _BIRDVOX_CROPPED_AUDIO_ROOT for s in _SYNTH_SPLIT_KEYS if s.endswith("-birdvox")},
-}
-
 
 @register_dataset
 class BeansPro(Dataset):
@@ -117,8 +26,8 @@ class BeansPro(Dataset):
     Descriptions are sourced verbatim from published bioacoustics papers
     and verified against the original figures and tables.
 
-    Original BEANS-Pro splits (BEANS-Zero schema)
-    ---------------------------------------------
+    Available splits
+    ----------------
     - ``crow-description``: 200 examples, 25 call types (merged from 40),
       carrion crow (*Corvus corone*). Source: ESP cooperative crows preprint.
     - ``zebra-description``: 40 examples, 4 call types, plains zebra
@@ -142,81 +51,23 @@ class BeansPro(Dataset):
     - ``call-type-fixed-vocab``: 999 examples, 5-label multilabel
       call-type classification. Source: BEANS-Zero call variants.
 
-    Data-synth splits (Conversation schema)
-    ----------------------------------------
-    Stored in data-synth Conversation format (``audio_ids``, ``audio_paths``,
-    ``messages``). ``_process`` normalises to ``instruction`` / ``output`` /
-    ``audio``.
-
-    Two audio-resolution strategies are used:
-
-    **Crop-id splits** (Powdermill, BirdeepCropped, BirdVox):
-    ``audio_ids[0]`` is the deterministic crop ID; audio is loaded from the
-    matching pre-cropped WAV at ``{audio_root}/{crop_id}.wav``.
-
-    **Relative-path splits** (NBM, Birdeep):
-    ``audio_paths[0]`` is a relative path resolved against the dataset's
-    audio root.
-
-    Powdermill (1,632–1,586 rows per split, 14 splits):
-    ``species-count-oe-powdermill``, ``voc-loc-mcq-powdermill``,
-    ``voc-cooccurrence-binary-powdermill``, ``vocal-dominance-oe-powdermill``,
-    ``vocal-dominance-mcq-powdermill``, ``species-voc-order-oe-powdermill``,
-    ``species-voc-order-mcq-powdermill``, ``highest-pitch-species-oe-powdermill``,
-    ``highest-pitch-species-mcq-powdermill``, ``lowest-pitch-species-oe-powdermill``,
-    ``lowest-pitch-species-mcq-powdermill``, ``longest-voc-species-oe-powdermill``,
-    ``longest-voc-species-mcq-powdermill``, ``structural-caption-powdermill``.
-
-    NBM / NocturnalBirdMigration (88–883 rows per split, 14 splits):
-    ``species-count-oe-nbm``, ``voc-loc-mcq-nbm``,
-    ``voc-cooccurrence-binary-nbm``, ``vocal-dominance-oe-nbm``,
-    ``vocal-dominance-mcq-nbm``, ``species-voc-order-oe-nbm``,
-    ``species-voc-order-mcq-nbm``, ``highest-pitch-species-oe-nbm``,
-    ``highest-pitch-species-mcq-nbm``, ``lowest-pitch-species-oe-nbm``,
-    ``lowest-pitch-species-mcq-nbm``, ``longest-voc-species-oe-nbm``,
-    ``longest-voc-species-mcq-nbm``, ``structural-caption-nbm``.
-
-    Birdeep non-cropped (105–291 rows per split, 12 splits):
-    ``voc-cooccurrence-binary-birdeep``, ``vocal-dominance-oe-birdeep``,
-    ``vocal-dominance-mcq-birdeep``, ``species-voc-order-oe-birdeep``,
-    ``species-voc-order-mcq-birdeep``, ``highest-pitch-species-oe-birdeep``,
-    ``highest-pitch-species-mcq-birdeep``, ``lowest-pitch-species-oe-birdeep``,
-    ``lowest-pitch-species-mcq-birdeep``, ``longest-voc-species-oe-birdeep``,
-    ``longest-voc-species-mcq-birdeep``, ``structural-caption-birdeep``.
-
-    BirdeepCropped (115–1,418 rows per split, 13 splits):
-    ``voc-loc-mcq-birdeep-cropped``, ``voc-cooccurrence-binary-birdeep-cropped``,
-    ``vocal-dominance-oe-birdeep-cropped``, ``vocal-dominance-mcq-birdeep-cropped``,
-    ``species-voc-order-oe-birdeep-cropped``, ``species-voc-order-mcq-birdeep-cropped``,
-    ``highest-pitch-species-oe-birdeep-cropped``, ``highest-pitch-species-mcq-birdeep-cropped``,
-    ``lowest-pitch-species-oe-birdeep-cropped``, ``lowest-pitch-species-mcq-birdeep-cropped``,
-    ``longest-voc-species-oe-birdeep-cropped``, ``longest-voc-species-mcq-birdeep-cropped``,
-    ``structural-caption-birdeep-cropped``.
-
-    BirdVoxFullNightCropped (13,056–13,932 rows per split, 3 splits):
-    ``voc-loc-mcq-birdvox``, ``voc-count-oe-birdvox``, ``voc-presence-binary-birdvox``.
-
     Schema
     ------
-    Original splits — each row is a JSONL record with fields:
+    Each row is a JSONL record with fields matching BEANS-Zero:
     - ``instruction``: Full prompt with ``<Audio><AudioHere></Audio>`` tag,
       question text, and four labelled choices (A-D).
     - ``output``: Correct answer letter (A, B, C, or D).
     - ``audio_path_original_sample_rate``: Relative path to audio file.
     - ``metadata``: JSON string with call_type, species, duration, etc.
 
-    Data-synth splits — each row is a Conversation JSONL record:
-    - ``audio_ids``: List of sample IDs (crop IDs for cropped datasets).
-    - ``audio_paths``: List of audio file paths.
-    - ``messages``: List of ``{role, content}`` dicts (user + assistant).
-    ``_process`` adds ``instruction`` and ``output`` keys derived from messages.
-
     Examples
     --------
     >>> from esp_data.datasets import BeansPro
-    >>> dataset = BeansPro(split="crow-description", sample_rate=16000)
-    >>> synth = BeansPro(split="species-count-oe-powdermill", sample_rate=16000)
-    >>> synth = BeansPro(split="voc-loc-mcq-birdeep-cropped", sample_rate=16000)
+    >>> dataset = BeansPro(
+    ...     split="crow-description",
+    ...     sample_rate=16000,
+    ...     data_root="gs://esp-data-ingestion/beans-pro/v0.1.0/raw/carrion_crow_descriptions/"
+    ... )
     """
 
     info = DatasetInfo(
@@ -234,15 +85,12 @@ class BeansPro(Dataset):
             "alarm-call-presence": "gs://esp-data-ingestion/beans-pro/v0.1.0/raw/alarm_call_presence/test.jsonl",
             "flight-call-presence": "gs://esp-data-ingestion/beans-pro/v0.1.0/raw/flight_call_presence/test.jsonl",
             "call-type-fixed-vocab": "gs://esp-data-ingestion/beans-pro/v0.1.0/raw/call_type_fixed_vocab/test.jsonl",
-            **_SYNTH_SPLIT_PATHS,
         },
         version="0.1.0",
         description=(
             "BEANS-Pro evaluation benchmark. "
             "Includes acoustic description matching, mean F0 prediction, "
-            "binary taxonomic presence, call-type tasks, and data-synth "
-            "multi-species reasoning splits from Powdermill, NBM, Birdeep, "
-            "BirdeepCropped, and BirdVoxFullNightCropped."
+            "binary taxonomic presence, and call-type tasks."
         ),
         sources=[
             "ESP cooperative crows preprint",
@@ -250,16 +98,12 @@ class BeansPro(Dataset):
             "Musikhin et al. 2025, F0 Bioacoustic Benchmark",
             "Xeno-canto / iNaturalist (val_unseen splits)",
             "BEANS-Zero call variants",
-            "Powdermill / Chronister et al. 2021",
-            "NocturnalBirdMigration / Zenodo 14039937",
-            "Birdeep",
-            "BirdVox-Full-Night",
         ],
-        license="CC-BY-NC-4.0, CC0-1.0, Public Domain, CC BY-ND 3.0",
+        license="CC-BY-NC-4.0, CC0-1.0",
     )
 
-    # Data roots per split (used when data_root is None).
-    _default_data_roots: dict[str, str] = {
+    # Data roots per split (used when data_root is None)
+    _default_data_roots = {
         "crow-description": "gs://esp-data-ingestion/beans-pro/v0.1.0/raw/carrion_crow_descriptions/",
         "zebra-description": "gs://esp-data-ingestion/beans-pro/v0.1.0/raw/zebra_descriptions/",
         "f0-mean-seen-taxa": "gs://esp-data-ingestion/f0-prediction/audio/",
@@ -271,22 +115,9 @@ class BeansPro(Dataset):
         "alarm-call-presence": "gs://esp-ml-datasets/",
         "flight-call-presence": "gs://esp-ml-datasets/",
         "call-type-fixed-vocab": "gs://esp-ml-datasets/",
-        **_SYNTH_DATA_ROOTS,
     }
 
     _originals_path_column = "audio_path_original_sample_rate"
-
-    # All splits in data-synth Conversation format.
-    _synth_format_splits: frozenset[str] = frozenset(_SYNTH_SPLIT_KEYS)
-
-    # Splits where audio is resolved via audio_ids[0] (crop ID) + pre-cropped WAV root.
-    # Covers Powdermill, BirdeepCropped, and BirdVoxFullNightCropped.
-    _crop_id_synth_splits: frozenset[str] = frozenset(
-        s for s in _SYNTH_SPLIT_KEYS
-        if s.endswith("-powdermill")
-        or s.endswith("-birdeep-cropped")
-        or s.endswith("-birdvox")
-    )
 
     def __init__(
         self,
@@ -365,24 +196,7 @@ class BeansPro(Dataset):
         return ds, {}
 
     def _process(self, row: dict[str, Any]) -> dict[str, Any]:
-        if self.split in self._synth_format_splits:
-            # data-synth Conversation format: messages holds the QA.
-            messages = row["messages"]
-            row["instruction"] = messages[0]["content"]
-            row["output"] = messages[-1]["content"]
-
-            if self.split in self._crop_id_synth_splits:
-                # Cropped datasets (Powdermill, BirdeepCropped, BirdVox):
-                # audio_ids[0] is the crop ID; WAV = {root}/{crop_id}.wav
-                crop_id = row["audio_ids"][0]
-                audio_path = anypath(self.data_root) / f"{crop_id}.wav"
-            else:
-                # Non-cropped datasets (NBM, Birdeep):
-                # audio_paths[0] is a relative path resolved against audio root.
-                audio_path = anypath(self.data_root) / row["audio_paths"][0]
-        else:
-            audio_path = anypath(self.data_root) / row[self._originals_path_column]
-
+        audio_path = anypath(self.data_root) / row[self._originals_path_column]
         audio, sr = read_audio(audio_path)
         audio = audio.astype(np.float32)
         audio = audio_stereo_to_mono(audio, mono_method="average")

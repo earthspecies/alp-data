@@ -1,8 +1,8 @@
 """
-Unit tests for corvid_wascher dataset.
+Unit tests for xeno_canto_annotated_jeantet_23 dataset.
 
 Run with:
-    pytest -q test_corvid_wascher.py
+    pytest -q test_xeno_canto_annotated_jeantet_23.py
 """
 
 from __future__ import annotations
@@ -15,14 +15,13 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from esp_data.datasets import CorvidWascher
+from esp_data.datasets import XenoCantoAnnotatedJeantet23
 
 
 # # --- Dataset snapshot ---
 
 # # Code to generate snapshot:
-# import hashlib
-# ds = CorvidWascher(split="all", sample_rate=16000, backend="pandas")
+# ds = XenoCantoAnnotatedJeantet23(split="all", sample_rate=16000, backend="pandas")
 
 # print("len(ds) =", len(ds))
 
@@ -43,42 +42,53 @@ from esp_data.datasets import CorvidWascher
 # print("annotations sha256:", h)
 
 # quit()
-# # #
+# # # #
 
-EXPECTED_LEN_ALL = 4558  #
+
+EXPECTED_LEN_ALL = 967  #
 EXPECTED_FIRST_ITEM_AUDIO_SHA256 = (
-    "68c4d5d3face2798386c70c7f6870df7caccaa1a99837d009feb62e7fc9e434a"
+    "bb8adcd2d870552f35771a7bf36675e7cb6d300020a5c8c9849bd9fc993ef980"
 )
-ANNOTATIONS_SHA256 = "7fadfbf0daa55fd3bdc45c66ade79f9a87b4774076f8669322b2b9ffbbed2e2a"
+ANNOTATIONS_SHA256 = "f6e89a84b15cff2796a0d9fb325c424e3d6ac693416106d7d7cc1f6ccc18f7fc"
 # ---------------------------------------------------------------------------
 
 
 @pytest.fixture(scope="module")
-def ds() -> CorvidWascher:
-    """Load CorvidWascher dataset for testing."""
-    return CorvidWascher(split="all", sample_rate=16000)
+def ds() -> XenoCantoAnnotatedJeantet23:
+    """Load XenoCantoAnnotatedJeantet23 dataset for testing."""
+    return XenoCantoAnnotatedJeantet23(split="all", sample_rate=16000)
 
 
 @pytest.fixture(scope="module")
-def ds_pandas() -> CorvidWascher:
-    """Load CorvidWascher dataset for testing with pandas backend."""
-    return CorvidWascher(split="all", sample_rate=16000, backend="pandas")
+def ds_pandas() -> XenoCantoAnnotatedJeantet23:
+    """Load XenoCantoAnnotatedJeantet23 dataset for testing."""
+    return XenoCantoAnnotatedJeantet23(split="all", sample_rate=16000, backend="pandas")
 
 
 @pytest.fixture(scope="module")
-def sample_indices(ds: CorvidWascher) -> List[int]:
+def sample_indices(ds: XenoCantoAnnotatedJeantet23) -> List[int]:
     """Deterministically choose up to 5 random indices for quick spot checks."""
     n = len(ds)
     rng = random.Random(23)
     return [rng.randrange(n) for _ in range(min(5, n))]
 
 
-def test_ds_not_empty(ds: CorvidWascher):
+def test_ds_not_empty(ds: XenoCantoAnnotatedJeantet23):
     """Dataset should have at least one example."""
     assert len(ds) > 0, "Dataset appears empty"
 
 
-def test_check_audio(ds: CorvidWascher, sample_indices: List[int]):
+def test_get_available_labels(ds: XenoCantoAnnotatedJeantet23):
+    """Test get_available_labels for bird ID column."""
+    labels = ds.get_available_labels(anno_column="Species")
+    assert isinstance(labels, list), "get_available_labels should return a list"
+    assert len(labels) > 0, "Should have at least one bird ID"
+    # Check that all labels can be converted to strings
+    for label in labels:
+        assert isinstance(label, str), f"Species label for {label} should be string"
+
+
+def test_check_audio(ds: XenoCantoAnnotatedJeantet23, sample_indices: List[int]):
     """Basic audio integrity checks on a few random items."""
     for idx in sample_indices:
         item = ds[idx]
@@ -94,7 +104,25 @@ def test_check_audio(ds: CorvidWascher, sample_indices: List[int]):
         assert not np.all(audio == 0), f"[{idx}] audio is all zeros"
 
 
-def test_reference_item_stability(ds_pandas: CorvidWascher):
+def test_dataset_length_matches_expected(ds: XenoCantoAnnotatedJeantet23):
+    """
+    The dataset length should match the known, version-controlled expectation.
+
+    This will fail loudly if:
+    - the CSV split changed
+    - files went missing
+    - we accidentally filtered/augmented items differently
+
+    If this fails intentionally (e.g. dataset grew), update EXPECTED_LEN_ALL.
+    """
+    assert len(ds) == EXPECTED_LEN_ALL, (
+        f"Dataset length mismatch: got {len(ds)}, expected {EXPECTED_LEN_ALL}. "
+        "If this change is intentional (new data / new filtering), update EXPECTED_LEN_ALL "
+        "in the test."
+    )
+
+
+def test_reference_item_stability(ds_pandas: XenoCantoAnnotatedJeantet23):
     """
     Check that a canonical item (index 0) is bitwise-stable.
 
@@ -106,8 +134,6 @@ def test_reference_item_stability(ds_pandas: CorvidWascher):
 
     If this fails for a legitimate/intentional reason, recompute the hash below
     and update EXPECTED_FIRST_ITEM_AUDIO_SHA256.
-
-    We do the same for the annotations csv.
     """
     # choose deterministic index
     idx = 0
@@ -139,6 +165,7 @@ def test_reference_item_stability(ds_pandas: CorvidWascher):
         .to_csv(index=True)
         .encode("utf-8")
     )
+
     h = hashlib.sha256(csv_bytes).hexdigest()
 
     assert h == ANNOTATIONS_SHA256, (
@@ -150,7 +177,25 @@ def test_reference_item_stability(ds_pandas: CorvidWascher):
     )
 
 
-def test_check_selection_table(ds: CorvidWascher, sample_indices: List[int]):
+def test_presampled_columns_exist(ds: XenoCantoAnnotatedJeantet23):
+    """Pre-resampled path columns should be present in the loaded data."""
+    assert "16khz_path" in ds.columns
+    assert "32khz_path" in ds.columns
+
+
+def test_load_presampled_32khz():
+    """Loading with sample_rate=32000 should use pre-resampled 32kHz audio."""
+    ds = XenoCantoAnnotatedJeantet23(split="all", sample_rate=32000)
+    item = ds[0]
+    audio = item["audio"]
+    assert isinstance(audio, np.ndarray)
+    assert audio.dtype == np.float32
+    assert audio.size >= 10
+
+
+def test_check_selection_table(
+    ds: XenoCantoAnnotatedJeantet23, sample_indices: List[int]
+):
     """Selection table should be a DataFrame with required columns and sane times."""
     required = {
         "Begin Time (s)",

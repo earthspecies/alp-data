@@ -15,7 +15,9 @@ from .dataset import (
     register_dataset,
 )
 from .datasets import (
+    DCLDE2026,
     WABAD,
+    AnimalSoundArchive,
     AnimalSpeak,
     AnuraSetStrong,
     ArcticBirdSounds,
@@ -69,6 +71,7 @@ __all__ = [
     "dataset_class_from_name",
     "ConcatenatedDataset",
     "ChainedDataset",
+    "AnimalSoundArchive",
     "AnimalSpeak",
     "BarkleyCanyon",
     "BarkleyCanyonDetection",
@@ -106,6 +109,7 @@ __all__ = [
     "Birdeep",
     "DataSynthConversations",
     "Geladas",
+    "DCLDE2026",
     "DinardoDolphinWhistles",
     "GibbonSolos",
 ]

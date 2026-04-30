@@ -6,11 +6,13 @@ from .deduplicate import Deduplicate, DeduplicateConfig
 from .downsample import Downsample, DownsampleConfig
 from .filter import Filter, FilterConfig
 from .label_from_feature import LabelFromFeature, LabelFromFeatureConfig
+from .long_tail_upsample import LongTailUpsample, LongTailUpsampleConfig
 from .multilabel_from_features import (
     MultiLabelFromFeatures,
     MultiLabelFromFeaturesConfig,
 )
 from .rename_columns import RenameColumns, RenameColumnsConfig
+from .select_columns import SelectColumns, SelectColumnsConfig
 from .subsample import Subsample, SubsampleConfig
 from .upsample import Upsample, UpsampleConfig
 
@@ -25,10 +27,14 @@ __all__ = [
     "FilterConfig",
     "LabelFromFeature",
     "LabelFromFeatureConfig",
+    "LongTailUpsample",
+    "LongTailUpsampleConfig",
     "MultiLabelFromFeatures",
     "MultiLabelFromFeaturesConfig",
     "RenameColumns",
     "RenameColumnsConfig",
+    "SelectColumns",
+    "SelectColumnsConfig",
     "Subsample",
     "SubsampleConfig",
     "Upsample",

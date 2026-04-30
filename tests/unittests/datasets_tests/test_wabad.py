@@ -1,27 +1,28 @@
 """
-Unit tests for xeno_canto_annotated_jeantet_23 dataset.
+Unit tests for WABAD dataset.
 
 Run with:
-    pytest -q test_xeno_canto_annotated_jeantet_23.py
+    pytest -q test_wabad.py
 """
 
 from __future__ import annotations
 
-import hashlib
 import random
 from typing import List
 
 import numpy as np
 import pandas as pd
 import pytest
+import hashlib
 
-from esp_data.datasets import XenoCantoAnnotatedJeantet23
+from esp_data.datasets import WABAD
 
 
 # # --- Dataset snapshot ---
 
 # # Code to generate snapshot:
-# ds = XenoCantoAnnotatedJeantet23(split="all", sample_rate=16000, backend="pandas")
+# from esp_data.datasets import WABAD
+# ds = WABAD(split="all", sample_rate=16000, backend="pandas")
 
 # print("len(ds) =", len(ds))
 
@@ -42,46 +43,60 @@ from esp_data.datasets import XenoCantoAnnotatedJeantet23
 # print("annotations sha256:", h)
 
 # quit()
-# # # #
+# # # # #
 
-
-EXPECTED_LEN_ALL = 967  #
+EXPECTED_LEN_ALL = 4297  #
 EXPECTED_FIRST_ITEM_AUDIO_SHA256 = (
-    "65fc1372fa64983d4998cf1be43d4469c7770e2f3485c860c654688ea3a3c30b"
+    "c0febadbf616be8c083a22e128e82e25be9be8953bf3dec33c2b8ee1f88ad330"
 )
-ANNOTATIONS_SHA256 = "a084b5c5d81987f2dbad2e67c7f113d7a04d352e6c8dce8d2a67f6244e5068ed"
+ANNOTATIONS_SHA256 = "318b8a112fcef3e1b2ec9fddc7b1d02f406688c68654a665502f03ea9b9bb90b"
 # ---------------------------------------------------------------------------
 
 
 @pytest.fixture(scope="module")
-def ds() -> XenoCantoAnnotatedJeantet23:
-    """Load XenoCantoAnnotatedJeantet23 dataset for testing."""
-    return XenoCantoAnnotatedJeantet23(split="all", sample_rate=16000)
+def ds() -> WABAD:
+    """Load WABAD dataset for testing."""
+    return WABAD(split="all", sample_rate=16000, backend="pandas")
+
+@pytest.fixture(scope="module")
+def ds_sub() -> WABAD:
+    """Load WABAD subdataset for testing."""
+    return WABAD(split="CAT", sample_rate=16000, backend="pandas")
+
+
+@pytest.fixture(scope="module", autouse=True)
+def ds_polars() -> WABAD:
+    """Load WABAD dataset for testing."""
+    return WABAD(split="all", sample_rate=16000, backend="polars")
 
 
 @pytest.fixture(scope="module")
-def ds_pandas() -> XenoCantoAnnotatedJeantet23:
-    """Load XenoCantoAnnotatedJeantet23 dataset for testing."""
-    return XenoCantoAnnotatedJeantet23(split="all", sample_rate=16000, backend="pandas")
-
-
-@pytest.fixture(scope="module")
-def sample_indices(ds: XenoCantoAnnotatedJeantet23) -> List[int]:
+def sample_indices(ds_polars: WABAD) -> List[int]:
     """Deterministically choose up to 5 random indices for quick spot checks."""
-    n = len(ds)
+    n = len(ds_polars)
     rng = random.Random(23)
     return [rng.randrange(n) for _ in range(min(5, n))]
 
 
-def test_ds_not_empty(ds: XenoCantoAnnotatedJeantet23):
+def test_ds_not_empty(ds: WABAD):
     """Dataset should have at least one example."""
     assert len(ds) > 0, "Dataset appears empty"
 
 
-def test_check_audio(ds: XenoCantoAnnotatedJeantet23, sample_indices: List[int]):
+def test_get_available_labels(ds: WABAD):
+    """Test get_available_labels for bird ID column."""
+    labels = ds.get_available_labels()
+    assert isinstance(labels, list), "get_available_labels should return a list"
+    assert len(labels) > 0, "Should have at least one bird ID"
+    # Check that all labels can be converted to strings
+    for label in labels:
+        assert isinstance(label, str), f"Species label for {label} should be string"
+
+
+def test_check_audio(ds_polars: WABAD, sample_indices: List[int]):
     """Basic audio integrity checks on a few random items."""
     for idx in sample_indices:
-        item = ds[idx]
+        item = ds_polars[idx]
         assert "audio" in item, f"[{idx}] missing 'audio' key"
         audio = item["audio"]
 
@@ -94,25 +109,32 @@ def test_check_audio(ds: XenoCantoAnnotatedJeantet23, sample_indices: List[int])
         assert not np.all(audio == 0), f"[{idx}] audio is all zeros"
 
 
-def test_dataset_length_matches_expected(ds: XenoCantoAnnotatedJeantet23):
-    """
-    The dataset length should match the known, version-controlled expectation.
+def test_available_splits(ds: WABAD) -> None:
+    """Test if available_splits returns correct split names."""
+    # Available splits should contain these
+    expected_splits = ["all"]
+    assert all(split in ds.available_splits for split in expected_splits)
 
-    This will fail loudly if:
-    - the CSV split changed
-    - files went missing
-    - we accidentally filtered/augmented items differently
-
-    If this fails intentionally (e.g. dataset grew), update EXPECTED_LEN_ALL.
-    """
-    assert len(ds) == EXPECTED_LEN_ALL, (
-        f"Dataset length mismatch: got {len(ds)}, expected {EXPECTED_LEN_ALL}. "
-        "If this change is intentional (new data / new filtering), update EXPECTED_LEN_ALL "
-        "in the test."
-    )
+def test_get_available_labels(ds: WABAD, ds_sub: WABAD):
+    """Test get_available_labels for bird ID column."""
+    labels = ds.get_available_labels(anno_column="Species")
+    assert isinstance(labels, list), "get_available_labels should return a list"
+    assert len(labels) > 0, "Should have at least one bird ID"
+    # Check that all labels can be converted to strings
+    for label in labels:
+        assert isinstance(label, str), f"Species label for {label} should be string"
 
 
-def test_reference_item_stability(ds_pandas: XenoCantoAnnotatedJeantet23):
+    labels_sub = ds_sub.get_available_labels(anno_column="Species")
+    assert isinstance(labels_sub, list), "get_available_labels should return a list"
+    assert len(labels_sub) > 0, "Should have at least one bird ID"
+    # Check that all labels can be converted to strings
+    for label in labels_sub:
+        assert isinstance(label, str), f"Species label for {label} should be string"
+    assert len(labels_sub) < len(labels), "Subdataset should have fewer classes than all"
+
+
+def test_reference_item_stability(ds: WABAD):
     """
     Check that a canonical item (index 0) is bitwise-stable.
 
@@ -124,10 +146,12 @@ def test_reference_item_stability(ds_pandas: XenoCantoAnnotatedJeantet23):
 
     If this fails for a legitimate/intentional reason, recompute the hash below
     and update EXPECTED_FIRST_ITEM_AUDIO_SHA256.
+
+    We do the same for the annotations csv.
     """
     # choose deterministic index
     idx = 0
-    item = ds_pandas[idx]
+    item = ds[idx]
 
     # audio presence/type checks (defensive, so the hash failure message is clearer)
     assert "audio" in item, "[0] missing 'audio' key"
@@ -150,12 +174,11 @@ def test_reference_item_stability(ds_pandas: XenoCantoAnnotatedJeantet23):
 
     # compute sha256 over raw bytes of the float32 array of annotations
     csv_bytes = (
-        ds_pandas._data.unwrap.sort_index(axis=0)
+        ds._data.unwrap.sort_index(axis=0)
         .sort_index(axis=1)
         .to_csv(index=True)
         .encode("utf-8")
     )
-
     h = hashlib.sha256(csv_bytes).hexdigest()
 
     assert h == ANNOTATIONS_SHA256, (
@@ -167,9 +190,23 @@ def test_reference_item_stability(ds_pandas: XenoCantoAnnotatedJeantet23):
     )
 
 
-def test_check_selection_table(
-    ds: XenoCantoAnnotatedJeantet23, sample_indices: List[int]
-):
+def test_presampled_columns_exist(ds: WABAD):
+    """Pre-resampled path columns should be present in the loaded data."""
+    assert "16khz_path" in ds.columns
+    assert "32khz_path" in ds.columns
+
+
+def test_load_presampled_32khz():
+    """Loading with sample_rate=32000 should use pre-resampled 32kHz audio."""
+    ds = WABAD(split="all", sample_rate=32000, streaming=True)
+    item = next(iter(ds))
+    audio = item["audio"]
+    assert isinstance(audio, np.ndarray)
+    assert audio.dtype == np.float32
+    assert audio.size >= 10
+
+
+def test_check_selection_table(ds: WABAD, sample_indices: List[int]):
     """Selection table should be a DataFrame with required columns and sane times."""
     required = {
         "Begin Time (s)",
@@ -194,3 +231,5 @@ def test_check_selection_table(
             assert not (
                 st["Begin Time (s)"] < 0
             ).any(), f"[{idx}] negative begin times present"
+            durs = st["End Time (s)"] - st["Begin Time (s)"]
+            assert not durs.min() <= 0, f"[{idx}] events of dur <= 0"

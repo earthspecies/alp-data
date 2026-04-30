@@ -40,6 +40,8 @@ ECOTYPE_LABELS = [
     "OKW",  # Offshore
 ]
 
+COARSE_CALL_TYPE_LABELS = ["call", "whistle", "click", "burst_pulse"]
+
 # Data providers in the DCLDE 2026 dataset.
 # UAF_NGOS is excluded
 PROVIDERS = [
@@ -53,8 +55,6 @@ PROVIDERS = [
     "JASCO_VFPA_ONC",
     "SMRUConsulting",
 ]
-
-COARSE_CALL_TYPE_LABELS = ["Call", "Whistle", "Click", "Buzz"]
 
 # Per-row provenance columns (expected in the CSV).
 PROVENANCE_COLUMNS = [
@@ -93,7 +93,6 @@ class DCLDE2026(Dataset):
     Splits
     ---------
     - "all": All data (default)
-    - "all_excl_beanszero": All data excluding taxa evaluated in the BEANS-Zero benchmark.
 
     Available tasks
     ---------------
@@ -101,9 +100,8 @@ class DCLDE2026(Dataset):
     - KW detection (binary): presence / absence of killer whale
     - Ecotype classification: SRKW / TKW / NRKW / SAR / OKW
     - Call type classification (fine-grained): S04, N24ii, T01, whistle, BP, EL, etc.
-    - Call type classification (coarse): Call / Whistle / Click / Buzz
-      (see :data:`COARSE_CALL_TYPE_MAPPING` below)
-    - Acoustic behavior: burst_pulse / pulsed_call / whistle / click / buzzer / echolocation
+    - Call type classification (coarse): call / whistle / click / burst_pulse
+      (see :data:`COARSE_CALL_TYPE_LABELS` below; aligned with Watkins taxonomy)
     - Pod identification: J / K / L pods (Southern Resident)
     - Clan identification: A / G clans (Northern Resident)
 
@@ -128,17 +126,16 @@ class DCLDE2026(Dataset):
     - VFPA: Generally good; a few missed calls and slightly less
       consistency with faint calls.
 
-    Coarse call types:
-    Coarse call types derived from the fine-grained ``call_type`` column.
-    The ``coarse_call_type`` column is pre-computed in the selection tables.
+    Coarse call types (aligned with Watkins taxonomy):
 
     Mapping rules:
-    Call    — Discrete pulsed calls (S-series, N-series, T-series, OFF-series,
-                NS, BP) and variable vocalizations (tone, moan, upsweep, chirp,
-                groan, knock, shriek, whup, creak, grunt, scream, rasp, growl).
-    Whistle — Whistle-labeled signals only (whistle, whistle/tone, W).
-    Click   — Echolocation clicks (EL).
-    Buzz    — Rapid click trains (buzz, BZ).
+    call         — Discrete pulsed calls (S-series, N-series, T-series,
+                     OFF-series, NS) and variable vocalizations (tone, moan,
+                     upsweep, chirp, groan, knock, shriek, whup, creak,
+                     grunt, scream, rasp, growl).
+    whistle      — Whistle-labeled signals (whistle, whistle/tone, W).
+    click        — Echolocation clicks (EL) and rapid click trains (buzz, BZ).
+    burst_pulse  — Burst-pulse signals (BP).
 
     Unknown / ambiguous labels (Unk, Multiple overlapping, etc.) map to empty
     string and are dropped when ``drop_empty_windows=True`` in windowing.
@@ -162,7 +159,6 @@ class DCLDE2026(Dataset):
         owner="david",
         split_paths={
             "all": "gs://esp-ml-datasets/dclde2026/v0.1.0/raw/2026/dclde_2026_killer_whales/processed_enriched.csv",
-            "all_excl_beanszero": "gs://esp-ml-datasets/dclde2026/v0.1.0/raw/2026/dclde_2026_killer_whales/unseen_holdout.csv",
         },
         version="0.1.0",
         description="DCLDE 2026 killer whale dataset with species, ecotype, call type, "
@@ -321,9 +317,9 @@ class DCLDE2026(Dataset):
             )
         else:
             audio, sr = read_audio(audio_fp)
-
         audio = audio_stereo_to_mono(audio, mono_method="average").astype(np.float32)
 
+        # Resample on-the-fly only when no pre-resampled file was used
         if not is_presampled and self.sample_rate is not None and sr != self.sample_rate:
             audio = librosa.resample(
                 y=audio,
@@ -334,26 +330,17 @@ class DCLDE2026(Dataset):
             )
             sr = self.sample_rate
 
+        # Parse selection table from serialized TSV
+        st = pd.read_csv(StringIO(row["selection_table"]), sep="\t", keep_default_na=False)
+
+        # Clip events outside audio (keep only events that begin before audio end)
+        audio_dur = len(audio) / float(sr)
+        st = st[st["Begin Time (s)"] < audio_dur].copy()
+
+        # Build output
         row["audio"] = audio
         row["sample_rate"] = sr
-
-        raw_st = row.get("selection_table")
-        if raw_st is not None:
-            if isinstance(raw_st, str):
-                st = pd.read_csv(StringIO(raw_st), sep="\t", keep_default_na=False)
-            elif isinstance(raw_st, pd.DataFrame):
-                st = raw_st
-            else:
-                st = pd.DataFrame()
-
-            for col in self.annotation_columns:
-                if col in st.columns:
-                    st[col] = st[col].fillna("")
-
-            audio_dur = len(audio) / float(sr)
-            if "Begin Time (s)" in st.columns:
-                st = st[st["Begin Time (s)"] < audio_dur].copy()
-            row["selection_table"] = st
+        row["selection_table"] = st
 
         if self.output_take_and_give:
             item = {}

@@ -18,7 +18,7 @@ from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from esp_data.backends import BackendType
 from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
 
-_GCS_RAW_ROOT = "gs://esp-data-ingestion/watkins/v0.1.0"
+_GCS_RAW_ROOT = "gs://esp-ml-datasets/watkins/v0.1.0"
 
 
 @register_dataset
@@ -83,8 +83,7 @@ class Watkins(Dataset):
         name="watkins",
         owner="david",
         split_paths={
-            "train": "gs://esp-data-ingestion/watkins/v0.1.0/watkins.csv",
-            "train_unseen": "gs://esp-data-ingestion/watkins/v0.1.0/train_unseen.csv",
+            "train": "gs://esp-ml-datasets/watkins/v0.1.0/watkins.csv",
         },
         version="0.1.0",
         description=(
@@ -102,8 +101,6 @@ class Watkins(Dataset):
         16000: "16khz_path",
         32000: "32khz_path",
     }
-
-    _mixup_group = "marine_mammal"
 
     _originals_path_column = "audio_path"
 
@@ -248,7 +245,6 @@ class Watkins(Dataset):
 
         row["audio"] = audio
         row["sample_rate"] = sr
-        row["mixup_group"] = self._mixup_group
 
         if self.output_take_and_give:
             return {new: row[old] for old, new in self.output_take_and_give.items()}

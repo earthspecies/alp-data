@@ -54,6 +54,13 @@ class XenoCantoAnnotatedJeantet23(Dataset):
     - a selection table (Raven format), with Species labels
     - the id of the xeno canto asset
 
+    Pre-resampled Audio
+    -------------------
+    Pre-resampled audio is available at 16 kHz and 32 kHz. When
+    ``sample_rate`` matches one of these rates, the pre-resampled files are
+    loaded directly (no on-the-fly resampling). For any other target rate,
+    audio is resampled on-the-fly using librosa's ``kaiser_best`` method.
+
     References
     ----------
     https://www.sciencedirect.com/science/article/pii/S1574954123002856
@@ -64,13 +71,16 @@ class XenoCantoAnnotatedJeantet23(Dataset):
         name="xeno_canto_annotated_jeantet_23",
         owner="benjamin",
         split_paths={
-            "all": "gs://esp-ml-datasets/xeno_canto_annotated_jeantet_2023/all_gbif.csv",
+            "all": "gs://esp-ml-datasets/xeno_canto_annotated_jeantet_2023/all_gbif_v2.csv",
         },
         version="0.1.0",
         description="[MISSING]",
         sources="XenoCanto",
         license="CC-BY-4.0",
     )
+
+    _sample_rate_paths: dict[int, str] = {16000: "16khz_path", 32000: "32khz_path"}
+    _originals_path_column = "audio_path"
 
     def __init__(
         self,
@@ -103,14 +113,13 @@ class XenoCantoAnnotatedJeantet23(Dataset):
         self.annotation_columns = ["Species"]
 
         self.sample_rate = sample_rate
-        self.data_root = anypath(data_root) if data_root is not None else None
 
-        # Load split CSV
         self._load()
 
-        # If no explicit data_root, assume parent dir of the split path
-        if self.data_root is None:
+        if data_root is None:
             self.data_root = anypath(self.info.split_paths[self.split]).parent
+        else:
+            self.data_root = anypath(data_root)
 
     @property
     def columns(self) -> list[str]:
@@ -119,6 +128,11 @@ class XenoCantoAnnotatedJeantet23(Dataset):
     @property
     def available_splits(self) -> list[str]:
         return list(self.info.split_paths.keys())
+
+    @property
+    def available_sample_rates(self) -> list[int]:
+        """Return pre-resampled sample rates whose path columns exist in the data."""
+        return [sr for sr, col in self._sample_rate_paths.items() if col in self._data.columns]
 
     def _load(self) -> None:
         if self.split not in self.info.split_paths:
@@ -152,47 +166,34 @@ class XenoCantoAnnotatedJeantet23(Dataset):
         dict[str, Any]
             The processed row.
         """
+        use_presampled = False
+        if self.sample_rate is not None and self.sample_rate in self._sample_rate_paths:
+            path_column = self._sample_rate_paths[self.sample_rate]
+            if path_column in row and row[path_column] is not None and row[path_column] != "":
+                audio_path = anypath(self.data_root) / row[path_column]
+                use_presampled = True
 
-        # Resolve audio path
-        audio_path = (
-            (self.data_root / row["audio_path"]) if self.data_root else anypath(row["audio_path"])
-        )
+        if not use_presampled:
+            audio_path = anypath(self.data_root) / row[self._originals_path_column]
 
-        window_start = row.get("window_start_sec")
-        window_end = row.get("window_end_sec")
-
-        # Read either the full recording or a requested sub-window.
-        if window_start is not None and window_end is not None:
-            audio, sample_rate = read_audio(
-                audio_path,
-                start_time=float(window_start),
-                end_time=float(window_end),
-            )
-        else:
-            audio, sample_rate = read_audio(audio_path)
+        audio, sr = read_audio(audio_path)
         audio = audio_stereo_to_mono(audio, mono_method="average").astype(np.float32)
 
-        # Resample if necessary
-        if self.sample_rate is not None and sample_rate != self.sample_rate:
+        if not use_presampled and self.sample_rate is not None and sr != self.sample_rate:
             audio = librosa.resample(
                 y=audio,
-                orig_sr=sample_rate,
+                orig_sr=sr,
                 target_sr=self.sample_rate,
                 scale=True,
                 res_type="kaiser_best",
             )
-            sample_rate = self.sample_rate
+            sr = self.sample_rate
 
-        # Selection table
         st = pd.read_csv(StringIO(row["selection_table"]), sep="\t")
-
-        # Clip events outside audio (keep only events that begin before audio end)
-        audio_dur = len(audio) / float(sample_rate)
+        audio_dur = len(audio) / float(sr)
         st = st[st["Begin Time (s)"] < audio_dur].copy()
 
-        # Build output
         row["audio"] = audio
-        row["sample_rate"] = sample_rate
         row["selection_table"] = st
 
         if self.output_take_and_give:

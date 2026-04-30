@@ -126,8 +126,6 @@ class AnimalSoundArchive(Dataset):
         16000: "16khz_path",
     }
 
-    _mixup_group = "mixed_taxa"
-
     _originals_path_column = "originals_path"
 
     def __init__(
@@ -314,7 +312,6 @@ class AnimalSoundArchive(Dataset):
 
         row["audio"] = audio
         row["sample_rate"] = sample_rate
-        row["mixup_group"] = self._mixup_group
 
         if self.output_take_and_give:
             item = {}

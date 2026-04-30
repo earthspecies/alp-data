@@ -4,6 +4,7 @@ import tempfile
 from pathlib import Path
 
 import pandas as pd
+import polars as pl
 import pytest
 
 from esp_data.backends import PandasBackend, PolarsBackend
@@ -124,11 +125,6 @@ class TestPolarsStreaming:
 
     def test_streaming_property(self):
         """Test is_streaming property."""
-        try:
-            import polars as pl
-        except ImportError:
-            pytest.skip("polars not installed")
-
         # Eager mode
         df = pl.DataFrame({"a": [1, 2, 3]})
         backend = PolarsBackend(df, streaming=False)
@@ -143,11 +139,6 @@ class TestPolarsStreaming:
 
     def test_streaming_getitem_raises(self):
         """Test that __getitem__ raises error in streaming mode."""
-        try:
-            import polars as pl
-        except ImportError:
-            pytest.skip("polars not installed")
-
         df = pl.DataFrame({"a": [1, 2, 3]})
         with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
             df.write_csv(f.name)
@@ -160,11 +151,6 @@ class TestPolarsStreaming:
 
     def test_streaming_len_raises(self):
         """Test that __len__ raises error in streaming mode."""
-        try:
-            import polars as pl
-        except ImportError:
-            pytest.skip("polars not installed")
-
         df = pl.DataFrame({"a": [1, 2, 3]})
         with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
             df.write_csv(f.name)
@@ -177,11 +163,6 @@ class TestPolarsStreaming:
 
     def test_streaming_iteration(self):
         """Test that iteration works in streaming mode."""
-        try:
-            import polars as pl
-        except ImportError:
-            pytest.skip("polars not installed")
-
         df = pl.DataFrame({"a": [1, 2, 3], "b": ["x", "y", "z"]})
         with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
             df.write_csv(f.name)
@@ -200,11 +181,6 @@ class TestPolarsStreaming:
 
     def test_streaming_operations_work(self):
         """Test that LazyFrame operations work in streaming mode."""
-        try:
-            import polars as pl
-        except ImportError:
-            pytest.skip("polars not installed")
-
         df = pl.DataFrame({"a": [1, 2, 2, 3]})
         with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
             df.write_csv(f.name)
@@ -227,19 +203,15 @@ class TestPolarsStreaming:
             cleaned_collected = cleaned.collect()
             assert sorted(cleaned_collected.unwrap["a"].to_list()) == [1, 2, 2, 3]
 
-            # get_unique requires collection
-            unique_vals = backend.get_unique("a")
+            # get_unique requires collection — expect a warning to that effect
+            with pytest.warns(UserWarning, match="get_unique.*requires collection"):
+                unique_vals = backend.get_unique("a")
             assert sorted(unique_vals) == [1, 2, 3]
 
             Path(f.name).unlink()
 
     def test_streaming_json_lines(self):
         """Test streaming with JSON lines."""
-        try:
-            import polars as pl
-        except ImportError:
-            pytest.skip("polars not installed")
-
         df = pl.DataFrame({"a": [1, 2, 3, 4, 5]})
         with tempfile.NamedTemporaryFile(mode="w", suffix=".jsonl", delete=False) as f:
             df.write_ndjson(f.name)
@@ -257,11 +229,6 @@ class TestPolarsStreaming:
 
     def test_eager_mode_still_works(self):
         """Test that eager mode still works correctly after adding streaming."""
-        try:
-            import polars as pl
-        except ImportError:
-            pytest.skip("polars not installed")
-
         df = pl.DataFrame({"a": [1, 2, 3], "b": ["x", "y", "z"]})
         backend = PolarsBackend(df, streaming=False)
 
@@ -274,11 +241,6 @@ class TestPolarsStreaming:
 
     def test_collect_method(self):
         """Test that collect() materializes LazyFrame and switches to eager mode."""
-        try:
-            import polars as pl
-        except ImportError:
-            pytest.skip("polars not installed")
-
         df = pl.DataFrame({"a": [1, 2, 3]})
         with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
             df.write_csv(f.name)
@@ -298,11 +260,6 @@ class TestPolarsStreaming:
 
     def test_subsample_warning(self):
         """Test that subsample_by_column warns when in streaming mode."""
-        try:
-            import polars as pl
-        except ImportError:
-            pytest.skip("polars not installed")
-
         df = pl.DataFrame({"a": [1, 1, 2, 2, 3, 3], "b": ["x", "y", "z", "w", "v", "u"]})
         with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
             df.write_csv(f.name)
@@ -318,3 +275,118 @@ class TestPolarsStreaming:
             assert not result.is_streaming
 
             Path(f.name).unlink()
+
+    def test_streaming_iter_does_not_fully_collect(self, tmp_path):
+        """Iteration over a LazyFrame should not require collecting everything
+        first — the backend should wrap `LazyFrame.collect_batches()`.
+        """
+        df = pl.DataFrame({"a": list(range(10)), "b": ["x"] * 10})
+        df.write_csv(tmp_path / "test.csv")
+        backend = PolarsBackend.from_csv(tmp_path / "test.csv", streaming=True)
+
+        # Underlying must still be a LazyFrame after constructing the iterator
+        # (calling iter itself should not coerce the backend to eager).
+        it = iter(backend)
+        assert isinstance(backend.unwrap, pl.LazyFrame)
+
+        first = next(it)
+        assert first == {"a": 0, "b": "x"}
+
+        rest = list(it)
+        assert len(rest) == 9
+        assert rest[-1] == {"a": 9, "b": "x"}
+
+    def test_streaming_iter_batches(self, tmp_path):
+        """iter_batches should stream chunks from a LazyFrame, never
+        materializing the whole thing at once.
+        """
+        df = pl.DataFrame({"a": list(range(50))})
+        fname = tmp_path / "test.csv"
+        df.write_csv(fname)
+        backend = PolarsBackend.from_csv(fname, streaming=True)
+
+        batches = list(backend.iter_batches(batch_size=10))
+
+        # Every yielded batch should be eager (DataFrame), not a LazyFrame.
+        for b in batches:
+            assert not b.is_streaming
+            assert isinstance(b.unwrap, pl.DataFrame)
+
+        # All rows accounted for.
+        total_rows = sum(len(b) for b in batches)
+        assert total_rows == 50
+
+        # Values recover the original series (order not guaranteed across
+        # batches in streaming engines, so we sort).
+        collected = sorted(v for b in batches for v in b.unwrap["a"].to_list())
+        assert collected == list(range(50))
+
+    def test_eager_iter_batches(self):
+        """iter_batches on an eager DataFrame still works and yields fixed-size
+        slices.
+        """
+        df = pl.DataFrame({"a": list(range(25))})
+        backend = PolarsBackend(df, streaming=False)
+
+        batches = list(backend.iter_batches(batch_size=10))
+        sizes = [len(b) for b in batches]
+        assert sizes == [10, 10, 5]
+
+    def test_column_exists_on_lazyframe(self):
+        """column_exists must work on a streaming backend without raising
+        or triggering full collection.
+        """
+        df = pl.LazyFrame({"foo": [1, 2, 3], "bar": ["a", "b", "c"]})
+        backend = PolarsBackend(df, streaming=True)
+
+        assert backend.column_exists("foo")
+        assert backend.column_exists("bar")
+        assert not backend.column_exists("baz")
+
+        # Still lazy afterwards.
+        assert isinstance(backend.unwrap, pl.LazyFrame)
+
+    def test_get_unique_streaming_warns(self):
+        """get_unique forces collection on a LazyFrame — warn the caller."""
+        df = pl.LazyFrame({"a": [1, 1, 2, 2, 3]})
+        backend = PolarsBackend(df, streaming=True)
+
+        with pytest.warns(UserWarning, match="get_unique.*requires collection"):
+            uniques = backend.get_unique("a")
+
+        assert uniques == [1, 2, 3]
+
+    def test_histogram_streaming_warns(self):
+        """histogram forces collection on a LazyFrame — warn the caller."""
+        df = pl.LazyFrame({"a": [1, 1, 2, 2, 2, 3]})
+        backend = PolarsBackend(df, streaming=True)
+
+        with pytest.warns(UserWarning, match="histogram.*requires collection"):
+            hist = backend.histogram("a")
+
+        assert hist == {1: 2, 2: 3, 3: 1}
+
+    def test_from_parquet_kwargs_filtered_against_parquet_signature(self, tmp_path):
+        """from_parquet must filter kwargs against `scan_parquet` /
+        `read_parquet` signatures, not `scan_csv`.
+
+        Regression: a copy-paste bug previously filtered kwargs against the
+        `scan_csv` signature, silently stripping legitimate parquet-only
+        arguments such as `row_index_name`.
+        """
+        df = pl.DataFrame({"a": [1, 2, 3]})
+        fname = tmp_path / "test.parquet"
+        df.write_parquet(fname)
+
+        # row_index_name is valid for scan_parquet / read_parquet but NOT
+        # for scan_csv. With the bug it would be silently dropped; with the
+        # fix it actually gets applied.
+        backend_stream = PolarsBackend.from_parquet(
+            fname, streaming=True, row_index_name="idx"
+        )
+        assert "idx" in backend_stream.columns
+
+        backend_eager = PolarsBackend.from_parquet(
+            fname, streaming=False, row_index_name="idx"
+        )
+        assert "idx" in backend_eager.columns
