@@ -83,6 +83,20 @@ class DataSynthConversations(Dataset):
             "t3_captions_subsampled": "gs://foundation-model-data/synthetic/merged/t3_captions_subsampled.parquet",
             "t3_val_with_captions_qa_only": "gs://foundation-model-data/synthetic/merged/t3_val_with_captions_qa_only.parquet",
             "t3_val_structural_caption_nbm": "gs://foundation-model-data/synthetic/merged/t3_val_structural_caption_nbm.parquet",
+            # T1 v2 train splits
+            "t1_v2": "gs://foundation-model-data/synthetic/merged/t1_v2.parquet",
+            "t1_with_captions_v2": "gs://foundation-model-data/synthetic/merged/t1_with_captions_v2.parquet",
+            # T1 v2 val splits
+            "t1_v2_val_snr_mcq_xc": "gs://foundation-model-data/synthetic/merged/t1_v2_val/cat_snr_mcq_xc_val_v2_clean.parquet",
+            "t1_v2_val_snr_mcq_custom_bins_xc": "gs://foundation-model-data/synthetic/merged/t1_v2_val/cat_snr_mcq_custom_bins_xc_val_v1_clean.parquet",
+            "t1_v2_val_snr_binary_xc": "gs://foundation-model-data/synthetic/merged/t1_v2_val/snr_binary_xc_val_v1_clean.parquet",
+            "t1_v2_val_snr_oe_xc": "gs://foundation-model-data/synthetic/merged/t1_v2_val/snr_oe_xc_val_v1_clean.parquet",
+            "t1_v2_val_voc_desc_xc": "gs://foundation-model-data/synthetic/merged/t1_v2_val/voc_desc_mcq_field_notes_xc_val_v1_clean.parquet",
+            "t1_v2_val_voc_desc_inat": "gs://foundation-model-data/synthetic/merged/t1_v2_val/voc_desc_mcq_field_notes_inat_val_v1_clean.parquet",
+            "t1_v2_val_f0_mean_seen": "gs://foundation-model-data/synthetic/merged/t1_v2_val/f0_mean_val_seen_taxa.parquet",
+            "t1_v2_val_f0_mean_heldout": "gs://foundation-model-data/synthetic/merged/t1_v2_val/f0_mean_val_heldout_taxa.parquet",
+            "t1_v2_val_acoustic_caption_xc": "gs://foundation-model-data/synthetic/merged/t1_with_captions_v2_val/acoustic_caption_field_notes_xc_val_v2_clean.parquet",
+            "t1_v2_val_acoustic_caption_inat": "gs://foundation-model-data/synthetic/merged/t1_with_captions_v2_val/acoustic_caption_field_notes_inat_val_v2_clean.parquet",
         },
         version="0.1.0",
         description=(
