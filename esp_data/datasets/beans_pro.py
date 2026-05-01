@@ -51,6 +51,24 @@ class BeansPro(Dataset):
     - ``call-type-fixed-vocab``: 999 examples, 5-label multilabel
       call-type classification. Source: BEANS-Zero call variants.
 
+    Tier-1 synthetic splits (XC + iNat beanszero and new splits)
+    -------------------------------------------------------------
+    - ``t1-snr-mcq``: 2068 examples, SNR prediction MCQ (fixed-bin and
+      custom-bin variants merged; ``task`` field distinguishes them).
+      Source: XC new split.
+    - ``t1-snr-binary``: 1881 examples, SNR binary threshold (Yes/No).
+      Source: XC new split.
+    - ``t1-snr-regression``: 2014 examples, SNR open-ended regression.
+      Source: XC new split.
+    - ``t1-description-mcq``: 1368 examples, vocalization description MCQ
+      from field notes / occurrence remarks.
+      Source: XC + iNat beanszero and new splits.
+    - ``t1-caption``: 984 examples, acoustic captioning from field notes.
+      Source: XC + iNat beanszero and new splits.
+
+    Audio paths in the tier-1 splits are absolute GCS URIs (``gs://``);
+    ``data_root`` is ignored for these splits.
+
     Schema
     ------
     Each row is a JSONL record with fields matching BEANS-Zero:
@@ -85,6 +103,11 @@ class BeansPro(Dataset):
             "alarm-call-presence": "gs://esp-data-ingestion/beans-pro/v0.1.0/raw/alarm_call_presence/test.jsonl",
             "flight-call-presence": "gs://esp-data-ingestion/beans-pro/v0.1.0/raw/flight_call_presence/test.jsonl",
             "call-type-fixed-vocab": "gs://esp-data-ingestion/beans-pro/v0.1.0/raw/call_type_fixed_vocab/test.jsonl",
+            "t1-snr-mcq": "gs://foundation-model-data/synthetic/beanspro/t1-snr-mcq.jsonl",
+            "t1-snr-binary": "gs://foundation-model-data/synthetic/beanspro/t1-snr-binary.jsonl",
+            "t1-snr-regression": "gs://foundation-model-data/synthetic/beanspro/t1-snr-regression.jsonl",
+            "t1-description-mcq": "gs://foundation-model-data/synthetic/beanspro/t1-description-mcq.jsonl",
+            "t1-caption": "gs://foundation-model-data/synthetic/beanspro/t1-caption.jsonl",
         },
         version="0.1.0",
         description=(
@@ -98,6 +121,7 @@ class BeansPro(Dataset):
             "Musikhin et al. 2025, F0 Bioacoustic Benchmark",
             "Xeno-canto / iNaturalist (val_unseen splits)",
             "BEANS-Zero call variants",
+            "Xeno-canto / iNaturalist (beanszero + new splits, LLM-synthesized)",
         ],
         license="CC-BY-NC-4.0, CC0-1.0",
     )
@@ -115,6 +139,12 @@ class BeansPro(Dataset):
         "alarm-call-presence": "gs://esp-ml-datasets/",
         "flight-call-presence": "gs://esp-ml-datasets/",
         "call-type-fixed-vocab": "gs://esp-ml-datasets/",
+        # Tier-1 splits use absolute GCS paths; data_root is unused.
+        "t1-snr-mcq": "",
+        "t1-snr-binary": "",
+        "t1-snr-regression": "",
+        "t1-description-mcq": "",
+        "t1-caption": "",
     }
 
     _originals_path_column = "audio_path_original_sample_rate"
@@ -196,7 +226,11 @@ class BeansPro(Dataset):
         return ds, {}
 
     def _process(self, row: dict[str, Any]) -> dict[str, Any]:
-        audio_path = anypath(self.data_root) / row[self._originals_path_column]
+        path_val = row[self._originals_path_column]
+        if "://" in str(path_val):
+            audio_path = anypath(path_val)
+        else:
+            audio_path = anypath(self.data_root) / path_val
         audio, sr = read_audio(audio_path)
         audio = audio.astype(np.float32)
         audio = audio_stereo_to_mono(audio, mono_method="average")
