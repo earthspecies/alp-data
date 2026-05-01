@@ -62,6 +62,8 @@ def register_transform(config_class: type[BaseModel], transform_class: type) -> 
         v = type_vals[0]
 
         if v in _TRANSFORM_CONFIG_REGISTRY:
+            if _TRANSFORM_CONFIG_REGISTRY[v] is config_class:
+                return
             raise ValueError(
                 f"Transform type '{v}' is already registered.Please use a unique type name."
             )
