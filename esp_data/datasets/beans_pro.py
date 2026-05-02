@@ -148,6 +148,13 @@ class BeansPro(Dataset):
     }
 
     _originals_path_column = "audio_path_original_sample_rate"
+    _tier1_splits = {
+        "t1-snr-mcq",
+        "t1-snr-binary",
+        "t1-snr-regression",
+        "t1-description-mcq",
+        "t1-caption",
+    }
 
     def __init__(
         self,
@@ -208,6 +215,25 @@ class BeansPro(Dataset):
             )
         location = self.info.split_paths[self.split]
         self._data = self._backend_class.from_json(location, lines=True, orient="records")
+        if self.split in self._tier1_splits:
+            self._make_tier1_ids_unique()
+
+    def _make_tier1_ids_unique(self) -> None:
+        """Rewrite tier-1 row ids to be unique within a BEANS-Pro split.
+
+        The source tier-1 JSONLs reuse local/source ids across rows and across
+        task variants. Preserve those ids in `source_id` and expose a
+        deterministic split-qualified row id in `id` so prediction/evaluation
+        systems can safely use it as a primary key.
+        """
+        if len(self._data) == 0:
+            return
+        source_ids = [
+            str(row.get("source_id", row.get("id", i))) for i, row in enumerate(self._data)
+        ]
+        row_ids = [f"{self.split}:{source_id}:{i}" for i, source_id in enumerate(source_ids)]
+        self._data = self._data.add_column("source_id", source_ids)
+        self._data = self._data.add_column("id", row_ids)
 
     @classmethod
     def from_config(cls, dataset_config: DatasetConfig) -> tuple["BeansPro", dict[str, Any]]:

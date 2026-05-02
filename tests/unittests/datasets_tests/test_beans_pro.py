@@ -1,11 +1,11 @@
 """Test suite for the BeansPro dataset."""
 
+
 import numpy as np
 import pytest
 
 from esp_data import DatasetConfig
 from esp_data.datasets import BeansPro
-
 
 SPLITS = list(BeansPro.info.split_paths.keys())
 EXPECTED_COLS = [
@@ -18,7 +18,13 @@ EXPECTED_COLS = [
 
 @pytest.fixture
 def ds() -> BeansPro:
-    """Load BeansPro dataset for testing."""
+    """Load BeansPro dataset for testing.
+
+    Returns
+    -------
+    BeansPro
+        Streaming BeansPro dataset instance.
+    """
     _ds = BeansPro(split="crow-description", streaming=True, backend="pandas")
     return _ds
 
@@ -27,7 +33,7 @@ def test_info_property(ds: BeansPro) -> None:
     """Test if the info property returns correct metadata."""
     assert ds.info.name == "beans_pro"
     assert ds.info.version == "0.1.0"
-    assert len(ds.info.split_paths) == 11
+    assert len(ds.info.split_paths) == 16
 
 
 def test_columns_property(ds: BeansPro) -> None:
@@ -124,3 +130,26 @@ def test_output_take_and_give() -> None:
     )
     sample = ds[0]
     assert set(sample.keys()) == {"answer", "prompt"}
+
+
+@pytest.mark.parametrize(
+    "split",
+    [
+        "t1-snr-mcq",
+        "t1-snr-binary",
+        "t1-snr-regression",
+        "t1-description-mcq",
+        "t1-caption",
+    ],
+)
+def test_tier1_ids_are_unique(split: str) -> None:
+    """Test tier-1 splits expose unique ids while preserving source ids."""
+    ds = BeansPro(split=split, backend="polars")
+    rows = list(ds._data)
+    ids = [row["id"] for row in rows]
+    source_ids = [row["source_id"] for row in rows]
+
+    assert len(ids) == len(set(ids))
+    assert all(id_.startswith(f"{split}:") for id_ in ids)
+    assert len(source_ids) == len(rows)
+    assert all(source_id is not None for source_id in source_ids)
