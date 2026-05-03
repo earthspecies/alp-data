@@ -91,37 +91,6 @@ def clean_split(split_name: str, csv_path: str) -> pd.DataFrame:
     else:
         print('[5] WARNING: "gbifID" column not found')
 
-    # 6. Check existence of absolute audio paths
-    # print("[6] Checking audio path existence...")
-    # if "audio_path" not in df.columns:
-    #     print("    ERROR: No audio_path column to check")
-    #     return df
-
-    # root = anypath(DATA_ROOT)
-    # missing_paths = []
-    # checked = 0
-    # for i, relative_path in enumerate(df["audio_path"]):
-    #     if pd.isna(relative_path):
-    #         missing_paths.append((i, "<NA>"))
-    #         continue
-    #     abs_path = root / relative_path
-    #     if not abs_path.exists():
-    #         missing_paths.append((i, str(abs_path)))
-    #     checked += 1
-    #     if checked % 10000 == 0:
-    #         print(f"    Checked {checked}/{len(df)} paths...")
-
-    # print(f"    Checked {checked}/{len(df)} paths total")
-    # if missing_paths:
-    #     print(f"    MISSING: {len(missing_paths)} audio files not found")
-    #     # Show first 20 missing
-    #     for idx, path in missing_paths[:20]:
-    #         print(f"      row {idx}: {path}")
-    #     if len(missing_paths) > 20:
-    #         print(f"      ... and {len(missing_paths) - 20} more")
-    # else:
-    #     print("    All audio paths exist")
-
     return df
 
 
