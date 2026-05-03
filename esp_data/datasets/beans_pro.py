@@ -65,8 +65,14 @@ class BeansPro(Dataset):
       Source: XC + iNat beanszero and new splits.
     - ``t1-caption``: 984 examples, acoustic captioning from field notes.
       Source: XC + iNat beanszero and new splits.
+    - ``t2-captioning``: 10783 examples, semantic captioning from field notes,
+      filtered by LLM-judge audibility/interest/difficulty scores.
+      Source: XC + iNat beanszero and new splits.
+    - ``t2-behavior``: 3824 examples, behavior multiple-choice questions
+      filtered by LLM-judge audibility and difficulty scores.
+      Source: XC + iNat beanszero and new splits.
 
-    Audio paths in the tier-1 splits are absolute GCS URIs (``gs://``);
+    Audio paths in the synthetic tier splits are absolute GCS URIs (``gs://``);
     ``data_root`` is ignored for these splits.
 
     Schema
@@ -108,6 +114,8 @@ class BeansPro(Dataset):
             "t1-snr-regression": "gs://foundation-model-data/synthetic/beanspro/t1-snr-regression.jsonl",
             "t1-description-mcq": "gs://foundation-model-data/synthetic/beanspro/t1-description-mcq.jsonl",
             "t1-caption": "gs://foundation-model-data/synthetic/beanspro/t1-caption.jsonl",
+            "t2-captioning": "gs://foundation-model-data/synthetic/beanspro/t2-captioning.jsonl",
+            "t2-behavior": "gs://foundation-model-data/synthetic/beanspro/t2-behavior.jsonl",
         },
         version="0.1.0",
         description=(
@@ -145,15 +153,19 @@ class BeansPro(Dataset):
         "t1-snr-regression": "",
         "t1-description-mcq": "",
         "t1-caption": "",
+        "t2-captioning": "",
+        "t2-behavior": "",
     }
 
     _originals_path_column = "audio_path_original_sample_rate"
-    _tier1_splits = {
+    _synthetic_splits = {
         "t1-snr-mcq",
         "t1-snr-binary",
         "t1-snr-regression",
         "t1-description-mcq",
         "t1-caption",
+        "t2-captioning",
+        "t2-behavior",
     }
 
     def __init__(
@@ -215,14 +227,14 @@ class BeansPro(Dataset):
             )
         location = self.info.split_paths[self.split]
         self._data = self._backend_class.from_json(location, lines=True, orient="records")
-        if self.split in self._tier1_splits:
-            self._make_tier1_ids_unique()
+        if self.split in self._synthetic_splits:
+            self._make_synthetic_ids_unique()
 
-    def _make_tier1_ids_unique(self) -> None:
-        """Rewrite tier-1 row ids to be unique within a BEANS-Pro split.
+    def _make_synthetic_ids_unique(self) -> None:
+        """Rewrite synthetic row ids to be unique within a BEANS-Pro split.
 
-        The source tier-1 JSONLs reuse local/source ids across rows and across
-        task variants. Preserve those ids in `source_id` and expose a
+        Some source synthetic JSONLs reuse local/source ids across rows and
+        across task variants. Preserve those ids in `source_id` and expose a
         deterministic split-qualified row id in `id` so prediction/evaluation
         systems can safely use it as a primary key.
         """

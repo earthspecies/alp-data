@@ -33,7 +33,7 @@ def test_info_property(ds: BeansPro) -> None:
     """Test if the info property returns correct metadata."""
     assert ds.info.name == "beans_pro"
     assert ds.info.version == "0.1.0"
-    assert len(ds.info.split_paths) == 16
+    assert len(ds.info.split_paths) == 18
 
 
 def test_columns_property(ds: BeansPro) -> None:
@@ -140,10 +140,12 @@ def test_output_take_and_give() -> None:
         "t1-snr-regression",
         "t1-description-mcq",
         "t1-caption",
+        "t2-captioning",
+        "t2-behavior",
     ],
 )
-def test_tier1_ids_are_unique(split: str) -> None:
-    """Test tier-1 splits expose unique ids while preserving source ids."""
+def test_synthetic_ids_are_unique(split: str) -> None:
+    """Test synthetic splits expose unique ids while preserving source ids."""
     ds = BeansPro(split=split, backend="polars")
     rows = list(ds._data)
     ids = [row["id"] for row in rows]
