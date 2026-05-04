@@ -108,12 +108,12 @@ class INaturalist(Dataset):
         name="inaturalist",
         owner="gagan; david",
         split_paths={
-            "train": "gs://esp-ml-datasets/inaturalist/v0.1.0/raw/train_20260201_v2_1.csv",
-            "train_unseen": "gs://esp-ml-datasets/inaturalist/v0.1.0/raw/train_unseen_20260201_v2_1.csv",
-            "val": "gs://esp-ml-datasets/inaturalist/v0.1.0/raw/val_20260201_v2_1.csv",
-            "val_unseen": "gs://esp-ml-datasets/inaturalist/v0.1.0/raw/val_unseen_20260201_v2_1.csv",
-            "all": "gs://esp-ml-datasets/inaturalist/v0.1.0/raw/all_20260201_v2_1.csv",
-            "all_unseen": "gs://esp-ml-datasets/inaturalist/v0.1.0/raw/all_unseen_20260201_v2_1.csv",
+            "train": "gs://esp-ml-datasets/inaturalist/v0.1.0/raw/train_20260201_v3.csv",
+            "train_unseen": "gs://esp-ml-datasets/inaturalist/v0.1.0/raw/train_unseen_20260201_v3..csv",
+            "val": "gs://esp-ml-datasets/inaturalist/v0.1.0/raw/val_20260201_v3.csv",
+            "val_unseen": "gs://esp-ml-datasets/inaturalist/v0.1.0/raw/val_unseen_20260201_v3.csv",
+            "all": "gs://esp-ml-datasets/inaturalist/v0.1.0/raw/all_20260201_v3.csv",
+            "all_unseen": "gs://esp-ml-datasets/inaturalist/v0.1.0/raw/all_unseen_20260201_v3.csv",
         },
         version="0.1.0",
         description="iNaturalist audio dataset with taxonomic metadata. "
