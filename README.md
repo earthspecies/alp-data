@@ -1,5 +1,7 @@
 # EthoHub
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 EthoHub gives you unified Python access to dozens of bioacoustic datasets, including recordings from birds, marine mammals, primates, insects, anurans, and multi-taxon benchmarks. Every built-in dataset shares a common `Dataset` interface, with streaming, on-the-fly transforms, and consistent loading regardless of source format.
 
 ## Why EthoHub
@@ -84,6 +86,12 @@ uv run prek install
 # Run tests
 uv run pytest
 ```
+
+## License
+
+EthoHub is released under the MIT License. See [LICENSE](LICENSE) for the full text.
+
+The datasets accessed through EthoHub are governed by their own licenses, set by their original creators — independent of EthoHub's code license. Most are openly licensed (CC-BY, CC-BY-NC, CC0, public domain), but terms vary per dataset and may include attribution, share-alike, or non-commercial restrictions. Per-dataset license and source metadata are available via `Dataset.info`.
 
 ## Contributing
 
