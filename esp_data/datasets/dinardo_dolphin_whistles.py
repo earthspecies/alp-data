@@ -9,6 +9,7 @@ import pandas as pd
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from esp_data.backends import BackendType
 from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
+from esp_data.utils import DATA_HOME
 
 
 @register_dataset
@@ -56,7 +57,8 @@ class DinardoDolphinWhistles(Dataset):
         name="dinardo_dolphin_whistles",
         owner="gagan",
         split_paths={
-            "all": "gs://esp-ml-datasets/dinardo2023_dolphin_whistles/v0.1.0/raw/dinardo2023_annotations.csv",
+            "all": f"{DATA_HOME}/dinardo2023_dolphin_whistles/v0.1.0/raw/"
+            "dinardo2023_annotations.csv",
         },
         version="0.1.0",
         description="Dolphin whistles dataset, Di Nardo et al 2023",

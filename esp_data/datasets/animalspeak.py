@@ -8,6 +8,7 @@ import numpy as np
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from esp_data.backends import BackendType
 from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
+from esp_data.utils import DATA_HOME
 
 
 @register_dataset
@@ -41,8 +42,8 @@ class AnimalSpeak(Dataset):
         name="animalspeak",
         owner="david; marius; masato",
         split_paths={
-            "train": "gs://esp-ml-datasets/animalspeak/v0.1.0/raw/16KHz/train_v2.csv",
-            "validation": "gs://esp-ml-datasets/animalspeak/v0.1.0/raw/16KHz/validation_v2.csv",
+            "train": f"{DATA_HOME}/animalspeak/v0.1.0/raw/16KHz/train_v2.csv",
+            "validation": f"{DATA_HOME}/animalspeak/v0.1.0/raw/16KHz/validation_v2.csv",
         },
         version="0.1.0",
         description="AnimalSpeak dataset",
@@ -86,7 +87,7 @@ class AnimalSpeak(Dataset):
         self.sample_rate = sample_rate
 
         if data_root is None:
-            self.data_root = "gs://esp-ml-datasets/animalspeak/v0.1.0/raw/16KHz/"
+            self.data_root = f"{DATA_HOME}/animalspeak/v0.1.0/raw/16KHz/"
         else:
             self.data_root = data_root
 

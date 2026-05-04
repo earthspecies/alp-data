@@ -12,6 +12,7 @@ import pandas as pd
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from esp_data.backends import BackendType
 from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
+from esp_data.utils import DATA_HOME
 
 # All species that appear in the processed annotations
 SPECIES_LABELS = [
@@ -158,7 +159,8 @@ class DCLDE2026(Dataset):
         name="dclde2026",
         owner="david",
         split_paths={
-            "all": "gs://esp-ml-datasets/dclde2026/v0.1.0/raw/2026/dclde_2026_killer_whales/processed_enriched_v2.csv",
+            "all": f"{DATA_HOME}/dclde2026/v0.1.0/raw/2026/dclde_2026_killer_whales/"
+            "processed_enriched_v2.csv",
         },
         version="0.1.0",
         description="DCLDE 2026 killer whale dataset with species, ecotype, call type, "

@@ -11,6 +11,7 @@ import numpy as np
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from esp_data.backends import BackendType
 from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
+from esp_data.paths import DATA_HOME
 
 # Call type mapping (0-10, excluding 11=silence and 12=noise)
 CALLTYPE_NAMES = {
@@ -89,7 +90,7 @@ class InfantMarmosetsVox(Dataset):
         name="InfantMarmosetsVox",
         owner="eklavya",
         split_paths={
-            "all": "gs://esp-ml-datasets/infant_marmosets_vox/labels.csv",
+            "all": f"{DATA_HOME}/infant_marmosets_vox/labels.csv",
         },
         version="0.1.0",
         description=(

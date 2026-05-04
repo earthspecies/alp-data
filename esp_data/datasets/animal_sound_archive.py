@@ -8,6 +8,7 @@ import numpy as np
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from esp_data.backends import BackendType
 from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
+from esp_data.utils import DATA_HOME
 
 
 @register_dataset
@@ -99,12 +100,13 @@ class AnimalSoundArchive(Dataset):
         name="animal-sound-archive",
         owner="david",
         split_paths={
-            "train": "gs://esp-ml-datasets/tierstimmenarchiv/v0.1.0/raw/train_v2.csv",
-            "validation": "gs://esp-ml-datasets/tierstimmenarchiv/v0.1.0/raw/val_v2.csv",
-            "all": "gs://esp-ml-datasets/tierstimmenarchiv/v0.1.0/raw/all_v2.csv",
-            "train_excl_beanszero": "gs://esp-ml-datasets/tierstimmenarchiv/v0.1.0/raw/train_unseen_v2.csv",
-            "validation_excl_beanszero": "gs://esp-ml-datasets/tierstimmenarchiv/v0.1.0/raw/val_unseen_v2.csv",
-            "all_excl_beanszero": "gs://esp-ml-datasets/tierstimmenarchiv/v0.1.0/raw/all_unseen_v2.csv",
+            "train": f"{DATA_HOME}/tierstimmenarchiv/v0.1.0/raw/train_v2.csv",
+            "validation": f"{DATA_HOME}/tierstimmenarchiv/v0.1.0/raw/val_v2.csv",
+            "all": f"{DATA_HOME}/tierstimmenarchiv/v0.1.0/raw/all_v2.csv",
+            "train_excl_beanszero": f"{DATA_HOME}/tierstimmenarchiv/v0.1.0/raw/train_unseen_v2.csv",
+            "validation_excl_beanszero": f"{DATA_HOME}/tierstimmenarchiv/"
+            "v0.1.0/raw/val_unseen_v2.csv",
+            "all_excl_beanszero": f"{DATA_HOME}/tierstimmenarchiv/v0.1.0/raw/all_unseen_v2.csv",
         },
         version="0.1.0",
         description="Animal Sound Archive (Tierstimmenarchiv) audio dataset with "
@@ -163,7 +165,7 @@ class AnimalSoundArchive(Dataset):
         self.sample_rate = sample_rate
 
         if data_root is None:
-            self.data_root = anypath("gs://esp-ml-datasets/tierstimmenarchiv/v0.1.0/raw/")
+            self.data_root = anypath(f"{DATA_HOME}/tierstimmenarchiv/v0.1.0/raw/")
         else:
             self.data_root = anypath(data_root)
 

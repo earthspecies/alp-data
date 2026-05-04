@@ -12,6 +12,7 @@ import pandas as pd
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from esp_data.backends import BackendType
 from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
+from esp_data.utils import DATA_HOME
 
 
 @register_dataset
@@ -81,7 +82,7 @@ class HawaiianBirds(Dataset):
         name="hawaiian_birds",
         owner="benjamin",
         split_paths={
-            "all": "gs://esp-ml-datasets/hawaiian_birds/all.csv",
+            "all": f"{DATA_HOME}/hawaiian_birds/all.csv",
         },
         version="0.1.0",
         description="[MISSING]",

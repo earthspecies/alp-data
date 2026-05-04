@@ -9,6 +9,7 @@ import pandas as pd
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from esp_data.backends import BackendType
 from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
+from esp_data.utils import DATA_HOME
 
 
 @register_dataset
@@ -65,7 +66,7 @@ class Geladas(Dataset):
         name="geladas",
         owner="gagan",
         split_paths={
-            "all": "gs://esp-ml-datasets/geladas/v0.1.0/raw/geladas_annotations.csv",
+            "all": f"{DATA_HOME}/geladas/v0.1.0/raw/geladas_annotations.csv",
         },
         version="0.1.0",
         description="Gelada vocal sequences dataset, Gustison et al 2016",

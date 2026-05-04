@@ -13,6 +13,7 @@ import pandas as pd
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from esp_data.backends import BackendType
 from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
+from esp_data.utils import DATA_HOME
 
 
 @register_dataset
@@ -82,13 +83,13 @@ class NocturnalBirdMigration(Dataset):
         owner="benjamin",
         split_paths={
             # Full training set
-            "train": "gs://esp-ml-datasets/nocturnal_bird_migration/train_v2_1.csv",
+            "train": f"{DATA_HOME}/nocturnal_bird_migration/train_v2_1.csv",
             # Training subset: no xeno-canto
-            "train_nonxc": "gs://esp-ml-datasets/nocturnal_bird_migration/train_nonxc_v2_1.csv",
+            "train_nonxc": f"{DATA_HOME}/nocturnal_bird_migration/train_nonxc_v2_1.csv",
             # Training subset: xeno-canto recordings only
-            "train_xc": "gs://esp-ml-datasets/nocturnal_bird_migration/train_xc_v2_1.csv",
+            "train_xc": f"{DATA_HOME}/nocturnal_bird_migration/train_xc_v2_1.csv",
             # Held-out test set
-            "test": "gs://esp-ml-datasets/nocturnal_bird_migration/test_v2_1.csv",
+            "test": f"{DATA_HOME}/nocturnal_bird_migration/test_v2_1.csv",
         },
         version="0.1.0",
         description="Dataset of nocturnal vocalizations from migratory birds in Europe. "

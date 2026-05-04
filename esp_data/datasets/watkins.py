@@ -17,8 +17,9 @@ import numpy as np
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from esp_data.backends import BackendType
 from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
+from esp_data.utils import DATA_HOME
 
-_GCS_RAW_ROOT = "gs://esp-ml-datasets/watkins/v0.1.0"
+_GCS_RAW_ROOT = f"{DATA_HOME}/watkins/v0.1.0"
 
 
 @register_dataset
@@ -83,7 +84,7 @@ class Watkins(Dataset):
         name="watkins",
         owner="david",
         split_paths={
-            "train": "gs://esp-ml-datasets/watkins/v0.1.0/watkins.csv",
+            "train": f"{DATA_HOME}/watkins/v0.1.0/watkins.csv",
         },
         version="0.1.0",
         description=(

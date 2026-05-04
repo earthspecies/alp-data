@@ -10,6 +10,7 @@ from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from esp_data.backends import BackendType
 from esp_data.dataset import register_config
 from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
+from esp_data.utils import DATA_HOME
 
 
 @register_config
@@ -115,19 +116,25 @@ class AudioSet(Dataset):
     VERSIONS = {
         "0.1.0": {
             "split_paths": {
-                "train": "gs://esp-ml-datasets/audioset/v0.1.0/raw/csv-data/unbalanced_train_segments_processed.csv",
-                "train-balanced": "gs://esp-ml-datasets/audioset/v0.1.0/raw/csv-data/balanced_train_segments_processed.csv",
-                "validation": "gs://esp-ml-datasets/audioset/v0.1.0/raw/csv-data/eval_segments_processed.csv",
+                "train": f"{DATA_HOME}/audioset/v0.1.0/raw/csv-data/"
+                "unbalanced_train_segments_processed.csv",
+                "train-balanced": f"{DATA_HOME}/audioset/v0.1.0/raw/csv-data/"
+                "balanced_train_segments_processed.csv",
+                "validation": f"{DATA_HOME}/audioset/v0.1.0/raw/csv-data/"
+                "eval_segments_processed.csv",
             },
-            "data_root": "gs://esp-ml-datasets/audioset/v0.1.0/raw/",
+            "data_root": f"{DATA_HOME}/audioset/v0.1.0/raw/",
         },
         "0.2.0": {
             "split_paths": {
-                "train": "gs://esp-ml-datasets/audioset/v0.2.0/raw/csv-data/unbalanced_train_segments_processed.csv",
-                "validation": "gs://esp-ml-datasets/audioset/v0.2.0/raw/csv-data/eval_segments_processed.csv",
-                "train-environmental": "gs://esp-ml-datasets/audioset/v0.2.0/raw/csv-data/unbalanced_train_environmental_sounds.csv",
+                "train": f"{DATA_HOME}/audioset/v0.2.0/raw/csv-data/"
+                "unbalanced_train_segments_processed.csv",
+                "validation": f"{DATA_HOME}/audioset/v0.2.0/raw/csv-data/"
+                "eval_segments_processed.csv",
+                "train-environmental": f"{DATA_HOME}/audioset/v0.2.0/raw/csv-data/"
+                "unbalanced_train_environmental_sounds.csv",
             },
-            "data_root": "gs://esp-ml-datasets/audioset/v0.2.0/raw/",
+            "data_root": f"{DATA_HOME}/audioset/v0.2.0/raw/",
         },
     }
 

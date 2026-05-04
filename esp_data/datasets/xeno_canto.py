@@ -8,6 +8,7 @@ import numpy as np
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from esp_data.backends import BackendType
 from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
+from esp_data.settings import DATA_HOME
 
 
 @register_dataset
@@ -119,12 +120,12 @@ class XenoCanto(Dataset):
         name="xeno-canto",
         owner="david; gagan",
         split_paths={
-            "train": "gs://esp-ml-datasets/xeno-canto/v0.1.0/raw/train_20260203_v2.csv",
-            "validation": "gs://esp-ml-datasets/xeno-canto/v0.1.0/raw/val_20260203_v2.csv",
-            "all": "gs://esp-ml-datasets/xeno-canto/v0.1.0/raw/all_20260203_v2.csv",
-            "train_unseen": "gs://esp-ml-datasets/xeno-canto/v0.1.0/raw/train_unseen_20260203_v2.csv",
-            "validation_unseen": "gs://esp-ml-datasets/xeno-canto/v0.1.0/raw/val_unseen_20260203_v2.csv",
-            "all_unseen": "gs://esp-ml-datasets/xeno-canto/v0.1.0/raw/all_unseen_20260203_v2.csv",
+            "train": f"{DATA_HOME}/xeno-canto/v0.1.0/raw/train_20260203_v2.csv",
+            "validation": f"{DATA_HOME}/xeno-canto/v0.1.0/raw/val_20260203_v2.csv",
+            "all": f"{DATA_HOME}/xeno-canto/v0.1.0/raw/all_20260203_v2.csv",
+            "train_unseen": f"{DATA_HOME}/xeno-canto/v0.1.0/raw/train_unseen_20260203_v2.csv",
+            "validation_unseen": f"{DATA_HOME}/xeno-canto/v0.1.0/raw/val_unseen_20260203_v2.csv",
+            "all_unseen": f"{DATA_HOME}/xeno-canto/v0.1.0/raw/all_unseen_20260203_v2.csv",
         },
         version="0.1.0",
         description="Xeno-canto audio dataset with taxonomic metadata. "
@@ -185,9 +186,9 @@ class XenoCanto(Dataset):
         self.sample_rate = sample_rate
 
         if data_root is None:
-            self.data_root = anypath("gs://esp-ml-datasets/xeno-canto/v0.1.0/raw/")
-            self._data_root_32k = anypath("gs://esp-ml-datasets/xeno-canto/v0.1.0/raw/audio_32k/")
-            self._data_root_16k = anypath("gs://esp-ml-datasets/xeno-canto/v0.1.0/raw/audio_16k/")
+            self.data_root = anypath(f"{DATA_HOME}/xeno-canto/v0.1.0/raw/")
+            self._data_root_32k = anypath(f"{DATA_HOME}/xeno-canto/v0.1.0/raw/audio_32k/")
+            self._data_root_16k = anypath(f"{DATA_HOME}/xeno-canto/v0.1.0/raw/audio_16k/")
         else:
             self.data_root = anypath(data_root)
             self._data_root_32k = anypath(data_root)

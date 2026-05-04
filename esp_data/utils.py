@@ -3,6 +3,7 @@
 import hashlib
 import json
 import logging
+import os
 import re
 from datetime import datetime, timedelta, timezone
 from typing import Callable
@@ -12,6 +13,8 @@ import google_crc32c
 from google.cloud import secretmanager
 
 logger = logging.getLogger("esp_data")
+
+DATA_HOME = os.environ.get("DATA_HOME", "gs://esp-data-274503")
 
 
 def utc_now() -> datetime:

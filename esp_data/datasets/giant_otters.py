@@ -9,6 +9,7 @@ import pandas as pd
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from esp_data.backends import BackendType
 from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
+from esp_data.utils import DATA_HOME
 
 
 @register_dataset
@@ -33,7 +34,7 @@ class GiantOtters(Dataset):
     ...     split="test",
     ...     output_take_and_give={"label": "label"},
     ...     sample_rate=16000,
-    ...     data_root="gs://esp-ml-datasets/giant_otters/v0.1.0/raw/",
+    ...     data_root=f"{DATA_HOME}/giant_otters/v0.1.0/raw/",
     ...     streaming=True
     ... )
     """
@@ -42,7 +43,7 @@ class GiantOtters(Dataset):
         name="giant_otters",
         owner="david",
         split_paths={
-            "test": "gs://esp-ml-datasets/giant_otters/v0.1.0/raw/giant_otters_annotations_test.csv",
+            "test": f"{DATA_HOME}/giant_otters/v0.1.0/raw/giant_otters_annotations_test.csv",
         },
         version="0.1.0",
         description="Giant Otters vocal repertoire dataset",

@@ -9,6 +9,7 @@ import pandas as pd
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from esp_data.backends import BackendType
 from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
+from esp_data.utils import DATA_HOME
 
 
 @register_dataset
@@ -37,7 +38,7 @@ class LittleOwlId(Dataset):
     >>> dataset = LittleOwlId(
     ...     split="test_across_year",
     ...     sample_rate=16000,
-    ...     data_root="gs://esp-ml-datasets/littleowl_id/v0.1.0/raw/"
+    ...     data_root=f"{DATA_HOME}/littleowl_id/v0.1.0/raw/"
     ... )
     """
 
@@ -45,8 +46,8 @@ class LittleOwlId(Dataset):
         name="littleowl_id",
         owner="david",
         split_paths={
-            "train_across_year": "gs://esp-ml-datasets/littleowl_id/v0.1.0/raw/acrossyear_fg_train.csv",
-            "test_across_year": "gs://esp-ml-datasets/littleowl_id/v0.1.0/raw/acrossyear_fg_test.csv",
+            "train_across_year": f"{DATA_HOME}/littleowl_id/v0.1.0/raw/acrossyear_fg_train.csv",
+            "test_across_year": f"{DATA_HOME}/littleowl_id/v0.1.0/raw/acrossyear_fg_test.csv",
         },
         version="0.1.0",
         description="Individual identification of little owls (Athene noctua)",
