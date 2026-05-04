@@ -14,7 +14,7 @@ from google.cloud import secretmanager
 
 logger = logging.getLogger("esp_data")
 
-DATA_HOME = os.environ.get("DATA_HOME", "gs://esp-data-274503")
+DATA_HOME = os.environ.get("ETHOHUB_DATA_HOME", "gs://esp-data-274503")
 
 
 def utc_now() -> datetime:
