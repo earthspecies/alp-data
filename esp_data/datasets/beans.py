@@ -38,7 +38,7 @@ class Beans(Dataset):
     ...     split="validation",
     ...     output_take_and_give={"species_scientific": "species"},
     ...     sample_rate=16000,
-    ...     data_root="gs://esp-ml-datasets/beans/v0.1.0/raw/"
+    ...     streaming=True,
     ... )
     """
 
@@ -46,9 +46,9 @@ class Beans(Dataset):
         name="beans",
         owner="gagan",
         split_paths={
-            "train": "gs://esp-ml-datasets/beans/v0.1.0/raw/beans_train.csv",
-            "validation": "gs://esp-ml-datasets/beans/v0.1.0/raw/beans_val.csv",
-            "test": "gs://esp-ml-datasets/beans/v0.1.0/raw/beans_test.csv",
+            "train": "gs://esp-ml-datasets/beans/v0.1.0/raw/beans_train_v2.csv",
+            "validation": "gs://esp-ml-datasets/beans/v0.1.0/raw/beans_val_v2.csv",
+            "test": "gs://esp-ml-datasets/beans/v0.1.0/raw/beans_test_v2.csv",
             "cbi_test": "gs://esp-ml-datasets/beans/v0.1.0/raw/cbi_test.jsonl",
             "cbi_validation": "gs://esp-ml-datasets/beans/v0.1.0/raw/cbi_val.jsonl",
             "cbi_train": "gs://esp-ml-datasets/beans/v0.1.0/raw/cbi_train.jsonl",
@@ -73,9 +73,9 @@ class Beans(Dataset):
             "esc50_test": "gs://esp-ml-datasets/beans/v0.1.0/raw/esc50_test.jsonl",
             "esc50_validation": "gs://esp-ml-datasets/beans/v0.1.0/raw/esc50_val.jsonl",
             "esc50_train": "gs://esp-ml-datasets/beans/v0.1.0/raw/esc50_train.jsonl",
-            "speech_commands_test": "gs://esp-ml-datasets/beans/v0.1.0/raw/speech_commands_test.jsonl",
-            "speech_commands_validation": "gs://esp-ml-datasets/beans/v0.1.0/raw/speech_commands_val.jsonl",
-            "speech_commands_train": "gs://esp-ml-datasets/beans/v0.1.0/raw/speech_commands_train.jsonl",
+            "speech_commands_test": "gs://esp-ml-datasets/beans/v0.1.0/raw/speech_commands_test_v2.jsonl",
+            "speech_commands_validation": "gs://esp-ml-datasets/beans/v0.1.0/raw/speech_commands_val_v2.jsonl",
+            "speech_commands_train": "gs://esp-ml-datasets/beans/v0.1.0/raw/speech_commands_train_v2.jsonl",
             "humbugdb_test": "gs://esp-ml-datasets/beans/v0.1.0/raw/humbugdb_test.jsonl",
             "humbugdb_validation": "gs://esp-ml-datasets/beans/v0.1.0/raw/humbugdb_val.jsonl",
             "humbugdb_train": "gs://esp-ml-datasets/beans/v0.1.0/raw/humbugdb_train.jsonl",

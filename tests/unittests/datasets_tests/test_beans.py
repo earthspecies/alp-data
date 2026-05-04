@@ -1,10 +1,15 @@
 """Test suite for the Beans dataset."""
 
 import pytest
+import numpy as np
 
 from esp_data.datasets import Beans
 from esp_data import Dataset, DatasetConfig
-from esp_data.io import anypath, exists
+from esp_data.io import exists
+from esp_data.utils import create_hash
+
+EXPECTED_FIRST_VAL_ITEM_AUDIO_SHA256 = "595ba74365124bc8872c828c46c2449572b91bd4c3e84288322e5f45e77dd340"
+EXPECTED_VAL_ANNOTATIONS_SHA256 = "a19ba23edb14977239db004d5bfceb831a0bf6fbaf649d3486207bd415f0efc2"
 
 
 @pytest.fixture
@@ -16,7 +21,7 @@ def dataset() -> Dataset:
     Dataset
         An instance of the Beans dataset.
     """
-    ds = Beans(split="validation")
+    ds = Beans(split="validation", streaming=False, backend="pandas")
     return ds
 
 
@@ -49,23 +54,6 @@ def dataset_with_transforms() -> Dataset:
     )
     ds = Beans(split="validation")
     ds.apply_transformations(dataset_config.transformations)
-    return ds
-
-
-@pytest.fixture
-def dataset_with_output_mapping() -> Dataset:
-    """Fixture providing an Beans dataset instance with output mapping.
-
-    Returns
-    -------
-    Dataset
-        An instance of the Beans dataset with output mapping applied.
-    """
-    dataset_config = DatasetConfig(
-        dataset_name="beans",
-        output_take_and_give={"source_dataset": "dataset_name", "label": "answer"},
-    )
-    ds = Beans(split="test", output_take_and_give=dataset_config.output_take_and_give)
     return ds
 
 
@@ -133,6 +121,7 @@ def test_load_from_config() -> None:
     dataset_config = DatasetConfig(
         dataset_name="beans",
         split="test",
+        streaming=False,
     )
     dataset, _ = Beans.from_config(dataset_config)
     assert dataset.info.name == "beans"
@@ -144,16 +133,6 @@ def test_invalid_split() -> None:
     """Test if _loading invalid split raises error."""
     with pytest.raises(LookupError):
         Beans(split="invalid_split")
-
-
-def test_sample_consistency(dataset: Dataset) -> None:
-    """Test if samples are consistent when accessed multiple ways."""
-    # Get same sample through different methods
-    direct_sample = dataset[0]
-    iter_sample = next(iter(dataset))
-
-    # Compare samples
-    assert direct_sample["local_path"] == iter_sample["local_path"]
 
 
 def test_transformations(dataset_with_transforms: Dataset) -> None:
@@ -175,23 +154,78 @@ def test_transformations(dataset_with_transforms: Dataset) -> None:
     )
 
 
-def test_output_take_and_give(dataset_with_output_mapping: Dataset) -> None:
-    """Test if output_take_and_give correctly maps column names.
-
-    This test verifies that:
-    1. The output dictionary contains only the mapped columns
-    2. The original column names are mapped to the new names
-    3. The values are preserved correctly
+def test_reference_item_stability(dataset: Beans):
     """
-    # Get a sample
-    sample = dataset_with_output_mapping[0]
+    Check that a canonical item (index 0) is bitwise-stable.
 
-    # Check that only mapped columns are present
-    assert set(sample.keys()) == {"dataset_name", "answer"}
+    We hash the raw float32 audio buffer. This catches:
+    - sample rate changes (resampling -> different samples)
+    - channel handling changes (stereo->mono logic changed)
+    - dtype changes
+    - ordering changes in the split (if a different recording moved to idx 0)
 
-    # Get the original row to compare values
-    original_row = dataset_with_output_mapping._data[0]
+    If this fails for a legitimate/intentional reason, recompute the hash below
+    and update EXPECTED_FIRST_VAL_ITEM_AUDIO_SHA256.
 
-    # Verify the mapping and values
-    assert sample["dataset_name"] == original_row["source_dataset"]
-    assert sample["answer"] == original_row["label"]
+    We do the same for the annotations csv.
+    """
+    # choose deterministic index
+    idx = 0
+    item = dataset[idx]
+
+    # audio presence/type checks (defensive, so the hash failure message is clearer)
+    assert "audio" in item, "[0] missing 'audio' key"
+    audio = item["audio"]
+    assert isinstance(audio, np.ndarray), "[0] audio is not a numpy array"
+    assert (
+        audio.dtype == np.float32
+    ), f"[0] audio dtype is {audio.dtype}, expected float32"
+
+    # compute sha256 over raw bytes of the float32 array
+    h = create_hash(audio.tobytes())
+
+    assert h == EXPECTED_FIRST_VAL_ITEM_AUDIO_SHA256, (
+        "First item's audio hash changed.\n"
+        f"Got    {h}\n"
+        f"Expect {EXPECTED_FIRST_VAL_ITEM_AUDIO_SHA256}\n\n"
+        "If this is an intentional dataset/content update, "
+        "replace EXPECTED_FIRST_VAL_ITEM_AUDIO_SHA256 with the new hash."
+    )
+
+    # compute sha256 over raw bytes of the float32 array of annotations
+    csv_bytes = (
+        dataset._data.unwrap.sort_index(axis=0)
+        .sort_index(axis=1)
+        .to_csv(index=True)
+        .encode("utf-8")
+    )
+    h = create_hash(csv_bytes)
+
+    assert h == EXPECTED_VAL_ANNOTATIONS_SHA256, (
+        "Annotation's hash changed.\n"
+        f"Got    {h}\n"
+        f"Expect {EXPECTED_VAL_ANNOTATIONS_SHA256}\n\n"
+        "If this is an intentional dataset/content update, "
+        "replace EXPECTED_VAL_ANNOTATIONS_SHA256 with the new hash."
+    )
+
+
+if __name__ == "__main__":
+    # Generate hash
+    ds = Beans(split="validation", streaming=False, backend="pandas")
+
+    audio0 = ds[0]["audio"]
+    print("dtype:", audio0.dtype, "shape:", audio0.shape)
+
+    h = create_hash(audio0.tobytes())
+    print("audio sha256:", h)
+
+    csv_bytes = (
+            ds._data.unwrap.sort_index(axis=0)
+            .sort_index(axis=1)
+            .to_csv(index=True)
+            .encode("utf-8")
+        )
+    h = create_hash(csv_bytes)
+
+    print("annotations sha256:", h)

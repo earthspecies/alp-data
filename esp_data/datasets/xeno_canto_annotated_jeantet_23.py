@@ -71,10 +71,11 @@ class XenoCantoAnnotatedJeantet23(Dataset):
         name="xeno_canto_annotated_jeantet_23",
         owner="benjamin",
         split_paths={
-            "all": "gs://esp-ml-datasets/xeno_canto_annotated_jeantet_2023/all_gbif_v2.csv",
+            "all": "gs://esp-ml-datasets/xeno_canto_annotated_jeantet_2023/all_gbif_v2_1.csv",
         },
         version="0.1.0",
-        description="[MISSING]",
+        description="Bird song detection dataset consisting of xeno canto recordings annotated"
+        "with start- and stop-times",
         sources="XenoCanto",
         license="CC-BY-4.0",
     )

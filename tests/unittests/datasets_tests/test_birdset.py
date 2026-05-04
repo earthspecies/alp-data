@@ -7,7 +7,6 @@ Run with:
 
 from __future__ import annotations
 
-import hashlib
 import random
 from typing import List
 
@@ -15,39 +14,11 @@ import numpy as np
 import pytest
 
 from esp_data.datasets import BirdSet
-
-
-# # --- Dataset snapshot ---
-
-# # Code to generate snapshot:
-# import hashlib
-# from esp_data.datasets import BirdSet
-# ds = BirdSet(split="PER-test_5s", sample_rate=16000, backend="pandas")
-
-# print("len(ds) =", len(ds))
-
-# audio0 = ds[0]["audio"]
-# print("dtype:", audio0.dtype, "shape:", audio0.shape)
-
-# h = hashlib.sha256(audio0.tobytes()).hexdigest()
-# print("sha256:", h)
-
-# csv_bytes = (
-#         ds._data.unwrap.sort_index(axis=0)
-#         .sort_index(axis=1)
-#         .to_csv(index=True)
-#         .encode("utf-8")
-#     )
-# h = hashlib.sha256(csv_bytes).hexdigest()
-
-# print("annotations sha256:", h)
-
-# quit()
-# # # #
+from esp_data.utils import create_hash
 
 EXPECTED_LEN = 15120
 EXPECTED_FIRST_ITEM_AUDIO_SHA256 = "c6c84647649f958f1ab9eef45276bc590d629ebfb94999d241f9e045b94acde8"
-ANNOTATIONS_SHA256 = "1dca08123cfc08671be754f028cdfb028523885f757924c52e5574c2033ca4f7"
+ANNOTATIONS_SHA256 = "ab019e74963a46c98695b6d1b774348c8cda8ef9783f32c49fffa8d275511943"
 # ---------------------------------------------------------------------------
 
 SPLIT = "PER-test_5s"
@@ -163,7 +134,7 @@ def test_reference_item_stability(ds_pandas: BirdSet):
         audio.dtype == np.float32
     ), f"[0] audio dtype is {audio.dtype}, expected float32"
 
-    h = hashlib.sha256(audio.tobytes()).hexdigest()
+    h = create_hash(audio.tobytes())
 
     assert h == EXPECTED_FIRST_ITEM_AUDIO_SHA256, (
         "First item's audio hash changed.\n"
@@ -179,7 +150,7 @@ def test_reference_item_stability(ds_pandas: BirdSet):
         .to_csv(index=True)
         .encode("utf-8")
     )
-    h = hashlib.sha256(csv_bytes).hexdigest()
+    h = create_hash(csv_bytes)
 
     assert h == ANNOTATIONS_SHA256, (
         "Annotation's hash changed.\n"
@@ -230,3 +201,25 @@ def test_str_representation(ds: BirdSet) -> None:
     s = str(ds)
     assert "birdset" in s
     assert "0.1.0" in s
+
+
+# if __name__ == "__main__":
+#     ds = BirdSet(split=SPLIT, sample_rate=16000, backend="pandas")
+
+#     print("len(ds) =", len(ds))
+
+#     audio0 = ds[0]["audio"]
+#     print("dtype:", audio0.dtype, "shape:", audio0.shape)
+
+#     h = create_hash(audio0.tobytes())
+#     print("sha256:", h)
+
+#     csv_bytes = (
+#             ds._data.unwrap.sort_index(axis=0)
+#             .sort_index(axis=1)
+#             .to_csv(index=True)
+#             .encode("utf-8")
+#         )
+#     h = create_hash(csv_bytes)
+
+#     print("annotations sha256:", h)

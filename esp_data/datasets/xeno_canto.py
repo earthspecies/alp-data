@@ -108,23 +108,23 @@ class XenoCanto(Dataset):
     >>> print(dataset.available_sample_rates)
     [32000, 16000]
 
-    # Load with pre-resampled 32kHz audio (when available)
-    >>> dataset_32k = XenoCanto(split="train", sample_rate=32000)
+    Load with pre-resampled 32kHz audio (when available)
+    >>> dataset_32k = XenoCanto(split="train", sample_rate=32000, streaming=True)
 
-    # Load with pre-resampled 16kHz audio (when available)
-    >>> dataset_16k = XenoCanto(split="train", sample_rate=16000)
+    Load with pre-resampled 16kHz audio (when available)
+    >>> dataset_16k = XenoCanto(split="train", sample_rate=16000, streaming=True)
     """
 
     info = DatasetInfo(
         name="xeno-canto",
         owner="david; gagan",
         split_paths={
-            "train": "gs://esp-ml-datasets/xeno-canto/v0.1.0/raw/train_20260203.csv",
-            "validation": "gs://esp-ml-datasets/xeno-canto/v0.1.0/raw/val_20260203.csv",
-            "all": "gs://esp-ml-datasets/xeno-canto/v0.1.0/raw/all_20260203.csv",
-            "train_unseen": "gs://esp-ml-datasets/xeno-canto/v0.1.0/raw/train_unseen_20260203.csv",
-            "validation_unseen": "gs://esp-ml-datasets/xeno-canto/v0.1.0/raw/val_unseen_20260203.csv",
-            "all_unseen": "gs://esp-ml-datasets/xeno-canto/v0.1.0/raw/all_unseen_20260203.csv",
+            "train": "gs://esp-ml-datasets/xeno-canto/v0.1.0/raw/train_20260203_v2.csv",
+            "validation": "gs://esp-ml-datasets/xeno-canto/v0.1.0/raw/val_20260203_v2.csv",
+            "all": "gs://esp-ml-datasets/xeno-canto/v0.1.0/raw/all_20260203_v2.csv",
+            "train_unseen": "gs://esp-ml-datasets/xeno-canto/v0.1.0/raw/train_unseen_20260203_v2.csv",
+            "validation_unseen": "gs://esp-ml-datasets/xeno-canto/v0.1.0/raw/val_unseen_20260203_v2.csv",
+            "all_unseen": "gs://esp-ml-datasets/xeno-canto/v0.1.0/raw/all_unseen_20260203_v2.csv",
         },
         version="0.1.0",
         description="Xeno-canto audio dataset with taxonomic metadata. "

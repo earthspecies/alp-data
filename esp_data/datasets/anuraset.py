@@ -74,10 +74,14 @@ class AnuraSetStrong(Dataset):
         name="anuraset_strong",
         owner="benjamin",
         split_paths={
-            "all": "gs://esp-ml-datasets/anuraset/anuraset_all_gbif_v2.csv",
+            "all": "gs://esp-ml-datasets/anuraset/anuraset_all_gbif_v3.csv",
         },
         version="0.1.0",
-        description="[MISSING]",
+        description="AnuraSet: A dataset for benchmarking Neotropical anuran"
+        "calls identification in passive acoustic monitoring by Canas et al. (2023): "
+        "We introduce a large-scale multi-species dataset of anuran amphibians"
+        "calls recorded by PAM, that comprises 27 hours of expert annotations"
+        "for 42 different species from two Brazilian biomes.",
         sources="Zenodo",
         license="CC BY 1.0",
     )

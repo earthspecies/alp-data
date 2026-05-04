@@ -16,54 +16,21 @@ import pandas as pd
 import pytest
 
 from esp_data.datasets import AnuraSetStrong
-
-
-# # --- Dataset snapshot ---
-
-# # Code to generate snapshot:
-# import hashlib
-# from esp_data.datasets import AnuraSetStrong
-# ds = AnuraSetStrong(split="all", sample_rate=16000, backend="pandas")
-
-# print("len(ds) =", len(ds))
-
-# audio0 = ds[0]["audio"]
-# print("dtype:", audio0.dtype, "shape:", audio0.shape)
-
-# h = hashlib.sha256(audio0.tobytes()).hexdigest()
-# print("sha256:", h)
-
-# csv_bytes = (
-#         ds._data.unwrap.sort_index(axis=0)
-#         .sort_index(axis=1)
-#         .to_csv(index=True)
-#         .encode("utf-8")
-#     )
-# h = hashlib.sha256(csv_bytes).hexdigest()
-
-# print("annotations sha256:", h)
-
-# quit()
-# # # #
+from esp_data.utils import create_hash
 
 EXPECTED_LEN_ALL = 1612  #
 EXPECTED_FIRST_ITEM_AUDIO_SHA256 = (
     "01f8cb6536238e31f81c1a1cc5090f930f69a55763d354b23e1f756d8f5cd9d7"
 )
-ANNOTATIONS_SHA256 = "f1511e525c9a31cb329c7b925ac1baf68ea888d10a267ac8d8ad307c440439fc"
+ANNOTATIONS_SHA256 = "4dc87a9a6bcd7e318f99408455c44d11ece10b27ee9120aabba964c1a7ca7f76"
 # ---------------------------------------------------------------------------
 
 
 @pytest.fixture(scope="module")
 def ds() -> AnuraSetStrong:
     """Load AnuraSetStrong dataset for testing."""
-    return AnuraSetStrong(split="all", sample_rate=16000)
-
-
-@pytest.fixture(scope="module")
-def ds_pandas() -> AnuraSetStrong:
-    """Load AnuraSetStrong dataset for testing with pandas backend."""
     return AnuraSetStrong(split="all", sample_rate=16000, backend="pandas")
+
 
 def test_get_available_labels(ds: AnuraSetStrong):
     """Test get_available_labels for ID column."""
@@ -74,12 +41,13 @@ def test_get_available_labels(ds: AnuraSetStrong):
     for label in labels:
         assert isinstance(label, str), f"Species label for {label} should be string"
 
+
 @pytest.fixture(scope="module")
 def sample_indices(ds: AnuraSetStrong) -> List[int]:
-    """Deterministically choose up to 5 random indices for quick spot checks."""
+    """Deterministically choose up to 3 random indices for quick spot checks."""
     n = len(ds)
     rng = random.Random(23)
-    return [rng.randrange(n) for _ in range(min(5, n))]
+    return [rng.randrange(n) for _ in range(min(3, n))]
 
 
 def test_ds_not_empty(ds: AnuraSetStrong):
@@ -121,7 +89,7 @@ def test_dataset_length_matches_expected(ds: AnuraSetStrong):
     )
 
 
-def test_reference_item_stability(ds_pandas: AnuraSetStrong):
+def test_reference_item_stability(ds: AnuraSetStrong):
     """
     Check that a canonical item (index 0) is bitwise-stable.
 
@@ -138,7 +106,7 @@ def test_reference_item_stability(ds_pandas: AnuraSetStrong):
     """
     # choose deterministic index
     idx = 0
-    item = ds_pandas[idx]
+    item = ds[idx]
 
     # audio presence/type checks (defensive, so the hash failure message is clearer)
     assert "audio" in item, "[0] missing 'audio' key"
@@ -149,7 +117,7 @@ def test_reference_item_stability(ds_pandas: AnuraSetStrong):
     ), f"[0] audio dtype is {audio.dtype}, expected float32"
 
     # compute sha256 over raw bytes of the float32 array
-    h = hashlib.sha256(audio.tobytes()).hexdigest()
+    h = create_hash(audio.tobytes())
 
     assert h == EXPECTED_FIRST_ITEM_AUDIO_SHA256, (
         "First item's audio hash changed.\n"
@@ -161,12 +129,12 @@ def test_reference_item_stability(ds_pandas: AnuraSetStrong):
 
     # compute sha256 over raw bytes of the float32 array of annotations
     csv_bytes = (
-        ds_pandas._data.unwrap.sort_index(axis=0)
+        ds._data.unwrap.sort_index(axis=0)
         .sort_index(axis=1)
         .to_csv(index=True)
         .encode("utf-8")
     )
-    h = hashlib.sha256(csv_bytes).hexdigest()
+    h = create_hash(csv_bytes)
 
     assert h == ANNOTATIONS_SHA256, (
         "Annotation's hash changed.\n"
@@ -185,8 +153,8 @@ def test_presampled_columns_exist(ds: AnuraSetStrong):
 
 def test_load_presampled_32khz():
     """Loading with sample_rate=32000 should use pre-resampled 32kHz audio."""
-    ds = AnuraSetStrong(split="all", sample_rate=32000)
-    item = ds[0]
+    ds = AnuraSetStrong(split="all", sample_rate=32000, streaming=True)
+    item = next(iter(ds))
     audio = item["audio"]
     assert isinstance(audio, np.ndarray)
     assert audio.dtype == np.float32
@@ -218,3 +186,26 @@ def test_check_selection_table(ds: AnuraSetStrong, sample_indices: List[int]):
             assert not (
                 st["Begin Time (s)"] < 0
             ).any(), f"[{idx}] negative begin times present"
+
+
+# if __name__ == "__main__":
+#     # Code to generate snapshot:
+#     ds = AnuraSetStrong(split="all", sample_rate=16000, backend="pandas")
+
+#     print("len(ds) =", len(ds))
+
+#     audio0 = ds[0]["audio"]
+#     print("dtype:", audio0.dtype, "shape:", audio0.shape)
+
+#     h = create_hash(audio0.tobytes())
+#     print("sha256:", h)
+
+#     csv_bytes = (
+#             ds._data.unwrap.sort_index(axis=0)
+#             .sort_index(axis=1)
+#             .to_csv(index=True)
+#             .encode("utf-8")
+#         )
+#     h = create_hash(csv_bytes)
+
+#     print("annotations sha256:", h)

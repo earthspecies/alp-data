@@ -88,25 +88,27 @@ class AudioSet(Dataset):
     Version 0.2.0 includes pre-resampled 32kHz audio that can be loaded directly
     without on-the-fly resampling for faster data loading:
 
-    >>> # Load with pre-resampled 32kHz audio (v0.2.0, no resampling needed)
-    >>> dataset_32k = AudioSet(split="validation", version="0.2.0", sample_rate=32000)
+    Load with pre-resampled 32kHz audio (v0.2.0, no resampling needed)
+    >>> dataset_32k = AudioSet(split="validation", version="0.2.0", sample_rate=32000,
+    ... streaming=True)
     >>> print(dataset_32k.available_sample_rates)
     [32000]
 
-    >>> # Load with on-the-fly resampling to 16kHz
-    >>> dataset_16k = AudioSet(split="validation", version="0.2.0", sample_rate=16000)
+    Load with on-the-fly resampling to 16kHz
+    >>> dataset_16k = AudioSet(split="validation", version="0.2.0", sample_rate=16000,
+    ... streaming=True)
 
     Examples
     --------
     >>> from esp_data.datasets import AudioSet
     >>> dataset = AudioSet(
     ...     split="train",
-    ...     output_take_and_give={"label": "audio_label"}
+    ...     output_take_and_give={"label": "audio_label"},
+    ...     version="0.1.0",
+    ...     streaming=True
     ... )
     >>> print(dataset.info.name)
     audioset
-    >>> # Use a specific version
-    >>> dataset_v2 = AudioSet(split="train", version="0.2.0")
     """
 
     # Version registry with version-specific configurations

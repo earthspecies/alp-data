@@ -98,22 +98,22 @@ class INaturalist(Dataset):
     [32000, 16000]
 
     Load with pre-resampled 32kHz audio (no on-the-fly resampling needed)
-    >>> dataset_32k = INaturalist(split="train", sample_rate=32000)
+    >>> dataset_32k = INaturalist(split="train", sample_rate=32000, streaming=True)
 
     Load with pre-resampled 16kHz audio (no on-the-fly resampling needed)
-    >>> dataset_16k = INaturalist(split="train", sample_rate=16000)
+    >>> dataset_16k = INaturalist(split="train", sample_rate=16000, streaming=True)
     """
 
     info = DatasetInfo(
         name="inaturalist",
         owner="gagan; david",
         split_paths={
-            "train": "gs://esp-ml-datasets/inaturalist/v0.1.0/raw/train_20260201.csv",
-            "train_unseen": "gs://esp-ml-datasets/inaturalist/v0.1.0/raw/train_unseen_20260201.csv",
-            "val": "gs://esp-ml-datasets/inaturalist/v0.1.0/raw/val_20260201.csv",
-            "val_unseen": "gs://esp-ml-datasets/inaturalist/v0.1.0/raw/val_unseen_20260201.csv",
-            "all": "gs://esp-ml-datasets/inaturalist/v0.1.0/raw/all_20260201.csv",
-            "all_unseen": "gs://esp-ml-datasets/inaturalist/v0.1.0/raw/all_unseen_20260201.csv",
+            "train": "gs://esp-ml-datasets/inaturalist/v0.1.0/raw/train_20260201_v2.csv",
+            "train_unseen": "gs://esp-ml-datasets/inaturalist/v0.1.0/raw/train_unseen_20260201_v2.csv",
+            "val": "gs://esp-ml-datasets/inaturalist/v0.1.0/raw/val_20260201_v2.csv",
+            "val_unseen": "gs://esp-ml-datasets/inaturalist/v0.1.0/raw/val_unseen_20260201_v2.csv",
+            "all": "gs://esp-ml-datasets/inaturalist/v0.1.0/raw/all_20260201_v2.csv",
+            "all_unseen": "gs://esp-ml-datasets/inaturalist/v0.1.0/raw/all_unseen_20260201_v2.csv",
         },
         version="0.1.0",
         description="iNaturalist audio dataset with taxonomic metadata. "
