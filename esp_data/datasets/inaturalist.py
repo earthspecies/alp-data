@@ -8,6 +8,7 @@ import numpy as np
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from esp_data.backends import BackendType
 from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
+from esp_data.utils import DATA_HOME
 
 
 @register_dataset
@@ -108,12 +109,12 @@ class INaturalist(Dataset):
         name="inaturalist",
         owner="gagan; david",
         split_paths={
-            "train": "gs://esp-ml-datasets/inaturalist/v0.1.0/raw/train_20260201_v3.csv",
-            "train_unseen": "gs://esp-ml-datasets/inaturalist/v0.1.0/raw/train_unseen_20260201_v3.csv",
-            "val": "gs://esp-ml-datasets/inaturalist/v0.1.0/raw/val_20260201_v3.csv",
-            "val_unseen": "gs://esp-ml-datasets/inaturalist/v0.1.0/raw/val_unseen_20260201_v3.csv",
-            "all": "gs://esp-ml-datasets/inaturalist/v0.1.0/raw/all_20260201_v3.csv",
-            "all_unseen": "gs://esp-ml-datasets/inaturalist/v0.1.0/raw/all_unseen_20260201_v3.csv",
+            "train": f"{DATA_HOME}/inaturalist/v0.1.0/raw/train_20260201_v3.csv",
+            "train_unseen": f"{DATA_HOME}/inaturalist/v0.1.0/raw/train_unseen_20260201_v3.csv",
+            "val": f"{DATA_HOME}/inaturalist/v0.1.0/raw/val_20260201_v3.csv",
+            "val_unseen": f"{DATA_HOME}/inaturalist/v0.1.0/raw/val_unseen_20260201_v3.csv",
+            "all": f"{DATA_HOME}/inaturalist/v0.1.0/raw/all_20260201_v3.csv",
+            "all_unseen": f"{DATA_HOME}/inaturalist/v0.1.0/raw/all_unseen_20260201_v3.csv",
         },
         version="0.1.0",
         description="iNaturalist audio dataset with taxonomic metadata. "
