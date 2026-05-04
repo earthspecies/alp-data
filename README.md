@@ -2,13 +2,13 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-EthoHub gives you unified Python access to dozens of bioacoustic datasets, including recordings from birds, marine mammals, primates, insects, anurans, and multi-taxon benchmarks. Every built-in dataset shares a common `Dataset` interface, with streaming, on-the-fly transforms, and consistent loading regardless of source format.
+EthoHub gives you unified access to dozens of bioacoustic datasets, including recordings from birds, marine mammals, primates, insects, anurans, and multi-taxon benchmarks. Every built-in dataset shares a common `Dataset` interface, with streaming, configurable transforms, and consistent loading regardless of source format.
 
 ## Why EthoHub
 
 Bioacoustic recordings live in many places: Zenodo, OSF, GBIF, institutional repositories. Each dataset arrives with its own format, manifest schema, audio organization, sampling rate, and licensing posture. Researchers wanting to listen across datasets first have to write a custom loader per dataset, then a custom mixer for combining them.
 
-EthoHub removes that scaffolding. Every built-in dataset surfaces the same Python interface (`for sample in ds`, `ds[i]`, `len(ds)`), with consistent keys for audio arrays, sample rates, labels, and metadata. Sample-rate harmonization, label derivation, and split-aware loading are wired in. Adding a new dataset means writing one class, not rebuilding plumbing.
+EthoHub removes that scaffolding. Every built-in dataset surfaces the same interface (`for sample in ds`, `ds[i]`, `len(ds)`), with `audio` and `sample_rate` keys returned for every sample. Dataset-specific keys carry labels, annotations, and other metadata. Sample-rate harmonization, label derivation, and split-aware loading are wired in. Adding a new dataset means writing one class, not rebuilding plumbing.
 
 You can stand up a multi-dataset benchmark, compare models across taxa, or stream species-specific audio for transfer learning without first becoming a data-engineering specialist.
 
@@ -29,7 +29,7 @@ Most datasets are openly licensed (CC-BY, CC-BY-NC, CC0, public domain). License
 - **Source-flexible loading** — built-in datasets stream from a public Cloudflare R2 bucket; the I/O module can also read from local paths, GCS, S3, and other R2 buckets, with CSV / JSON-Lines / Parquet manifests supported at the backend layer.
 - **Iterate or random-access indexing** — every Dataset supports `for sample in ds` and `ds[i]`.
 - **Streaming mode** — process datasets larger than memory with `streaming=True`.
-- **On-the-fly transformations** — filter rows, select columns, derive labels, deduplicate, balance, upsample long tails, subsample by ratio.
+- **Configurable transforms** — filter rows, select columns, derive labels, deduplicate, balance, upsample long tails, subsample by ratio.
 - **Combine datasets** — `ConcatenatedDataset` merges multiple datasets with configurable column-merge strategies; `ChainedDataset` iterates over them sequentially with streaming support.
 - **Pluggable backends** — pandas or polars under the hood, selectable per-Dataset.
 
@@ -58,6 +58,27 @@ beans_streaming = Beans(split="train", streaming=True)
 for sample in beans_streaming:
     print(sample["audio"].shape)
     break
+```
+
+Datasets and transforms can also be loaded from a YAML config:
+
+```yaml
+# config.yaml
+dataset:
+  dataset_name: beans
+  split: train
+  sample_rate: 16000
+  transformations:
+    - type: filter
+      property: source_dataset
+      mode: include
+      values: ["watkins"]
+```
+
+```python
+from ethohub import dataset_from_config
+
+ds, transform_metadata = dataset_from_config("config.yaml")
 ```
 
 ## Installation
