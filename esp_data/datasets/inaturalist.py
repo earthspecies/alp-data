@@ -80,6 +80,16 @@ class INaturalist(Dataset):
     Note that all splits exclude examples overlapping with the following benchmark datasets:
     - BEANS-Zero captioning test set (See the beans_zero dataset)
 
+    Remarks
+    -------
+    ⚠️ Some original audio files in m4a format were converted to WAV. This does not
+    resolve the issues with m4a as a bioacoustic recording format,
+    and the conversion to WAV via soundfile.write
+    (see scripts/data_preprocessing_scripts/inat_m4a_to_wav.py) may introduce decoder specific
+    metadata.
+    ⚠️ MP3 audio files that were unreadable by soundfile were also converted to WAV using librosa
+    and ffmpeg. This may introduce decoder specific metadata and potential quality issues.
+    (see scripts/data_preprocessing_scripts/inat_mp3_to_wav.py)
 
     References
     ----------
