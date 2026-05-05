@@ -46,9 +46,9 @@ class Beans(Dataset):
         name="beans",
         owner="gagan",
         split_paths={
-            "train": "gs://esp-ml-datasets/beans/v0.1.0/raw/beans_train_v2.csv",
-            "validation": "gs://esp-ml-datasets/beans/v0.1.0/raw/beans_val_v2.csv",
-            "test": "gs://esp-ml-datasets/beans/v0.1.0/raw/beans_test_v2.csv",
+            "train": "gs://esp-ml-datasets/beans/v0.1.0/raw/beans_train_v3.csv",
+            "validation": "gs://esp-ml-datasets/beans/v0.1.0/raw/beans_val_v3.csv",
+            "test": "gs://esp-ml-datasets/beans/v0.1.0/raw/beans_test_v3.csv",
             "cbi_test": "gs://esp-ml-datasets/beans/v0.1.0/raw/cbi_test.jsonl",
             "cbi_validation": "gs://esp-ml-datasets/beans/v0.1.0/raw/cbi_val.jsonl",
             "cbi_train": "gs://esp-ml-datasets/beans/v0.1.0/raw/cbi_train.jsonl",
