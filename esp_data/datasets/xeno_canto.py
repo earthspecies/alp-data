@@ -8,7 +8,7 @@ import numpy as np
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from esp_data.backends import BackendType
 from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
-from esp_data.settings import DATA_HOME
+from esp_data.utils import DATA_HOME
 
 
 @register_dataset
