@@ -9,6 +9,7 @@ dependencies = [
     "fastapi>=0.115.0",
     "duckdb>=1.1.0",
     "esp-data",
+    "plotly>=6.7.0",
 ]
 
 [dependency-groups]
