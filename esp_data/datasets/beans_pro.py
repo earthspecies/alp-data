@@ -1,5 +1,7 @@
 """BEANS-Pro dataset: acoustic description matching benchmark."""
 
+import json
+import re
 from typing import Any, Dict, Iterator
 
 import librosa
@@ -9,6 +11,140 @@ import pandas as pd
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from esp_data.backends import BackendType
 from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
+
+
+_AUDIO_TAG_RE = re.compile(r"\s*<Audio><AudioHere></Audio>\s*")
+
+_T3_SPLIT_PATHS = {
+    "t3-bird-presence-biophony-binary": "gs://foundation-model-data/synthetic/beanspro_draft/t3/bird_presence_biophony_binary.jsonl",
+    "t3-frequency-range-description": "gs://foundation-model-data/synthetic/beanspro_draft/t3/frequency_range_description_oe.jsonl",
+    "t3-ordered-species-summary": "gs://foundation-model-data/synthetic/beanspro_draft/t3/ordered_species_summary_oe.jsonl",
+    "t3-species-by-highest-pitch-mcq": "gs://foundation-model-data/synthetic/beanspro_draft/t3/species_by_highest_pitch_mcq.jsonl",
+    "t3-species-by-highest-pitch-oe": "gs://foundation-model-data/synthetic/beanspro_draft/t3/species_by_highest_pitch_oe.jsonl",
+    "t3-species-by-longest-vocalization-mcq": "gs://foundation-model-data/synthetic/beanspro_draft/t3/species_by_longest_vocalization_mcq.jsonl",
+    "t3-species-by-longest-vocalization-oe": "gs://foundation-model-data/synthetic/beanspro_draft/t3/species_by_longest_vocalization_oe.jsonl",
+    "t3-species-by-lowest-pitch-mcq": "gs://foundation-model-data/synthetic/beanspro_draft/t3/species_by_lowest_pitch_mcq.jsonl",
+    "t3-species-by-lowest-pitch-oe": "gs://foundation-model-data/synthetic/beanspro_draft/t3/species_by_lowest_pitch_oe.jsonl",
+    "t3-species-by-vocalization-frequency-mcq": "gs://foundation-model-data/synthetic/beanspro_draft/t3/species_by_vocalization_frequency_mcq.jsonl",
+    "t3-species-by-vocalization-frequency-oe": "gs://foundation-model-data/synthetic/beanspro_draft/t3/species_by_vocalization_frequency_oe.jsonl",
+    "t3-species-by-vocalization-order-mcq": "gs://foundation-model-data/synthetic/beanspro_draft/t3/species_by_vocalization_order_mcq.jsonl",
+    "t3-species-by-vocalization-order-oe": "gs://foundation-model-data/synthetic/beanspro_draft/t3/species_by_vocalization_order_oe.jsonl",
+    "t3-species-count-oe": "gs://foundation-model-data/synthetic/beanspro_draft/t3/species_count_oe.jsonl",
+    "t3-species-listing-open-list": "gs://foundation-model-data/synthetic/beanspro_draft/t3/species_listing_open_list.jsonl",
+    "t3-structural-captioning": "gs://foundation-model-data/synthetic/beanspro_draft/t3/structural_captioning_caption.jsonl",
+    "t3-vocalization-cooccurrence-binary": "gs://foundation-model-data/synthetic/beanspro_draft/t3/vocalization_cooccurrence_binary.jsonl",
+    "t3-vocalization-count-per-species-oe": "gs://foundation-model-data/synthetic/beanspro_draft/t3/vocalization_count_per_species_oe.jsonl",
+    "t3-vocalization-count-total-mcq": "gs://foundation-model-data/synthetic/beanspro_draft/t3/vocalization_count_total_mcq.jsonl",
+    "t3-vocalization-count-total-oe": "gs://foundation-model-data/synthetic/beanspro_draft/t3/vocalization_count_total_oe.jsonl",
+    "t3-vocalization-presence-binary": "gs://foundation-model-data/synthetic/beanspro_draft/t3/vocalization_presence_binary.jsonl",
+    "t3-vocalization-referring-mcq": "gs://foundation-model-data/synthetic/beanspro_draft/t3/vocalization_referring_mcq.jsonl",
+}
+
+
+def _message_content(row: dict[str, Any], role: str) -> str | None:
+    """Return the first conversation message content for a role.
+
+    Parameters
+    ----------
+    row : dict[str, Any]
+        Raw JSONL row.
+    role : str
+        Message role to extract.
+
+    Returns
+    -------
+    str or None
+        Message content when present.
+    """
+    messages = row.get("messages")
+    if not isinstance(messages, list):
+        return None
+    for message in messages:
+        if not isinstance(message, dict):
+            continue
+        if message.get("role") != role:
+            continue
+        content = message.get("content")
+        if isinstance(content, str) and content.strip():
+            return content.strip()
+    return None
+
+
+def _metadata_dict(row: dict[str, Any]) -> dict[str, Any]:
+    """Parse the JSON metadata column when available.
+
+    Parameters
+    ----------
+    row : dict[str, Any]
+        Raw JSONL row.
+
+    Returns
+    -------
+    dict[str, Any]
+        Parsed metadata mapping, or an empty mapping when unavailable.
+    """
+    meta = row.get("metadata")
+    if isinstance(meta, dict):
+        return dict(meta)
+    if isinstance(meta, str) and meta.strip():
+        try:
+            parsed = json.loads(meta)
+        except json.JSONDecodeError:
+            return {}
+        if isinstance(parsed, dict):
+            return parsed
+    return {}
+
+
+def _normalize_synthetic_conversation_row(row: dict[str, Any]) -> dict[str, Any]:
+    """Expose conversation-style synthetic rows through the flat BeansPro schema.
+
+    Parameters
+    ----------
+    row : dict[str, Any]
+        Raw JSONL row from a synthetic BeansPro split.
+
+    Returns
+    -------
+    dict[str, Any]
+        Row with flat ``instruction``, ``output``, and
+        ``audio_path_original_sample_rate`` fields populated when possible.
+    """
+    out = dict(row)
+    audio_paths = out.get("audio_paths")
+    if (
+        "audio_path_original_sample_rate" not in out
+        and isinstance(audio_paths, list)
+        and audio_paths
+        and isinstance(audio_paths[0], str)
+    ):
+        out["audio_path_original_sample_rate"] = audio_paths[0]
+
+    instruction = out.get("instruction")
+    if not isinstance(instruction, str) or not instruction.strip():
+        user_content = _message_content(out, "user")
+        if user_content is not None:
+            out["instruction"] = user_content
+            out.setdefault("instruction_text", _AUDIO_TAG_RE.sub("", user_content).strip())
+
+    output = out.get("output")
+    if not isinstance(output, str) or not output.strip():
+        assistant_content = _message_content(out, "assistant")
+        if assistant_content is not None:
+            out["output"] = assistant_content
+
+    metadata = _metadata_dict(out)
+    for source_key, target_key in (
+        ("source_dataset", "source_dataset"),
+        ("source_file", "file_name"),
+        ("beanspro_category", "category"),
+        ("beanspro_task", "task"),
+        ("beanspro_format", "format"),
+    ):
+        value = metadata.get(source_key)
+        if isinstance(value, str | int | float | bool):
+            out.setdefault(target_key, value)
+    return out
 
 
 @register_dataset
@@ -116,6 +252,7 @@ class BeansPro(Dataset):
             "t1-caption": "gs://foundation-model-data/synthetic/beanspro/t1-caption.jsonl",
             "t2-captioning": "gs://foundation-model-data/synthetic/beanspro/t2-captioning.jsonl",
             "t2-behavior": "gs://foundation-model-data/synthetic/beanspro/t2-behavior.jsonl",
+            **_T3_SPLIT_PATHS,
         },
         version="0.1.0",
         description=(
@@ -155,6 +292,7 @@ class BeansPro(Dataset):
         "t1-caption": "",
         "t2-captioning": "",
         "t2-behavior": "",
+        **{split: "" for split in _T3_SPLIT_PATHS},
     }
 
     _originals_path_column = "audio_path_original_sample_rate"
@@ -166,6 +304,7 @@ class BeansPro(Dataset):
         "t1-caption",
         "t2-captioning",
         "t2-behavior",
+        *_T3_SPLIT_PATHS,
     }
 
     def __init__(
@@ -264,6 +403,7 @@ class BeansPro(Dataset):
         return ds, {}
 
     def _process(self, row: dict[str, Any]) -> dict[str, Any]:
+        row = _normalize_synthetic_conversation_row(row)
         path_val = row[self._originals_path_column]
         if "://" in str(path_val):
             audio_path = anypath(path_val)
