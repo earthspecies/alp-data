@@ -1,0 +1,14 @@
+.web
+*.py[cod]
+.states
+*.db
+assets/external/
+.web/
+web/
+.venv/
+__pycache__/
+*.pyc
+.reflex/
+reflex.db
+uploaded_files/
+assets/*.duckdb

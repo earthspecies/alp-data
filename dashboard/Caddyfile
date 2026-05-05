@@ -1,0 +1,35 @@
+{
+	auto_https off
+	admin off
+	persist_config off
+}
+
+:{$PORT:8080} {
+	encode gzip
+
+	# Reflex websocket + state events
+	handle /_event {
+		reverse_proxy localhost:8000
+	}
+	handle /_event/* {
+		reverse_proxy localhost:8000
+	}
+	handle /_upload* {
+		reverse_proxy localhost:8000
+	}
+	handle /ping {
+		reverse_proxy localhost:8000
+	}
+
+	# FastAPI routes
+	handle /api/* {
+		reverse_proxy localhost:8000
+	}
+
+	# Static frontend (Reflex export output)
+	handle {
+		root * /app/dashboard/.web/build/client
+		try_files {path} {path}.html /index.html
+		file_server
+	}
+}
