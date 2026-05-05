@@ -14,6 +14,9 @@ from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
 
 
 _AUDIO_TAG_RE = re.compile(r"\s*<Audio><AudioHere></Audio>\s*")
+_BIRDVOX_CROPPED_AUDIO_ROOT = (
+    "gs://foundation-model-data/synthetic/cropped/birdvox_full_night/audio"
+)
 
 _T3_SPLIT_PATHS = {
     "t3-bird-presence-biophony-binary": "gs://foundation-model-data/synthetic/beanspro_draft/t3/bird_presence_biophony_binary.jsonl",
@@ -117,8 +120,20 @@ def _normalize_synthetic_conversation_row(row: dict[str, Any]) -> dict[str, Any]
         and isinstance(audio_paths, list)
         and audio_paths
         and isinstance(audio_paths[0], str)
+        and audio_paths[0].strip()
     ):
         out["audio_path_original_sample_rate"] = audio_paths[0]
+    if "audio_path_original_sample_rate" not in out:
+        audio_ids = out.get("audio_ids")
+        if isinstance(audio_ids, list):
+            for audio_id in audio_ids:
+                if isinstance(audio_id, str) and audio_id.startswith(
+                    "BirdVox-full-night_"
+                ):
+                    out["audio_path_original_sample_rate"] = (
+                        f"{_BIRDVOX_CROPPED_AUDIO_ROOT}/{audio_id.strip()}.wav"
+                    )
+                    break
 
     instruction = out.get("instruction")
     if not isinstance(instruction, str) or not instruction.strip():
