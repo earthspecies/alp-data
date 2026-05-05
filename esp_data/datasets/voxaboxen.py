@@ -14,8 +14,10 @@ from pydantic import Field
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from esp_data.backends import BackendType
 from esp_data.dataset import register_config
-from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio, read_text
-from esp_data.utils import DATA_HOME
+from esp_data.io import DATA_HOME, AnyPathT, anypath, audio_stereo_to_mono, read_audio, read_text
+
+_FILES_ROOT = f"{DATA_HOME}/voxaboxen/files"
+_OZF_SYN_ROOT = f"{_FILES_ROOT}/OZF_synthetic"
 
 LABEL_SETS = {
     "Anuraset_train": [
@@ -199,60 +201,45 @@ class Voxaboxen(Dataset):
         name="voxaboxen",
         owner="benjamin; gagan",
         split_paths={
-            "Anuraset_train": f"{DATA_HOME}/voxaboxen/files/Anuraset/formatted/train_info.csv",
-            "Anuraset_val": f"{DATA_HOME}/voxaboxen/files/Anuraset/formatted/val_info.csv",
-            "Anuraset_test": f"{DATA_HOME}/voxaboxen/files/Anuraset/formatted/test_info.csv",
-            "BV_train": f"{DATA_HOME}/voxaboxen/files/BV/formatted/train_info.csv",
-            "BV_val": f"{DATA_HOME}/voxaboxen/files/BV/formatted/val_info.csv",
-            "BV_test": f"{DATA_HOME}/voxaboxen/files/BV/formatted/test_info.csv",
-            "MT_train": f"{DATA_HOME}/voxaboxen/files/MT/formatted/train_info.csv",
-            "MT_val": f"{DATA_HOME}/voxaboxen/files/MT/formatted/val_info.csv",
-            "MT_test": f"{DATA_HOME}/voxaboxen/files/MT/formatted/test_info.csv",
-            "OZF_train": f"{DATA_HOME}/voxaboxen/files/OZF/formatted/train_info.csv",
-            "OZF_val": f"{DATA_HOME}/voxaboxen/files/OZF/formatted/val_info.csv",
-            "OZF_test": f"{DATA_HOME}/voxaboxen/files/OZF/formatted/test_info.csv",
-            "hawaii_train": f"{DATA_HOME}/voxaboxen/files/hawaii/formatted/train_info.csv",
-            "hawaii_val": f"{DATA_HOME}/voxaboxen/files/hawaii/formatted/val_info.csv",
-            "hawaii_test": f"{DATA_HOME}/voxaboxen/files/hawaii/formatted/test_info.csv",
-            "humpback_train": f"{DATA_HOME}/voxaboxen/files/humpback/formatted/train_info.csv",
-            "humpback_val": f"{DATA_HOME}/voxaboxen/files/humpback/formatted/val_info.csv",
-            "humpback_test": f"{DATA_HOME}/voxaboxen/files/humpback/formatted/test_info.csv",
-            "katydids_train": f"{DATA_HOME}/voxaboxen/files/katydids/formatted/train_info.csv",
-            "katydids_val": f"{DATA_HOME}/voxaboxen/files/katydids/formatted/val_info.csv",
-            "katydids_test": f"{DATA_HOME}/voxaboxen/files/katydids/formatted/test_info.csv",
-            "powdermill_train": f"{DATA_HOME}/voxaboxen/files/powdermill/formatted/train_info.csv",
-            "powdermill_val": f"{DATA_HOME}/voxaboxen/files/powdermill/formatted/val_info.csv",
-            "powdermill_test": f"{DATA_HOME}/voxaboxen/files/powdermill/formatted/test_info.csv",
-            "OZF_synthetic_overlap_0_train": f"{DATA_HOME}/voxaboxen/files/OZF_synthetic/"
-            "overlap_0/train_info.csv",
-            "OZF_synthetic_overlap_0_val": f"{DATA_HOME}/voxaboxen/files/OZF_synthetic/"
-            "overlap_0/val_info.csv",
-            "OZF_synthetic_overlap_0_test": f"{DATA_HOME}/voxaboxen/files/OZF_synthetic/"
-            "overlap_0/test_info.csv",
-            "OZF_synthetic_overlap_0.2_train": f"{DATA_HOME}/voxaboxen/files/OZF_synthetic/"
-            "overlap_0.2/train_info.csv",
-            "OZF_synthetic_overlap_0.2_val": f"{DATA_HOME}/voxaboxen/files/OZF_synthetic/"
-            "overlap_0.2/val_info.csv",
-            "OZF_synthetic_overlap_0.2_test": f"{DATA_HOME}/voxaboxen/files/OZF_synthetic/"
-            "overlap_0.2/test_info.csv",
-            "OZF_synthetic_overlap_0.4_train": f"{DATA_HOME}/voxaboxen/files/OZF_synthetic/"
-            "overlap_0.4/train_info.csv",
-            "OZF_synthetic_overlap_0.4_val": f"{DATA_HOME}/voxaboxen/files/OZF_synthetic/"
-            "overlap_0.4/val_info.csv",
-            "OZF_synthetic_overlap_0.4_test": f"{DATA_HOME}/voxaboxen/files/OZF_synthetic/"
-            "overlap_0.4/test_info.csv",
-            "OZF_synthetic_overlap_0.6_train": f"{DATA_HOME}/voxaboxen/files/OZF_synthetic/"
-            "overlap_0.6/train_info.csv",
-            "OZF_synthetic_overlap_0.6_val": f"{DATA_HOME}/voxaboxen/files/OZF_synthetic/"
-            "overlap_0.6/val_info.csv",
-            "OZF_synthetic_overlap_0.6_test": f"{DATA_HOME}/voxaboxen/files/OZF_synthetic/"
-            "overlap_0.6/test_info.csv",
-            "OZF_synthetic_overlap_1_train": f"{DATA_HOME}/voxaboxen/files/OZF_synthetic/"
-            "overlap_1/train_info.csv",
-            "OZF_synthetic_overlap_1_val": f"{DATA_HOME}/voxaboxen/files/OZF_synthetic/"
-            "overlap_1/val_info.csv",
-            "OZF_synthetic_overlap_1_test": f"{DATA_HOME}/voxaboxen/files/OZF_synthetic/"
-            "overlap_1/test_info.csv",
+            "Anuraset_train": f"{_FILES_ROOT}/Anuraset/formatted/train_info.csv",
+            "Anuraset_val": f"{_FILES_ROOT}/Anuraset/formatted/val_info.csv",
+            "Anuraset_test": f"{_FILES_ROOT}/Anuraset/formatted/test_info.csv",
+            "BV_train": f"{_FILES_ROOT}/BV/formatted/train_info.csv",
+            "BV_val": f"{_FILES_ROOT}/BV/formatted/val_info.csv",
+            "BV_test": f"{_FILES_ROOT}/BV/formatted/test_info.csv",
+            "MT_train": f"{_FILES_ROOT}/MT/formatted/train_info.csv",
+            "MT_val": f"{_FILES_ROOT}/MT/formatted/val_info.csv",
+            "MT_test": f"{_FILES_ROOT}/MT/formatted/test_info.csv",
+            "OZF_train": f"{_FILES_ROOT}/OZF/formatted/train_info.csv",
+            "OZF_val": f"{_FILES_ROOT}/OZF/formatted/val_info.csv",
+            "OZF_test": f"{_FILES_ROOT}/OZF/formatted/test_info.csv",
+            "hawaii_train": f"{_FILES_ROOT}/hawaii/formatted/train_info.csv",
+            "hawaii_val": f"{_FILES_ROOT}/hawaii/formatted/val_info.csv",
+            "hawaii_test": f"{_FILES_ROOT}/hawaii/formatted/test_info.csv",
+            "humpback_train": f"{_FILES_ROOT}/humpback/formatted/train_info.csv",
+            "humpback_val": f"{_FILES_ROOT}/humpback/formatted/val_info.csv",
+            "humpback_test": f"{_FILES_ROOT}/humpback/formatted/test_info.csv",
+            "katydids_train": f"{_FILES_ROOT}/katydids/formatted/train_info.csv",
+            "katydids_val": f"{_FILES_ROOT}/katydids/formatted/val_info.csv",
+            "katydids_test": f"{_FILES_ROOT}/katydids/formatted/test_info.csv",
+            "powdermill_train": f"{_FILES_ROOT}/powdermill/formatted/train_info.csv",
+            "powdermill_val": f"{_FILES_ROOT}/powdermill/formatted/val_info.csv",
+            "powdermill_test": f"{_FILES_ROOT}/powdermill/formatted/test_info.csv",
+            "OZF_synthetic_overlap_0_train": f"{_OZF_SYN_ROOT}/overlap_0/train_info.csv",
+            "OZF_synthetic_overlap_0_val": f"{_OZF_SYN_ROOT}/overlap_0/val_info.csv",
+            "OZF_synthetic_overlap_0_test": f"{_OZF_SYN_ROOT}/overlap_0/test_info.csv",
+            "OZF_synthetic_overlap_0.2_train": f"{_OZF_SYN_ROOT}/overlap_0.2/train_info.csv",
+            "OZF_synthetic_overlap_0.2_val": f"{_OZF_SYN_ROOT}/overlap_0.2/val_info.csv",
+            "OZF_synthetic_overlap_0.2_test": f"{_OZF_SYN_ROOT}/overlap_0.2/test_info.csv",
+            "OZF_synthetic_overlap_0.4_train": f"{_OZF_SYN_ROOT}/overlap_0.4/train_info.csv",
+            "OZF_synthetic_overlap_0.4_val": f"{_OZF_SYN_ROOT}/overlap_0.4/val_info.csv",
+            "OZF_synthetic_overlap_0.4_test": f"{_OZF_SYN_ROOT}/overlap_0.4/test_info.csv",
+            "OZF_synthetic_overlap_0.6_train": f"{_OZF_SYN_ROOT}/overlap_0.6/train_info.csv",
+            "OZF_synthetic_overlap_0.6_val": f"{_OZF_SYN_ROOT}/overlap_0.6/val_info.csv",
+            "OZF_synthetic_overlap_0.6_test": f"{_OZF_SYN_ROOT}/overlap_0.6/test_info.csv",
+            "OZF_synthetic_overlap_1_train": f"{_OZF_SYN_ROOT}/overlap_1/train_info.csv",
+            "OZF_synthetic_overlap_1_val": f"{_OZF_SYN_ROOT}/overlap_1/val_info.csv",
+            "OZF_synthetic_overlap_1_test": f"{_OZF_SYN_ROOT}/overlap_1/test_info.csv",
         },
         version="0.1.0",
         description="Voxaboxen dataset for acoustic sound event detection",
@@ -597,60 +584,45 @@ class VoxaboxenEvents(Dataset):
         name="voxaboxen_events",
         owner="benjamin; gagan",
         split_paths={
-            "Anuraset_train": f"{DATA_HOME}/voxaboxen/files/Anuraset/formatted/train_info.csv",
-            "Anuraset_val": f"{DATA_HOME}/voxaboxen/files/Anuraset/formatted/val_info.csv",
-            "Anuraset_test": f"{DATA_HOME}/voxaboxen/files/Anuraset/formatted/test_info.csv",
-            "BV_train": f"{DATA_HOME}/voxaboxen/files/BV/formatted/train_info.csv",
-            "BV_val": f"{DATA_HOME}/voxaboxen/files/BV/formatted/val_info.csv",
-            "BV_test": f"{DATA_HOME}/voxaboxen/files/BV/formatted/test_info.csv",
-            "MT_train": f"{DATA_HOME}/voxaboxen/files/MT/formatted/train_info.csv",
-            "MT_val": f"{DATA_HOME}/voxaboxen/files/MT/formatted/val_info.csv",
-            "MT_test": f"{DATA_HOME}/voxaboxen/files/MT/formatted/test_info.csv",
-            "OZF_train": f"{DATA_HOME}/voxaboxen/files/OZF/formatted/train_info.csv",
-            "OZF_val": f"{DATA_HOME}/voxaboxen/files/OZF/formatted/val_info.csv",
-            "OZF_test": f"{DATA_HOME}/voxaboxen/files/OZF/formatted/test_info.csv",
-            "hawaii_train": f"{DATA_HOME}/voxaboxen/files/hawaii/formatted/train_info.csv",
-            "hawaii_val": f"{DATA_HOME}/voxaboxen/files/hawaii/formatted/val_info.csv",
-            "hawaii_test": f"{DATA_HOME}/voxaboxen/files/hawaii/formatted/test_info.csv",
-            "humpback_train": f"{DATA_HOME}/voxaboxen/files/humpback/formatted/train_info.csv",
-            "humpback_val": f"{DATA_HOME}/voxaboxen/files/humpback/formatted/val_info.csv",
-            "humpback_test": f"{DATA_HOME}/voxaboxen/files/humpback/formatted/test_info.csv",
-            "katydids_train": f"{DATA_HOME}/voxaboxen/files/katydids/formatted/train_info.csv",
-            "katydids_val": f"{DATA_HOME}/voxaboxen/files/katydids/formatted/val_info.csv",
-            "katydids_test": f"{DATA_HOME}/voxaboxen/files/katydids/formatted/test_info.csv",
-            "powdermill_train": f"{DATA_HOME}/voxaboxen/files/powdermill/formatted/train_info.csv",
-            "powdermill_val": f"{DATA_HOME}/voxaboxen/files/powdermill/formatted/val_info.csv",
-            "powdermill_test": f"{DATA_HOME}/voxaboxen/files/powdermill/formatted/test_info.csv",
-            "OZF_synthetic_overlap_0_train": f"{DATA_HOME}/voxaboxen/files/OZF_synthetic/"
-            "overlap_0/train_info.csv",
-            "OZF_synthetic_overlap_0_val": f"{DATA_HOME}/voxaboxen/files/OZF_synthetic/"
-            "overlap_0/val_info.csv",
-            "OZF_synthetic_overlap_0_test": f"{DATA_HOME}/voxaboxen/files/OZF_synthetic/"
-            "overlap_0/test_info.csv",
-            "OZF_synthetic_overlap_0.2_train": f"{DATA_HOME}/voxaboxen/files/OZF_synthetic/"
-            "overlap_0.2/train_info.csv",
-            "OZF_synthetic_overlap_0.2_val": f"{DATA_HOME}/voxaboxen/files/OZF_synthetic/"
-            "overlap_0.2/val_info.csv",
-            "OZF_synthetic_overlap_0.2_test": f"{DATA_HOME}/voxaboxen/files/OZF_synthetic/"
-            "overlap_0.2/test_info.csv",
-            "OZF_synthetic_overlap_0.4_train": f"{DATA_HOME}/voxaboxen/files/OZF_synthetic/"
-            "overlap_0.4/train_info.csv",
-            "OZF_synthetic_overlap_0.4_val": f"{DATA_HOME}/voxaboxen/files/OZF_synthetic/"
-            "overlap_0.4/val_info.csv",
-            "OZF_synthetic_overlap_0.4_test": f"{DATA_HOME}/voxaboxen/files/OZF_synthetic/"
-            "overlap_0.4/test_info.csv",
-            "OZF_synthetic_overlap_0.6_train": f"{DATA_HOME}/voxaboxen/files/OZF_synthetic/"
-            "overlap_0.6/train_info.csv",
-            "OZF_synthetic_overlap_0.6_val": f"{DATA_HOME}/voxaboxen/files/OZF_synthetic/"
-            "overlap_0.6/val_info.csv",
-            "OZF_synthetic_overlap_0.6_test": f"{DATA_HOME}/voxaboxen/files/OZF_synthetic/"
-            "overlap_0.6/test_info.csv",
-            "OZF_synthetic_overlap_1_train": f"{DATA_HOME}/voxaboxen/files/OZF_synthetic/"
-            "overlap_1/train_info.csv",
-            "OZF_synthetic_overlap_1_val": f"{DATA_HOME}/voxaboxen/files/OZF_synthetic/"
-            "overlap_1/val_info.csv",
-            "OZF_synthetic_overlap_1_test": f"{DATA_HOME}/voxaboxen/files/OZF_synthetic/"
-            "overlap_1/test_info.csv",
+            "Anuraset_train": f"{_FILES_ROOT}/Anuraset/formatted/train_info.csv",
+            "Anuraset_val": f"{_FILES_ROOT}/Anuraset/formatted/val_info.csv",
+            "Anuraset_test": f"{_FILES_ROOT}/Anuraset/formatted/test_info.csv",
+            "BV_train": f"{_FILES_ROOT}/BV/formatted/train_info.csv",
+            "BV_val": f"{_FILES_ROOT}/BV/formatted/val_info.csv",
+            "BV_test": f"{_FILES_ROOT}/BV/formatted/test_info.csv",
+            "MT_train": f"{_FILES_ROOT}/MT/formatted/train_info.csv",
+            "MT_val": f"{_FILES_ROOT}/MT/formatted/val_info.csv",
+            "MT_test": f"{_FILES_ROOT}/MT/formatted/test_info.csv",
+            "OZF_train": f"{_FILES_ROOT}/OZF/formatted/train_info.csv",
+            "OZF_val": f"{_FILES_ROOT}/OZF/formatted/val_info.csv",
+            "OZF_test": f"{_FILES_ROOT}/OZF/formatted/test_info.csv",
+            "hawaii_train": f"{_FILES_ROOT}/hawaii/formatted/train_info.csv",
+            "hawaii_val": f"{_FILES_ROOT}/hawaii/formatted/val_info.csv",
+            "hawaii_test": f"{_FILES_ROOT}/hawaii/formatted/test_info.csv",
+            "humpback_train": f"{_FILES_ROOT}/humpback/formatted/train_info.csv",
+            "humpback_val": f"{_FILES_ROOT}/humpback/formatted/val_info.csv",
+            "humpback_test": f"{_FILES_ROOT}/humpback/formatted/test_info.csv",
+            "katydids_train": f"{_FILES_ROOT}/katydids/formatted/train_info.csv",
+            "katydids_val": f"{_FILES_ROOT}/katydids/formatted/val_info.csv",
+            "katydids_test": f"{_FILES_ROOT}/katydids/formatted/test_info.csv",
+            "powdermill_train": f"{_FILES_ROOT}/powdermill/formatted/train_info.csv",
+            "powdermill_val": f"{_FILES_ROOT}/powdermill/formatted/val_info.csv",
+            "powdermill_test": f"{_FILES_ROOT}/powdermill/formatted/test_info.csv",
+            "OZF_synthetic_overlap_0_train": f"{_OZF_SYN_ROOT}/overlap_0/train_info.csv",
+            "OZF_synthetic_overlap_0_val": f"{_OZF_SYN_ROOT}/overlap_0/val_info.csv",
+            "OZF_synthetic_overlap_0_test": f"{_OZF_SYN_ROOT}/overlap_0/test_info.csv",
+            "OZF_synthetic_overlap_0.2_train": f"{_OZF_SYN_ROOT}/overlap_0.2/train_info.csv",
+            "OZF_synthetic_overlap_0.2_val": f"{_OZF_SYN_ROOT}/overlap_0.2/val_info.csv",
+            "OZF_synthetic_overlap_0.2_test": f"{_OZF_SYN_ROOT}/overlap_0.2/test_info.csv",
+            "OZF_synthetic_overlap_0.4_train": f"{_OZF_SYN_ROOT}/overlap_0.4/train_info.csv",
+            "OZF_synthetic_overlap_0.4_val": f"{_OZF_SYN_ROOT}/overlap_0.4/val_info.csv",
+            "OZF_synthetic_overlap_0.4_test": f"{_OZF_SYN_ROOT}/overlap_0.4/test_info.csv",
+            "OZF_synthetic_overlap_0.6_train": f"{_OZF_SYN_ROOT}/overlap_0.6/train_info.csv",
+            "OZF_synthetic_overlap_0.6_val": f"{_OZF_SYN_ROOT}/overlap_0.6/val_info.csv",
+            "OZF_synthetic_overlap_0.6_test": f"{_OZF_SYN_ROOT}/overlap_0.6/test_info.csv",
+            "OZF_synthetic_overlap_1_train": f"{_OZF_SYN_ROOT}/overlap_1/train_info.csv",
+            "OZF_synthetic_overlap_1_val": f"{_OZF_SYN_ROOT}/overlap_1/val_info.csv",
+            "OZF_synthetic_overlap_1_test": f"{_OZF_SYN_ROOT}/overlap_1/test_info.csv",
         },
         version="0.1.0",
         description="Voxaboxen events dataset for acoustic sound event detection",

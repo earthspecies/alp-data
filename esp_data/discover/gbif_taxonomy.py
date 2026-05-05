@@ -13,9 +13,8 @@ import pandas as pd
 from pydantic import BaseModel, Field, field_validator
 
 from esp_data.backends import DataBackend
-from esp_data.io import AnyPathT, exists, filesystem_from_path
+from esp_data.io import DATA_HOME, AnyPathT, exists, filesystem_from_path
 from esp_data.transforms import register_transform
-from esp_data.utils import DATA_HOME
 
 logger = logging.getLogger("esp_data")
 

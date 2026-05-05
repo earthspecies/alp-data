@@ -41,7 +41,7 @@ import polars as pl
 import soundfile as sf
 from tqdm import tqdm
 
-from esp_data.io import exists, filesystem_from_path
+from esp_data.io import DATA_HOME, exists, filesystem_from_path
 
 logging.basicConfig(
     level=logging.INFO,
@@ -49,7 +49,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger("inat_m4a_to_wav")
 
-DATA_ROOT = "gs://esp-ml-datasets/inaturalist/v0.1.0/raw/"
+DATA_ROOT = f"{DATA_HOME}/inaturalist/v0.1.0/raw/"
 ORIGINALS_COLUMN = "originals_path"
 SPLIT_FILES = [
     "train_20260201_v2.csv",

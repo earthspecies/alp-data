@@ -10,8 +10,7 @@ import pandas as pd
 
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from esp_data.backends import BackendType
-from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
-from esp_data.utils import DATA_HOME
+from esp_data.io import DATA_HOME, AnyPathT, anypath, audio_stereo_to_mono, read_audio
 
 
 @register_dataset
@@ -45,8 +44,7 @@ class SuperbStarling(Dataset):
         name="superb_starling",
         owner="Sara",
         split_paths={
-            "all": f"{DATA_HOME}/superb-starlings-keen/v0.1.0/organized_data/"
-            "superb_starlings_flightcalls.txt",
+            "all": f"{DATA_HOME}/superb-starlings-keen/v0.1.0/organized_data/superb_starlings_flightcalls.txt",  # noqa: E501
         },
         version="0.1.0",
         description="superb starling flight calls with individual ID and group ID annotations",

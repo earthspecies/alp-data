@@ -8,8 +8,9 @@ import pandas as pd
 
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from esp_data.backends import BackendType
-from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
-from esp_data.utils import DATA_HOME
+from esp_data.io import DATA_HOME, AnyPathT, anypath, audio_stereo_to_mono, read_audio
+
+_RAW_ROOT = f"{DATA_HOME}/beans-zero/v0.1.0/raw"
 
 
 @register_dataset
@@ -58,32 +59,29 @@ class BeansZero(Dataset):
         owner="gagan, masato, david, marius",
         split_paths={
             # 'test' is the full test set combining all tasks
-            "test": f"{DATA_HOME}/beans-zero/v0.1.0/raw/test.jsonl",
-            "cbi": f"{DATA_HOME}/beans-zero/v0.1.0/raw/cbi_test.jsonl",
-            "watkins": f"{DATA_HOME}/beans-zero/v0.1.0/raw/watkins_test.jsonl",
-            "hiceas": f"{DATA_HOME}/beans-zero/v0.1.0/raw/hiceas_test.jsonl",
-            "dcase": f"{DATA_HOME}/beans-zero/v0.1.0/raw/dcase_test.jsonl",
-            "enabirds": f"{DATA_HOME}/beans-zero/v0.1.0/raw/enabirds_test.jsonl",
-            "esc50": f"{DATA_HOME}/beans-zero/v0.1.0/raw/esc50_test.jsonl",
-            "humbugdb": f"{DATA_HOME}/beans-zero/v0.1.0/raw/humbugdb_test.jsonl",
-            "rfcx": f"{DATA_HOME}/beans-zero/v0.1.0/raw/rfcx_test.jsonl",
-            "gibbons": f"{DATA_HOME}/beans-zero/v0.1.0/raw/gibbons_test.jsonl",
-            "lifestage": f"{DATA_HOME}/beans-zero/v0.1.0/raw/lifestage_test.jsonl",
-            "call-type": f"{DATA_HOME}/beans-zero/v0.1.0/raw/call-type_test.jsonl",
-            "captioning": f"{DATA_HOME}/beans-zero/v0.1.0/raw/captioning_test.jsonl",
-            "zf-indiv": f"{DATA_HOME}/beans-zero/v0.1.0/raw/zf-indiv_test.jsonl",
-            "unseen-family-cmn": f"{DATA_HOME}/beans-zero/v0.1.0/raw/unseen-family-cmn_test.jsonl",
-            "unseen-family-sci": f"{DATA_HOME}/beans-zero/v0.1.0/raw/unseen-family-sci_test.jsonl",
-            "unseen-family-tax": f"{DATA_HOME}/beans-zero/v0.1.0/raw/unseen-family-tax_test.jsonl",
-            "unseen-genus-cmn": f"{DATA_HOME}/beans-zero/v0.1.0/raw/unseen-genus-cmn_test.jsonl",
-            "unseen-genus-sci": f"{DATA_HOME}/beans-zero/v0.1.0/raw/unseen-genus-sci_test.jsonl",
-            "unseen-genus-tax": f"{DATA_HOME}/beans-zero/v0.1.0/raw/unseen-genus-tax_test.jsonl",
-            "unseen-species-cmn": f"{DATA_HOME}/beans-zero/v0.1.0/raw/"
-            "unseen-species-cmn_test.jsonl",
-            "unseen-species-sci": f"{DATA_HOME}/beans-zero/v0.1.0/raw/"
-            "unseen-species-sci_test.jsonl",
-            "unseen-species-tax": f"{DATA_HOME}/beans-zero/v0.1.0/raw/"
-            "unseen-species-tax_test.jsonl",
+            "test": f"{_RAW_ROOT}/test.jsonl",
+            "cbi": f"{_RAW_ROOT}/cbi_test.jsonl",
+            "watkins": f"{_RAW_ROOT}/watkins_test.jsonl",
+            "hiceas": f"{_RAW_ROOT}/hiceas_test.jsonl",
+            "dcase": f"{_RAW_ROOT}/dcase_test.jsonl",
+            "enabirds": f"{_RAW_ROOT}/enabirds_test.jsonl",
+            "esc50": f"{_RAW_ROOT}/esc50_test.jsonl",
+            "humbugdb": f"{_RAW_ROOT}/humbugdb_test.jsonl",
+            "rfcx": f"{_RAW_ROOT}/rfcx_test.jsonl",
+            "gibbons": f"{_RAW_ROOT}/gibbons_test.jsonl",
+            "lifestage": f"{_RAW_ROOT}/lifestage_test.jsonl",
+            "call-type": f"{_RAW_ROOT}/call-type_test.jsonl",
+            "captioning": f"{_RAW_ROOT}/captioning_test.jsonl",
+            "zf-indiv": f"{_RAW_ROOT}/zf-indiv_test.jsonl",
+            "unseen-family-cmn": f"{_RAW_ROOT}/unseen-family-cmn_test.jsonl",
+            "unseen-family-sci": f"{_RAW_ROOT}/unseen-family-sci_test.jsonl",
+            "unseen-family-tax": f"{_RAW_ROOT}/unseen-family-tax_test.jsonl",
+            "unseen-genus-cmn": f"{_RAW_ROOT}/unseen-genus-cmn_test.jsonl",
+            "unseen-genus-sci": f"{_RAW_ROOT}/unseen-genus-sci_test.jsonl",
+            "unseen-genus-tax": f"{_RAW_ROOT}/unseen-genus-tax_test.jsonl",
+            "unseen-species-cmn": f"{_RAW_ROOT}/unseen-species-cmn_test.jsonl",
+            "unseen-species-sci": f"{_RAW_ROOT}/unseen-species-sci_test.jsonl",
+            "unseen-species-tax": f"{_RAW_ROOT}/unseen-species-tax_test.jsonl",
         },
         version="0.1.0",
         description="BEANS-Zero benchmark dataset",

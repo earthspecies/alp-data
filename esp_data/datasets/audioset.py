@@ -9,8 +9,10 @@ import numpy as np
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from esp_data.backends import BackendType
 from esp_data.dataset import register_config
-from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
-from esp_data.utils import DATA_HOME
+from esp_data.io import DATA_HOME, AnyPathT, anypath, audio_stereo_to_mono, read_audio
+
+_V010_ROOT = f"{DATA_HOME}/audioset/v0.1.0/raw"
+_V020_ROOT = f"{DATA_HOME}/audioset/v0.2.0/raw"
 
 
 @register_config
@@ -116,25 +118,19 @@ class AudioSet(Dataset):
     VERSIONS = {
         "0.1.0": {
             "split_paths": {
-                "train": f"{DATA_HOME}/audioset/v0.1.0/raw/csv-data/"
-                "unbalanced_train_segments_processed.csv",
-                "train-balanced": f"{DATA_HOME}/audioset/v0.1.0/raw/csv-data/"
-                "balanced_train_segments_processed.csv",
-                "validation": f"{DATA_HOME}/audioset/v0.1.0/raw/csv-data/"
-                "eval_segments_processed.csv",
+                "train": f"{_V010_ROOT}/csv-data/unbalanced_train_segments_processed.csv",
+                "train-balanced": f"{_V010_ROOT}/csv-data/balanced_train_segments_processed.csv",
+                "validation": f"{_V010_ROOT}/csv-data/eval_segments_processed.csv",
             },
-            "data_root": f"{DATA_HOME}/audioset/v0.1.0/raw/",
+            "data_root": f"{_V010_ROOT}/",
         },
         "0.2.0": {
             "split_paths": {
-                "train": f"{DATA_HOME}/audioset/v0.2.0/raw/csv-data/"
-                "unbalanced_train_segments_processed.csv",
-                "validation": f"{DATA_HOME}/audioset/v0.2.0/raw/csv-data/"
-                "eval_segments_processed.csv",
-                "train-environmental": f"{DATA_HOME}/audioset/v0.2.0/raw/csv-data/"
-                "unbalanced_train_environmental_sounds.csv",
+                "train": f"{_V020_ROOT}/csv-data/unbalanced_train_segments_processed.csv",
+                "validation": f"{_V020_ROOT}/csv-data/eval_segments_processed.csv",
+                "train-environmental": f"{_V020_ROOT}/csv-data/unbalanced_train_environmental_sounds.csv",  # noqa: E501
             },
-            "data_root": f"{DATA_HOME}/audioset/v0.2.0/raw/",
+            "data_root": f"{_V020_ROOT}/",
         },
     }
 

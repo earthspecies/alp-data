@@ -14,12 +14,16 @@ from pathlib import Path
 
 import pandas as pd
 
+from esp_data.io import DATA_HOME
+
+_RAW_ROOT = f"{DATA_HOME}/animalspeak/v0.1.0/raw/16KHz"
+
 # AnimalSpeak split paths and data root (from AnimalSpeak.info and __init__)
 SPLIT_PATHS = {
-    "train": "gs://esp-ml-datasets/animalspeak/v0.1.0/raw/16KHz/animalspeak2_train.csv",
-    "validation": "gs://esp-ml-datasets/animalspeak/v0.1.0/raw/16KHz/animalspeak2_validation.csv",
+    "train": f"{_RAW_ROOT}/animalspeak2_train.csv",
+    "validation": f"{_RAW_ROOT}/animalspeak2_validation.csv",
 }
-DATA_ROOT = "gs://esp-ml-datasets/animalspeak/v0.1.0/raw/16KHz/"
+DATA_ROOT = f"{_RAW_ROOT}/"
 
 OUTPUT_DIR = Path(__file__).parent / "animalspeak_cleaned"
 
