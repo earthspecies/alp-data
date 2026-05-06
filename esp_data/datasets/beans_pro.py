@@ -12,10 +12,19 @@ from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from esp_data.backends import BackendType
 from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
 
-
 _AUDIO_TAG_RE = re.compile(r"\s*<Audio><AudioHere></Audio>\s*")
-_BIRDVOX_CROPPED_AUDIO_ROOT = (
-    "gs://foundation-model-data/synthetic/cropped/birdvox_full_night/audio"
+_CROPPED_AUDIO_ROOTS = {
+    "birdeep_cropped": "gs://foundation-model-data/synthetic/cropped/birdeep/audio",
+    "BirdeepCropped": "gs://foundation-model-data/synthetic/cropped/birdeep/audio",
+    "powdermill_cropped": "gs://foundation-model-data/synthetic/cropped/powdermill/audio",
+    "PowdermillCropped": "gs://foundation-model-data/synthetic/cropped/powdermill/audio",
+    "birdvox_full_night_cropped": "gs://foundation-model-data/synthetic/cropped/birdvox_full_night/audio",
+    "BirdVoxFullNightCropped": "gs://foundation-model-data/synthetic/cropped/birdvox_full_night/audio",
+    "wabad_cropped": "gs://foundation-model-data/synthetic/cropped/wabad/audio",
+    "WABADCropped": "gs://foundation-model-data/synthetic/cropped/wabad/audio",
+}
+_BIRDVOX_DCASE_AUDIO_ROOT = (
+    "gs://foundation-model-data/synthetic/cropped/birdvox_dcase_20k/audio"
 )
 
 _T3_SPLIT_PATHS = {
@@ -99,6 +108,90 @@ def _metadata_dict(row: dict[str, Any]) -> dict[str, Any]:
     return {}
 
 
+def _first_string(value: object) -> str | None:
+    """Return the first non-empty string from a scalar or list-like value.
+
+    Parameters
+    ----------
+    value : object
+        Scalar string or list-like value.
+
+    Returns
+    -------
+    str or None
+        First non-empty string when present.
+    """
+    if isinstance(value, str) and value.strip():
+        return value.strip()
+    if isinstance(value, list):
+        for item in value:
+            if isinstance(item, str) and item.strip():
+                return item.strip()
+    return None
+
+
+def _basename_without_suffix(path: str) -> str:
+    """Return the final path component without a trailing ``.wav`` suffix.
+
+    Parameters
+    ----------
+    path : str
+        Audio path or URI.
+
+    Returns
+    -------
+    str
+        Basename with a trailing ``.wav`` removed when present.
+    """
+    name = path.rstrip("/").rsplit("/", 1)[-1]
+    if name.lower().endswith(".wav"):
+        return name[:-4]
+    return name
+
+
+def _cropped_audio_path(row: dict[str, Any], metadata: dict[str, Any]) -> str | None:
+    """Return the canonical cropped audio URI for a BeansPro row.
+
+    Parameters
+    ----------
+    row : dict[str, Any]
+        Raw or partially-normalized BeansPro row.
+    metadata : dict[str, Any]
+        Parsed metadata for ``row``.
+
+    Returns
+    -------
+    str or None
+        Canonical cropped audio URI when the row contains enough information.
+    """
+    audio_path = _first_string(row.get("audio_path"))
+    if audio_path and "/synthetic/cropped/" in audio_path:
+        return audio_path
+
+    audio_id = _first_string(row.get("audio_ids"))
+    audio_paths_value = _first_string(row.get("audio_paths")) or ""
+
+    if "birdvox_dcase_20k" in audio_paths_value:
+        dcase_id = audio_id or _basename_without_suffix(audio_paths_value)
+        return f"{_BIRDVOX_DCASE_AUDIO_ROOT}/{dcase_id}.wav"
+
+    source_dataset = metadata.get("source_dataset") or row.get("dataset")
+    if not isinstance(source_dataset, str):
+        return None
+
+    root = _CROPPED_AUDIO_ROOTS.get(source_dataset)
+    if root is None or audio_id is None:
+        return None
+
+    if source_dataset in {"BirdVoxFullNightCropped", "birdvox_full_night_cropped"}:
+        if not audio_id.startswith("BirdVox-full-night_"):
+            return None
+    elif "__crop_" not in audio_id:
+        return None
+
+    return f"{root}/{audio_id}.wav"
+
+
 def _normalize_synthetic_conversation_row(row: dict[str, Any]) -> dict[str, Any]:
     """Expose conversation-style synthetic rows through the flat BeansPro schema.
 
@@ -114,26 +207,20 @@ def _normalize_synthetic_conversation_row(row: dict[str, Any]) -> dict[str, Any]
         ``audio_path_original_sample_rate`` fields populated when possible.
     """
     out = dict(row)
-    audio_paths = out.get("audio_paths")
-    if (
-        "audio_path_original_sample_rate" not in out
-        and isinstance(audio_paths, list)
-        and audio_paths
-        and isinstance(audio_paths[0], str)
-        and audio_paths[0].strip()
-    ):
-        out["audio_path_original_sample_rate"] = audio_paths[0]
+    metadata = _metadata_dict(out)
+
+    cropped_path = _cropped_audio_path(out, metadata)
+    if cropped_path is not None:
+        out["audio_path_original_sample_rate"] = cropped_path
+
     if "audio_path_original_sample_rate" not in out:
-        audio_ids = out.get("audio_ids")
-        if isinstance(audio_ids, list):
-            for audio_id in audio_ids:
-                if isinstance(audio_id, str) and audio_id.startswith(
-                    "BirdVox-full-night_"
-                ):
-                    out["audio_path_original_sample_rate"] = (
-                        f"{_BIRDVOX_CROPPED_AUDIO_ROOT}/{audio_id.strip()}.wav"
-                    )
-                    break
+        audio_path = _first_string(out.get("audio_path"))
+        if audio_path is not None:
+            out["audio_path_original_sample_rate"] = audio_path
+    if "audio_path_original_sample_rate" not in out:
+        audio_path = _first_string(out.get("audio_paths"))
+        if audio_path is not None:
+            out["audio_path_original_sample_rate"] = audio_path
 
     instruction = out.get("instruction")
     if not isinstance(instruction, str) or not instruction.strip():
@@ -148,7 +235,6 @@ def _normalize_synthetic_conversation_row(row: dict[str, Any]) -> dict[str, Any]
         if assistant_content is not None:
             out["output"] = assistant_content
 
-    metadata = _metadata_dict(out)
     for source_key, target_key in (
         ("source_dataset", "source_dataset"),
         ("source_file", "file_name"),

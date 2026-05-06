@@ -6,6 +6,7 @@ import pytest
 
 from esp_data import DatasetConfig
 from esp_data.datasets import BeansPro
+from esp_data.datasets.beans_pro import _normalize_synthetic_conversation_row
 
 SPLITS = list(BeansPro.info.split_paths.keys())
 EXPECTED_COLS = [
@@ -33,7 +34,7 @@ def test_info_property(ds: BeansPro) -> None:
     """Test if the info property returns correct metadata."""
     assert ds.info.name == "beans_pro"
     assert ds.info.version == "0.1.0"
-    assert len(ds.info.split_paths) == 18
+    assert len(ds.info.split_paths) == len(SPLITS)
 
 
 def test_columns_property(ds: BeansPro) -> None:
@@ -155,3 +156,63 @@ def test_synthetic_ids_are_unique(split: str) -> None:
     assert all(id_.startswith(f"{split}:") for id_ in ids)
     assert len(source_ids) == len(rows)
     assert all(source_id is not None for source_id in source_ids)
+
+
+@pytest.mark.parametrize(
+    ("row", "expected_path"),
+    [
+        (
+            {
+                "audio_path": "gs://foundation-model-data/synthetic/cropped/powdermill/audio/Recording_1_Segment_34.wav__crop_0293018_0295630.wav",
+                "metadata": {"source_dataset": "PowdermillCropped"},
+            },
+            "gs://foundation-model-data/synthetic/cropped/powdermill/audio/Recording_1_Segment_34.wav__crop_0293018_0295630.wav",
+        ),
+        (
+            {
+                "audio_ids": ["AM10_20230718_071000.WAV__crop_0015683_0032419"],
+                "audio_paths": [
+                    "gs://esp-ml-datasets/birdeep/Audios/AM10/2023_07_18/AM10_20230718_071000.WAV"
+                ],
+                "metadata": {"source_dataset": "BirdeepCropped"},
+            },
+            "gs://foundation-model-data/synthetic/cropped/birdeep/audio/AM10_20230718_071000.WAV__crop_0015683_0032419.wav",
+        ),
+        (
+            {
+                "audio_ids": ["Recording_1_Segment_27.wav__crop_0243908_0265420"],
+                "audio_paths": [
+                    "gs://esp-ml-datasets/powdermill/Recording_1/Recording_1_Segment_27.wav"
+                ],
+                "metadata": {"source_dataset": "PowdermillCropped"},
+            },
+            "gs://foundation-model-data/synthetic/cropped/powdermill/audio/Recording_1_Segment_27.wav__crop_0243908_0265420.wav",
+        ),
+        (
+            {
+                "audio_ids": ["BirdVox-full-night_unit07__crop_8522504_8526617"],
+                "audio_paths": [""],
+                "metadata": {"source_dataset": "BirdVoxFullNightCropped"},
+            },
+            "gs://foundation-model-data/synthetic/cropped/birdvox_full_night/audio/BirdVox-full-night_unit07__crop_8522504_8526617.wav",
+        ),
+        (
+            {
+                "audio_ids": ["a59f8800-8aff-4075-a597-17e820a07180"],
+                "audio_paths": [
+                    "data/birdvox_dcase_20k/a59f8800-8aff-4075-a597-17e820a07180.wav"
+                ],
+                "metadata": {"source_dataset": "BirdVoxFullNightCropped"},
+            },
+            "gs://foundation-model-data/synthetic/cropped/birdvox_dcase_20k/audio/a59f8800-8aff-4075-a597-17e820a07180.wav",
+        ),
+    ],
+)
+def test_synthetic_rows_use_canonical_cropped_audio_uri(
+    row: dict,
+    expected_path: str,
+) -> None:
+    """Test cropped-source rows normalize to their canonical cropped audio URI."""
+    normalized = _normalize_synthetic_conversation_row(row)
+
+    assert normalized["audio_path_original_sample_rate"] == expected_path
