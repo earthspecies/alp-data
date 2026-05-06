@@ -9,7 +9,18 @@ import reflex as rx
 from fastapi import FastAPI
 
 from esp_dashboard.api import router as api_router
+from esp_dashboard.dataset_page import dataset_detail
+from esp_dashboard.dataset_state import DatasetState
 from esp_dashboard.state import LandingState
+
+# Curated datasets surfaced on the landing page as link cards. Order
+# matters — first one is featured most prominently in the grid.
+_CURATED_DATASETS: tuple[tuple[str, str], ...] = (
+    ("inaturalist", "iNaturalist"),
+    ("xeno-canto", "Xeno-Canto"),
+    ("insectset_459", "InsectSet 459"),
+    ("watkins", "Watkins (marine mammals)"),
+)
 
 fastapi_app = FastAPI(title="esp-dashboard")
 fastapi_app.include_router(api_router)
@@ -104,6 +115,35 @@ def index() -> rx.Component:
                 width="100%",
                 margin_top="2",
             ),
+            rx.heading("Explore datasets", size="5", margin_top="6"),
+            rx.grid(
+                *[
+                    rx.link(
+                        rx.card(
+                            rx.vstack(
+                                rx.heading(label, size="4"),
+                                rx.text(
+                                    "metadata · 10 samples · spectrograms",
+                                    size="2",
+                                    color_scheme="gray",
+                                ),
+                                spacing="1",
+                                align="start",
+                            ),
+                            size="2",
+                            variant="surface",
+                            _hover={"background_color": "var(--gray-a3)"},
+                        ),
+                        href=f"/datasets/{slug}",
+                        text_decoration="none",
+                        color="inherit",
+                    )
+                    for slug, label in _CURATED_DATASETS
+                ],
+                columns="2",
+                spacing="3",
+                width="100%",
+            ),
             spacing="3",
             align="start",
             width="100%",
@@ -122,4 +162,10 @@ app.add_page(
     route="/",
     title="ESP-Data Dashboard",
     on_load=LandingState.load_stats,
+)
+app.add_page(
+    dataset_detail,
+    route="/datasets/[name]",
+    title="ESP-Data · Dataset",
+    on_load=DatasetState.load,
 )
