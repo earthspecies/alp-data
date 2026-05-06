@@ -30,7 +30,10 @@ class PolarsBackend(DataBackend):
         Whether the backend is in streaming mode (LazyFrame)
     streaming_chunk_size: int
         Number of rows per batch when iterating in streaming mode (default: 1000)
-
+        1000 is a good number because its high enough to reduce I/O and any higher
+        doesnt help because the main latency source in Dataset __getitem__ calls are in 
+        loading audio anyway.
+        
     Examples
     --------
     >>> import polars as pl
