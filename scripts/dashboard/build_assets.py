@@ -29,6 +29,8 @@ from pathlib import Path
 from typing import Any
 
 import duckdb
+import librosa
+import numpy as np
 import polars as pl
 
 from esp_data import datasets as ds_module
@@ -514,6 +516,274 @@ def cmd_build_cards(workers: int, db_path: Path, only: list[str] | None) -> None
     )
 
 
+def _pick_present_column(row: dict[str, Any], candidates: tuple[str, ...]) -> str | None:
+    """Return the first column in `candidates` whose row value is non-empty.
+
+    Parameters
+    ----------
+    row : dict[str, Any]
+        A single dataset row, as yielded by a dataset's `__getitem__`.
+    candidates : tuple of str
+        Column names to try, in priority order.
+
+    Returns
+    -------
+    str or None
+        The first candidate whose value in `row` is truthy and not the
+        empty string, else `None`.
+    """
+    for col in candidates:
+        val = row.get(col)
+        if val is not None and val != "":
+            return col
+    return None
+
+
+def _process_one_sample(
+    audio: np.ndarray, sr: int, target_sr: int, cfg: dict[str, Any]
+) -> np.ndarray:
+    """Resample, mono-mix and crop a clip into a presentation-ready array.
+
+    Parameters
+    ----------
+    audio : np.ndarray
+        Source samples (mono or stereo, any dtype).
+    sr : int
+        Source sample rate.
+    target_sr : int
+        Sample rate to resample to (also used for spectrogram + mp3).
+    cfg : dict[str, Any]
+        Per-dataset config (used only for `MAX_DURATION_S` here, but
+        kept as a hook for future per-dataset tuning).
+
+    Returns
+    -------
+    np.ndarray
+        Float32 mono audio at `target_sr`, center-cropped to at most
+        `MAX_DURATION_S` seconds.
+    """
+    from scripts.dashboard.render_samples import center_crop
+    from scripts.dashboard.sample_config import MAX_DURATION_S
+
+    audio = audio.astype(np.float32)
+    if audio.ndim > 1:
+        audio = audio.mean(axis=tuple(range(1, audio.ndim)))
+    if sr != target_sr:
+        audio = librosa.resample(audio, orig_sr=sr, target_sr=target_sr)
+    return center_crop(audio, target_sr, MAX_DURATION_S)
+
+
+def _build_one_dataset_samples(
+    info_name: str, cfg: dict[str, Any], assets_root: Path
+) -> list[dict[str, Any]]:
+    """Render samples + metadata for one curated dataset.
+
+    Instantiates the dataset class, draws random rows with a fixed
+    seed, and writes audio + spectrogram artifacts under
+    ``<assets_root>/<info_name>/``. Rows that are too short or fail to
+    decode are skipped; we keep drawing until `SAMPLES_PER_DATASET` are
+    valid (capped by the random pool size).
+
+    Parameters
+    ----------
+    info_name : str
+        Key into `SAMPLE_CONFIG`.
+    cfg : dict[str, Any]
+        The config entry for this dataset.
+    assets_root : Path
+        Parent directory under which a `<info_name>/` folder is created.
+
+    Returns
+    -------
+    list[dict[str, Any]]
+        One dict per successfully written sample, ready to be inserted
+        into the `dataset_samples` DuckDB table.
+    """
+    import random
+
+    from scripts.dashboard.render_samples import render_log_mel_png, transcode_mp3
+    from scripts.dashboard.sample_config import (
+        MIN_DURATION_S,
+        SAMPLE_POOL_FACTOR,
+        SAMPLE_SEED,
+        SAMPLES_PER_DATASET,
+    )
+
+    cls = getattr(ds_module, cfg["class_name"])
+    ds = cls(split=cfg["split"], sample_rate=cfg["target_sr"])
+    n_total = len(ds)
+    if n_total == 0:
+        logger.warning("[%s] empty dataset, skipping", info_name)
+        return []
+
+    rng = random.Random(SAMPLE_SEED)
+    pool_size = min(n_total, SAMPLES_PER_DATASET * SAMPLE_POOL_FACTOR)
+    indices = rng.sample(range(n_total), pool_size)
+
+    out_dir = assets_root / info_name
+    out_dir.mkdir(parents=True, exist_ok=True)
+    # Clear any prior artifacts so re-runs are reproducible.
+    for old in out_dir.iterdir():
+        old.unlink()
+
+    written: list[dict[str, Any]] = []
+    for raw_idx in indices:
+        if len(written) >= SAMPLES_PER_DATASET:
+            break
+        try:
+            row = ds[raw_idx]
+        except Exception as exc:
+            logger.warning("[%s] row %d read failed: %s", info_name, raw_idx, exc)
+            continue
+
+        audio = row.get("audio")
+        sr = row.get("sample_rate")
+        if audio is None or sr is None:
+            continue
+
+        try:
+            clip = _process_one_sample(audio, sr, cfg["target_sr"], cfg)
+        except Exception as exc:
+            logger.warning("[%s] row %d processing failed: %s", info_name, raw_idx, exc)
+            continue
+
+        if len(clip) / cfg["target_sr"] < MIN_DURATION_S:
+            continue
+
+        sample_idx = len(written)
+        mp3_path = out_dir / f"{sample_idx:02d}.mp3"
+        png_path = out_dir / f"{sample_idx:02d}.png"
+        try:
+            transcode_mp3(clip, cfg["target_sr"], mp3_path)
+            render_log_mel_png(
+                clip,
+                cfg["target_sr"],
+                png_path,
+                n_fft=cfg["mel_n_fft"],
+                hop=cfg["mel_hop"],
+                n_mels=cfg["mel_n_mels"],
+                fmin=cfg["mel_fmin"],
+                fmax=cfg["mel_fmax"],
+            )
+        except Exception as exc:
+            logger.warning("[%s] render failed for row %d: %s", info_name, raw_idx, exc)
+            mp3_path.unlink(missing_ok=True)
+            png_path.unlink(missing_ok=True)
+            continue
+
+        label = row.get(cfg.get("label_column") or "") or ""
+        license_text = row.get(cfg.get("license_column") or "") or ""
+        url = row.get(cfg.get("url_column") or "") or "" if cfg.get("url_column") else ""
+        written.append(
+            {
+                "info_name": info_name,
+                "sample_idx": sample_idx,
+                "label": str(label),
+                "license": str(license_text),
+                "duration_s": float(len(clip) / cfg["target_sr"]),
+                "audio_rel": f"samples/{info_name}/{mp3_path.name}",
+                "spec_rel": f"samples/{info_name}/{png_path.name}",
+                "source_url": str(url),
+            }
+        )
+        logger.info(
+            "[%s] sample %02d: %s (%.1fs)",
+            info_name,
+            sample_idx,
+            label or "?",
+            len(clip) / cfg["target_sr"],
+        )
+
+    if len(written) < SAMPLES_PER_DATASET:
+        logger.warning(
+            "[%s] only %d/%d samples written", info_name, len(written), SAMPLES_PER_DATASET
+        )
+    return written
+
+
+def cmd_build_samples(db_path: Path, only: list[str] | None) -> None:
+    """Render audio + spectrogram assets for the curated datasets.
+
+    Iterates `SAMPLE_CONFIG`, writes per-sample mp3/png pairs under
+    ``dashboard/assets/samples/<info_name>/``, and persists a flat
+    `dataset_samples` table to `db_path`.
+
+    Parameters
+    ----------
+    db_path : Path
+        DuckDB file path. Must already exist (built by `build-stats`).
+    only : list[str] or None
+        Optional whitelist of `info_name` keys from `SAMPLE_CONFIG`.
+
+    Raises
+    ------
+    SystemExit
+        If `only` is provided but matches no entries in `SAMPLE_CONFIG`,
+        or if `db_path` does not exist.
+    """
+    from scripts.dashboard.sample_config import SAMPLE_CONFIG
+
+    selected = SAMPLE_CONFIG
+    if only:
+        wanted = set(only)
+        selected = {k: v for k, v in SAMPLE_CONFIG.items() if k in wanted}
+        if not selected:
+            raise SystemExit(f"No SAMPLE_CONFIG entries match --only {only}")
+
+    if not db_path.exists():
+        raise SystemExit(f"{db_path} does not exist. Run `build-stats` first to create it.")
+
+    assets_root = db_path.parent / "samples"
+    assets_root.mkdir(parents=True, exist_ok=True)
+
+    all_rows: list[dict[str, Any]] = []
+    for info_name, cfg in selected.items():
+        logger.info("=== building samples for %s ===", info_name)
+        rows = _build_one_dataset_samples(info_name, cfg, assets_root)
+        all_rows.extend(rows)
+
+    con = duckdb.connect(str(db_path))
+    try:
+        con.execute(
+            """
+            CREATE OR REPLACE TABLE dataset_samples (
+                info_name   VARCHAR,
+                sample_idx  INTEGER,
+                label       VARCHAR,
+                license     VARCHAR,
+                duration_s  DOUBLE,
+                audio_rel   VARCHAR,
+                spec_rel    VARCHAR,
+                source_url  VARCHAR,
+                PRIMARY KEY (info_name, sample_idx)
+            )
+            """
+        )
+        if all_rows:
+            con.executemany(
+                """
+                INSERT INTO dataset_samples VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                [
+                    (
+                        r["info_name"],
+                        r["sample_idx"],
+                        r["label"],
+                        r["license"],
+                        r["duration_s"],
+                        r["audio_rel"],
+                        r["spec_rel"],
+                        r["source_url"],
+                    )
+                    for r in all_rows
+                ],
+            )
+        n = con.execute("SELECT COUNT(*) FROM dataset_samples").fetchone()[0]
+    finally:
+        con.close()
+    logger.info("Wrote %d sample rows to %s", n, db_path)
+
+
 def cmd_check_manifests(workers: int) -> None:
     """Probe every dataset's manifest in parallel and print a summary.
 
@@ -571,6 +841,20 @@ def main() -> None:
         default=None,
         help="Optional info_name whitelist (e.g. inaturalist xeno-canto).",
     )
+    p_samples = sub.add_parser(
+        "build-samples",
+        help=(
+            "Render audio + spectrogram samples for the curated datasets "
+            "(see scripts.dashboard.sample_config.SAMPLE_CONFIG)."
+        ),
+    )
+    p_samples.add_argument("--db", type=Path, default=DEFAULT_DB_PATH)
+    p_samples.add_argument(
+        "--only",
+        nargs="+",
+        default=None,
+        help="Optional info_name whitelist into SAMPLE_CONFIG.",
+    )
     args = parser.parse_args()
 
     if args.cmd == "list":
@@ -581,6 +865,8 @@ def main() -> None:
         cmd_build_stats(workers=args.workers, db_path=args.db)
     elif args.cmd == "build-cards":
         cmd_build_cards(workers=args.workers, db_path=args.db, only=args.only)
+    elif args.cmd == "build-samples":
+        cmd_build_samples(db_path=args.db, only=args.only)
 
 
 if __name__ == "__main__":
