@@ -944,9 +944,11 @@ def cmd_build_samples(db_path: Path, only: list[str] | None) -> None:
 
     con = duckdb.connect(str(db_path))
     try:
+        # Create-if-missing; do NOT replace, otherwise an `--only` run
+        # would nuke the other datasets' sample rows.
         con.execute(
             """
-            CREATE OR REPLACE TABLE dataset_samples (
+            CREATE TABLE IF NOT EXISTS dataset_samples (
                 info_name   VARCHAR,
                 sample_idx  INTEGER,
                 label       VARCHAR,
@@ -958,6 +960,13 @@ def cmd_build_samples(db_path: Path, only: list[str] | None) -> None:
                 PRIMARY KEY (info_name, sample_idx)
             )
             """
+        )
+        # Replace only the rows we just regenerated, scoped by dataset.
+        con.execute(
+            "DELETE FROM dataset_samples WHERE info_name IN ("
+            + ", ".join("?" for _ in selected)
+            + ")",
+            list(selected.keys()),
         )
         if all_rows:
             con.executemany(
