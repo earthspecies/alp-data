@@ -619,14 +619,16 @@ def _extract_event_columns(ds: object, idx: int, cfg: dict[str, Any]) -> dict[st
         onset = max(0.0, center - 15.0)
         duration = 30.0
 
-    audio_path = str(anypath(ds.data_root) / rel)
-    audio, sr = librosa.load(
-        audio_path,
-        sr=cfg["target_sr"],
-        offset=onset,
-        duration=duration,
-        mono=True,
-    )
+    from esp_data.io import read_audio
+
+    audio_path = anypath(ds.data_root) / rel
+    audio, sr = read_audio(audio_path, start_time=onset, end_time=onset + duration)
+    audio = audio.astype(np.float32)
+    if audio.ndim > 1:
+        audio = audio.mean(axis=tuple(range(1, audio.ndim)))
+    if sr != cfg["target_sr"]:
+        audio = librosa.resample(audio, orig_sr=sr, target_sr=cfg["target_sr"])
+        sr = cfg["target_sr"]
     return {
         "audio": audio,
         "sr": sr,
@@ -689,14 +691,16 @@ def _extract_selection_table(ds: object, idx: int, cfg: dict[str, Any]) -> dict[
     onset = max(0.0, float(pick["Begin Time (s)"]))
     duration = min(30.0, float(pick["dur"]))
 
-    audio_path = str(anypath(ds.data_root) / rel)
-    audio, sr = librosa.load(
-        audio_path,
-        sr=cfg["target_sr"],
-        offset=onset,
-        duration=duration,
-        mono=True,
-    )
+    from esp_data.io import read_audio
+
+    audio_path = anypath(ds.data_root) / rel
+    audio, sr = read_audio(audio_path, start_time=onset, end_time=onset + duration)
+    audio = audio.astype(np.float32)
+    if audio.ndim > 1:
+        audio = audio.mean(axis=tuple(range(1, audio.ndim)))
+    if sr != cfg["target_sr"]:
+        audio = librosa.resample(audio, orig_sr=sr, target_sr=cfg["target_sr"])
+        sr = cfg["target_sr"]
     return {
         "audio": audio,
         "sr": sr,
