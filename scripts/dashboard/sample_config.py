@@ -35,6 +35,7 @@ SAMPLE_CONFIG: dict[str, dict[str, Any]] = {
     "inaturalist": {
         "class_name": "INaturalist",
         "split": "train",
+        "extractor": "weak",
         "audio_columns": ("16khz_path", "32khz_path", "originals_path"),
         "label_column": "species_common",
         "license_column": "media_license",
@@ -49,6 +50,7 @@ SAMPLE_CONFIG: dict[str, dict[str, Any]] = {
     "xeno-canto": {
         "class_name": "XenoCanto",
         "split": "train",
+        "extractor": "weak",
         "audio_columns": ("16khz_path", "32khz_path", "gcs_path", "path"),
         "label_column": "species_common",
         "license_column": "license",
@@ -63,6 +65,7 @@ SAMPLE_CONFIG: dict[str, dict[str, Any]] = {
     "insectset_459": {
         "class_name": "InsectSet459",
         "split": "train",
+        "extractor": "weak",
         "audio_columns": ("local_path",),
         "label_column": "species_common",
         "license_column": "license",
@@ -79,6 +82,7 @@ SAMPLE_CONFIG: dict[str, dict[str, Any]] = {
     "watkins": {
         "class_name": "Watkins",
         "split": "train",
+        "extractor": "weak",
         "audio_columns": ("32khz_path", "16khz_path", "audio_path"),
         "label_column": "species_common",
         "license_column": "license",
@@ -91,6 +95,42 @@ SAMPLE_CONFIG: dict[str, dict[str, Any]] = {
         "mel_n_mels": 128,
         "mel_fmin": 30,
         "mel_fmax": 16000,
+    },
+    "geladas": {
+        "class_name": "Geladas",
+        "split": "all",
+        # Each row is one annotated event; use the row's onset/offset.
+        "extractor": "event_columns",
+        "audio_path_column": "local_path",
+        "onset_column": "vocal_onset",
+        "offset_column": "vocal_offset",
+        "label_column": "vocal_type",
+        "license_column": None,
+        "url_column": None,
+        "target_sr": 16000,
+        "mel_n_fft": 1024,
+        "mel_hop": 256,
+        "mel_n_mels": 128,
+        "mel_fmin": 80,
+        "mel_fmax": 8000,
+    },
+    "gibbon_solos": {
+        "class_name": "GibbonSolos",
+        "split": "all",
+        # Each row points to a long file; pick an event from the inline
+        # Raven selection table.
+        "extractor": "selection_table",
+        "audio_path_column": "local_path",
+        "selection_table_column": "selection_table",
+        "label_column": "species_common",
+        "license_column": None,
+        "url_column": None,
+        "target_sr": 16000,
+        "mel_n_fft": 2048,
+        "mel_hop": 512,
+        "mel_n_mels": 128,
+        "mel_fmin": 200,
+        "mel_fmax": 8000,
     },
 }
 

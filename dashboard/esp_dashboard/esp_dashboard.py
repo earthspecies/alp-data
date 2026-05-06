@@ -20,6 +20,8 @@ _CURATED_DATASETS: tuple[tuple[str, str], ...] = (
     ("xeno-canto", "Xeno-Canto"),
     ("insectset_459", "InsectSet 459"),
     ("watkins", "Watkins (marine mammals)"),
+    ("geladas", "Geladas (primate vocal)"),
+    ("gibbon_solos", "Gibbon solos"),
 )
 
 fastapi_app = FastAPI(title="esp-dashboard")

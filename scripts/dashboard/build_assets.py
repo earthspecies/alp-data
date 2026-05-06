@@ -573,6 +573,183 @@ def _process_one_sample(
     return center_crop(audio, target_sr, MAX_DURATION_S)
 
 
+def _extract_event_columns(ds: object, idx: int, cfg: dict[str, Any]) -> dict[str, Any] | None:
+    """Read a clip from a dataset whose rows carry onset/offset columns.
+
+    Used by datasets like geladas where each row is one annotated event
+    located by ``cfg["onset_column"]`` and ``cfg["offset_column"]``
+    inside the audio file at ``cfg["audio_path_column"]``.
+
+    Parameters
+    ----------
+    ds : esp_data.Dataset
+        Instantiated dataset; we read metadata via ``ds._data[idx]``
+        without triggering full audio decoding.
+    idx : int
+        Row index into the dataset's CSV.
+    cfg : dict[str, Any]
+        Sample-config entry for this dataset.
+
+    Returns
+    -------
+    dict[str, Any] or None
+        Keys ``audio``, ``sr``, ``label``, ``license``, ``source_url``;
+        or `None` if the row lacks the expected columns or the audio
+        cannot be loaded.
+    """
+    from esp_data.io import anypath
+
+    row = ds._data[idx]
+    onset = row.get(cfg["onset_column"])
+    offset = row.get(cfg["offset_column"])
+    rel = row.get(cfg["audio_path_column"])
+    if onset is None or offset is None or rel in (None, ""):
+        return None
+
+    onset = float(onset)
+    offset = float(offset)
+    duration = max(0.0, offset - onset)
+    if duration < 2.0:
+        # Pad symmetrically up to 2.5s so the player has something to chew on.
+        target = 2.5
+        onset = max(0.0, onset - (target - duration) / 2)
+        duration = target
+    if duration > 30.0:
+        center = (onset + offset) / 2
+        onset = max(0.0, center - 15.0)
+        duration = 30.0
+
+    audio_path = str(anypath(ds.data_root) / rel)
+    audio, sr = librosa.load(
+        audio_path,
+        sr=cfg["target_sr"],
+        offset=onset,
+        duration=duration,
+        mono=True,
+    )
+    return {
+        "audio": audio,
+        "sr": sr,
+        "label": str(row.get(cfg.get("label_column") or "") or ""),
+        "license": str(row.get(cfg.get("license_column") or "") or "")
+        if cfg.get("license_column")
+        else "",
+        "source_url": "",
+    }
+
+
+def _extract_selection_table(ds: object, idx: int, cfg: dict[str, Any]) -> dict[str, Any] | None:
+    """Read a clip from a row whose `selection_table` column embeds a Raven TSV.
+
+    Picks the first event with duration ≥ 2s; if none qualify, the
+    longest event in the table is used (capped at 30s).
+
+    Parameters
+    ----------
+    ds : esp_data.Dataset
+        Instantiated dataset.
+    idx : int
+        Row index.
+    cfg : dict[str, Any]
+        Sample-config entry; expects ``selection_table_column`` and
+        ``audio_path_column`` keys.
+
+    Returns
+    -------
+    dict[str, Any] or None
+        Same shape as `_extract_event_columns`. `None` if the row lacks
+        a usable selection table.
+    """
+    from io import StringIO
+
+    import pandas as pd
+
+    from esp_data.io import anypath
+
+    row = ds._data[idx]
+    rel = row.get(cfg["audio_path_column"])
+    st_text = row.get(cfg["selection_table_column"])
+    if rel in (None, "") or not st_text:
+        return None
+
+    try:
+        st = pd.read_csv(StringIO(st_text), sep="\t")
+    except Exception:
+        return None
+    if "Begin Time (s)" not in st.columns or "End Time (s)" not in st.columns:
+        return None
+    st["dur"] = st["End Time (s)"] - st["Begin Time (s)"]
+    eligible = st[st["dur"] >= 2.0]
+    if len(eligible) == 0:
+        eligible = st.nlargest(1, "dur")
+    if len(eligible) == 0:
+        return None
+
+    pick = eligible.iloc[0]
+    onset = max(0.0, float(pick["Begin Time (s)"]))
+    duration = min(30.0, float(pick["dur"]))
+
+    audio_path = str(anypath(ds.data_root) / rel)
+    audio, sr = librosa.load(
+        audio_path,
+        sr=cfg["target_sr"],
+        offset=onset,
+        duration=duration,
+        mono=True,
+    )
+    return {
+        "audio": audio,
+        "sr": sr,
+        "label": str(row.get(cfg.get("label_column") or "") or ""),
+        "license": str(row.get(cfg.get("license_column") or "") or "")
+        if cfg.get("license_column")
+        else "",
+        "source_url": "",
+    }
+
+
+def _extract_weak(ds: object, idx: int, cfg: dict[str, Any]) -> dict[str, Any] | None:
+    """Default extractor: trust the dataset class to load full audio.
+
+    Parameters
+    ----------
+    ds : esp_data.Dataset
+        Instantiated dataset.
+    idx : int
+        Row index.
+    cfg : dict[str, Any]
+        Sample-config entry.
+
+    Returns
+    -------
+    dict[str, Any] or None
+        Keys ``audio``, ``sr``, ``label``, ``license``, ``source_url``.
+    """
+    row = ds[idx]
+    audio = row.get("audio")
+    sr = row.get("sample_rate")
+    if audio is None or sr is None:
+        return None
+    return {
+        "audio": audio,
+        "sr": sr,
+        "label": str(row.get(cfg.get("label_column") or "") or ""),
+        "license": str(row.get(cfg.get("license_column") or "") or "")
+        if cfg.get("license_column")
+        else "",
+        "source_url": str(row.get(cfg.get("url_column") or "") or "")
+        if cfg.get("url_column")
+        else "",
+    }
+
+
+_EXTRACTORS = {
+    "weak": _extract_weak,
+    "event_columns": _extract_event_columns,
+    "selection_table": _extract_selection_table,
+}
+
+
 def _build_one_dataset_samples(
     info_name: str, cfg: dict[str, Any], assets_root: Path
 ) -> list[dict[str, Any]]:
@@ -610,7 +787,16 @@ def _build_one_dataset_samples(
     )
 
     cls = getattr(ds_module, cfg["class_name"])
-    ds = cls(split=cfg["split"], sample_rate=cfg["target_sr"])
+    # For weak-label datasets we ask the class to resample at load time
+    # (cheaper because it picks the pre-resampled column when available).
+    # For strong-label extractors we re-load only the event window via
+    # librosa.load(...) so we don't need the dataset to decode audio.
+    extractor_kind = cfg.get("extractor", "weak")
+    extractor = _EXTRACTORS[extractor_kind]
+    if extractor_kind == "weak":
+        ds = cls(split=cfg["split"], sample_rate=cfg["target_sr"])
+    else:
+        ds = cls(split=cfg["split"])
     n_total = len(ds)
     if n_total == 0:
         logger.warning("[%s] empty dataset, skipping", info_name)
@@ -631,15 +817,14 @@ def _build_one_dataset_samples(
         if len(written) >= SAMPLES_PER_DATASET:
             break
         try:
-            row = ds[raw_idx]
+            extracted = extractor(ds, raw_idx, cfg)
         except Exception as exc:
-            logger.warning("[%s] row %d read failed: %s", info_name, raw_idx, exc)
+            logger.warning("[%s] row %d extraction failed: %s", info_name, raw_idx, exc)
             continue
-
-        audio = row.get("audio")
-        sr = row.get("sample_rate")
-        if audio is None or sr is None:
+        if extracted is None:
             continue
+        audio = extracted["audio"]
+        sr = extracted["sr"]
 
         try:
             clip = _process_one_sample(audio, sr, cfg["target_sr"], cfg)
@@ -671,26 +856,23 @@ def _build_one_dataset_samples(
             png_path.unlink(missing_ok=True)
             continue
 
-        label = row.get(cfg.get("label_column") or "") or ""
-        license_text = row.get(cfg.get("license_column") or "") or ""
-        url = row.get(cfg.get("url_column") or "") or "" if cfg.get("url_column") else ""
         written.append(
             {
                 "info_name": info_name,
                 "sample_idx": sample_idx,
-                "label": str(label),
-                "license": str(license_text),
+                "label": extracted["label"],
+                "license": extracted["license"],
                 "duration_s": float(len(clip) / cfg["target_sr"]),
                 "audio_rel": f"samples/{info_name}/{mp3_path.name}",
                 "spec_rel": f"samples/{info_name}/{png_path.name}",
-                "source_url": str(url),
+                "source_url": extracted["source_url"],
             }
         )
         logger.info(
             "[%s] sample %02d: %s (%.1fs)",
             info_name,
             sample_idx,
-            label or "?",
+            extracted["label"] or "?",
             len(clip) / cfg["target_sr"],
         )
 
