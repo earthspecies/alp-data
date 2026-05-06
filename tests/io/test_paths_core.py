@@ -2,9 +2,9 @@
 
 import os
 import pytest
-from pathlib import Path, PurePosixPath, PureWindowsPath
+from pathlib import Path
 
-from esp_data.io import PureGSPath, PureR2Path, PureS3Path, anypath
+from esp_data.io import PureGSPath, PureHTTPSPath, PureR2Path, PureS3Path, anypath
 from esp_data.io.paths import PureCloudPath
 
 
@@ -102,6 +102,63 @@ class TestPureR2Path:
         base = PureR2Path("s3://my-bucket/folder")
         joined = base / "subfolder" / "file.txt"
         assert str(joined) == "s3://my-bucket/folder/subfolder/file.txt"
+
+
+class TestPureHTTPSPath:
+    """Test PureHTTPSPath functionality."""
+
+    def test_https_path_creation(self):
+        path = PureHTTPSPath("https://example.com/path/to/file.json")
+        assert str(path) == "https://example.com/path/to/file.json"
+        assert path.bucket == "example.com"
+
+    def test_https_bucket_only(self):
+        path = PureHTTPSPath("https://example.com")
+        assert str(path) == "https://example.com"
+        assert path.bucket == "example.com"
+
+    def test_https_invalid_protocol(self):
+        with pytest.raises(ValueError, match="Path must start with 'https://': http://example.com"):
+            PureHTTPSPath("http://example.com")
+
+    def test_https_path_operations(self):
+        path = PureHTTPSPath("https://example.com/datasets/audio/file.wav")
+        assert path.name == "file.wav"
+        assert path.suffix == ".wav"
+        assert path.stem == "file"
+        assert str(path.parent) == "https://example.com/datasets/audio"
+
+    def test_https_path_joining(self):
+        base = PureHTTPSPath("https://example.com/datasets")
+        joined = base / "audio" / "file.wav"
+        assert str(joined) == "https://example.com/datasets/audio/file.wav"
+
+    def test_https_path_parts(self):
+        path = PureHTTPSPath("https://example.com/a/b/c.txt")
+        assert path.parts == ("https://example.com/", "a", "b", "c.txt")
+
+    def test_https_drive_root_anchor(self):
+        path = PureHTTPSPath("https://example.com/path/file.txt")
+        assert path.drive == "https://example.com"
+        assert path.root == "/"
+        assert path.anchor == "https://example.com/"
+
+    def test_https_rejects_incompatible_scheme_join(self):
+        path = PureHTTPSPath("https://example.com/path")
+        with pytest.raises(ValueError, match="incompatible cloud schemes"):
+            path / "gs://bucket/file.txt"
+
+    def test_https_comparison(self):
+        p1 = PureHTTPSPath("https://example.com/a.txt")
+        p2 = PureHTTPSPath("https://example.com/a.txt")
+        p3 = PureHTTPSPath("https://example.com/b.txt")
+        assert p1 == p2
+        assert p1 != p3
+        assert p1 < p3
+
+    def test_https_fspath(self):
+        path = PureHTTPSPath("https://example.com/file.txt")
+        assert os.fspath(path) == "https://example.com/file.txt"
 
 
 class TestCrossSchemeValidation:
@@ -260,6 +317,12 @@ class TestAnyPathFunction:
         path = anypath("r2://bucket/file.txt")
         assert isinstance(path, PureR2Path)
         assert str(path) == "s3://bucket/file.txt"  # R2 paths are converted to S3
+
+    def test_anypath_with_https_path(self):
+        """Test anypath with HTTPS paths."""
+        path = anypath("https://example.com/datasets/file.json")
+        assert isinstance(path, PureHTTPSPath)
+        assert str(path) == "https://example.com/datasets/file.json"
 
     def test_anypath_with_local_path(self):
         """Test anypath with local paths."""

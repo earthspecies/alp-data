@@ -7,20 +7,21 @@ from functools import cache
 from typing import Literal
 
 import fsspec
+from fsspec.implementations.http import HTTPFileSystem
 from fsspec.implementations.local import LocalFileSystem
 from gcsfs import GCSFileSystem
 from s3fs import S3FileSystem
 
 from esp_data.utils import read_gcp_secret
 
-from .paths import AnyPathT, PureGSPath, PureR2Path, anypath
+from .paths import AnyPathT, PureGSPath, PureHTTPSPath, PureR2Path, anypath
 
 logger = logging.getLogger("esp_data")
 
 
 @cache
 def filesystem(
-    protocol: Literal["gcs", "gs", "r2", "local"] = "local",
+    protocol: Literal["gcs", "gs", "r2", "local", "https"] = "local",
     **kwargs: dict,
 ) -> GCSFileSystem | S3FileSystem | LocalFileSystem:
     """Initializes and returns a cached filesystem instance.
@@ -37,9 +38,9 @@ def filesystem(
 
     Parameters
     ----------
-        protocol: Literal["gcs", "gs", "r2", "local"]
+        protocol: Literal["gcs", "gs", "r2", "https", "local"]
             The type of filesystem to initialize. Defaults to "local".
-            Supported values are "gcs", "gs", "r2", "local".
+            Supported values are "gcs", "gs", "r2", "https", "local".
         **kwargs: dict
             Additional keyword parameters to pass directly to the
             underlying filesystem constructor (e.g., GCSFileSystem, S3FileSystem).
@@ -76,13 +77,15 @@ def filesystem(
         )
     elif protocol == "local":
         return fsspec.filesystem("local", **kwargs)
+    elif protocol == "https":
+        return fsspec.filesystem("http", **kwargs)
     else:
         raise ValueError(f"Unknown backend: {protocol}. Supported backends are: gcs, r2.")
 
 
 def filesystem_from_path(
     path: str | AnyPathT,
-) -> GCSFileSystem | S3FileSystem | LocalFileSystem:
+) -> GCSFileSystem | S3FileSystem | LocalFileSystem | HTTPFileSystem:
     """Determines and returns the appropriate cached filesystem based on the path.
 
     Uses the `anypath` utility to normalize the input path and identify its
@@ -98,7 +101,7 @@ def filesystem_from_path(
     Returns
     -------
     An filesystem object corresponding to the specified protocol
-        (e.g., GCSFileSystem, S3FileSystem, LocalFileSystem).
+        (e.g., GCSFileSystem, S3FileSystem, LocalFileSystem, HTTPFileSystem).
 
     Examples
     --------
@@ -112,5 +115,7 @@ def filesystem_from_path(
         return filesystem("gcs")
     elif isinstance(path, PureR2Path):
         return filesystem("r2")
+    elif isinstance(path, PureHTTPSPath):
+        return filesystem("https")
     else:
         return filesystem("local")
