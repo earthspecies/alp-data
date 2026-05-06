@@ -671,25 +671,39 @@ def _extract_selection_table(ds: object, idx: int, cfg: dict[str, Any]) -> dict[
     row = ds._data[idx]
     rel = row.get(cfg["audio_path_column"])
     st_text = row.get(cfg["selection_table_column"])
-    if rel in (None, "") or not st_text:
+    if rel in (None, ""):
+        logger.warning("[%s] row %d: missing audio path", "gibbon_solos", idx)
         return None
 
-    try:
-        st = pd.read_csv(StringIO(st_text), sep="\t")
-    except Exception:
-        return None
-    if "Begin Time (s)" not in st.columns or "End Time (s)" not in st.columns:
-        return None
-    st["dur"] = st["End Time (s)"] - st["Begin Time (s)"]
-    eligible = st[st["dur"] >= 2.0]
-    if len(eligible) == 0:
-        eligible = st.nlargest(1, "dur")
-    if len(eligible) == 0:
-        return None
-
-    pick = eligible.iloc[0]
-    onset = max(0.0, float(pick["Begin Time (s)"]))
-    duration = min(30.0, float(pick["dur"]))
+    onset = 0.0
+    duration = 10.0  # fallback window if the selection table is unusable
+    if st_text:
+        try:
+            st = pd.read_csv(StringIO(st_text), sep="\t")
+        except Exception as exc:
+            logger.warning("row %d: selection_table parse failed: %s", idx, exc)
+            st = None
+        if (
+            st is not None
+            and "Begin Time (s)" in st.columns
+            and "End Time (s)" in st.columns
+            and len(st) > 0
+        ):
+            st["dur"] = st["End Time (s)"] - st["Begin Time (s)"]
+            eligible = st[st["dur"] >= 2.0]
+            if len(eligible) == 0:
+                eligible = st.nlargest(1, "dur")
+            pick = eligible.iloc[0]
+            onset = max(0.0, float(pick["Begin Time (s)"]))
+            duration = min(30.0, max(2.5, float(pick["dur"])))
+        else:
+            logger.warning(
+                "row %d: selection_table missing Begin/End Time columns; using first %.0fs of file",
+                idx,
+                duration,
+            )
+    else:
+        logger.warning("row %d: empty selection_table; using first %.0fs of file", idx, duration)
 
     from esp_data.io import read_audio
 
