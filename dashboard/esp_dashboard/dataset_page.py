@@ -10,6 +10,7 @@ from __future__ import annotations
 import reflex as rx
 
 from esp_dashboard.dataset_state import DatasetState
+from esp_dashboard.header import app_header
 
 
 def _sample_card(sample: rx.Var) -> rx.Component:
@@ -141,10 +142,12 @@ def dataset_detail() -> rx.Component:
     """
     return rx.container(
         rx.vstack(
+            app_header(),
             rx.link(
                 rx.text("← all datasets", size="2"),
                 href="/",
                 color_scheme="gray",
+                margin_top="2",
             ),
             rx.cond(
                 DatasetState.error != "",
@@ -179,7 +182,7 @@ def dataset_detail() -> rx.Component:
                         color_scheme="gray",
                     ),
                     rx.recharts.bar_chart(
-                        rx.recharts.bar(data_key="value", fill="#7c5cff"),
+                        rx.recharts.bar(data_key="value", fill="#04D78A"),
                         rx.recharts.x_axis(
                             data_key="name",
                             angle=-40,

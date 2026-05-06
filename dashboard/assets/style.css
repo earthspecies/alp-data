@@ -1,0 +1,48 @@
+/* Global typography overrides for the esp-data dashboard.
+ * The body uses Poppins (ESP sans-serif) and headings stay on the same
+ * stack except for the wordmark which explicitly opts into PT Serif. */
+
+:root {
+  --esp-pine: #054C3B;
+  --esp-jungle: #129C7B;
+  --esp-sea: #04D78A;
+  --esp-pear: #C3E409;
+  --esp-amphibian: #A7ED99;
+}
+
+html, body {
+  font-family: "Poppins", -apple-system, BlinkMacSystemFont, "Segoe UI",
+    Roboto, sans-serif;
+}
+
+/* Ambient ESP-palette glow behind the page. Reflex's Radix theme
+ * paints its own solid background on a wrapper, so we sit above it
+ * with a fixed pseudo-element layer that spans the viewport. The
+ * Radix wrapper itself goes transparent so our gradients show through.
+ */
+.radix-themes,
+.radix-themes > div {
+  background-color: transparent !important;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-color: #00100D;
+  background-image:
+    radial-gradient(1100px circle at 12% 0%,
+      rgba(4, 215, 138, 0.28), transparent 65%),
+    radial-gradient(900px circle at 92% 8%,
+      rgba(195, 228, 9, 0.18), transparent 65%),
+    radial-gradient(1300px circle at 50% 95%,
+      rgba(18, 156, 123, 0.24), transparent 70%);
+  background-repeat: no-repeat;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: "Poppins", sans-serif;
+  letter-spacing: -0.01em;
+}

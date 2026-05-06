@@ -12,22 +12,22 @@ import reflex as rx
 
 from esp_dashboard.db import get_connection
 
-# Qualitative palette cycled across each set of sibling wedges so that
-# adjacent slices in the sunburst are always visually distinct. Picked
-# to read on a dark background.
+# ESP extended chart palette. Cycled across each set of sibling wedges
+# so adjacent slices in the sunburst stay visually distinct, and reused
+# for any other categorical color encoding the dashboard needs.
 _SUNBURST_PALETTE: tuple[str, ...] = (
-    "#7c5cff",
-    "#ff7a5c",
-    "#34d399",
-    "#facc15",
-    "#f472b6",
-    "#22d3ee",
-    "#a78bfa",
-    "#fb923c",
-    "#4ade80",
-    "#e879f9",
-    "#60a5fa",
-    "#f87171",
+    "#04D78A",  # Sea Green
+    "#FFBF00",  # amber
+    "#C3E409",  # Pear Green
+    "#129C7B",  # Jungle Green
+    "#5F4BB6",  # purple
+    "#86A5D9",  # blue-gray
+    "#DA3E52",  # red
+    "#FD96A9",  # pink
+    "#2D82B7",  # blue
+    "#A3D9FF",  # sky
+    "#A7ED99",  # Amphibian Green
+    "#D5DCF9",  # lavender
 )
 
 

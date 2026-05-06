@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import reflex as rx
 
+from esp_dashboard.header import app_header
 from esp_dashboard.talk_state import EXAMPLE_QUERIES, TalkState
 
 
@@ -77,7 +78,7 @@ def _chart() -> rx.Component:
     return rx.cond(
         TalkState.chart_kind == "bar",
         rx.recharts.bar_chart(
-            rx.recharts.bar(data_key=TalkState.chart_y_key, fill="#7c5cff"),
+            rx.recharts.bar(data_key=TalkState.chart_y_key, fill="#04D78A"),
             rx.recharts.x_axis(
                 data_key=TalkState.chart_x_key,
                 angle=-30,
@@ -97,7 +98,7 @@ def _chart() -> rx.Component:
             rx.recharts.scatter_chart(
                 rx.recharts.scatter(
                     data=TalkState.chart,
-                    fill="#7c5cff",
+                    fill="#04D78A",
                 ),
                 rx.recharts.x_axis(data_key=TalkState.chart_x_key, type_="number"),
                 rx.recharts.y_axis(data_key=TalkState.chart_y_key, type_="number"),
@@ -122,10 +123,12 @@ def talk_page() -> rx.Component:
     """
     return rx.container(
         rx.vstack(
+            app_header(),
             rx.link(
                 rx.text("← back to landing", size="2"),
                 href="/",
                 color_scheme="gray",
+                margin_top="2",
             ),
             rx.heading("Talk to data", size="8"),
             rx.text(

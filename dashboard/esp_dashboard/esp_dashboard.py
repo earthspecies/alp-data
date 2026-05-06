@@ -11,6 +11,7 @@ from fastapi import FastAPI
 from esp_dashboard.api import router as api_router
 from esp_dashboard.dataset_page import dataset_detail
 from esp_dashboard.dataset_state import DatasetState
+from esp_dashboard.header import app_header
 from esp_dashboard.state import LandingState
 from esp_dashboard.talk_page import talk_page
 
@@ -69,16 +70,7 @@ def index() -> rx.Component:
     return rx.container(
         rx.vstack(
             rx.hstack(
-                rx.vstack(
-                    rx.heading("ESP-Data", size="9"),
-                    rx.text(
-                        "Bioacoustic datasets, unified.",
-                        size="5",
-                        color_scheme="gray",
-                    ),
-                    spacing="2",
-                    align="start",
-                ),
+                app_header(),
                 rx.spacer(),
                 rx.link(
                     rx.button(
@@ -86,12 +78,18 @@ def index() -> rx.Component:
                         rx.icon("sparkles", size=16),
                         size="3",
                         variant="surface",
-                        color_scheme="iris",
+                        color_scheme="jade",
                     ),
                     href="/talk",
                 ),
                 width="100%",
                 align="center",
+            ),
+            rx.text(
+                "Bioacoustic datasets, unified.",
+                size="5",
+                color_scheme="gray",
+                margin_top="2",
             ),
             rx.cond(
                 LandingState.error != "",
@@ -172,23 +170,30 @@ def index() -> rx.Component:
 
 
 app = rx.App(
-    theme=rx.theme(appearance="dark", accent_color="grass", radius="medium"),
+    theme=rx.theme(appearance="dark", accent_color="jade", radius="medium"),
     api_transformer=fastapi_app,
+    stylesheets=[
+        "https://fonts.googleapis.com/css2"
+        "?family=Poppins:wght@300;400;500;600;700"
+        "&family=PT+Serif:wght@400;700"
+        "&display=swap",
+        "/style.css",
+    ],
 )
 app.add_page(
     index,
     route="/",
-    title="ESP-Data Dashboard",
+    title="esp-data",
     on_load=LandingState.load_stats,
 )
 app.add_page(
     dataset_detail,
     route="/datasets/[name]",
-    title="ESP-Data · Dataset",
+    title="esp-data · dataset",
     on_load=DatasetState.load,
 )
 app.add_page(
     talk_page,
     route="/talk",
-    title="ESP-Data · Talk to Data",
+    title="esp-data · talk to data",
 )
