@@ -28,6 +28,11 @@ class PolarsBackend(DataBackend):
         The polars DataFrame or LazyFrame to wrap
     streaming : bool
         Whether the backend is in streaming mode (LazyFrame)
+    streaming_chunk_size: int
+        Number of rows per batch when iterating in streaming mode (default: 1000)
+        1000 is a good number because its high enough to reduce I/O and any higher
+        doesn't help because the main latency source in Dataset __getitem__ calls
+        are in loading audio anyway.
 
     Examples
     --------
@@ -63,6 +68,7 @@ class PolarsBackend(DataBackend):
         df: pl.DataFrame | pl.LazyFrame,
         *,
         streaming: bool = False,
+        streaming_chunk_size: int = 1000,
     ) -> None:
         """Initialize the backend with a polars DataFrame or LazyFrame.
 
@@ -72,9 +78,12 @@ class PolarsBackend(DataBackend):
             The DataFrame or LazyFrame to wrap
         streaming : bool, optional
             Whether to use streaming mode (LazyFrame), by default False
+        streaming_chunk_size : int, optional
+            Number of rows per batch when iterating in streaming mode, by default 1000
         """
         self._df = df
         self._streaming = streaming
+        self._streaming_chunk_size = streaming_chunk_size
 
         # Auto-detect streaming mode if LazyFrame is provided
         if isinstance(df, pl.LazyFrame) and not streaming:
@@ -325,7 +334,7 @@ class PolarsBackend(DataBackend):
         if isinstance(self._df, pl.LazyFrame):
             # TODO: polars LazyFrame.collect_batches is marked unstable!
             # see: https://docs.pola.rs/api/python/dev/reference/lazyframe/api/polars.LazyFrame.collect_batches.html
-            for batch in self._df.collect_batches():
+            for batch in self._df.collect_batches(chunk_size=self._streaming_chunk_size):
                 for row in batch.iter_rows(named=True):
                     yield row
         else:
