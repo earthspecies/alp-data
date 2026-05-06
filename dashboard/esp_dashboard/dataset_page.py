@@ -156,6 +156,16 @@ def dataset_detail() -> rx.Component:
                 _metadata_header(),
             ),
             rx.cond(
+                DatasetState.tldr != "",
+                rx.text(
+                    DatasetState.tldr,
+                    size="3",
+                    color_scheme="gray",
+                    margin_top="2",
+                ),
+                rx.fragment(),
+            ),
+            rx.cond(
                 DatasetState.family_chart.length() > 0,
                 rx.vstack(
                     rx.heading(
@@ -207,6 +217,16 @@ def dataset_detail() -> rx.Component:
                 "Listen — 10 random samples",
                 size="5",
                 margin_top="6",
+            ),
+            rx.cond(
+                DatasetState.label_vocab != "",
+                rx.callout(
+                    DatasetState.label_vocab,
+                    icon="info",
+                    color_scheme="gray",
+                    size="1",
+                ),
+                rx.fragment(),
             ),
             rx.cond(
                 DatasetState.samples.length() > 0,

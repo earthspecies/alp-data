@@ -1,0 +1,26 @@
+{
+  "inaturalist": {
+    "tldr": "Citizen-science audio recordings from the iNaturalist platform. Each clip is linked to a species observation contributed by an iNaturalist user, with location, date, and recordist metadata. Coverage spans the full taxonomic tree under permissive Creative Commons licenses (CC BY-NC, CC BY, CC0).",
+    "label_vocab": null
+  },
+  "xeno-canto": {
+    "tldr": "A community-driven archive of bird sounds (and a smattering of bats, frogs, insects). Recordings are weakly-labeled with the focal species; many include rich field notes, location, and recording metadata. Snapshot from October 2025; train/val split is 90/10 with seed 42.",
+    "label_vocab": null
+  },
+  "insectset_459": {
+    "tldr": "A fine-grained insect bioacoustics benchmark covering 459 species across Orthoptera (crickets, katydids, grasshoppers) and Hemiptera (cicadas). Each clip is a short field recording weakly-labeled with the calling species.",
+    "label_vocab": null
+  },
+  "watkins": {
+    "tldr": "The Watkins Marine Mammal Sound Database from the Woods Hole Oceanographic Institution — ~13,700 clips across ~50 species of cetaceans and pinnipeds, with recordings spanning decades. Audio is available at original sample rates and pre-resampled 16 kHz / 32 kHz versions.",
+    "label_vocab": null
+  },
+  "geladas": {
+    "tldr": "Vocal sequences from wild male geladas (Theropithecus gelada) used in Gustison et al. 2016 to demonstrate Menzerath's linguistic law in a non-human primate. Each row is a single annotated call within a longer focal sequence, with onset/offset timestamps.",
+    "label_vocab": "Raw call-type codes from Gustison et al. 2016 (e.g. vg, vf, vi, vq, vs, vb). The full legend mapping codes to vocalization types isn't surfaced in the dashboard yet."
+  },
+  "gibbon_solos": {
+    "tldr": "Eighteen long-form recordings of male gibbon solos from Clink et al. 2020. A solo is a ritualized, structured vocal sequence males use to advertise territory and attract mates; each recording is paired with an annotation table marking individual song bouts.",
+    "label_vocab": null
+  }
+}

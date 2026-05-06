@@ -18,6 +18,23 @@ from esp_dashboard.db import get_connection
 from esp_dashboard.state import _format_compact
 
 _FAMILY_COMMON_PATH = Path(__file__).resolve().parent.parent / "assets" / "family_common_names.json"
+_BLURBS_PATH = Path(__file__).resolve().parent.parent / "assets" / "dataset_blurbs.json"
+
+
+@lru_cache(maxsize=1)
+def _dataset_blurbs() -> dict[str, dict[str, Any]]:
+    """Load curated TLDR + label-vocabulary notes for each dataset.
+
+    Returns
+    -------
+    dict[str, dict[str, Any]]
+        Mapping from `info_name` to a dict with keys ``tldr`` (str) and
+        ``label_vocab`` (str | None). Empty if the JSON file is missing.
+    """
+    if not _BLURBS_PATH.exists():
+        return {}
+    with _BLURBS_PATH.open() as f:
+        return json.load(f)
 
 
 @lru_cache(maxsize=1)
@@ -58,6 +75,8 @@ class DatasetState(rx.State):
     family_chart: list[dict[str, Any]] = []
     family_other_count: int = 0
     family_other_total: int = 0
+    tldr: str = ""
+    label_vocab: str = ""
     error: str = ""
 
     def load(self) -> None:
@@ -74,6 +93,10 @@ class DatasetState(rx.State):
         self.info_name = name
         self.title = name
         self.error = ""
+
+        blurb = _dataset_blurbs().get(name, {})
+        self.tldr = blurb.get("tldr") or ""
+        self.label_vocab = blurb.get("label_vocab") or ""
 
         con = get_connection()
         manifest_row = con.execute(
