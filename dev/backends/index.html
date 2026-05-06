@@ -7347,6 +7347,25 @@ for DataFrame operations that can work across different backend implementations.
                   <code>False</code>
             </td>
           </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>streaming_chunk_size</code>
+            </td>
+            <td>
+                  <code><span title="int">int</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Number of rows per batch when iterating in streaming mode (default: 1000)
+1000 is a good number because its high enough to reduce I/O and any higher
+doesn't help because the main latency source in Dataset <strong>getitem</strong> calls
+are in loading audio anyway.</p>
+              </div>
+            </td>
+            <td>
+                  <code>1000</code>
+            </td>
+          </tr>
       </tbody>
     </table>
 
@@ -7651,7 +7670,7 @@ for DataFrame operations that can work across different backend implementations.
 
 
 <h3 id="esp_data.backends.PolarsBackend.__init__" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <code class="highlight language-python"><span class="fm">__init__</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">streaming</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></code>
+<code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <code class="highlight language-python"><span class="fm">__init__</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">streaming</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">streaming_chunk_size</span><span class="o">=</span><span class="mi">1000</span><span class="p">)</span></code>
 
 </h3>
 
@@ -7702,6 +7721,22 @@ for DataFrame operations that can work across different backend implementations.
             </td>
             <td>
                   <code>False</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>streaming_chunk_size</code>
+            </td>
+            <td>
+                  <code><span title="int">int</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Number of rows per batch when iterating in streaming mode, by default 1000</p>
+              </div>
+            </td>
+            <td>
+                  <code>1000</code>
             </td>
           </tr>
       </tbody>
