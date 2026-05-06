@@ -13,3 +13,6 @@ site/
 docs/
 repaired_wavs/
 *.egg-info/
+# Never ship secrets in the image — pass at `docker run -e ...` time.
+**/.env
+**/.env.*
