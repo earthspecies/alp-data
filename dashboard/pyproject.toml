@@ -10,6 +10,8 @@ dependencies = [
     "duckdb>=1.1.0",
     "esp-data",
     "plotly>=6.7.0",
+    "anthropic>=0.99.0",
+    "python-dotenv>=1.2.2",
 ]
 
 [dependency-groups]

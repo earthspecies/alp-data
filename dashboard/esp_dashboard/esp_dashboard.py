@@ -12,6 +12,7 @@ from esp_dashboard.api import router as api_router
 from esp_dashboard.dataset_page import dataset_detail
 from esp_dashboard.dataset_state import DatasetState
 from esp_dashboard.state import LandingState
+from esp_dashboard.talk_page import talk_page
 
 # Curated datasets surfaced on the landing page as link cards. Order
 # matters — first one is featured most prominently in the grid.
@@ -67,15 +68,30 @@ def index() -> rx.Component:
     """
     return rx.container(
         rx.vstack(
-            rx.vstack(
-                rx.heading("ESP-Data", size="9"),
-                rx.text(
-                    "Bioacoustic datasets, unified.",
-                    size="5",
-                    color_scheme="gray",
+            rx.hstack(
+                rx.vstack(
+                    rx.heading("ESP-Data", size="9"),
+                    rx.text(
+                        "Bioacoustic datasets, unified.",
+                        size="5",
+                        color_scheme="gray",
+                    ),
+                    spacing="2",
+                    align="start",
                 ),
-                spacing="2",
-                align="start",
+                rx.spacer(),
+                rx.link(
+                    rx.button(
+                        "Talk to data",
+                        rx.icon("sparkles", size=16),
+                        size="3",
+                        variant="surface",
+                        color_scheme="iris",
+                    ),
+                    href="/talk",
+                ),
+                width="100%",
+                align="center",
             ),
             rx.cond(
                 LandingState.error != "",
@@ -170,4 +186,9 @@ app.add_page(
     route="/datasets/[name]",
     title="ESP-Data · Dataset",
     on_load=DatasetState.load,
+)
+app.add_page(
+    talk_page,
+    route="/talk",
+    title="ESP-Data · Talk to Data",
 )
