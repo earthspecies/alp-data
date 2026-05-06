@@ -23,12 +23,7 @@ _CROPPED_AUDIO_ROOTS = {
     "wabad_cropped": "gs://foundation-model-data/synthetic/cropped/wabad/audio",
     "WABADCropped": "gs://foundation-model-data/synthetic/cropped/wabad/audio",
 }
-_BIRDVOX_DCASE_AUDIO_ROOT = (
-    "gs://foundation-model-data/synthetic/cropped/birdvox_dcase_20k/audio"
-)
-
 _T3_SPLIT_PATHS = {
-    "t3-bird-presence-biophony-binary": "gs://foundation-model-data/synthetic/beanspro_draft/t3/bird_presence_biophony_binary.jsonl",
     "t3-frequency-range-description": "gs://foundation-model-data/synthetic/beanspro_draft/t3/frequency_range_description_oe.jsonl",
     "t3-ordered-species-summary": "gs://foundation-model-data/synthetic/beanspro_draft/t3/ordered_species_summary_oe.jsonl",
     "t3-species-by-highest-pitch-mcq": "gs://foundation-model-data/synthetic/beanspro_draft/t3/species_by_highest_pitch_mcq.jsonl",
@@ -130,25 +125,6 @@ def _first_string(value: object) -> str | None:
     return None
 
 
-def _basename_without_suffix(path: str) -> str:
-    """Return the final path component without a trailing ``.wav`` suffix.
-
-    Parameters
-    ----------
-    path : str
-        Audio path or URI.
-
-    Returns
-    -------
-    str
-        Basename with a trailing ``.wav`` removed when present.
-    """
-    name = path.rstrip("/").rsplit("/", 1)[-1]
-    if name.lower().endswith(".wav"):
-        return name[:-4]
-    return name
-
-
 def _cropped_audio_path(row: dict[str, Any], metadata: dict[str, Any]) -> str | None:
     """Return the canonical cropped audio URI for a BeansPro row.
 
@@ -169,12 +145,6 @@ def _cropped_audio_path(row: dict[str, Any], metadata: dict[str, Any]) -> str | 
         return audio_path
 
     audio_id = _first_string(row.get("audio_ids"))
-    audio_paths_value = _first_string(row.get("audio_paths")) or ""
-
-    if "birdvox_dcase_20k" in audio_paths_value:
-        dcase_id = audio_id or _basename_without_suffix(audio_paths_value)
-        return f"{_BIRDVOX_DCASE_AUDIO_ROOT}/{dcase_id}.wav"
-
     source_dataset = metadata.get("source_dataset") or row.get("dataset")
     if not isinstance(source_dataset, str):
         return None

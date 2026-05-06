@@ -196,16 +196,6 @@ def test_synthetic_ids_are_unique(split: str) -> None:
             },
             "gs://foundation-model-data/synthetic/cropped/birdvox_full_night/audio/BirdVox-full-night_unit07__crop_8522504_8526617.wav",
         ),
-        (
-            {
-                "audio_ids": ["a59f8800-8aff-4075-a597-17e820a07180"],
-                "audio_paths": [
-                    "data/birdvox_dcase_20k/a59f8800-8aff-4075-a597-17e820a07180.wav"
-                ],
-                "metadata": {"source_dataset": "BirdVoxFullNightCropped"},
-            },
-            "gs://foundation-model-data/synthetic/cropped/birdvox_dcase_20k/audio/a59f8800-8aff-4075-a597-17e820a07180.wav",
-        ),
     ],
 )
 def test_synthetic_rows_use_canonical_cropped_audio_uri(
