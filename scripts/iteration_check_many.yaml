@@ -1,0 +1,61 @@
+chain:
+  dataset_name: chained_dataset
+  datasets:
+    - dataset_name: animal-sound-archive
+      split: all
+      streaming: true
+      sample_rate: null
+    - dataset_name: anuraset
+      split: all
+      streaming: true
+      sample_rate: null
+    - dataset_name: arctic_bird_sounds
+      split: all
+      streaming: true
+      sample_rate: null
+    - dataset_name: audioset_strong
+      split: train
+      streaming: true
+      sample_rate: null
+    - dataset_name: audioset
+      split: train-balanced
+      version: "0.1.0"
+      streaming: true
+      sample_rate: 32000
+    - dataset_name: audioset
+      split: train-balanced
+      version: "0.2.0"
+      streaming: true
+      sample_rate: 32000
+    - dataset_name: beans-zero
+      split: test
+      streaming: true
+      sample_rate: null
+    - dataset_name: beans
+      split: train
+      streaming: true
+      sample_rate: null
+    - dataset_name: "Bengalese Finch Calls"
+      split: Bird0
+      streaming: true
+      sample_rate: null
+    - dataset_name: "Bengalese Finch Calls"
+      split: Bird1
+      streaming: true
+      sample_rate: null
+    - dataset_name: "Bengalese Finch Calls"
+      split: Bird2
+      streaming: true
+      sample_rate: null
+    - dataset_name: birdeep
+      split: all
+      streaming: true
+      sample_rate: null
+    - dataset_name: birdset
+      split: all
+      streaming: true
+      sample_rate: null
+    - dataset_name: chiffchaff_id
+      split: train_within_year
+      streaming: true
+      sample_rate: null
