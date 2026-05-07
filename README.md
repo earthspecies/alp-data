@@ -17,7 +17,7 @@ You can stand up a multi-dataset benchmark, compare models across taxa, or strea
 esp-data ships with 30+ built-in datasets across:
 
 - **Birds** — large benchmarks including BirdSet (6,800+ training hours, 10,000 species) and WABAD (1,192 species, 72 sites); aggregator corpora like Xeno-Canto; and site- or species-specific recordings spanning arctic species, Hawaiian soundscapes, the Powdermill dawn chorus, and individual-ID datasets for chiffchaff, little owl, and tree pipit.
-- **Marine mammals** — the Watkins Marine Mammal Sound Database (~13,700 clips across ~50 cetacean and pinniped species), DCLDE 2026 killer whale annotations, dolphin whistle and click corpora, and humpback / blue / fin whale phonations from Barkley Canyon.
+- **Marine mammals** — the Watkins Marine Mammal Sound Database (~13,700 clips across ~50 cetacean and pinniped species), DCLDE 2026 killer whale annotations, dolphin whistle and click corpora
 - **Primates** — gelada vocal sequences, gibbon solos, infant marmoset vocalizations, and macaque coo calls.
 - **Insects, anurans, and other mammals** — InsectSet459 (459 Orthoptera and Cicadidae species), AnuraSetStrong (42 frog species, 27 hours of expert annotations), and giant otter vocalization types.
 - **Multi-taxon benchmarks and aggregators** — BEANS and BeansZero (the canonical bioacoustic and zero-shot benchmarks), AnimalSpeak (1M+ audio–caption pairs), AnimalSoundArchive, iNaturalist audio, AudioSet / AudioSetStrong, and Voxaboxen (overlapping vocalization detection).
