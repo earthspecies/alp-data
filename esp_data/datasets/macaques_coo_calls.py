@@ -7,7 +7,7 @@ import numpy as np
 
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from esp_data.backends import BackendType
-from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
+from esp_data.io import DATA_HOME, AnyPathT, anypath, audio_stereo_to_mono, read_audio
 
 
 @register_dataset
@@ -31,7 +31,6 @@ class MacaquesCooCalls(Dataset):
     ...     split="test",
     ...     output_take_and_give={"id": "label"},
     ...     sample_rate=16000,
-    ...     data_root="gs://esp-ml-datasets/macaques_coo_calls/v0.1.0/raw/"
     ... )
     """
 
@@ -39,9 +38,9 @@ class MacaquesCooCalls(Dataset):
         name="macaques_coo_calls",
         owner="marius",
         split_paths={
-            "test": "gs://esp-ml-datasets/macaques_coo_calls/v0.1.0/raw/test.csv",
-            "train": "gs://esp-ml-datasets/macaques_coo_calls/v0.1.0/raw/train.csv",
-            "val": "gs://esp-ml-datasets/macaques_coo_calls/v0.1.0/raw/validation.csv",
+            "test": f"{DATA_HOME}/macaques_coo_calls/v0.1.0/raw/test.csv",
+            "train": f"{DATA_HOME}/macaques_coo_calls/v0.1.0/raw/train.csv",
+            "val": f"{DATA_HOME}/macaques_coo_calls/v0.1.0/raw/validation.csv",
         },
         version="0.1.0",
         description=(

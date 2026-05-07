@@ -7,7 +7,9 @@ import numpy as np
 
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from esp_data.backends import BackendType
-from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
+from esp_data.io import DATA_HOME, AnyPathT, anypath, audio_stereo_to_mono, read_audio
+
+_RAW_ROOT = f"{DATA_HOME}/tierstimmenarchiv/v0.1.0/raw"
 
 
 @register_dataset
@@ -99,12 +101,12 @@ class AnimalSoundArchive(Dataset):
         name="animal-sound-archive",
         owner="david",
         split_paths={
-            "train": "gs://esp-ml-datasets/tierstimmenarchiv/v0.1.0/raw/train_v2.csv",
-            "validation": "gs://esp-ml-datasets/tierstimmenarchiv/v0.1.0/raw/val_v2.csv",
-            "all": "gs://esp-ml-datasets/tierstimmenarchiv/v0.1.0/raw/all_v2.csv",
-            "train_excl_beanszero": "gs://esp-ml-datasets/tierstimmenarchiv/v0.1.0/raw/train_unseen_v2.csv",
-            "validation_excl_beanszero": "gs://esp-ml-datasets/tierstimmenarchiv/v0.1.0/raw/val_unseen_v2.csv",
-            "all_excl_beanszero": "gs://esp-ml-datasets/tierstimmenarchiv/v0.1.0/raw/all_unseen_v2.csv",
+            "train": f"{_RAW_ROOT}/train_v2.csv",
+            "validation": f"{_RAW_ROOT}/val_v2.csv",
+            "all": f"{_RAW_ROOT}/all_v2.csv",
+            "train_excl_beanszero": f"{_RAW_ROOT}/train_unseen_v2.csv",
+            "validation_excl_beanszero": f"{_RAW_ROOT}/val_unseen_v2.csv",
+            "all_excl_beanszero": f"{_RAW_ROOT}/all_unseen_v2.csv",
         },
         version="0.1.0",
         description="Animal Sound Archive (Tierstimmenarchiv) audio dataset with "
@@ -163,7 +165,7 @@ class AnimalSoundArchive(Dataset):
         self.sample_rate = sample_rate
 
         if data_root is None:
-            self.data_root = anypath("gs://esp-ml-datasets/tierstimmenarchiv/v0.1.0/raw/")
+            self.data_root = anypath(f"{_RAW_ROOT}/")
         else:
             self.data_root = anypath(data_root)
 

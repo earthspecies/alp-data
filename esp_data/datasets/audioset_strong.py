@@ -11,7 +11,9 @@ import polars as pl
 
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from esp_data.backends import BackendType
-from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
+from esp_data.io import DATA_HOME, AnyPathT, anypath, audio_stereo_to_mono, read_audio
+
+_CSV_ROOT = f"{DATA_HOME}/audioset/v0.2.0/raw/csv-data"
 
 
 @register_dataset
@@ -79,8 +81,8 @@ class AudioSetStrong(Dataset):
         name="audioset_strong",
         owner="david; marius; masato",
         split_paths={
-            "train": "gs://esp-ml-datasets/audioset/v0.2.0/raw/csv-data/audioset_train_strong_32khz_only.csv",
-            "train-environmental": "gs://esp-ml-datasets/audioset/v0.2.0/raw/csv-data/audioset_train_strong_32khz_environmental.csv",
+            "train": f"{_CSV_ROOT}/audioset_train_strong_32khz_only.csv",
+            "train-environmental": f"{_CSV_ROOT}/audioset_train_strong_32khz_environmental.csv",
         },
         version="0.1.0",
         description="AudioSet Strong: Strongly-labeled subset with temporal annotations",

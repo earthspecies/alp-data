@@ -7,9 +7,9 @@ import numpy as np
 
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from esp_data.backends import BackendType
-from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
+from esp_data.io import DATA_HOME, AnyPathT, anypath, audio_stereo_to_mono, read_audio
 
-_GCS_ROOT = "gs://esp-ml-datasets/birdset/v0.1.0/raw"
+_GCS_ROOT = f"{DATA_HOME}/birdset/v0.1.0/raw"
 
 
 @register_dataset
