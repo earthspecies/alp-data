@@ -1,0 +1,75 @@
+/* Custom styles for dataset information */
+
+.dataset-info {
+    margin: 1rem 0 1.5rem 0;
+    border: 1px solid var(--md-default-fg-color--lightest);
+    border-radius: 0.2rem;
+    background-color: var(--md-code-bg-color);
+}
+
+.dataset-info summary {
+    padding: 0.6rem 1rem;
+    cursor: pointer;
+    user-select: none;
+    font-weight: 500;
+    color: var(--md-primary-fg-color);
+}
+
+.dataset-info summary:hover {
+    background-color: var(--md-default-fg-color--lightest);
+}
+
+.dataset-info-content {
+    padding: 0 1rem 1rem 1rem;
+}
+
+.dataset-info table {
+    width: 100%;
+    margin-top: 0.5rem;
+    border-collapse: collapse;
+}
+
+.dataset-info table td {
+    padding: 0.5rem;
+    border-bottom: 1px solid var(--md-default-fg-color--lightest);
+    vertical-align: top;
+}
+
+.dataset-info table td:first-child {
+    width: 30%;
+    font-weight: 500;
+}
+
+.dataset-info table tr:last-child td {
+    border-bottom: none;
+}
+
+.dataset-info code {
+    background-color: var(--md-code-bg-color);
+    padding: 0.1rem 0.3rem;
+    border-radius: 0.2rem;
+    font-size: 0.85em;
+}
+
+.dataset-description,
+.dataset-changelog {
+    margin-top: 1rem;
+    padding: 0.5rem;
+    background-color: var(--md-default-bg-color);
+    border-radius: 0.2rem;
+}
+
+.dataset-description p,
+.dataset-changelog p {
+    margin: 0.5rem 0;
+    line-height: 1.6;
+}
+
+/* Dark mode adjustments */
+[data-md-color-scheme="slate"] .dataset-info {
+    border-color: var(--md-default-fg-color--lightest);
+}
+
+[data-md-color-scheme="slate"] .dataset-info summary:hover {
+    background-color: var(--md-code-bg-color);
+}
