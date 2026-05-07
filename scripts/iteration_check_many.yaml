@@ -5,7 +5,7 @@ chain:
       split: all
       streaming: true
       sample_rate: null
-    - dataset_name: anuraset
+    - dataset_name: anuraset_strong
       split: all
       streaming: true
       sample_rate: null
