@@ -8,7 +8,7 @@
 
 Bioacoustic recordings live in many places: Zenodo, OSF, GBIF, institutional repositories. Each dataset arrives with its own format, manifest schema, audio organization, sampling rate, and licensing posture. Researchers wanting to listen across datasets first have to write a custom loader per dataset, then a custom mixer for combining them.
 
-esp-data removes that scaffolding. Every built-in dataset surfaces the same interface (`for sample in ds`, `ds[i]`, `len(ds)`), with `audio` and `sample_rate` keys returned for every sample. Dataset-specific keys carry labels, annotations, and other metadata. Sample-rate harmonization, label derivation, and split-aware loading are wired in. Adding a new dataset means writing one class, not rebuilding plumbing.
+esp-data removes that scaffolding. Every built-in dataset surfaces the same interface (`for sample in ds`, `ds[i]`, `len(ds)`), with `audio` and `sample_rate` keys returned for every sample. Dataset-specific keys carry labels, annotations, and other metadata. Sample-rate harmonization, label derivation, and split-aware loading are wired in.
 
 You can stand up a multi-dataset benchmark, compare models across taxa, or stream species-specific audio for transfer learning without first becoming a data-engineering specialist.
 
@@ -96,6 +96,13 @@ uv run prek install
 uv run pytest
 ```
 
+## Documentation
+Build documentation locally with:
+
+```sh
+make serve-local-docs
+# Hosts docs at http://localhost:8000
+```
 
 ## Highlights
 
