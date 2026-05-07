@@ -8,7 +8,7 @@
 
 Bioacoustic recordings live in many places: Zenodo, OSF, GBIF, institutional repositories. Each dataset arrives with its own format, manifest schema, audio organization, sampling rate, and licensing posture. Researchers wanting to listen across datasets first have to write a custom loader per dataset, then a custom mixer for combining them.
 
-esp-data removes that scaffolding. Every built-in dataset surfaces the same interface (`for sample in ds`, `ds[i]`, `len(ds)`), with `audio` and `sample_rate` keys returned for every sample. Dataset-specific keys carry labels, annotations, and other metadata. Sample-rate harmonization, label derivation, and split-aware loading are wired in. Adding a new dataset means writing one class, not rebuilding plumbing.
+esp-data removes that scaffolding. Every built-in dataset surfaces the same interface (`for sample in ds`, `ds[i]`, `len(ds)`), with `audio` and `sample_rate` keys returned for every sample. Dataset-specific keys carry labels, annotations, and other metadata. Sample-rate harmonization, label derivation, and split-aware loading are wired in.
 
 You can stand up a multi-dataset benchmark, compare models across taxa, or stream species-specific audio for transfer learning without first becoming a data-engineering specialist.
 
@@ -17,7 +17,7 @@ You can stand up a multi-dataset benchmark, compare models across taxa, or strea
 esp-data ships with 30+ built-in datasets across:
 
 - **Birds** — large benchmarks including BirdSet (6,800+ training hours, 10,000 species) and WABAD (1,192 species, 72 sites); aggregator corpora like Xeno-Canto; and site- or species-specific recordings spanning arctic species, Hawaiian soundscapes, the Powdermill dawn chorus, and individual-ID datasets for chiffchaff, little owl, and tree pipit.
-- **Marine mammals** — the Watkins Marine Mammal Sound Database (~13,700 clips across ~50 cetacean and pinniped species), DCLDE 2026 killer whale annotations, dolphin whistle and click corpora, and humpback / blue / fin whale phonations from Barkley Canyon.
+- **Marine mammals** — the Watkins Marine Mammal Sound Database (~13,700 clips across ~50 cetacean and pinniped species), DCLDE 2026 killer whale annotations, dolphin whistle and click corpora
 - **Primates** — gelada vocal sequences, gibbon solos, infant marmoset vocalizations, and macaque coo calls.
 - **Insects, anurans, and other mammals** — InsectSet459 (459 Orthoptera and Cicadidae species), AnuraSetStrong (42 frog species, 27 hours of expert annotations), and giant otter vocalization types.
 - **Multi-taxon benchmarks and aggregators** — BEANS and BeansZero (the canonical bioacoustic and zero-shot benchmarks), AnimalSpeak (1M+ audio–caption pairs), AnimalSoundArchive, iNaturalist audio, AudioSet / AudioSetStrong, and Voxaboxen (overlapping vocalization detection).
@@ -96,6 +96,13 @@ uv run prek install
 uv run pytest
 ```
 
+## Documentation
+Build documentation locally with:
+
+```sh
+make serve-local-docs
+# Hosts docs at http://localhost:8000
+```
 
 ## Highlights
 
