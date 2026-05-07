@@ -8,7 +8,7 @@ import pandas as pd
 
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from esp_data.backends import BackendType
-from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
+from esp_data.io import DATA_HOME, AnyPathT, anypath, audio_stereo_to_mono, read_audio
 
 
 @register_dataset
@@ -38,7 +38,6 @@ class InsectSet459(Dataset):
     ...     split="validation",
     ...     output_take_and_give={"species_scientific": "species"},
     ...     sample_rate=16000,
-    ...     data_root="gs://esp-ml-datasets/insectset_459/v0.1.0/raw/"
     ... )
     """
 
@@ -46,8 +45,8 @@ class InsectSet459(Dataset):
         name="insectset_459",
         owner="gagan",
         split_paths={
-            "train": "gs://esp-ml-datasets/insectset_459/v0.1.0/raw/insectset459_annotations_train.csv",
-            "validation": "gs://esp-ml-datasets/insectset_459/v0.1.0/raw/insectset459_annotations_val.csv",
+            "train": f"{DATA_HOME}/insectset_459/v0.1.0/raw/insectset459_annotations_train.csv",
+            "validation": f"{DATA_HOME}/insectset_459/v0.1.0/raw/insectset459_annotations_val.csv",
         },
         version="0.1.0",
         description="InsectSet459 dataset",
