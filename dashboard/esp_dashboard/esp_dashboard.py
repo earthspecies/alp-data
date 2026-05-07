@@ -127,7 +127,18 @@ def index() -> rx.Component:
                 color_scheme="gray",
             ),
             rx.center(
-                rx.plotly(data=LandingState.sunburst, width="900px", height="900px"),
+                rx.plotly(
+                    data=LandingState.sunburst,
+                    width="900px",
+                    height="900px",
+                    config={
+                        "toImageButtonOptions": {
+                            "format": "svg",
+                            "filename": "esp-taxonomy",
+                        },
+                        "displaylogo": False,
+                    },
+                ),
                 width="100%",
                 margin_top="2",
             ),
