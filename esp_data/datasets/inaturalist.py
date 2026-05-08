@@ -182,7 +182,7 @@ class INaturalist(Dataset):
         self.sample_rate = sample_rate
 
         if data_root is None:
-            self.data_root = anypath("gs://esp-ml-datasets/inaturalist/v0.1.0/raw/")
+            self.data_root = anypath(f"{DATA_HOME}/inaturalist/v0.1.0/raw/")
         else:
             self.data_root = data_root
 
