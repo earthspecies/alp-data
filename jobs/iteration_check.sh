@@ -10,7 +10,8 @@
 
 cd ~/esp-data
 uv sync
-srun uv run --group benchmark python scripts/iteration_check.py \
+export PYTHONUNBUFFERED=1
+srun uv run --group benchmark python -u scripts/iteration_check.py \
     --config-in "$1" \
     --batch-size 256 \
     --num-workers 8
