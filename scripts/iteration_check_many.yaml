@@ -27,7 +27,7 @@ chain:
       version: "0.2.0"
       streaming: true
       sample_rate: 32000
-    - dataset_name: beans-zero
+    - dataset_name: beans_zero
       split: test
       streaming: true
       sample_rate: null
@@ -46,7 +46,7 @@ chain:
     - dataset_name: "Bengalese Finch Calls"
       split: Bird2
       streaming: true
-      sample_rate: null
+      sample_rate: null  # Bengalese Finch Calls has too many splits to enumerate
     - dataset_name: birdeep
       split: all
       streaming: true
@@ -81,5 +81,37 @@ chain:
       sample_rate: null
     - dataset_name: hawaiian_birds
       split: all
+      streaming: true
+      sample_rate: null
+    - dataset_name: InfantMarmosetsVox
+      split: all
+      streaming: true
+      sample_rate: null
+    - dataset_name: insectset_459
+      split: train
+      streaming: true
+      sample_rate: null
+    - dataset_name: insectset_459
+      split: validation
+      streaming: true
+      sample_rate: null
+    - dataset_name: littleowl_id
+      split: train_across_year
+      streaming: true
+      sample_rate: null
+    - dataset_name: macaques_coo_calls
+      split: train
+      streaming: true
+      sample_rate: null
+    - dataset_name: macaques_coo_calls
+      split: test
+      streaming: true
+      sample_rate: null
+    - dataset_name: nocturnal_bird_migration
+      split: train
+      streaming: true
+      sample_rate: null
+    - dataset_name: nocturnal_bird_migration
+      split: test
       streaming: true
       sample_rate: null
