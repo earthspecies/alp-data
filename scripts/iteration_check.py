@@ -25,6 +25,8 @@ from esp_data import DatasetConfig, dataset_from_config
 from esp_data.chain import ChainedDataset
 from esp_data.dataset import ChainedDatasetConfig, Dataset, _dataset_registry
 
+torch.multiprocessing.set_start_method("spawn")
+
 # Sentinel keys attached to a sample dict when iteration of an underlying
 # dataset raises. The wrappers convert exceptions into these sentinel dicts so
 # DataLoader workers don't need shared state to report failures back.
