@@ -23,7 +23,7 @@ chain:
       streaming: true
       sample_rate: 32000
     - dataset_name: audioset
-      split: train-balanced
+      split: train
       version: "0.2.0"
       streaming: true
       sample_rate: 32000
@@ -57,5 +57,29 @@ chain:
       sample_rate: null
     - dataset_name: chiffchaff_id
       split: train_within_year
+      streaming: true
+      sample_rate: null
+    - dataset_name: dclde2026
+      split: all
+      streaming: true
+      sample_rate: null
+    - dataset_name: dinardo_dolphin_whistles
+      split: all
+      streaming: true
+      sample_rate: null
+    - dataset_name: geladas
+      split: all
+      streaming: true
+      sample_rate: null
+    - dataset_name: giant_otters
+      split: test
+      streaming: true
+      sample_rate: null
+    - dataset_name: gibbon_solos
+      split: all
+      streaming: true
+      sample_rate: null
+    - dataset_name: hawaiian_birds
+      split: all
       streaming: true
       sample_rate: null
