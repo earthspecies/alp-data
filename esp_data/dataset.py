@@ -38,7 +38,7 @@ class DatasetConfig(BaseModel):
     Examples
     --------
     >>> dataset_config = DatasetConfig(
-    ...    dataset_name="barkley_canyon",
+    ...    dataset_name="some_dataset",
     ...    transformations=[
     ...        {
     ...            "type": "label_from_feature",
