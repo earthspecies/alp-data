@@ -131,6 +131,9 @@ class _RobustStreamingChainWrapper(torch.utils.data.IterableDataset):
                     yield _failure_record(name, split, local_idx, exc)
                     local_idx += 1
                     continue
+                if isinstance(item, dict):
+                    item[_DATASET_KEY] = name
+                    item[_SPLIT_KEY] = split
                 yield item
                 local_idx += 1
 
@@ -165,9 +168,13 @@ class _RobustMapChainWrapper(torch.utils.data.Dataset):
                 local = idx - cum
                 name, split = _attribution(ds)
                 try:
-                    return ds[local]
+                    item = ds[local]
                 except Exception as exc:
                     return _failure_record(name, split, local, exc)
+                if isinstance(item, dict):
+                    item[_DATASET_KEY] = name
+                    item[_SPLIT_KEY] = split
+                return item
             cum += length
         # Unreachable: bounds checked above.
         raise IndexError(idx)
@@ -219,7 +226,25 @@ def collate_fn(batch: list[dict]) -> dict:
         )
     else:
         audios = torch.empty(0, max_length)
-    return {"audio": audios, "_failures": failures}
+    per_source: dict[tuple[str, str], int] = defaultdict(int)
+    for s in batch:
+        if s.get(_FAILED_KEY):
+            continue
+        key = (s.get(_DATASET_KEY, "<unknown>"), s.get(_SPLIT_KEY, "<unknown>"))
+        per_source[key] += 1
+    last_source: tuple[str, str] | None = None
+    for s in reversed(batch):
+        if s.get(_FAILED_KEY):
+            continue
+        if _DATASET_KEY in s:
+            last_source = (s[_DATASET_KEY], s[_SPLIT_KEY])
+            break
+    return {
+        "audio": audios,
+        "_failures": failures,
+        "_per_source": dict(per_source),
+        "_last_source": last_source,
+    }
 
 
 def build_chain_config(
@@ -437,9 +462,12 @@ def main(
 
     failures: dict[tuple[str, str], list[dict[str, Any]]] = defaultdict(list)
     fatal: list[dict[str, Any]] = []
+    samples_per_source: dict[tuple[str, str], int] = defaultdict(int)
+    source_start_times: dict[tuple[str, str], float] = {}
     n_batches = 0
     n_samples = 0
     n_failed = 0
+    current_source: tuple[str, str] | None = None
     start = time.time()
     loader_iter = iter(loader)
     while True:
@@ -464,13 +492,43 @@ def main(
             failures[key].append({"index": record[_INDEX_KEY], "error": record[_ERROR_KEY]})
             n_failed += 1
 
+        for key, count in batch.get("_per_source", {}).items():
+            if key not in source_start_times:
+                source_start_times[key] = time.time()
+            samples_per_source[key] += count
+
+        last_source = batch.get("_last_source")
+        if last_source is not None and last_source != current_source:
+            if current_source is not None:
+                ds_elapsed = time.time() - source_start_times.get(current_source, time.time())
+                ds_count = samples_per_source[current_source]
+                logger.info(
+                    "FINISHED %s/%s | %d samples in %.2fs (%.2f samples/s)",
+                    current_source[0],
+                    current_source[1],
+                    ds_count,
+                    ds_elapsed,
+                    ds_count / ds_elapsed if ds_elapsed > 0 else 0.0,
+                )
+            current_source = last_source
+            logger.info("STARTED  %s/%s", current_source[0], current_source[1])
+
         n_batches += 1
         n_samples += batch["audio"].shape[0]
         if n_batches % log_interval == 0:
             elapsed = time.time() - start
+            cur_name, cur_split = current_source if current_source else ("<unknown>", "<unknown>")
+            cur_count = samples_per_source.get(current_source, 0) if current_source else 0
+            cur_start = source_start_times.get(current_source, start) if current_source else start
+            cur_elapsed = time.time() - cur_start
             logger.info(
-                "batch %d | %d samples (%d failed) in %.2fs (%.2f samples/s)",
+                "batch %d | %s/%s: %d samples (%.2f samples/s) | total %d samples (%d failed) "
+                "in %.2fs (%.2f samples/s)",
                 n_batches,
+                cur_name,
+                cur_split,
+                cur_count,
+                cur_count / cur_elapsed if cur_elapsed > 0 else 0.0,
                 n_samples,
                 n_failed,
                 elapsed,
@@ -489,6 +547,16 @@ def main(
         elapsed,
         n_samples / elapsed if elapsed > 0 else 0.0,
     )
+    for (name, split), count in sorted(samples_per_source.items()):
+        ds_start = source_start_times.get((name, split), start)
+        span = time.time() - ds_start
+        logger.info(
+            "  %s/%s: %d samples (start-to-end span %.1fs)",
+            name,
+            split,
+            count,
+            span,
+        )
     write_failures_report(failures, fatal, failures_report)
 
 
