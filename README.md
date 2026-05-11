@@ -51,6 +51,19 @@ for sample in beans_streaming:
     break
 ```
 
+> ⚠️ **Warning:** When using a PyTorch `DataLoader` with `num_workers > 0`, you must set the multiprocessing start method to `"spawn"` (not the default `"fork"` on Linux). esp-data datasets hold cloud-backed I/O handles (fsspec / `gcsfs` / `s3fs`) that are not safe to inherit across a `fork`; using `"fork"` can deadlock workers or corrupt audio reads. Either call `torch.multiprocessing.set_start_method("spawn", force=True)` at the top of your program, or pass a `"spawn"` context to the DataLoader, e.g.:
+>
+> ```python
+> import torch.multiprocessing as mp
+> from torch.utils.data import DataLoader
+>
+> loader = DataLoader(
+>     dataset,
+>     num_workers=4,
+>     multiprocessing_context=mp.get_context("spawn"),
+> )
+> ```
+
 Datasets and transforms can also be loaded from a YAML config:
 
 ```yaml

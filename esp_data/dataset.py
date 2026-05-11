@@ -36,7 +36,7 @@ class DatasetConfig(BaseModel):
         If None, the default is the parent directory of the split path.
 
     Examples
-    -------
+    --------
     >>> dataset_config = DatasetConfig(
     ...    dataset_name="barkley_canyon",
     ...    transformations=[
@@ -178,7 +178,7 @@ class DatasetInfo(BaseModel):
     """A Pydantic base model for the info (cfg) of a dataset.
 
     Attributes
-    ---------
+    ----------
     name : str
         Name of the dataset
     owner : str | list[str]
@@ -264,7 +264,7 @@ class DatasetInfo(BaseModel):
         using the semver package.
 
         Parameters
-        ---------
+        ----------
         v : str
             The version string to validate
 
@@ -289,6 +289,7 @@ class DatasetInfo(BaseModel):
 
 class Dataset(ABC):
     """Abstract base class defining the interface for ESP datasets.
+
     Any new dataset should inherit from this class to be added to the registry
     of available ESP datasets.
 
@@ -300,7 +301,7 @@ class Dataset(ABC):
 
     Methods
     -------
-    _load() -> pd.DataFrame
+    _load() -> Sequence[Any] | None
         Required method to load a specific split of the dataset.
     __len__() -> int
         Required method to return the number of samples in the dataset.
@@ -308,6 +309,18 @@ class Dataset(ABC):
         Required method to iterate over the samples in the dataset.
     __getitem__(idx: int) -> Dict[str, Any]
         Required method to get a specific sample from the dataset.
+
+    .. warning::
+        When using a PyTorch `DataLoader` with `num_workers > 0`, the
+        multiprocessing start method must be set to `"spawn"` rather than
+        the default `"fork"` on Linux. esp-data datasets hold fsspec,
+        `gcsfs`, and `s3fs` handles and resampling state that are not
+        safe to inherit across a `fork`, which can deadlock workers or
+        corrupt audio reads. Either call
+        `torch.multiprocessing.set_start_method("spawn", force=True)` at
+        program start, or pass
+        `multiprocessing_context=mp.get_context("spawn")` to the
+        `DataLoader`.
     """
 
     info: DatasetInfo
@@ -366,12 +379,14 @@ class Dataset(ABC):
 
     @abstractmethod
     def _load(self) -> Sequence[Any] | None:
-        """Load one split of the dataset.s
+        """Load one split of the dataset.
 
         Returns
         -------
-        Sequence[Any]
-            The requested split of the dataset.
+        Sequence[Any] | None
+            The requested split of the dataset, or `None` if the
+            implementation stores loaded data on the instance rather than
+            returning it.
         """
         pass
 
@@ -385,7 +400,7 @@ class Dataset(ABC):
 
         Parameters
         ----------
-        dataset_config : DatasetInfo
+        dataset_config : DatasetConfig
             The configuration for the dataset.
 
         Returns
