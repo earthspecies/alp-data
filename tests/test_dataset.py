@@ -45,6 +45,10 @@ def test_list_registered_datasets():
     assert isinstance(datasets, list)
     assert len(datasets) > 0  # Assuming at least one dataset is registered
     assert "animalspeak" in datasets  # Assuming animalspeak is registered by default
+    # ChainedDataset is registered but should not appear in the list
+    assert "chained_dataset" not in datasets
+    # ConcatenatedDataset is registered but should not appear in the list
+    assert "concatenated_dataset" not in datasets
 
 
 def test_print_registered_datasets(capsys):

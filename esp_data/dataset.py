@@ -559,7 +559,12 @@ def list_registered_datasets() -> list[str]:
     list[str]
         List of dataset names
     """
-    return list(_dataset_registry.keys())
+    datasets = list(_dataset_registry.keys())
+    # Remove chained_dataset and concatenated_dataset
+    # from the list as they are not actual datasets
+    # but dataset collections
+    datasets = [d for d in datasets if d not in ("chained_dataset", "concatenated_dataset")]
+    return datasets
 
 
 def dataset_class_from_name(dataset_name: str) -> type[Dataset]:
@@ -589,6 +594,8 @@ def dataset_class_from_name(dataset_name: str) -> type[Dataset]:
 def print_registered_datasets() -> None:
     """Print all registered datasets."""
     for dataset_class in _dataset_registry.values():
+        if dataset_class.info.name in ("chained_dataset", "concatenated_dataset"):
+            continue
         print(dataset_class.info.model_dump_json(indent=2))
 
 
