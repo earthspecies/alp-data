@@ -24,34 +24,33 @@ def _load_webdataset(
 ) -> wds.WebDataset:
     """Create a pipeline for loading the dataset.
 
-    Arguments
-    ---------
-    path: str | AnyPath
-        Path to the directory where the sharded dataset will be stored or
-        is already stored.
-    file_pattern: str, optional
-        Pattern to match the shard files.
-    data_processor: Callable, optional
-        Function to process the data.
-    shuffle_size: int, optional
-        Size of the shuffle buffer.
-    batch_size: int, optional
-        Batch size for processing audio files.
-    shard_shuffle: bool, optional
-        Whether to shuffle the shards.
-    shard_shuffle_size: int, optional
-        Size of the shuffle buffer for shards.
-    split_by_worker: bool, optional
-        Whether to split the dataset by worker.
-    batch_collate_fn: Callable, optional
-        Function to collate the batch.
+    Parameters
+    ----------
+    path : str | AnyPathT
+        Path to the directory containing the sharded tar files.
+    file_pattern : str, optional
+        Glob pattern to match shard files, by default ``"shard*tar"``.
+    data_processor : Callable | None, optional
+        Function to decode each sample, by default ``None``.
+    shuffle_size : int | None, optional
+        Sample shuffle buffer size. ``None`` disables sample shuffling.
+    batch_size : int | None, optional
+        If set, yield batches of this size instead of individual samples.
+    shard_shuffle : bool, optional
+        Whether to shuffle shard order, by default ``False``.
+    shard_shuffle_size : int, optional
+        Shard shuffle buffer size, by default ``1000``.
+    split_by_worker : bool, optional
+        Whether to split shards across DataLoader workers, by default ``False``.
+    batch_collate_fn : Callable | None, optional
+        Custom collation function for batched mode, by default ``None``.
     seed : int | None, optional
-        Seed for shuffling. Defaults to True, random seed. If None, means no shuffling!
+        Random seed for shuffling. ``None`` disables shuffling.
 
     Returns
     -------
     wds.WebDataset
-        WebDataset object
+        Configured WebDataset pipeline.
 
     Raises
     ------
@@ -122,7 +121,7 @@ class WebDatasetBackend(StreamingBackend):
         new_backend = WebDatasetBackend(self._dataset)
         new_backend._filter_funcs = self._filter_funcs.copy()
         new_backend._map_funcs = self._map_funcs.copy()
-        new_backend._columns = self._columns
+        new_backend._columns = None  # force re-compute through new map funcs
         return new_backend
 
     @classmethod
@@ -138,37 +137,40 @@ class WebDatasetBackend(StreamingBackend):
         split_by_worker: bool = False,
         batch_collate_fn: Callable | None = None,
         seed: int | None = 42,
+        streaming: bool = True,
     ) -> "WebDatasetBackend":
         """Read a WebDataset from the specified path and return a wrapped backend.
 
         Parameters
         ----------
-        path: str | AnyPath
-            Path to the directory where the sharded dataset will be stored or
-            is already stored.
-        file_pattern: str, optional
-            Pattern to match the shard files.
-        data_processor: Callable, optional
-            Function to process the data.
-        shuffle_size: int, optional
-            Size of the shuffle buffer.
-        batch_size: int, optional
-            Batch size for processing audio files.
-        shard_shuffle: bool, optional
-            Whether to shuffle the shards.
-        shard_shuffle_size: int, optional
-            Size of the shuffle buffer for shards.
-        split_by_worker: bool, optional
-            Whether to split the dataset by worker.
-        batch_collate_fn: Callable, optional
-            Function to collate the batch.
+        path : str | AnyPathT
+            Path to the directory containing the sharded tar files.
+        file_pattern : str, optional
+            Glob pattern to match shard files, by default ``"shard*tar"``.
+        data_processor : Callable | None, optional
+            Function to decode each sample, by default ``None``.
+        shuffle_size : int | None, optional
+            Sample shuffle buffer size. ``None`` disables sample shuffling.
+        batch_size : int | None, optional
+            If set, yield batches of this size instead of individual samples.
+        shard_shuffle : bool, optional
+            Whether to shuffle shard order, by default ``False``.
+        shard_shuffle_size : int, optional
+            Shard shuffle buffer size, by default ``1000``.
+        split_by_worker : bool, optional
+            Whether to split shards across DataLoader workers, by default ``False``.
+        batch_collate_fn : Callable | None, optional
+            Custom collation function for batched mode, by default ``None``.
         seed : int | None, optional
-            Seed for shuffling. Defaults to True, random seed. If None, means no shuffling!
+            Random seed for shuffling. ``None`` disables shuffling, by default ``42``.
+        streaming : bool, optional
+            Accepted for interface uniformity with tabular backends. Always ``True``
+            for WebDataset — this parameter has no effect.
 
         Returns
         -------
         WebDatasetBackend
-            Wrapped WebDataset backend
+            Wrapped WebDataset backend.
         """
         dataset = _load_webdataset(
             path,
@@ -214,8 +216,10 @@ class WebDatasetBackend(StreamingBackend):
             List of column/field names
         """
         if self._columns is None:
-            # iter once and get keys from first sample
-            first_sample = next(iter(self._dataset))
+            try:
+                first_sample = next(iter(self))
+            except StopIteration:
+                return []
             self._columns = list(first_sample.keys())
         return self._columns
 
@@ -392,6 +396,68 @@ class WebDatasetBackend(StreamingBackend):
         new_backend = self._copy()
         new_backend._map_funcs.append(fn)
         return new_backend
+
+    def save_to(
+        self,
+        path: str | AnyPathT,
+        format: str = "webdataset",
+        encoder_fn: Callable | None = None,
+        shard_pattern: str = "shard_%04d.tar",
+        maxcount: int = 100_000,
+        maxsize: float = 3e9,
+    ) -> int:
+        """Write the backend's samples to sharded tar files on disk or cloud storage.
+
+        Applies all accumulated filters and maps before writing. Mirrors
+        `from_path` to provide a symmetric load/save API on the backend.
+
+        For cloud paths (GCS, R2), samples are written to a temporary local
+        directory first, then uploaded to the destination.
+
+        Parameters
+        ----------
+        path : str | AnyPathT
+            Destination directory (local or cloud). Created if it does not exist.
+        format : str, optional
+            Output format. Only ``"webdataset"`` is supported, by default
+            ``"webdataset"``.
+        encoder_fn : Callable | None, optional
+            Function ``dict[str, Any] -> dict[str, bytes]`` in WebDataset
+            format. If ``None``, auto-detected from the first sample:
+            samples with an ``"audio"`` key use `audio_encoder`, all others
+            use `json_encoder`.
+        shard_pattern : str, optional
+            Printf-style shard file name pattern, by default
+            ``"shard_%04d.tar"``.
+        maxcount : int, optional
+            Maximum samples per shard, by default 100 000.
+        maxsize : float, optional
+            Maximum shard size in bytes, by default 3 GB.
+
+        Returns
+        -------
+        int
+            Number of samples written.
+
+        Raises
+        ------
+        ValueError
+            If ``format`` is not ``"webdataset"``.
+        """
+        if format != "webdataset":
+            raise ValueError(f"Unsupported format '{format}' for WebDatasetBackend")
+
+        from .webdataset_utils import write_to_webdataset
+
+        resolved = anypath(path)
+        return write_to_webdataset(
+            iter(self),
+            resolved,
+            encoder_fn=encoder_fn,
+            shard_pattern=shard_pattern,
+            maxcount=maxcount,
+            maxsize=maxsize,
+        )
 
     def __repr__(self) -> str:
         """Return string representation of the backend.
