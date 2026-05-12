@@ -194,6 +194,30 @@ class StreamingBackend(Protocol):
         """
         ...
 
+    def save_to(
+        self,
+        path: str | Any,  # noqa ANN401
+        format: str = "webdataset",
+        **kwargs: Any,
+    ) -> int:
+        """Write samples to disk or cloud storage.
+
+        Parameters
+        ----------
+        path : str | Any
+            Destination directory (local or cloud).
+        format : str, optional
+            Output format, by default ``"webdataset"``.
+        **kwargs : Any
+            Additional backend-specific arguments.
+
+        Returns
+        -------
+        int
+            Number of samples written.
+        """
+        ...
+
 
 class DataBackend(Protocol):
     """Protocol defining the interface all data backends must implement.

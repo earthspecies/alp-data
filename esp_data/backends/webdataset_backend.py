@@ -7,13 +7,12 @@ import webdataset as wds
 from esp_data.io import AnyPathT, anypath
 
 from .protocol import StreamingBackend
-from .webdataset_utils import audio_decoder
 
 
 def _load_webdataset(
     path: str | AnyPathT,
     file_pattern: str = "shard*tar",
-    data_processor: Callable | None = audio_decoder,
+    data_processor: Callable | None = None,
     shuffle_size: int | None = None,
     batch_size: int | None = None,
     shard_shuffle: bool = False,
