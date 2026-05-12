@@ -280,6 +280,32 @@ class DataBackend(Protocol):
         """
         ...
 
+    @classmethod
+    def from_path(cls, path: str, *, streaming: bool = False, **kwargs: Any) -> "DataBackend":
+        """Load a tabular file, dispatching on extension.
+
+        Parameters
+        ----------
+        path : str
+            Path to a ``.parquet``, ``.csv``, ``.json``, ``.jsonl``,
+            or ``.ndjson`` file.
+        streaming : bool, optional
+            Whether to use streaming mode, by default False.
+        **kwargs : Any
+            Additional backend-specific arguments.
+
+        Returns
+        -------
+        DataBackend
+            Backend instance wrapping the loaded data.
+
+        Raises
+        ------
+        ValueError
+            If the file extension is not supported.
+        """
+        ...
+
     def __init__(self, df: Any, *, streaming: bool = False) -> None:  # noqa ANN401
         """Wrap an existing data object.
 
@@ -775,5 +801,29 @@ class DataBackend(Protocol):
         -------
         tuple[DataBackend, dict]
             New backend with multilabel column and metadata dictionary
+        """
+        ...
+
+    def save_to(self, path: str, format: str = "webdataset", **kwargs: Any) -> int:
+        """Save data to a file.
+
+        Parameters
+        ----------
+        path : str
+            Destination path (supports local and cloud paths)
+        format : str, optional
+            Output format. Supported: ``"webdataset"``. By default ``"webdataset"``.
+        **kwargs : Any
+            Additional backend-specific arguments passed to the underlying writer
+
+        Returns
+        -------
+        int
+            Number of samples written.
+
+        Raises
+        ------
+        ValueError
+            If `format` is not supported
         """
         ...
