@@ -49,7 +49,7 @@ def audio_decoder(data: dict, dtype: str = "float32", format: str = "FLAC") -> d
     sample = {}
     sample["audio"] = audio_data
     sample["sample_rate"] = samplerate
-    md = json.loads(data.get("metadata.json", "{}").decode("utf-8"))
+    md = json.loads(data.get("metadata.json", b"{}").decode("utf-8"))
     sample.update(md)
 
     return sample
@@ -91,21 +91,18 @@ def audio_encoder(
 
     data_out = {}
     audio_buffer = io.BytesIO()
-    # Convert audio data to the specified format
-    if isinstance(sample["audio"], (list, tuple)):
-        # If audio is a list or tuple, convert to numpy array
-        sample["audio"] = np.array(sample["audio"], dtype=dtype)
-    elif isinstance(sample["audio"], np.ndarray):
-        # If audio is already a numpy array, ensure it's the correct dtype
-        sample["audio"] = sample["audio"].astype(dtype)
+    audio = sample["audio"]
+    if isinstance(audio, (list, tuple)):
+        audio = np.array(audio, dtype=dtype)
+    elif isinstance(audio, np.ndarray):
+        audio = audio.astype(dtype)
 
-    sf.write(audio_buffer, sample["audio"], sample_rate, format=format)
+    sf.write(audio_buffer, audio, sample_rate, format=format)
 
     data_out[f"audio.{format.lower()}"] = audio_buffer.getvalue()
 
-    # Add metadata (without audio)
-    sample = {k: v for k, v in sample.items() if k != "audio"}  # Remove audio key from metadata
-    data_out["metadata.json"] = json.dumps(sample, indent=2).encode("utf-8")
+    metadata = {k: v for k, v in sample.items() if k != "audio"}
+    data_out["metadata.json"] = json.dumps(metadata, indent=2).encode("utf-8")
     return data_out
 
 

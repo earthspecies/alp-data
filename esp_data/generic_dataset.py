@@ -59,6 +59,8 @@ class GenericDataset(Dataset):
         **kwargs : Any
             Additional arguments forwarded to the backend's ``from_path``.
         """
+        if backend == "webdataset":
+            streaming = True
         super().__init__(backend=backend, streaming=streaming)
 
         self._data = get_backend(backend).from_path(anypath(path), streaming=streaming, **kwargs)
