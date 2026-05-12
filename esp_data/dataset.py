@@ -175,6 +175,31 @@ class ChainedDatasetConfig(BaseModel):
     datasets: list[DatasetConfig]
 
 
+class GenericDatasetConfig(BaseModel):
+    """Configuration for loading a dataset from a path via :class:`GenericDataset`.
+
+    Attributes
+    ----------
+    path : str
+        Source path (local or cloud) to load from.
+    backend : BackendType, optional
+        Backend to use. By default ``"polars"``.
+    streaming : bool, optional
+        Whether to use streaming mode. By default ``False``.
+    """
+
+    model_config = ConfigDict(
+        arbitrary_types_allowed=True,
+        str_strip_whitespace=True,
+        extra="forbid",
+    )
+
+    dataset_name: str = "generic_dataset"
+    path: str
+    backend: BackendType = "polars"
+    streaming: bool = False
+
+
 class DatasetInfo(BaseModel):
     """A Pydantic base model for the info (cfg) of a dataset.
 
@@ -659,25 +684,31 @@ def print_registered_datasets() -> None:
         print(dataset_class.info.model_dump_json(indent=2))
 
 
-def _make_dataset_from_config(dataset_config: DatasetConfig | ConcatConfig) -> Dataset:
+def _make_dataset_from_config(
+    dataset_config: DatasetConfig | ConcatConfig | GenericDatasetConfig,
+) -> tuple[Dataset, dict[str, Any]]:
     """Create a dataset instance from the given configuration.
 
     Parameters
     ----------
-    dataset_config : DatasetConfig | ConcatConfig
-        The configuration for the dataset to create. This can be either a
-        DatasetConfig or a ConcatConfig.
+    dataset_config : DatasetConfig | ConcatConfig | GenericDatasetConfig
+        The configuration for the dataset to create.
 
     Returns
     -------
-    Dataset
-        The dataset instance created from the configuration.
+    tuple[Dataset, dict[str, Any]]
+        The dataset instance and transformation metadata dict.
 
     Raises
     ------
     KeyError
         If the dataset is not registered
     """
+    if isinstance(dataset_config, GenericDatasetConfig):
+        from esp_data.generic_dataset import GenericDataset
+
+        return GenericDataset.from_config(dataset_config)
+
     if isinstance(dataset_config, DatasetConfig) and dataset_config.data_location:
         ds = Dataset.from_path(
             dataset_config.data_location,
@@ -694,7 +725,9 @@ def _make_dataset_from_config(dataset_config: DatasetConfig | ConcatConfig) -> D
 
 
 def dataset_from_config(
-    dataset_config: DatasetConfig | ConcatConfig | ChainedDatasetConfig | AnyPathT | str,
+    dataset_config: (
+        DatasetConfig | ConcatConfig | ChainedDatasetConfig | GenericDatasetConfig | AnyPathT | str
+    ),
     key: str | None = None,
 ) -> tuple[Dataset, dict[str, Any]]:
     """Load a single dataset or a dataset collection from a configuration.
@@ -734,8 +767,9 @@ def dataset_from_config(
     KeyError
         If the specified key does not match any dataset configuration in the data.
     """
-    if isinstance(dataset_config, (DatasetConfig, ConcatConfig, ChainedDatasetConfig)):
-        # If a DatasetConfig is passed, we can directly create the dataset
+    if isinstance(
+        dataset_config, (DatasetConfig, ConcatConfig, ChainedDatasetConfig, GenericDatasetConfig)
+    ):
         return _make_dataset_from_config(dataset_config)
 
     data = read_yaml(dataset_config)
@@ -746,8 +780,8 @@ def dataset_from_config(
         data = data[key]
 
     if isinstance(data, dict):
-        if "dataset" in data or "concat" in data or "chain" in data:
-            if sum(k in data for k in ("concat", "dataset", "chain")) > 1:
+        if "dataset" in data or "concat" in data or "chain" in data or "generic" in data:
+            if sum(k in data for k in ("concat", "dataset", "chain", "generic")) > 1:
                 raise ValueError("Configuration cannot contain multiple dataset types at once.")
 
             if "dataset" in data:
@@ -763,9 +797,13 @@ def dataset_from_config(
                 cfg = data["chain"]
                 return _make_dataset_from_config(ChainedDatasetConfig.model_validate(cfg))
 
+            elif "generic" in data:
+                cfg = data["generic"]
+                return _make_dataset_from_config(GenericDatasetConfig.model_validate(cfg))
+
             else:
                 raise ValueError(
-                    "Configuration must contain either 'dataset','concat' or 'chain' key."
+                    "Configuration must contain either 'dataset', 'concat', 'chain', or 'generic' key."  # noqa: E501
                 )
         else:
             raise ValueError(
@@ -777,4 +815,5 @@ def dataset_from_config(
     1. A DatasetConfig represented as the value of a dict with a single 'dataset' key
     2. A ConcatConfig represented as the value of a dict with a single 'concat' key
     3. A ChainedDatasetConfig represented as the value of a dict with a single 'chain' key
+    4. A GenericDatasetConfig represented as the value of a dict with a single 'generic' key
     """)
