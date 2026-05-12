@@ -6,7 +6,7 @@ import logging
 from typing import Any, Dict, Iterator, Sequence
 
 from esp_data.backends import BackendType, get_backend
-from esp_data.dataset import Dataset, DatasetConfig, DatasetInfo, register_dataset
+from esp_data.dataset import Dataset, DatasetInfo, GenericDatasetConfig, register_dataset
 from esp_data.io import AnyPathT, anypath, read_yaml
 
 logger = logging.getLogger(__name__)
@@ -18,7 +18,7 @@ class GenericDataset(Dataset):
 
     Wraps any supported backend (polars, pandas, webdataset) with a minimal
     Dataset interface. Intended as the return type of `Dataset.from_path` and
-    as a config-driven loader via `data_location`.
+    as a config-driven loader via `GenericDatasetConfig`.
 
     Unlike named dataset classes (e.g. `AnuraSetStrong`), `GenericDataset`
     performs no custom per-sample processing — `__iter__` and `__getitem__`
@@ -55,19 +55,16 @@ class GenericDataset(Dataset):
         backend : BackendType, optional
             Backend to use for loading. By default ``"polars"``.
         streaming : bool, optional
-            Whether to use streaming mode. Forced ``True`` when
-            ``backend="webdataset"``. By default ``False``.
+            Whether to use streaming mode. By default ``False``.
         **kwargs : Any
             Additional arguments forwarded to the backend's ``from_path``.
         """
-        if backend == "webdataset":
-            streaming = True
         super().__init__(backend=backend, streaming=streaming)
 
-        self._data = get_backend(backend).from_path(str(path), streaming=streaming, **kwargs)
+        self._data = get_backend(backend).from_path(anypath(path), streaming=streaming, **kwargs)
 
         resolved = anypath(path)
-        config_dir = resolved if backend == "webdataset" else resolved.parent
+        config_dir = resolved if resolved.is_dir() else resolved.parent
         config_file = config_dir / "config.yaml"
         if config_file.exists():
             try:
@@ -107,30 +104,23 @@ class GenericDataset(Dataset):
         return f"GenericDataset(name={self.info.name}, version={self.info.version})"
 
     @classmethod
-    def from_config(cls, dataset_config: DatasetConfig) -> tuple["GenericDataset", dict[str, Any]]:
-        """Create a GenericDataset from a config with ``data_location`` set.
+    def from_config(  # type: ignore[override]
+        cls, dataset_config: GenericDatasetConfig
+    ) -> tuple["GenericDataset", dict[str, Any]]:
+        """Create a GenericDataset from a :class:`GenericDatasetConfig`.
 
         Parameters
         ----------
-        dataset_config : DatasetConfig
-            Must have ``data_location`` set.
+        dataset_config : GenericDatasetConfig
+            Configuration specifying path, backend, and streaming mode.
 
         Returns
         -------
         tuple[GenericDataset, dict]
             Dataset instance and empty metadata dict.
-
-        Raises
-        ------
-        ValueError
-            If ``data_location`` is not set in the config.
         """
-        if not dataset_config.data_location:
-            raise ValueError(
-                "GenericDataset.from_config requires `data_location` to be set in the config."
-            )
         return cls(
-            dataset_config.data_location,
+            dataset_config.path,
             backend=dataset_config.backend,
             streaming=dataset_config.streaming,
         ), {}
