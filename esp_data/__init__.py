@@ -48,6 +48,7 @@ from .datasets import (
     XenoCantoAnnotatedJeantet23,
     ZebraFinchJulieElie,
 )
+from .generic_dataset import GenericDataset
 
 __all__ = [
     "dataset_from_config",
@@ -100,4 +101,5 @@ __all__ = [
     "DCLDE2026",
     "DinardoDolphinWhistles",
     "GibbonSolos",
+    "GenericDataset",
 ]
