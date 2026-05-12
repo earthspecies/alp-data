@@ -71,6 +71,7 @@ class DatasetConfig(BaseModel):
     data_root: str | None = None
     streaming: bool = False
     backend: BackendType = "polars"
+    data_location: str | None = None
 
     @field_validator("transformations", mode="before")
     @classmethod
@@ -469,6 +470,72 @@ class Dataset(ABC):
         """
         pass
 
+    def save_to(self, path: str, format: str = "webdataset", **kwargs: Any) -> int:
+        """Save the dataset to a file.
+
+        Parameters
+        ----------
+        path : str
+            Destination path (supports local and cloud paths)
+        format : str, optional
+            Output format. Supported: ``"webdataset"``.
+            By default ``"webdataset"``.
+        **kwargs : Any
+            Additional arguments passed to the underlying backend writer.
+            For ``"webdataset"``: accepts ``encoder_fn``, ``shard_pattern``,
+            ``maxcount``, ``maxsize``.
+
+        Returns
+        -------
+        int
+            Number of samples written.
+
+        Raises
+        ------
+        RuntimeError
+            If no data is loaded yet.
+        """
+        if self._data is None:
+            raise RuntimeError("No data loaded. Call _load() first.")
+        return self._data.save_to(path, format=format, **kwargs)
+
+    @classmethod
+    def from_path(
+        cls,
+        path: str | AnyPathT,
+        backend: BackendType = "polars",
+        streaming: bool = False,
+        **kwargs: Any,
+    ) -> "Dataset":
+        """Load a dataset from a pre-exported file or directory.
+
+        Returns a `GenericDataset` regardless of which subclass this is called on.
+        Pass ``backend="webdataset"`` for sharded tar directories.
+
+        If a ``config.yaml`` file exists alongside the data, its contents are
+        used to populate `DatasetInfo`.
+
+        Parameters
+        ----------
+        path : str | AnyPathT
+            Source path (local or cloud).
+        backend : BackendType, optional
+            Backend to use. By default ``"polars"``.
+        streaming : bool, optional
+            Whether to use streaming mode. By default ``False``.
+        **kwargs : Any
+            Additional arguments forwarded to the backend's ``from_path``.
+
+        Returns
+        -------
+        GenericDataset
+            Dataset instance loaded from the given path.
+        """
+        # Imported here to avoid circular import: generic_dataset imports Dataset
+        from esp_data.generic_dataset import GenericDataset
+
+        return GenericDataset(path, backend=backend, streaming=streaming, **kwargs)
+
     def apply_transformations(
         self, transformations: list[RegisteredTransformConfigs]
     ) -> dict[str, Any]:
@@ -632,6 +699,14 @@ def _make_dataset_from_config(dataset_config: DatasetConfig | ConcatConfig) -> D
     KeyError
         If the dataset is not registered
     """
+    if isinstance(dataset_config, DatasetConfig) and dataset_config.data_location:
+        ds = Dataset.from_path(
+            dataset_config.data_location,
+            backend=dataset_config.backend,
+            streaming=dataset_config.streaming,
+        )
+        return ds, {}
+
     _dataset_class = _dataset_registry.get(dataset_config.dataset_name, None)
     if _dataset_class is None:
         raise KeyError(f"Dataset '{dataset_config.dataset_name}' is not registered.")
