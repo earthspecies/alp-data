@@ -3,8 +3,9 @@
 import io
 import json
 import tarfile
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Dict, Iterator, Optional
+from typing import Any, Dict, Iterator
 
 import numpy as np
 import pytest
@@ -30,7 +31,13 @@ from esp_data.dataset import (
 
 
 def create_audio_sample(sample_rate: int = 16000, duration: float = 0.1) -> np.ndarray:
-    """Create a simple audio sample (sine wave)."""
+    """Create a simple audio sample (sine wave).
+
+    Returns
+    -------
+    np.ndarray
+        Float32 sine wave samples.
+    """
     t = np.linspace(0, duration, int(sample_rate * duration), dtype=np.float32)
     audio = 0.5 * np.sin(2 * np.pi * 440 * t)  # 440 Hz sine wave
     return audio.astype(np.float32)
@@ -42,7 +49,13 @@ def create_webdataset_tar(
     include_audio: bool = True,
     audio_format: str = "flac",
 ) -> Path:
-    """Create a WebDataset tar file with test data."""
+    """Create a WebDataset tar file with test data.
+
+    Returns
+    -------
+    Path
+        Path to the created tar file.
+    """
     tar_path = tmp_path / "shard_000.tar"
 
     with tarfile.open(tar_path, "w") as tar:
@@ -79,7 +92,13 @@ def create_webdataset_tar(
 
 
 def create_json_webdataset_tar(tmp_path: Path, num_samples: int = 5) -> Path:
-    """Create a WebDataset tar file with JSON samples (no audio)."""
+    """Create a WebDataset tar file with JSON samples (no audio).
+
+    Returns
+    -------
+    Path
+        Path to the created tar file.
+    """
     tar_path = tmp_path / "shard_000.tar"
 
     with tarfile.open(tar_path, "w") as tar:
@@ -103,21 +122,39 @@ def create_json_webdataset_tar(tmp_path: Path, num_samples: int = 5) -> Path:
 
 @pytest.fixture
 def audio_tar_dir(tmp_path: Path) -> Path:
-    """Create a temp directory with an audio WebDataset."""
+    """Create a temp directory with an audio WebDataset.
+
+    Returns
+    -------
+    Path
+        Path to the directory containing the tar file.
+    """
     create_webdataset_tar(tmp_path, num_samples=5, include_audio=True)
     return tmp_path
 
 
 @pytest.fixture
 def json_tar_dir(tmp_path: Path) -> Path:
-    """Create a temp directory with a JSON WebDataset."""
+    """Create a temp directory with a JSON WebDataset.
+
+    Returns
+    -------
+    Path
+        Path to the directory containing the tar file.
+    """
     create_json_webdataset_tar(tmp_path, num_samples=5)
     return tmp_path
 
 
 @pytest.fixture
 def multi_shard_dir(tmp_path: Path) -> Path:
-    """Create a temp directory with multiple shards."""
+    """Create a temp directory with multiple shards.
+
+    Returns
+    -------
+    Path
+        Path to the directory containing the tar files.
+    """
     # Shard 1
     tar1_path = tmp_path / "shard_000.tar"
     with tarfile.open(tar1_path, "w") as tar:
@@ -739,7 +776,7 @@ class StreamingTestConfig(DatasetConfig):
 
     dataset_name: str = "streaming_test_dataset"
     split: str = "train"
-    data_path: Optional[str] = None
+    data_path: str | None = None
 
 
 @register_dataset
@@ -760,15 +797,15 @@ class StreamingTestDataset(Dataset):
         self,
         data_path: str,
         split: str = "train",
-        output_take_and_give: Optional[Dict[str, str]] = None,
-        data_processor: Optional[callable] = None,
+        output_take_and_give: Dict[str, str] | None = None,
+        data_processor: Callable | None = None,
     ) -> None:
         """Initialize the streaming dataset."""
         super().__init__(output_take_and_give, backend="webdataset", streaming=True)
         self.split = split
         self._data_path = data_path
         self._data_processor = data_processor or json_decoder
-        self._data: Optional[WebDatasetBackend] = None
+        self._data: WebDatasetBackend | None = None
         self._load()
 
     def _load(self) -> None:
@@ -795,7 +832,18 @@ class StreamingTestDataset(Dataset):
         raise NotImplementedError("Streaming datasets do not support __len__")
 
     def __iter__(self) -> Iterator[Dict[str, Any]]:
-        """Iterate over samples."""
+        """Iterate over samples.
+
+        Yields
+        ------
+        Dict[str, Any]
+            One sample dict per iteration.
+
+        Raises
+        ------
+        RuntimeError
+            If the dataset has not been loaded yet.
+        """
         if self._data is None:
             raise RuntimeError("Dataset not loaded")
         for sample in self._data:
@@ -812,14 +860,31 @@ class StreamingTestDataset(Dataset):
         raise NotImplementedError("Streaming datasets do not support random access")
 
     def __str__(self) -> str:
-        """Return string representation."""
+        """Return string representation.
+
+        Returns
+        -------
+        str
+            Human-readable description of the dataset.
+        """
         return f"StreamingTestDataset(path={self._data_path}, streaming=True)"
 
     @classmethod
     def from_config(
         cls, dataset_config: StreamingTestConfig
     ) -> tuple["StreamingTestDataset", dict]:
-        """Create dataset from config."""
+        """Create dataset from config.
+
+        Returns
+        -------
+        tuple[StreamingTestDataset, dict]
+            Dataset instance and empty metadata dict.
+
+        Raises
+        ------
+        ValueError
+            If `data_path` is not set in the config.
+        """
         if dataset_config.data_path is None:
             raise ValueError("data_path is required for StreamingTestDataset")
 
@@ -992,3 +1057,86 @@ class TestStreamingBackendProtocol:
         iterator = iter(backend)
         sample = next(iterator)
         assert isinstance(sample, dict)
+
+
+class TestWebDatasetBackendSaveTo:
+    """Tests for WebDatasetBackend.save_to()."""
+
+    def test_save_to_json_round_trip(self, json_tar_dir: Path, tmp_path: Path) -> None:
+        """Test save_to then from_path yields identical samples."""
+        backend = WebDatasetBackend.from_path(json_tar_dir, data_processor=json_decoder)
+        output_dir = tmp_path / "saved"
+
+        n = backend.save_to(output_dir)
+
+        assert n == 5
+        reloaded = WebDatasetBackend.from_path(output_dir, data_processor=json_decoder)
+        original = list(backend)
+        loaded = list(reloaded)
+        assert len(loaded) == 5
+        for orig, reloaded_s in zip(original, loaded, strict=True):
+            assert orig["id"] == reloaded_s["id"]
+            assert orig["name"] == reloaded_s["name"]
+
+    def test_save_to_audio_round_trip(self, audio_tar_dir: Path, tmp_path: Path) -> None:
+        """Test save_to then from_path for audio samples."""
+        backend = WebDatasetBackend.from_path(audio_tar_dir, data_processor=audio_decoder)
+        output_dir = tmp_path / "saved"
+
+        n = backend.save_to(output_dir, encoder_fn=audio_encoder)
+
+        assert n == 5
+        reloaded = WebDatasetBackend.from_path(output_dir, data_processor=audio_decoder)
+        samples = list(reloaded)
+        assert len(samples) == 5
+        for sample in samples:
+            assert "audio" in sample
+            assert isinstance(sample["audio"], np.ndarray)
+
+    def test_save_to_creates_shard_files(self, json_tar_dir: Path, tmp_path: Path) -> None:
+        """Test that save_to creates shard tar files with the expected naming."""
+        backend = WebDatasetBackend.from_path(json_tar_dir, data_processor=json_decoder)
+        output_dir = tmp_path / "saved"
+
+        backend.save_to(output_dir)
+
+        shard_files = list(output_dir.glob("shard_*.tar"))
+        assert len(shard_files) >= 1
+        assert (output_dir / "shard_0000.tar").exists()
+
+    def test_save_to_returns_sample_count(self, json_tar_dir: Path, tmp_path: Path) -> None:
+        """Test that save_to return value equals the number of samples written."""
+        backend = WebDatasetBackend.from_path(json_tar_dir, data_processor=json_decoder)
+
+        n = backend.save_to(tmp_path / "saved")
+
+        assert n == 5
+
+    def test_save_to_filtered(self, json_tar_dir: Path, tmp_path: Path) -> None:
+        """Test that filters applied before save_to are reflected in the output."""
+        backend = WebDatasetBackend.from_path(json_tar_dir, data_processor=json_decoder)
+        filtered = backend.filter_isin("category", ["cat_0"])
+        output_dir = tmp_path / "saved"
+
+        n = filtered.save_to(output_dir)
+
+        assert n == 2
+        reloaded = list(WebDatasetBackend.from_path(output_dir, data_processor=json_decoder))
+        assert all(s["category"] == "cat_0" for s in reloaded)
+
+    def test_save_to_creates_output_dir(self, json_tar_dir: Path, tmp_path: Path) -> None:
+        """Test that save_to creates the output directory if it does not exist."""
+        backend = WebDatasetBackend.from_path(json_tar_dir, data_processor=json_decoder)
+        output_dir = tmp_path / "new" / "nested" / "dir"
+
+        backend.save_to(output_dir)
+
+        assert output_dir.exists()
+
+    def test_save_to_with_explicit_encoder(self, json_tar_dir: Path, tmp_path: Path) -> None:
+        """Test save_to accepts an explicit encoder_fn."""
+        backend = WebDatasetBackend.from_path(json_tar_dir, data_processor=json_decoder)
+
+        n = backend.save_to(tmp_path / "saved", encoder_fn=json_encoder)
+
+        assert n == 5
