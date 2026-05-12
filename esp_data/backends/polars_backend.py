@@ -5,11 +5,15 @@ from __future__ import annotations
 import inspect
 import logging
 import warnings
+from functools import partial
 from typing import Any, Callable, Iterator, Literal
 
 import polars as pl
 
+from esp_data.io import anypath
+
 from .protocol import DataBackend
+from .webdataset_utils import write_to_webdataset
 
 logger = logging.getLogger("esp_data")
 
@@ -207,6 +211,43 @@ class PolarsBackend(DataBackend):
         else:
             df = pl.read_parquet(path, **filtered_kwargs)
             return cls(df, streaming=False)
+
+    @classmethod
+    def from_path(cls, path: str, *, streaming: bool = False, **kwargs: Any) -> "PolarsBackend":
+        """Load a tabular file, dispatching on extension.
+
+        Parameters
+        ----------
+        path : str
+            Path to a ``.parquet``, ``.csv``, ``.json``, ``.jsonl``,
+            or ``.ndjson`` file.
+        streaming : bool, optional
+            Whether to use streaming (LazyFrame) mode, by default False.
+        **kwargs : Any
+            Forwarded to the underlying reader.
+
+        Returns
+        -------
+        PolarsBackend
+            Backend instance wrapping the loaded data.
+
+        Raises
+        ------
+        ValueError
+            If the file extension is not supported.
+        """
+        p = str(path).lower()
+        if p.endswith(".parquet"):
+            return cls.from_parquet(path, streaming=streaming, **kwargs)
+        if p.endswith(".csv"):
+            return cls.from_csv(path, streaming=streaming, **kwargs)
+        if p.endswith(".json") or p.endswith(".jsonl") or p.endswith(".ndjson"):
+            lines = p.endswith(".jsonl") or p.endswith(".ndjson")
+            return cls.from_json(path, lines=lines, streaming=streaming, **kwargs)
+        raise ValueError(
+            f"Unsupported file extension for PolarsBackend.from_path: {path!r}. "
+            "Supported: .parquet, .csv, .json, .jsonl, .ndjson"
+        )
 
     @property
     def is_streaming(self) -> bool:
@@ -1111,8 +1152,6 @@ class PolarsBackend(DataBackend):
         self._ensure_not_streaming("apply_fn")
 
         # use partial to bind fn_kwargs to fn
-        from functools import partial
-
         fn_partial = partial(fn, **fn_kwargs)
         df = self._ensure_collected()
         # Apply function row-wise and create new column
@@ -1206,6 +1245,47 @@ class PolarsBackend(DataBackend):
             new_df = new_df.filter(pl.col(output_feature).list.len() > 0)
 
         return PolarsBackend(new_df, streaming=self._streaming), label_map
+
+    def save_to(self, path: str, format: str = "webdataset", **kwargs: Any) -> int:
+        """Save the DataFrame to a file.
+
+        Parameters
+        ----------
+        path : str
+            Destination path (supports local and cloud paths)
+        format : str, optional
+            Output format. Supported: ``"webdataset"``.
+            By default ``"webdataset"``.
+        **kwargs : Any
+            Additional arguments passed to the underlying writer.
+            For ``"webdataset"``: accepts ``encoder_fn``, ``shard_pattern``,
+            ``maxcount``, ``maxsize`` (see `write_to_webdataset`).
+
+        Returns
+        -------
+        int
+            Number of samples written.
+
+        Notes
+        -----
+        In streaming mode (LazyFrame), the query is collected before writing.
+        A UserWarning is emitted because this forces full materialization.
+
+        Raises
+        ------
+        ValueError
+            If `format` is not supported
+        """
+        if format == "webdataset":
+            if self._streaming:
+                warnings.warn(
+                    "save_to() requires collection of LazyFrame before writing. "
+                    "The full result will be materialized in memory.",
+                    UserWarning,
+                    stacklevel=2,
+                )
+            return write_to_webdataset(iter(self), anypath(path), **kwargs)
+        raise ValueError(f"Unsupported format: {format!r}. Supported formats: 'webdataset'")
 
     def __repr__(self) -> str:
         """Return string representation of the backend.
