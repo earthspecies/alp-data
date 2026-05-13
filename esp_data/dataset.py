@@ -178,14 +178,13 @@ class ChainedDatasetConfig(BaseModel):
 class GenericDatasetConfig(BaseModel):
     """Configuration for loading a dataset from a path via :class:`GenericDataset`.
 
+    The backend and streaming mode are determined automatically from the
+    ``info.yaml`` written alongside the data during ``save_to``.
+
     Attributes
     ----------
     path : str
         Source path (local or cloud) to load from.
-    backend : BackendType, optional
-        Backend to use. By default ``"polars"``.
-    streaming : bool, optional
-        Whether to use streaming mode. By default ``False``.
     """
 
     model_config = ConfigDict(
@@ -196,8 +195,6 @@ class GenericDatasetConfig(BaseModel):
 
     dataset_name: str = "generic_dataset"
     path: str
-    backend: BackendType = "polars"
-    streaming: bool = False
 
 
 class DatasetInfo(BaseModel):
@@ -480,8 +477,12 @@ class Dataset(ABC):
         """
         pass
 
-    def save_to(self, path: str, format: str = "webdataset", **kwargs: Any) -> int:
+    def save_to(self, path: str, backend: BackendType, format: str = "webdataset", **kwargs: Any) -> int:
         """Save the dataset to a file.
+
+        Writes sharded tar files and an ``info.yaml`` containing `DatasetInfo`
+        to ``path``. The ``info.yaml`` is read back automatically by
+        `Dataset.from_path` / `GenericDataset`.
 
         Parameters
         ----------
@@ -507,34 +508,69 @@ class Dataset(ABC):
         """
         if self._data is None:
             raise RuntimeError("No data loaded. Call _load() first.")
-        return self._data.save_to(path, format=format, **kwargs)
+        n = self._data.save_to(self, path, format=format, **kwargs)
+        self._write_info(path, backend)
+        return n
+
+    def _write_info(self, path: str, backend: BackendType) -> None:
+        """Write `DatasetInfo` to ``info.yaml`` in the destination directory.
+
+        ``split_paths`` is replaced with a single entry pointing to ``path``
+        (only the exported split lives there). ``sample_rate`` is added when
+        set on the dataset instance.
+
+        Parameters
+        ----------
+        path : str
+            Destination directory (local or cloud) where ``info.yaml`` is written.
+        backend : BackendType
+            The backend used for the dataset.
+        """
+        import yaml
+
+        from esp_data.io import anypath
+        from esp_data.io.filesystem import filesystem_from_path
+
+        resolved = anypath(path)
+        info_dict = self.info.model_dump()
+
+        # Only the exported split is present in this directory.
+        split_name = getattr(self, "split", "default")
+        info_dict["split_paths"] = {split_name: str(resolved)}
+
+        # Preserve sample_rate so reloaders know what rate was used.
+        sample_rate = getattr(self, "sample_rate", None)
+        if sample_rate is not None:
+            info_dict["sample_rate"] = sample_rate
+
+        # Record backend so from_path can reload without the user specifying it.
+        info_dict["backend"] = backend
+        info_dict["streaming"] = self._streaming
+        
+        info_path = resolved / "info.yaml"
+        fs = filesystem_from_path(info_path)
+        content = yaml.dump(info_dict, default_flow_style=False, allow_unicode=True)
+        with fs.open(str(info_path), "w") as f:
+            f.write(content)
 
     @classmethod
     def from_path(
         cls,
         path: str | AnyPathT,
-        backend: BackendType = "polars",
-        streaming: bool = False,
         **kwargs: Any,
     ) -> "Dataset":
-        """Load a dataset from a pre-exported file or directory.
+        """Load a dataset from a path exported by `save_to`.
 
-        Returns a `GenericDataset` regardless of which subclass this is called on.
-        Pass ``backend="webdataset"`` for sharded tar directories.
-
-        If a ``config.yaml`` file exists alongside the data, its contents are
-        used to populate `DatasetInfo`.
+        The backend and streaming mode are read from ``info.yaml`` written by
+        `save_to`. No manual ``backend`` or ``streaming`` arguments are needed.
 
         Parameters
         ----------
         path : str | AnyPathT
-            Source path (local or cloud).
-        backend : BackendType, optional
-            Backend to use. By default ``"polars"``.
-        streaming : bool, optional
-            Whether to use streaming mode. By default ``False``.
+            Source path (local or cloud) — the directory produced by `save_to`.
         **kwargs : Any
-            Additional arguments forwarded to the backend's ``from_path``.
+            Additional arguments forwarded to the backend's ``from_path``
+            (e.g. ``data_processor`` for the webdataset backend).
 
         Returns
         -------
@@ -544,7 +580,7 @@ class Dataset(ABC):
         # Imported here to avoid circular import: generic_dataset imports Dataset
         from esp_data.generic_dataset import GenericDataset
 
-        return GenericDataset(path, backend=backend, streaming=streaming, **kwargs)
+        return GenericDataset(path, **kwargs)
 
     def apply_transformations(
         self, transformations: list[RegisteredTransformConfigs]

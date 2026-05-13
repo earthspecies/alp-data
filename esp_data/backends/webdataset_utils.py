@@ -5,6 +5,7 @@ import io
 import itertools
 import json
 import tempfile
+from collections.abc import Iterable
 from pathlib import Path
 from typing import Any, Callable, Iterator
 
@@ -156,22 +157,22 @@ def json_decoder(
 
 
 def write_to_webdataset(
-    sample_iter: Iterator[dict[str, Any]],
+    sample_iter: Iterator[dict[str, Any]] | Iterable[dict[str, Any]],
     path: AnyPathT,
-    encoder_fn: Callable | None = None,
+    encoder_fn: Callable | None = audio_encoder,
     shard_pattern: str = "shard_%04d.tar",
     maxcount: int = 100_000,
     maxsize: float = 3e9,
 ) -> int:
-    """Write samples from an iterator to sharded WebDataset tar files.
+    """Write samples from an iterator or iterable to sharded WebDataset tar files.
 
     For cloud paths (GCS, R2), samples are written to a temporary local
     directory first, then uploaded to the destination.
 
     Parameters
     ----------
-    sample_iter : Iterator[dict[str, Any]]
-        Iterator of sample dicts to write
+    sample_iter : Iterator[dict[str, Any]] | Iterable[dict[str, Any]]
+        Iterator or iterable of sample dicts to write
     path : AnyPathT
         Destination directory (local or cloud). Created if it does not exist.
         Callers must resolve strings via `anypath` before passing so cloud
@@ -192,6 +193,9 @@ def write_to_webdataset(
     int
         Number of samples written.
     """
+
+    # Normalise iterables to iterators so next() works unconditionally
+    sample_iter = iter(sample_iter)
 
     # PureR2Path covers both R2 and S3 URIs (anypath("s3://...") returns PureR2Path)
     is_cloud = isinstance(path, (PureGSPath, PureR2Path))

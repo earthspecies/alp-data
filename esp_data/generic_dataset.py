@@ -7,7 +7,7 @@ from typing import Any, Dict, Iterator, Sequence
 
 from esp_data.backends import BackendType, get_backend
 from esp_data.dataset import Dataset, DatasetInfo, GenericDatasetConfig, register_dataset
-from esp_data.io import AnyPathT, anypath, read_yaml
+from esp_data.io import AnyPathT, anypath, read_yaml, filesystem_from_path
 
 logger = logging.getLogger(__name__)
 
@@ -41,38 +41,39 @@ class GenericDataset(Dataset):
     def __init__(
         self,
         path: str | AnyPathT,
-        backend: BackendType = "polars",
-        streaming: bool = False,
         **kwargs: Any,
     ) -> None:
         """Load a dataset from a path.
 
+        The backend and streaming mode are determined automatically from
+        ``info.yaml`` (written by `Dataset.save_to`) or ``config.yaml`` when
+        present. Falls back to ``"polars"`` / non-streaming if no config file
+        is found.
+
         Parameters
         ----------
         path : str | AnyPathT
-            Source path (local or cloud). For ``backend="webdataset"``, must be
-            a directory containing sharded tar files.
-        backend : BackendType, optional
-            Backend to use for loading. By default ``"polars"``.
-        streaming : bool, optional
-            Whether to use streaming mode. By default ``False``.
+            Source path (local or cloud). For webdataset directories, must
+            contain sharded tar files and an ``info.yaml``.
         **kwargs : Any
-            Additional arguments forwarded to the backend's ``from_path``.
+            Additional arguments forwarded to the backend's ``from_path``
+            (e.g. ``data_processor`` for the webdataset backend).
         """
-        if backend == "webdataset":
-            streaming = True
+        self.path = anypath(path)
+        fs = filesystem_from_path(self.path)
+        info_path = self.path / "info.yaml"
+        if fs.exists(info_path):
+            info_dict = read_yaml(info_path)
+            self.info = DatasetInfo(**info_dict)
+            logger.info(f"Loaded dataset info : {self.info}")
+            logger.info(f"Loaded dataset info from {info_path}")
+
+        backend = self.info.backend
+        streaming = self.info.streaming
         super().__init__(backend=backend, streaming=streaming)
 
+        # Step 3: load data with the resolved backend.
         self._data = get_backend(backend).from_path(anypath(path), streaming=streaming, **kwargs)
-
-        resolved = anypath(path)
-        config_dir = resolved if resolved.is_dir() else resolved.parent
-        config_file = config_dir / "config.yaml"
-        if config_file.exists():
-            try:
-                self.info = DatasetInfo.model_validate(read_yaml(str(config_file)))
-            except Exception as e:
-                logger.warning("Failed to load config.yaml from %s: %s", config_file, e)
 
     @property
     def available_splits(self) -> Sequence[str]:
@@ -121,8 +122,4 @@ class GenericDataset(Dataset):
         tuple[GenericDataset, dict]
             Dataset instance and empty metadata dict.
         """
-        return cls(
-            dataset_config.path,
-            backend=dataset_config.backend,
-            streaming=dataset_config.streaming,
-        ), {}
+        return cls(dataset_config.path), {}
