@@ -492,7 +492,9 @@ class Dataset(ABC):
         """
         pass
 
-    def save_to(self, path: str, backend: BackendType, format: str = "webdataset", **kwargs: Any) -> int:
+    def save_to(
+        self, path: str, backend: BackendType, format: str = "webdataset", **kwargs: Any
+    ) -> int:
         """Save the dataset to a file.
 
         Writes sharded tar files and an ``info.yaml`` containing `DatasetInfo`
@@ -561,7 +563,7 @@ class Dataset(ABC):
         # Record backend so from_path can reload without the user specifying it.
         info_dict["backend"] = backend
         info_dict["streaming"] = self._streaming
-        
+
         info_path = resolved / "info.yaml"
         fs = filesystem_from_path(info_path)
         content = yaml.dump(info_dict, default_flow_style=False, allow_unicode=True)

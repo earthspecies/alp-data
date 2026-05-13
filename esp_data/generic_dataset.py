@@ -5,9 +5,9 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict, Iterator, Sequence
 
-from esp_data.backends import BackendType, get_backend
+from esp_data.backends import get_backend
 from esp_data.dataset import Dataset, DatasetInfo, GenericDatasetConfig, register_dataset
-from esp_data.io import AnyPathT, anypath, read_yaml, filesystem_from_path
+from esp_data.io import AnyPathT, anypath, filesystem_from_path, read_yaml
 
 logger = logging.getLogger(__name__)
 

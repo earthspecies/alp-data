@@ -1246,7 +1246,13 @@ class PolarsBackend(DataBackend):
 
         return PolarsBackend(new_df, streaming=self._streaming), label_map
 
-    def save_to(self, iterable: Iterator[Dict[str, Any]] | Iterable[Dict[str, Any]], path: str, format: str = "webdataset", **kwargs: Any) -> int:
+    def save_to(
+        self,
+        iterable: Iterator[Dict[str, Any]] | Iterable[Dict[str, Any]],
+        path: str,
+        format: str = "webdataset",
+        **kwargs: Any,
+    ) -> int:
         """Save the DataFrame to a file.
 
         Parameters
