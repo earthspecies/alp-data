@@ -1067,7 +1067,7 @@ class TestWebDatasetBackendSaveTo:
         backend = WebDatasetBackend.from_path(json_tar_dir, data_processor=json_decoder)
         output_dir = tmp_path / "saved"
 
-        n = backend.save_to(output_dir)
+        n = backend.save_to(iter(backend), output_dir, encoder_fn=None)
 
         assert n == 5
         reloaded = WebDatasetBackend.from_path(output_dir, data_processor=json_decoder)
@@ -1083,7 +1083,7 @@ class TestWebDatasetBackendSaveTo:
         backend = WebDatasetBackend.from_path(audio_tar_dir, data_processor=audio_decoder)
         output_dir = tmp_path / "saved"
 
-        n = backend.save_to(output_dir, encoder_fn=audio_encoder)
+        n = backend.save_to(iter(backend), output_dir, encoder_fn=audio_encoder)
 
         assert n == 5
         reloaded = WebDatasetBackend.from_path(output_dir, data_processor=audio_decoder)
@@ -1098,7 +1098,7 @@ class TestWebDatasetBackendSaveTo:
         backend = WebDatasetBackend.from_path(json_tar_dir, data_processor=json_decoder)
         output_dir = tmp_path / "saved"
 
-        backend.save_to(output_dir)
+        backend.save_to(iter(backend), output_dir, encoder_fn=None)
 
         shard_files = list(output_dir.glob("shard_*.tar"))
         assert len(shard_files) >= 1
@@ -1108,7 +1108,7 @@ class TestWebDatasetBackendSaveTo:
         """Test that save_to return value equals the number of samples written."""
         backend = WebDatasetBackend.from_path(json_tar_dir, data_processor=json_decoder)
 
-        n = backend.save_to(tmp_path / "saved")
+        n = backend.save_to(iter(backend), tmp_path / "saved", encoder_fn=None)
 
         assert n == 5
 
@@ -1118,7 +1118,7 @@ class TestWebDatasetBackendSaveTo:
         filtered = backend.filter_isin("category", ["cat_0"])
         output_dir = tmp_path / "saved"
 
-        n = filtered.save_to(output_dir)
+        n = filtered.save_to(iter(filtered), output_dir, encoder_fn=None)
 
         assert n == 2
         reloaded = list(WebDatasetBackend.from_path(output_dir, data_processor=json_decoder))
@@ -1129,7 +1129,7 @@ class TestWebDatasetBackendSaveTo:
         backend = WebDatasetBackend.from_path(json_tar_dir, data_processor=json_decoder)
         output_dir = tmp_path / "new" / "nested" / "dir"
 
-        backend.save_to(output_dir)
+        backend.save_to(iter(backend), output_dir, encoder_fn=None)
 
         assert output_dir.exists()
 
@@ -1137,6 +1137,6 @@ class TestWebDatasetBackendSaveTo:
         """Test save_to accepts an explicit encoder_fn."""
         backend = WebDatasetBackend.from_path(json_tar_dir, data_processor=json_decoder)
 
-        n = backend.save_to(tmp_path / "saved", encoder_fn=json_encoder)
+        n = backend.save_to(iter(backend), tmp_path / "saved", encoder_fn=json_encoder)
 
         assert n == 5

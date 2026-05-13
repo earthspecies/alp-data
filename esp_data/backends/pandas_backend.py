@@ -5,7 +5,7 @@ from __future__ import annotations
 import inspect
 import warnings
 from functools import partial
-from typing import Any, Callable, Iterator, Literal
+from typing import Any, Callable, Dict, Iterable, Iterator, Literal
 
 import pandas as pd
 
@@ -1068,7 +1068,7 @@ class PandasBackend(DataBackend):
 
         return PandasBackend(df_clean, streaming=False), label_map
 
-    def save_to(self, path: str, format: str = "webdataset", **kwargs: Any) -> int:
+    def save_to(self, iterable: Iterator[Dict[str, Any]] | Iterable[Dict[str, Any]], path: str, format: str = "webdataset", **kwargs: Any) -> int:
         """Save the DataFrame to a file.
 
         Parameters
@@ -1095,7 +1095,7 @@ class PandasBackend(DataBackend):
         """
         self._ensure_not_streaming("save_to")
         if format == "webdataset":
-            return write_to_webdataset(iter(self), anypath(path), **kwargs)
+            return write_to_webdataset(iterable, anypath(path), **kwargs)
         raise ValueError(f"Unsupported format: {format!r}. Supported formats: 'webdataset'")
 
     def __repr__(self) -> str:

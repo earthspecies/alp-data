@@ -6,7 +6,7 @@ import inspect
 import logging
 import warnings
 from functools import partial
-from typing import Any, Callable, Iterator, Literal
+from typing import Any, Callable, Dict, Iterable, Iterator, Literal
 
 import polars as pl
 
@@ -1246,7 +1246,7 @@ class PolarsBackend(DataBackend):
 
         return PolarsBackend(new_df, streaming=self._streaming), label_map
 
-    def save_to(self, iterable: Iterator[Dict[str, Any]], path: str, format: str = "webdataset", **kwargs: Any) -> int:
+    def save_to(self, iterable: Iterator[Dict[str, Any]] | Iterable[Dict[str, Any]], path: str, format: str = "webdataset", **kwargs: Any) -> int:
         """Save the DataFrame to a file.
 
         Parameters

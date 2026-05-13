@@ -1,6 +1,6 @@
 """WebDataset implementation of the StreamingBackend protocol."""
 
-from typing import Any, Callable, Iterator
+from typing import Any, Callable, Dict, Iterable, Iterator
 
 import webdataset as wds
 
@@ -399,6 +399,7 @@ class WebDatasetBackend(StreamingBackend):
 
     def save_to(
         self,
+        iterable: Iterator[Dict[str, Any]] | Iterable[Dict[str, Any]],
         path: str | AnyPathT,
         format: str = "webdataset",
         encoder_fn: Callable | None = None,
@@ -451,7 +452,7 @@ class WebDatasetBackend(StreamingBackend):
 
         resolved = anypath(path)
         return write_to_webdataset(
-            iter(self),
+            iterable,
             resolved,
             encoder_fn=encoder_fn,
             shard_pattern=shard_pattern,
