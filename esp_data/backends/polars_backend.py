@@ -1246,7 +1246,7 @@ class PolarsBackend(DataBackend):
 
         return PolarsBackend(new_df, streaming=self._streaming), label_map
 
-    def save_to(self, path: str, format: str = "webdataset", **kwargs: Any) -> int:
+    def save_to(self, iterable: Iterator[Dict[str, Any]], path: str, format: str = "webdataset", **kwargs: Any) -> int:
         """Save the DataFrame to a file.
 
         Parameters
@@ -1284,7 +1284,7 @@ class PolarsBackend(DataBackend):
                     UserWarning,
                     stacklevel=2,
                 )
-            return write_to_webdataset(iter(self), anypath(path), **kwargs)
+            return write_to_webdataset(iterable, anypath(path), **kwargs)
         raise ValueError(f"Unsupported format: {format!r}. Supported formats: 'webdataset'")
 
     def __repr__(self) -> str:

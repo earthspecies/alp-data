@@ -4,6 +4,7 @@ from typing import Any, Callable, Iterator
 
 import webdataset as wds
 
+from esp_data.backends.webdataset_utils import audio_decoder
 from esp_data.io import AnyPathT, anypath
 
 from .protocol import StreamingBackend
@@ -12,7 +13,7 @@ from .protocol import StreamingBackend
 def _load_webdataset(
     path: str | AnyPathT,
     file_pattern: str = "shard*tar",
-    data_processor: Callable | None = None,
+    data_processor: Callable | None = audio_decoder,
     shuffle_size: int | None = None,
     batch_size: int | None = None,
     shard_shuffle: bool = False,
@@ -128,7 +129,7 @@ class WebDatasetBackend(StreamingBackend):
         cls,
         path: str | AnyPathT,
         file_pattern: str = "shard*tar",
-        data_processor: Callable | None = None,
+        data_processor: Callable | None = audio_decoder,
         shuffle_size: int | None = None,
         batch_size: int | None = None,
         shard_shuffle: bool = False,
