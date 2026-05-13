@@ -293,6 +293,18 @@ class Dataset(ABC):
     Any new dataset should inherit from this class to be added to the registry
     of available ESP datasets.
 
+    !!! warning "PyTorch DataLoader with `num_workers > 0` requires `spawn`"
+        When using a PyTorch `DataLoader` with `num_workers > 0`, the
+        multiprocessing start method must be set to `"spawn"` rather than
+        the default `"fork"` on Linux. esp-data datasets hold fsspec,
+        `gcsfs`, and `s3fs` handles and resampling state that are not
+        safe to inherit across a `fork`, which can deadlock workers or
+        corrupt audio reads. Either call
+        `torch.multiprocessing.set_start_method("spawn", force=True)` at
+        program start, or pass
+        `multiprocessing_context=mp.get_context("spawn")` to the
+        `DataLoader`.
+
     Attributes
     ----------
     info : DatasetInfo
@@ -309,18 +321,6 @@ class Dataset(ABC):
         Required method to iterate over the samples in the dataset.
     __getitem__(idx: int) -> Dict[str, Any]
         Required method to get a specific sample from the dataset.
-
-    .. warning::
-        When using a PyTorch `DataLoader` with `num_workers > 0`, the
-        multiprocessing start method must be set to `"spawn"` rather than
-        the default `"fork"` on Linux. esp-data datasets hold fsspec,
-        `gcsfs`, and `s3fs` handles and resampling state that are not
-        safe to inherit across a `fork`, which can deadlock workers or
-        corrupt audio reads. Either call
-        `torch.multiprocessing.set_start_method("spawn", force=True)` at
-        program start, or pass
-        `multiprocessing_context=mp.get_context("spawn")` to the
-        `DataLoader`.
     """
 
     info: DatasetInfo
@@ -566,6 +566,10 @@ def register_config(cls: type[DatasetConfig]) -> type[DatasetConfig]:
     return cls
 
 
+# Registered but excluded from listings — these are dataset collections, not datasets.
+_HIDDEN_DATASETS: frozenset[str] = frozenset({"chained_dataset", "concatenated_dataset"})
+
+
 def list_registered_datasets() -> list[str]:
     """List all registered datasets.
 
@@ -574,12 +578,7 @@ def list_registered_datasets() -> list[str]:
     list[str]
         List of dataset names
     """
-    datasets = list(_dataset_registry.keys())
-    # Remove chained_dataset and concatenated_dataset
-    # from the list as they are not actual datasets
-    # but dataset collections
-    datasets = [d for d in datasets if d not in ("chained_dataset", "concatenated_dataset")]
-    return datasets
+    return [d for d in _dataset_registry if d not in _HIDDEN_DATASETS]
 
 
 def dataset_class_from_name(dataset_name: str) -> type[Dataset]:
@@ -609,7 +608,7 @@ def dataset_class_from_name(dataset_name: str) -> type[Dataset]:
 def print_registered_datasets() -> None:
     """Print all registered datasets."""
     for dataset_class in _dataset_registry.values():
-        if dataset_class.info.name in ("chained_dataset", "concatenated_dataset"):
+        if dataset_class.info.name in _HIDDEN_DATASETS:
             continue
         print(dataset_class.info.model_dump_json(indent=2))
 

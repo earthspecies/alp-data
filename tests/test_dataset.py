@@ -1,25 +1,26 @@
 """Unit tests for the dataset module."""
 
-import pytest
 from pathlib import Path
-import yaml
-from typing import Any, Dict, Optional, Literal
+from typing import Any, Dict, Literal
+
 import pandas as pd
+import pytest
+import yaml
 from pydantic import BaseModel
 
-from esp_data.io import anypath, AnyPathT
 from esp_data import (
     Dataset,
     DatasetConfig,
     DatasetInfo,
     dataset_from_config,
-    register_dataset,
-    register_config,
     list_registered_datasets,
-    print_registered_datasets
+    print_registered_datasets,
+    register_config,
+    register_dataset,
 )
-from esp_data.transforms import register_transform, transform_from_config
 from esp_data.backends import PandasBackend
+from esp_data.io import AnyPathT
+from esp_data.transforms import register_transform, transform_from_config
 
 
 def test_register_dataset():
@@ -58,6 +59,9 @@ def test_print_registered_datasets(capsys):
     captured = capsys.readouterr()
     assert "animalspeak" in captured.out  # Assuming animalspeak is registered by default
     assert "birdset" in captured.out  # Assuming DummyDataset was registered in this test
+    # Dataset collections should not appear in the printed output
+    assert "chained_dataset" not in captured.out
+    assert "concatenated_dataset" not in captured.out
 
 
 def test_dataset_from_config():
@@ -75,7 +79,7 @@ class MyCustomConfig(DatasetConfig):
     dataset_name: str = "my_custom_dataset"
     split: str = "train"
     output_take_and_give: dict[str, str] | None = None
-    data_root: Optional[str | AnyPathT] = None
+    data_root: str | AnyPathT | None = None
 
 
 @register_dataset
@@ -109,8 +113,8 @@ class MyCustomDataset(Dataset):
     def __init__(
         self,
         split: str = "train",
-        output_take_and_give: Optional[dict[str, str]] = None,
-        data_root: Optional[str | AnyPathT] = None,
+        output_take_and_give: dict[str, str] | None = None,
+        data_root: str | AnyPathT | None = None,
     ) -> None:
         """Initialize the dataset."""
         super().__init__(output_take_and_give)
@@ -193,7 +197,6 @@ class MyCustomDataset(Dataset):
             return ds, transform_metadata
 
         return ds, {}
-
 
 
 class RenameConfig(BaseModel):
