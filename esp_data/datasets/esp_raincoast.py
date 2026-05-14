@@ -77,6 +77,10 @@ class ESPRaincoast(Dataset):
         owner="emmanuel; gagan; dylansmyth; maddie",
         split_paths={
             "full": "gs://esp-raincoast/2023-2024/full_selection_table.csv",
+            "raincoast-2025-pulsed-whistle": (
+                "gs://esp-data-ingestion/beans-pro/v0.1.0/raw/"
+                "raincoast_2025_pulsed_whistle_fewshot/single_audio_test.jsonl"
+            ),
         },
         version="0.1.0",
         description="Orca vocal repertoire dataset",
@@ -241,7 +245,7 @@ class ESPRaincoast(Dataset):
         # Read the audio clip
         if self.load_audio_segments:
 
-            def _maybe_float(value: Any) -> float | None:
+            def _maybe_float(value: object) -> float | None:
                 if value is None or value == "":
                     return None
                 try:

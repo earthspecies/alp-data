@@ -45,6 +45,7 @@ ANNOTATION_ROOT = (
 )
 RAW_ROOT = "gs://esp-raincoast/2025/raw"
 OUTPUT_ROOT = "gs://esp-data-ingestion/beans-pro/v0.1.0/raw/raincoast_2025_pulsed_whistle_fewshot"
+SINGLE_AUDIO_JSONL = f"{OUTPUT_ROOT}/single_audio_test.jsonl"
 SPLIT_NAME = "raincoast-2025-pulsed-whistle-fewshot"
 
 SCORED_LABELS = {"pd", "pv", "pu", "w"}
@@ -432,6 +433,39 @@ def make_row(
     }
 
 
+def make_single_audio_row(event: Event, row_idx: int) -> dict[str, Any]:
+    """Build one single-audio Raincoast chat-task row.
+
+    Parameters
+    ----------
+    event
+        Query event.
+    row_idx
+        Row index in the output split.
+
+    Returns
+    -------
+    dict[str, Any]
+        JSONL-ready row for ``ESPRaincoast``.
+    """
+    call_label = "whistle" if event.call_type == "w" else "call"
+    return {
+        "id": f"raincoast_2025_call_whistle_{row_idx:05d}",
+        "local_path": clip_rel_path(event),
+        "call_type": event.call_type,
+        "call_label": call_label,
+        "begin_file": event.begin_file,
+        "selection": event.selection,
+        "begin_time": event.begin_time,
+        "end_time": event.end_time,
+        "low_freq_hz": event.low_freq_hz,
+        "high_freq_hz": event.high_freq_hz,
+        "boat_noise": event.boat_noise,
+        "comments": event.comments,
+        "source_annotation_path": event.annotation_path,
+    }
+
+
 def write_jsonl(rows: list[dict[str, Any]], output_root: str) -> str:
     """Write the output JSONL split.
 
@@ -455,10 +489,33 @@ def write_jsonl(rows: list[dict[str, Any]], output_root: str) -> str:
     return jsonl_path
 
 
+def write_rows_jsonl(rows: list[dict[str, Any]], jsonl_path: str) -> str:
+    """Write rows to a specific JSONL path.
+
+    Parameters
+    ----------
+    rows
+        Rows to serialize.
+    jsonl_path
+        Full output JSONL path.
+
+    Returns
+    -------
+    str
+        Full JSONL path.
+    """
+    fs = filesystem_from_path(jsonl_path)
+    with fs.open(jsonl_path, "w") as handle:
+        for row in rows:
+            handle.write(json.dumps(row, ensure_ascii=True) + "\n")
+    return jsonl_path
+
+
 def build_dataset(
     annotation_root: str,
     raw_root: str,
     output_root: str,
+    single_audio_jsonl: str,
     max_seconds: float,
     context_seconds: float,
     overwrite: bool,
@@ -474,6 +531,8 @@ def build_dataset(
         Source raw audio directory.
     output_root
         Destination split root.
+    single_audio_jsonl
+        Destination JSONL for the single-audio call-vs-whistle task.
     max_seconds
         Maximum crop duration.
     context_seconds
@@ -507,8 +566,16 @@ def build_dataset(
     )
 
     rows = [make_row(event, row_idx, support_events) for row_idx, event in enumerate(query_events)]
+    single_audio_rows = [
+        make_single_audio_row(event, row_idx) for row_idx, event in enumerate(events)
+    ]
     if dry_run:
-        logger.info("Dry run: would write %d clips and %d rows", len(events), len(rows))
+        logger.info(
+            "Dry run: would write %d clips, %d multi-audio rows, and %d single-audio rows",
+            len(events),
+            len(rows),
+            len(single_audio_rows),
+        )
         return rows
 
     for idx, event in enumerate(events, start=1):
@@ -524,6 +591,8 @@ def build_dataset(
 
     jsonl_path = write_jsonl(rows, output_root=output_root)
     logger.info("Wrote %d rows to %s", len(rows), jsonl_path)
+    single_jsonl_path = write_rows_jsonl(single_audio_rows, jsonl_path=single_audio_jsonl)
+    logger.info("Wrote %d rows to %s", len(single_audio_rows), single_jsonl_path)
     return rows
 
 
@@ -541,6 +610,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--annotation-root", default=ANNOTATION_ROOT)
     parser.add_argument("--raw-root", default=RAW_ROOT)
     parser.add_argument("--output-root", default=OUTPUT_ROOT)
+    parser.add_argument("--single-audio-jsonl", default=SINGLE_AUDIO_JSONL)
     parser.add_argument("--max-seconds", type=float, default=10.0)
     parser.add_argument("--context-seconds", type=float, default=1.0)
     parser.add_argument("--overwrite", action="store_true")
@@ -555,6 +625,7 @@ def main() -> None:
         annotation_root=args.annotation_root,
         raw_root=args.raw_root,
         output_root=args.output_root,
+        single_audio_jsonl=args.single_audio_jsonl,
         max_seconds=args.max_seconds,
         context_seconds=args.context_seconds,
         overwrite=args.overwrite,
