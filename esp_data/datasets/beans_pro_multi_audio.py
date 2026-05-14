@@ -25,6 +25,10 @@ Available splits
   ``zebra-description`` split in `BeansPro`.
 - ``unseen-species-4way``: 1227 examples, 4-way species classification
   for 172 held-out species (genus seen), random confusers.
+- ``raincoast-2025-pulsed-whistle-fewshot``: Raincoast 2025 killer whale
+  pulsed-call vs whistle classification with fixed labeled support clips.
+- ``ford-catalogue-pulsed-discrete-4way``: Ford catalogue Northern Resident
+  pulsed-discrete 4-way call-type classification with audio support options.
 """
 
 from __future__ import annotations
@@ -60,6 +64,12 @@ _SPLITS: dict[str, str] = {
     "crow-4way": f"{_GCS_BASE}/crow_4way/test.jsonl",
     "zebra-4way": f"{_GCS_BASE}/zebra_4way/test.jsonl",
     "unseen-species-4way": f"{_GCS_BASE}/unseen_species_4way/test.jsonl",
+    "raincoast-2025-pulsed-whistle-fewshot": (
+        f"{_GCS_BASE}/raincoast_2025_pulsed_whistle_fewshot/test.jsonl"
+    ),
+    "ford-catalogue-pulsed-discrete-4way": (
+        f"{_GCS_BASE}/ford_catalogue_pulsed_discrete_4way/test.jsonl"
+    ),
 }
 
 # Default audio root for splits whose audio was copied into the beans-pro folder.
@@ -73,6 +83,10 @@ _AUDIO_ROOT_OVERRIDES: dict[str, str] = {
     "crow-4way": f"{_GCS_BASE}/carrion_crow_descriptions/",
     "zebra-4way": f"{_GCS_BASE}/zebra_descriptions/",
     "unseen-species-4way": "gs://esp-data-ingestion/",
+    "raincoast-2025-pulsed-whistle-fewshot": (
+        f"{_GCS_BASE}/raincoast_2025_pulsed_whistle_fewshot/"
+    ),
+    "ford-catalogue-pulsed-discrete-4way": "gs://esp-data-ingestion/ford-catalogue/",
 }
 
 
@@ -115,6 +129,8 @@ class BeansProMultiAudio(Dataset):
             "Giant Otter Vocal Repertoire",
             "Carrion Crow and Plains Zebra call descriptions",
             "BEANS-Zero unseen species holdout",
+            "Raincoast 2025 killer whale hydrophone annotations",
+            "Ford catalogue Northern Resident killer whale calls",
         ],
         license="Mixed source licenses; evaluation-only manifests.",
     )
