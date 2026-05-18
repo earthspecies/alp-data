@@ -5,6 +5,7 @@ import logging
 import tempfile
 from typing import Any, BinaryIO, Literal
 
+import librosa
 import numpy as np
 import soundfile as sf
 import yaml
@@ -15,7 +16,47 @@ from esp_data.io.paths import AnyPathT, anypath
 
 logger = logging.getLogger("esp_data")
 
-_AUDIO_FORMATS = (".wav", ".flac", ".ogg", ".mp3")
+
+def _read_audio_with_librosa(
+    audio_file: BinaryIO, frames: int = -1, start: int = 0
+) -> tuple[np.ndarray, int]:
+    """
+    Read audio from a file-like object using `librosa.load`.
+
+    Used as a fallback when `soundfile.read` cannot decode the buffer directly
+    (e.g. some MP3/OGG streams). Channels are preserved (``mono=False``);
+    callers can convert to mono via `audio_stereo_to_mono` if needed. The
+    returned array follows the `soundfile.read` convention: ``(frames,)`` for
+    mono or ``(frames, channels)`` for multi-channel.
+
+    Parameters
+    ----------
+    audio_file : BinaryIO
+        The audio file-like object containing the encoded audio data. The
+        stream is rewound to position 0 before reading.
+    frames : int, optional
+        The number of frames to read. -1 reads all frames from the
+        `start` position to the end of the file. Defaults to -1.
+    start : int, optional
+        The frame index to start reading from. Defaults to 0.
+
+    Returns
+    -------
+    tuple[np.ndarray, int]
+        A tuple containing:
+        - data (np.ndarray): The audio data as a NumPy array.
+        - samplerate (int): The sample rate of the audio in Hz.
+    """
+    audio_file.seek(0)
+    data, samplerate = librosa.load(audio_file, sr=None, mono=False)
+    # librosa returns (channels, frames) for multi-channel; transpose to match
+    # the (frames, channels) convention used by soundfile.
+    if data.ndim == 2:
+        data = data.T
+    if start > 0 or frames > 0:
+        end = start + frames if frames > 0 else None
+        data = data[start:end]
+    return data, samplerate
 
 
 def _read_audio_from_tmpfile(
@@ -154,6 +195,10 @@ def _read_audio_from_file(
     """Reads from an audio buffer while indexing if necessary. By default,
     reads the entire buffer.
 
+    Decoding is attempted in three stages: `soundfile.read` first, then
+    `librosa.load` as a fallback, and finally a temporary-file decode if
+    `format` is provided.
+
     Parameters
     ----------
     audio_file : BinaryIO
@@ -176,18 +221,15 @@ def _read_audio_from_file(
         - samplerate (int): The sample rate of the audio in Hz.
     """
     try:
-        data, samplerate = sf.read(audio_file, frames=frames, start=start)
-        return data, samplerate
-    except LibsndfileError as e:
-        logger.warning(
-            "Failed to read audio from file-like object directly, "
-            f"falling back to temporary file method: {e}"
-        )
-        # Fallback to temporary file if BytesIO approach fails
-        # For formats like MP3, soundfile cannot read from BytesIO with format specification
-        # due to libsndfile limitations. We use a temporary file as a workaround.
-        if format:
-            return _read_audio_from_tmpfile(audio_file.read(), format, frames, start)
+        return sf.read(audio_file, frames=frames, start=start)
+    except LibsndfileError:
+        try:
+            return _read_audio_with_librosa(audio_file, frames=frames, start=start)
+        except Exception:
+            if format:
+                audio_file.seek(0)
+                return _read_audio_from_tmpfile(audio_file.read(), format, frames, start)
+            raise
 
 
 def read_audio(
@@ -231,11 +273,6 @@ def read_audio(
           be (frames,) for mono or (frames, channels) for multi-channel audio.
         - samplerate (int): The sample rate of the audio in Hz.
 
-    Raises
-    ------
-    ValueError
-        If the file extension is not in the supported `_AUDIO_FORMATS`.
-
     Examples
     --------
     >>> audio, sr = read_audio("tests/samples/noise.wav")
@@ -246,9 +283,6 @@ def read_audio(
     """
     file_path = anypath(file_path)
     extension = file_path.suffix
-
-    if extension.lower() not in _AUDIO_FORMATS:
-        raise ValueError(f"Unsupported audio format: {extension}")
 
     if start_time is not None:
         return read_audio_by_time(file_path, start_time, end_time, input_sr)
@@ -341,11 +375,6 @@ def get_audio_info(
         - "format": File format (e.g., WAV, FLAC).
         - "subtype": Subtype of the audio file.
 
-    Raises
-    ------
-    ValueError
-        If the file extension is not in the supported `_AUDIO_FORMATS`.
-
     Examples
     --------
     >>> info = get_audio_info("tests/samples/noise.wav")
@@ -355,17 +384,10 @@ def get_audio_info(
     file_path = anypath(file_path)
     extension = file_path.suffix
 
-    if extension.lower() not in _AUDIO_FORMATS:
-        raise ValueError(f"Unsupported audio format: {extension}")
-
     try:
         with filesystem_from_path(file_path).open(str(file_path), "rb") as f:
             info = sf.info(f)
-    except LibsndfileError as e:
-        logger.warning(
-            "Failed to read audio from file-like object directly, "
-            f"falling back to temporary file method: {e}"
-        )
+    except LibsndfileError:
         with filesystem_from_path(file_path).open(str(file_path), "rb") as f:
             file_bytes = f.read()
         with tempfile.NamedTemporaryFile(suffix=extension, delete=True) as tmp_file:
@@ -409,11 +431,6 @@ def read_audio_by_time(
         - data (np.ndarray): The audio data as a NumPy array.
         - samplerate (int): The sample rate of the audio in Hz.
 
-    Raises
-    ------
-    ValueError
-        If the file extension is not in the supported `_AUDIO_FORMATS`.
-
     Examples
     --------
     >>> audio, sr = read_audio_by_time("tests/samples/noise.wav",
@@ -425,9 +442,6 @@ def read_audio_by_time(
     file_path = anypath(file_path)
     extension = file_path.suffix
     format = extension.lstrip(".").upper()
-
-    if extension.lower() not in _AUDIO_FORMATS:
-        raise ValueError(f"Unsupported audio format: {extension}")
 
     try:
         fs = filesystem_from_path(file_path)
@@ -468,17 +482,19 @@ def read_audio_by_time(
         fp.seek(0)
         try:
             data, samplerate = sf.read(fp, frames=frames_to_read, start=start_frame, format=None)
-        except LibsndfileError as e:
-            logger.warning(
-                "Failed to read audio from file-like object directly, "
-                f"falling back to temporary file method: {e}"
-            )
-            data, samplerate = _read_audio_from_tmpfile(
-                fp.read(),
-                format=format,
-                frames=frames_to_read,
-                start=start_frame,
-            )
+        except LibsndfileError:
+            try:
+                data, samplerate = _read_audio_with_librosa(
+                    fp, frames=frames_to_read, start=start_frame
+                )
+            except Exception:
+                fp.seek(0)
+                data, samplerate = _read_audio_from_tmpfile(
+                    fp.read(),
+                    format=format,
+                    frames=frames_to_read,
+                    start=start_frame,
+                )
 
         return data, samplerate
 
