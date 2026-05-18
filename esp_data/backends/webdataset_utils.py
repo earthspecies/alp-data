@@ -14,7 +14,7 @@ import soundfile as sf
 import webdataset as wds
 
 from esp_data.io import AnyPathT, filesystem_from_path
-from esp_data.io.paths import PureGSPath, PureR2Path
+from esp_data.io.paths import PureCloudPath, PureGSPath, PureR2Path, anypath
 
 
 def make_file_opener_for_wds(
@@ -52,7 +52,7 @@ def make_file_opener_for_wds(
         # Remote filesystem (GCS, R2, etc.)
         fs = filesystem_from_path(str(path_obj))
         return fs.open(str(path_obj), mode=mode, block_size=block_size)
-    
+
 
 def audio_encoder(
     sample: dict[str, Any],
