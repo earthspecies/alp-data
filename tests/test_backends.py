@@ -6,8 +6,7 @@ import pytest
 
 from esp_data.backends import PandasBackend, PolarsBackend, get_backend
 from esp_data.backends.webdataset_backend import WebDatasetBackend
-from esp_data.backends.webdataset_utils import json_decoder
-from esp_data.export import export_to
+from esp_data.export import export_to, json_decoder
 
 
 class TestPandasBackend:

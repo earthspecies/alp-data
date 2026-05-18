@@ -395,7 +395,7 @@ def test_from_path_jsonl(tmp_path):
 
 def test_from_path_webdataset(tmp_path):
     """Dataset.from_path loads webdataset directory and returns GenericDataset."""
-    from esp_data.backends.webdataset_utils import json_decoder
+    from esp_data.export import json_decoder
 
     wds_dir = _make_webdataset_dir(tmp_path)
     _make_config_yaml(wds_dir, backend="webdataset", streaming=True)
@@ -408,7 +408,7 @@ def test_from_path_webdataset(tmp_path):
 
 def test_from_path_webdataset_no_len(tmp_path):
     """GenericDataset wrapping webdataset raises on __len__ and __getitem__."""
-    from esp_data.backends.webdataset_utils import json_decoder
+    from esp_data.export import json_decoder
 
     wds_dir = _make_webdataset_dir(tmp_path)
     _make_config_yaml(wds_dir, backend="webdataset", streaming=True)

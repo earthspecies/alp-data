@@ -49,7 +49,7 @@ from .datasets import (
     XenoCantoAnnotatedJeantet23,
     ZebraFinchJulieElie,
 )
-from .export import export_to
+from .export import audio_decoder, audio_encoder, export_to, json_decoder, json_encoder
 from .generic_dataset import GenericDataset
 
 __all__ = [
@@ -69,6 +69,10 @@ __all__ = [
     "ConcatenatedDataset",
     "ChainedDataset",
     "export_to",
+    "audio_encoder",
+    "json_encoder",
+    "audio_decoder",
+    "json_decoder",
     "AnimalSoundArchive",
     "AnimalSpeak",
     "GiantOtters",
