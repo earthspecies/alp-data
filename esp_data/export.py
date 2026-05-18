@@ -44,6 +44,4 @@ def export_to(
         from esp_data.backends.webdataset_utils import write_to_webdataset
 
         return write_to_webdataset(iterable, anypath(path), **kwargs), "webdataset"
-    raise ValueError(
-        f"Unsupported format: {format!r}. Supported formats: {_SUPPORTED_FORMATS}"
-    )
+    raise ValueError(f"Unsupported format: {format!r}. Supported formats: {_SUPPORTED_FORMATS}")
