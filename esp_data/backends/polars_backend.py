@@ -6,7 +6,7 @@ import inspect
 import logging
 import warnings
 from functools import partial
-from typing import Any, Callable, Dict, Iterable, Iterator, Literal
+from typing import Any, Callable, Iterator, Literal
 
 import polars as pl
 
@@ -1249,49 +1249,6 @@ class PolarsBackend(DataBackend):
             new_df = new_df.filter(pl.col(output_feature).list.len() > 0)
 
         return PolarsBackend(new_df, streaming=self._streaming), label_map
-
-    def save_to(
-        self,
-        iterable: Iterator[Dict[str, Any]] | Iterable[Dict[str, Any]],
-        path: str,
-        format: str = "webdataset",
-        **kwargs: Any,
-    ) -> int:
-        """Save the DataFrame to a file.
-
-        Parameters
-        ----------
-        path : str
-            Destination path (supports local and cloud paths)
-        format : str, optional
-            Output format. Supported: ``"webdataset"``.
-            By default ``"webdataset"``.
-        **kwargs : Any
-            Additional arguments passed to the underlying writer.
-            For ``"webdataset"``: accepts ``encoder_fn``, ``shard_pattern``,
-            ``maxcount``, ``maxsize`` (see `write_to_webdataset`).
-
-        Returns
-        -------
-        int
-            Number of samples written.
-
-        Notes
-        -----
-        In streaming mode (LazyFrame), the query is collected before writing.
-        A UserWarning is emitted because this forces full materialization.
-
-        """
-        if format == "webdataset" and self._streaming:
-            warnings.warn(
-                "save_to() requires collection of LazyFrame before writing. "
-                "The full result will be materialized in memory.",
-                UserWarning,
-                stacklevel=2,
-            )
-        from esp_data.export import export_to
-
-        return export_to(iterable, path, format=format, **kwargs)
 
     def __repr__(self) -> str:
         """Return string representation of the backend.

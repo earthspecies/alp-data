@@ -5,7 +5,7 @@ from __future__ import annotations
 import inspect
 import warnings
 from functools import partial
-from typing import Any, Callable, Dict, Iterable, Iterator, Literal
+from typing import Any, Callable, Iterator, Literal
 
 import pandas as pd
 
@@ -1071,37 +1071,6 @@ class PandasBackend(DataBackend):
         df_clean = self._df.dropna(subset=output_feature, ignore_index=True)
 
         return PandasBackend(df_clean, streaming=False), label_map
-
-    def save_to(
-        self,
-        iterable: Iterator[Dict[str, Any]] | Iterable[Dict[str, Any]],
-        path: str,
-        format: str = "webdataset",
-        **kwargs: Any,
-    ) -> int:
-        """Save the DataFrame to a file.
-
-        Parameters
-        ----------
-        path : str
-            Destination path (supports local and cloud paths)
-        format : str, optional
-            Output format. Supported: ``"webdataset"``.
-            By default ``"webdataset"``.
-        **kwargs : Any
-            Additional arguments passed to the underlying writer.
-            For ``"webdataset"``: accepts ``encoder_fn``, ``shard_pattern``,
-            ``maxcount``, ``maxsize`` (see `write_to_webdataset`).
-
-        Returns
-        -------
-        int
-            Number of samples written.
-        """
-        self._ensure_not_streaming("save_to")
-        from esp_data.export import export_to
-
-        return export_to(iterable, path, format=format, **kwargs)
 
     def __repr__(self) -> str:
         """Return string representation of the backend.
