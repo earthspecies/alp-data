@@ -342,7 +342,7 @@ def _make_webdataset_dir(tmp_path: Path) -> Path:
             tar.addfile(info, io.BytesIO(data))
     return wds_dir
 
-def _make_info_yaml(tmp_path: Path, backend: str, streaming: bool) -> Path:
+def _make_config_yaml(tmp_path: Path, backend: str, streaming: bool) -> Path:
     info = {
         "name": "test_dataset",
         "owner": "test_owner",
@@ -351,19 +351,22 @@ def _make_info_yaml(tmp_path: Path, backend: str, streaming: bool) -> Path:
         "description": "Test dataset",
         "sources": ["test"],
         "license": "CC0",
+    }
+    config = {
+        "info": info,
         "backend": backend,
         "streaming": streaming,
     }
-    path = tmp_path / "info.yaml"
+    path = tmp_path / "config.yaml"
     with open(path, "w") as f:
-        yaml.dump(info, f)
+        yaml.dump(config, f)
     return path
 
 
 def test_from_path_parquet(tmp_path):
     """Dataset.from_path loads parquet and returns GenericDataset."""
     _make_parquet(tmp_path)
-    _make_info_yaml(tmp_path, backend="polars", streaming=False)
+    _make_config_yaml(tmp_path, backend="polars", streaming=False)
     ds = Dataset.from_path(tmp_path)
     assert isinstance(ds, GenericDataset)
     assert len(ds) == 5
@@ -374,7 +377,7 @@ def test_from_path_parquet(tmp_path):
 def test_from_path_csv(tmp_path):
     """Dataset.from_path loads CSV and returns GenericDataset."""
     _make_csv(tmp_path)
-    _make_info_yaml(tmp_path, backend="polars", streaming=False)
+    _make_config_yaml(tmp_path, backend="polars", streaming=False)
 
     ds = Dataset.from_path(tmp_path)
     assert isinstance(ds, GenericDataset)
@@ -384,7 +387,7 @@ def test_from_path_csv(tmp_path):
 def test_from_path_jsonl(tmp_path):
     """Dataset.from_path loads JSON lines and returns GenericDataset."""
     _make_json(tmp_path)
-    _make_info_yaml(tmp_path, backend="polars", streaming=False)
+    _make_config_yaml(tmp_path, backend="polars", streaming=False)
     ds = Dataset.from_path(tmp_path)
     assert isinstance(ds, GenericDataset)
     assert len(ds) == 5
@@ -395,7 +398,7 @@ def test_from_path_webdataset(tmp_path):
     from esp_data.backends.webdataset_utils import json_decoder
 
     wds_dir = _make_webdataset_dir(tmp_path)
-    _make_info_yaml(wds_dir, backend="webdataset", streaming=True)
+    _make_config_yaml(wds_dir, backend="webdataset", streaming=True)
     ds = Dataset.from_path(str(wds_dir), data_processor=json_decoder)
     assert isinstance(ds, GenericDataset)
     rows = [row for row in ds]
@@ -408,7 +411,7 @@ def test_from_path_webdataset_no_len(tmp_path):
     from esp_data.backends.webdataset_utils import json_decoder
 
     wds_dir = _make_webdataset_dir(tmp_path)
-    _make_info_yaml(wds_dir, backend="webdataset", streaming=True)
+    _make_config_yaml(wds_dir, backend="webdataset", streaming=True)
     ds = Dataset.from_path(str(wds_dir), data_processor=json_decoder)
     with pytest.raises(NotImplementedError):
         len(ds)
@@ -419,28 +422,16 @@ def test_from_path_webdataset_no_len(tmp_path):
 def test_from_path_reads_config_yaml(tmp_path):
     """Dataset.from_path populates info from config.yaml if present."""
     _make_parquet(tmp_path)
-    info = {
-        "name": "my_exported_dataset",
-        "owner": "test_owner",
-        "split_paths": {"train": "data.parquet"},
-        "version": "1.0.0",
-        "description": "Exported dataset",
-        "sources": ["test"],
-        "license": "CC0",
-        "backend": "polars",
-        "streaming": False,
-    }
-    with open(tmp_path / "info.yaml", "w") as f:
-        yaml.dump(info, f)
+    _make_config_yaml(tmp_path, backend="polars", streaming=False)
     ds = Dataset.from_path(str(tmp_path))
-    assert ds.info.name == "my_exported_dataset"
+    assert ds.info.name == "test_dataset"
     assert ds.info.version == "1.0.0"
 
 
 def test_dataset_save_to_no_data_raises(tmp_path):
     """Dataset.save_to raises RuntimeError when _data is None."""
     _make_parquet(tmp_path)
-    _make_info_yaml(tmp_path, backend="polars", streaming=False)
+    _make_config_yaml(tmp_path, backend="polars", streaming=False)
     ds = Dataset.from_path(str(tmp_path))
     ds._data = None
     with pytest.raises(RuntimeError, match="No data loaded"):
