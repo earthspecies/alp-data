@@ -480,9 +480,13 @@ class Dataset(ABC):
     def save_to(self, path: str, format: str = "webdataset", **kwargs: Any) -> int:
         """Save the dataset to a file.
 
-        Writes sharded tar files and an ``info.yaml`` containing `DatasetInfo`
-        to ``path``. The ``info.yaml`` is read back automatically by
-        `Dataset.from_path` / `GenericDataset`.
+        Supports different output formats (e.g. "webdataset", "csv", "parquet") via the `format`
+        argument.
+        Writes data files and an ``config.yaml``containing `info: DatasetInfo` and additional
+        parameters such as `backend`,`streaming`,`sample_rate`, etc to the specified path.
+
+        Everything can be loaded back automatically by
+        `Dataset.from_path` into a `GenericDataset`.
 
         Parameters
         ----------
@@ -511,11 +515,11 @@ class Dataset(ABC):
         n = self._data.save_to(self, path, format=format, **kwargs)
         if format == "webdataset":  # This part needs to be improved
             backend = "webdataset"
-        self._write_info(path, backend)
+        self._write_config(path, backend)
         return n
 
-    def _write_info(self, path: str, backend: BackendType) -> None:
-        """Write `DatasetInfo` to ``info.yaml`` in the destination directory.
+    def _write_config(self, path: str, backend: BackendType) -> None:
+        """Write configuration to ``config.yaml`` in the destination directory.
 
         ``split_paths`` is replaced with a single entry pointing to ``path``
         (only the exported split lives there). ``sample_rate`` is added when
@@ -524,7 +528,7 @@ class Dataset(ABC):
         Parameters
         ----------
         path : str
-            Destination directory (local or cloud) where ``info.yaml`` is written.
+            Destination directory (local or cloud) where ``config.yaml`` is written.
         backend : BackendType
             The backend used for the dataset.
         """
@@ -534,25 +538,26 @@ class Dataset(ABC):
         from esp_data.io.filesystem import filesystem_from_path
 
         resolved = anypath(path)
-        info_dict = self.info.model_dump()
+        config_dict = {}
+        config_dict["info"] = self.info.model_dump()
 
         # Only the exported split is present in this directory.
         split_name = getattr(self, "split", "default")
-        info_dict["split_paths"] = {split_name: str(resolved)}
+        config_dict["split_paths"] = {split_name: str(resolved)}
 
         # Preserve sample_rate so reloaders know what rate was used.
         sample_rate = getattr(self, "sample_rate", None)
         if sample_rate is not None:
-            info_dict["sample_rate"] = sample_rate
+            config_dict["sample_rate"] = sample_rate
 
         # Record backend so from_path can reload without the user specifying it.
-        info_dict["backend"] = backend
-        info_dict["streaming"] = self._streaming
+        config_dict["backend"] = backend
+        config_dict["streaming"] = self._streaming
 
-        info_path = resolved / "info.yaml"
-        fs = filesystem_from_path(info_path)
-        content = yaml.dump(info_dict, default_flow_style=False, allow_unicode=True)
-        with fs.open(str(info_path), "w") as f:
+        config_path = resolved / "config.yaml"
+        fs = filesystem_from_path(config_path)
+        content = yaml.dump(config_dict, default_flow_style=False, allow_unicode=True)
+        with fs.open(str(config_path), "w") as f:
             f.write(content)
 
     @classmethod
@@ -563,7 +568,7 @@ class Dataset(ABC):
     ) -> "Dataset":
         """Load a dataset from a path exported by `save_to`.
 
-        The backend and streaming mode are read from ``info.yaml`` written by
+        The backend and streaming mode are read from ``config.yaml`` written by
         `save_to`. No manual ``backend`` or ``streaming`` arguments are needed.
 
         Parameters
