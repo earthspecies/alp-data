@@ -219,7 +219,7 @@ class PolarsBackend(DataBackend):
         Parameters
         ----------
         path : str
-            Path to a ``.parquet``, ``.csv``, ``.json``, ``.jsonl``,
+            Path to a directory containing ``.parquet``, ``.csv``, ``.json``, ``.jsonl``,
             or ``.ndjson`` file.
         streaming : bool, optional
             Whether to use streaming (LazyFrame) mode, by default False.
@@ -236,7 +236,12 @@ class PolarsBackend(DataBackend):
         ValueError
             If the file extension is not supported.
         """
-        p = str(path).lower()
+        dir_path = anypath(path)
+        for file in dir_path.iterdir():
+            if file.suffix.lower() in {".parquet", ".csv", ".json", ".jsonl", ".ndjson"}:
+                path = file
+                break
+        p = str(file).lower()
         if p.endswith(".parquet"):
             return cls.from_parquet(path, streaming=streaming, **kwargs)
         if p.endswith(".csv"):
