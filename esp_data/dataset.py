@@ -558,7 +558,7 @@ class Dataset(ABC):
 
         # Only the exported split is present in this directory.
         split_name = getattr(self, "split", "default")
-        config_dict["split_paths"] = {split_name: str(resolved)}
+        config_dict["info"]["split_paths"] = {split_name: str(resolved)}
 
         # Preserve sample_rate so reloaders know what rate was used.
         sample_rate = getattr(self, "sample_rate", None)
