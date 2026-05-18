@@ -5,7 +5,6 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict, Iterator, Sequence
 
-from esp_data.backends import get_backend
 from esp_data.dataset import Dataset, DatasetInfo, GenericDatasetConfig, register_dataset
 from esp_data.io import AnyPathT, anypath, filesystem_from_path, read_yaml
 
@@ -43,21 +42,24 @@ class GenericDataset(Dataset):
         path: str | AnyPathT,
         **kwargs: Any,
     ) -> None:
-        """Load a dataset from a path.
+        """Load a dataset from a path that points to a directory.
 
-        The backend and streaming mode are determined automatically from
-        ``info.yaml`` (written by `Dataset.save_to`) or ``config.yaml`` when
-        present. Falls back to ``"polars"`` / non-streaming if no config file
-        is found.
+        The backend and streaming mode are determined from
+        ``info.yaml`` (written by `Dataset.save_to`) which must be present.
+        If not found, raises an error since the backend cannot be inferred.
 
         Parameters
         ----------
         path : str | AnyPathT
-            Source path (local or cloud). For webdataset directories, must
-            contain sharded tar files and an ``info.yaml``.
+            Source path (local or cloud).
         **kwargs : Any
             Additional arguments forwarded to the backend's ``from_path``
             (e.g. ``data_processor`` for the webdataset backend).
+
+        Raises
+        ------
+        ValueError
+            If no ``info.yaml`` is found.
         """
         self.path = anypath(path)
         fs = filesystem_from_path(self.path)
@@ -65,15 +67,14 @@ class GenericDataset(Dataset):
         if fs.exists(info_path):
             info_dict = read_yaml(info_path)
             self.info = DatasetInfo(**info_dict)
-            logger.info(f"Loaded dataset info : {self.info}")
-            logger.info(f"Loaded dataset info from {info_path}")
+        else:
+            raise ValueError(
+                f"No info.yaml found at {info_path}. Cannot infer backend or streaming mode."
+            )
 
-        backend = self.info.backend
-        streaming = self.info.streaming
-        super().__init__(backend=backend, streaming=streaming)
+        super().__init__(backend=self.info.backend, streaming=self.info.streaming)
 
-        # Step 3: load data with the resolved backend.
-        self._data = get_backend(backend).from_path(anypath(path), streaming=streaming, **kwargs)
+        self._data = self._backend_class.from_path(self.path, streaming=self._streaming, **kwargs)
 
     @property
     def available_splits(self) -> Sequence[str]:
