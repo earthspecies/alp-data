@@ -226,6 +226,11 @@ class PandasBackend(DataBackend):
         ValueError
             If the file extension is not supported.
         """
+        dir_path = anypath(path)
+        for file in dir_path.iterdir():
+            if file.suffix.lower() in {".parquet", ".csv", ".json", ".jsonl", ".ndjson"}:
+                path = file
+                break
         p = str(path).lower()
         if p.endswith(".parquet"):
             return cls.from_parquet(path, streaming=streaming, **kwargs)
