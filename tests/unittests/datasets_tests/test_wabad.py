@@ -1,13 +1,12 @@
 """
-Unit tests for hawaiian_birds dataset.
+Unit tests for WABAD dataset.
 
 Run with:
-    pytest -q test_hawaiian_birds.py
+    pytest -q test_wabad.py
 """
 
 from __future__ import annotations
 
-import hashlib
 import random
 from typing import List
 
@@ -15,71 +14,54 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from esp_data.datasets import HawaiianBirds
+from esp_data.datasets import WABAD
+from esp_data.utils import create_hash
 
 
-# # --- Dataset snapshot ---
-
-# # Code to generate snapshot:
-# import hashlib
-# from esp_data.datasets import HawaiianBirds
-# ds = HawaiianBirds(split="all", sample_rate=16000, backend="pandas")
-
-# print("len(ds) =", len(ds))
-
-# audio0 = ds[0]["audio"]
-# print("dtype:", audio0.dtype, "shape:", audio0.shape)
-
-# h = hashlib.sha256(audio0.tobytes()).hexdigest()
-# print("sha256:", h)
-
-# csv_bytes = (
-#         ds._data.unwrap.sort_index(axis=0)
-#         .sort_index(axis=1)
-#         .to_csv(index=True)
-#         .encode("utf-8")
-#     )
-# h = hashlib.sha256(csv_bytes).hexdigest()
-
-# print("annotations sha256:", h)
-
-# quit()
-# # #
-
-EXPECTED_LEN_ALL = 635  #
+EXPECTED_LEN_ALL = 4297  #
 EXPECTED_FIRST_ITEM_AUDIO_SHA256 = (
-    "43c7ab6d988a5d329c82b24fe6cfc8642159e3e9809d38db88eff24632d539a3"
+    "c0febadbf616be8c083a22e128e82e25be9be8953bf3dec33c2b8ee1f88ad330"
 )
-ANNOTATIONS_SHA256 = "f84030805f8c3987110397d0a82174fdbd88ef5d93a17962dd1c817d65284f3e"
+ANNOTATIONS_SHA256 = "c3523d6e6aad348813d05579f410e30d48f445e801947361142fb0c36c7d6a85"
 # ---------------------------------------------------------------------------
 
 
 @pytest.fixture(scope="module")
-def ds() -> HawaiianBirds:
-    """Load HawaiianBirds dataset for testing."""
-    return HawaiianBirds(split="all", sample_rate=16000)
+def ds() -> WABAD:
+    """Load WABAD dataset for testing."""
+    return WABAD(split="all", sample_rate=16000, backend="pandas")
 
 
 @pytest.fixture(scope="module")
-def ds_pandas() -> HawaiianBirds:
-    """Load HawaiianBirds dataset for testing with pandas backend."""
-    return HawaiianBirds(split="all", sample_rate=16000, backend="pandas")
+def ds_sub() -> WABAD:
+    """Load WABAD subdataset for testing."""
+    return WABAD(split="CAT", sample_rate=16000, backend="pandas")
 
 
 @pytest.fixture(scope="module")
-def sample_indices(ds: HawaiianBirds) -> List[int]:
-    """Deterministically choose up to 5 random indices for quick spot checks."""
+def sample_indices(ds: WABAD) -> List[int]:
+    """Deterministically choose up to 3 random indices for quick spot checks."""
     n = len(ds)
     rng = random.Random(23)
-    return [rng.randrange(n) for _ in range(min(5, n))]
+    return [rng.randrange(n) for _ in range(min(3, n))]
 
 
-def test_ds_not_empty(ds: HawaiianBirds):
+def test_ds_not_empty(ds: WABAD):
     """Dataset should have at least one example."""
     assert len(ds) > 0, "Dataset appears empty"
 
 
-def test_check_audio(ds: HawaiianBirds, sample_indices: List[int]):
+def test_get_available_labels(ds: WABAD):
+    """Test get_available_labels for bird ID column."""
+    labels = ds.get_available_labels()
+    assert isinstance(labels, list), "get_available_labels should return a list"
+    assert len(labels) > 0, "Should have at least one bird ID"
+    # Check that all labels can be converted to strings
+    for label in labels:
+        assert isinstance(label, str), f"Species label for {label} should be string"
+
+
+def test_check_audio(ds: WABAD, sample_indices: List[int]):
     """Basic audio integrity checks on a few random items."""
     for idx in sample_indices:
         item = ds[idx]
@@ -95,25 +77,14 @@ def test_check_audio(ds: HawaiianBirds, sample_indices: List[int]):
         assert not np.all(audio == 0), f"[{idx}] audio is all zeros"
 
 
-def test_dataset_length_matches_expected(ds: HawaiianBirds):
-    """
-    The dataset length should match the known, version-controlled expectation.
-
-    This will fail loudly if:
-    - the CSV split changed
-    - files went missing
-    - we accidentally filtered/augmented items differently
-
-    If this fails intentionally (e.g. dataset grew), update EXPECTED_LEN_ALL.
-    """
-    assert len(ds) == EXPECTED_LEN_ALL, (
-        f"Dataset length mismatch: got {len(ds)}, expected {EXPECTED_LEN_ALL}. "
-        "If this change is intentional (new data / new filtering), update EXPECTED_LEN_ALL "
-        "in the test."
-    )
+def test_available_splits(ds: WABAD) -> None:
+    """Test if available_splits returns correct split names."""
+    # Available splits should contain these
+    expected_splits = ["all"]
+    assert all(split in ds.available_splits for split in expected_splits)
 
 
-def test_get_available_labels(ds: HawaiianBirds):
+def test_get_available_labels(ds: WABAD, ds_sub: WABAD):
     """Test get_available_labels for bird ID column."""
     labels = ds.get_available_labels(anno_column="Species")
     assert isinstance(labels, list), "get_available_labels should return a list"
@@ -123,7 +94,16 @@ def test_get_available_labels(ds: HawaiianBirds):
         assert isinstance(label, str), f"Species label for {label} should be string"
 
 
-def test_reference_item_stability(ds_pandas: HawaiianBirds):
+    labels_sub = ds_sub.get_available_labels(anno_column="Species")
+    assert isinstance(labels_sub, list), "get_available_labels should return a list"
+    assert len(labels_sub) > 0, "Should have at least one bird ID"
+    # Check that all labels can be converted to strings
+    for label in labels_sub:
+        assert isinstance(label, str), f"Species label for {label} should be string"
+    assert len(labels_sub) < len(labels), "Subdataset should have fewer classes than all"
+
+
+def test_reference_item_stability(ds: WABAD):
     """
     Check that a canonical item (index 0) is bitwise-stable.
 
@@ -135,10 +115,12 @@ def test_reference_item_stability(ds_pandas: HawaiianBirds):
 
     If this fails for a legitimate/intentional reason, recompute the hash below
     and update EXPECTED_FIRST_ITEM_AUDIO_SHA256.
+
+    We do the same for the annotations csv.
     """
     # choose deterministic index
     idx = 0
-    item = ds_pandas[idx]
+    item = ds[idx]
 
     # audio presence/type checks (defensive, so the hash failure message is clearer)
     assert "audio" in item, "[0] missing 'audio' key"
@@ -149,7 +131,7 @@ def test_reference_item_stability(ds_pandas: HawaiianBirds):
     ), f"[0] audio dtype is {audio.dtype}, expected float32"
 
     # compute sha256 over raw bytes of the float32 array
-    h = hashlib.sha256(audio.tobytes()).hexdigest()
+    h = create_hash(audio.tobytes())
 
     assert h == EXPECTED_FIRST_ITEM_AUDIO_SHA256, (
         "First item's audio hash changed.\n"
@@ -161,12 +143,12 @@ def test_reference_item_stability(ds_pandas: HawaiianBirds):
 
     # compute sha256 over raw bytes of the float32 array of annotations
     csv_bytes = (
-        ds_pandas._data.unwrap.sort_index(axis=0)
+        ds._data.unwrap.sort_index(axis=0)
         .sort_index(axis=1)
         .to_csv(index=True)
         .encode("utf-8")
     )
-    h = hashlib.sha256(csv_bytes).hexdigest()
+    h = create_hash(csv_bytes)
 
     assert h == ANNOTATIONS_SHA256, (
         "Annotation's hash changed.\n"
@@ -177,7 +159,23 @@ def test_reference_item_stability(ds_pandas: HawaiianBirds):
     )
 
 
-def test_check_selection_table(ds: HawaiianBirds, sample_indices: List[int]):
+def test_presampled_columns_exist(ds: WABAD):
+    """Pre-resampled path columns should be present in the loaded data."""
+    assert "16khz_path" in ds.columns
+    assert "32khz_path" in ds.columns
+
+
+def test_load_presampled_32khz():
+    """Loading with sample_rate=32000 should use pre-resampled 32kHz audio."""
+    ds = WABAD(split="all", sample_rate=32000, streaming=True)
+    item = next(iter(ds))
+    audio = item["audio"]
+    assert isinstance(audio, np.ndarray)
+    assert audio.dtype == np.float32
+    assert audio.size >= 10
+
+
+def test_check_selection_table(ds: WABAD, sample_indices: List[int]):
     """Selection table should be a DataFrame with required columns and sane times."""
     required = {
         "Begin Time (s)",
@@ -202,3 +200,29 @@ def test_check_selection_table(ds: HawaiianBirds, sample_indices: List[int]):
             assert not (
                 st["Begin Time (s)"] < 0
             ).any(), f"[{idx}] negative begin times present"
+            durs = st["End Time (s)"] - st["Begin Time (s)"]
+            assert not durs.min() <= 0, f"[{idx}] events of dur <= 0"
+
+
+if __name__ == "__main__":
+    # Code to generate snapshot for WABAD:
+    from esp_data.datasets import WABAD
+    ds = WABAD(split="all", sample_rate=16000, backend="pandas")
+
+    print("len(ds) =", len(ds))
+
+    audio0 = ds[0]["audio"]
+    print("dtype:", audio0.dtype, "shape:", audio0.shape)
+
+    h = create_hash(audio0.tobytes())
+    print("sha256:", h)
+
+    csv_bytes = (
+            ds._data.unwrap.sort_index(axis=0)
+            .sort_index(axis=1)
+            .to_csv(index=True)
+            .encode("utf-8")
+        )
+    h = create_hash(csv_bytes)
+
+    print("annotations sha256:", h)

@@ -7,7 +7,7 @@ import numpy as np
 
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from esp_data.backends import BackendType
-from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
+from esp_data.io import DATA_HOME, AnyPathT, anypath, audio_stereo_to_mono, read_audio
 
 
 @register_dataset
@@ -51,7 +51,9 @@ class INaturalist(Dataset):
     **Rights & Attribution:**
         - ``recordist``: Person who made the recording
         - ``rightsHolder``: Copyright holder
-        - ``license``: License information (e.g., CC BY)
+        - ``license``, ``license_url``: Observation license (CC BY-NC 4.0, CC BY 4.0, or CC0 1.0)
+        - ``media_license``, ``media_license_url``: Media-specific license
+            (CC BY-NC 4.0, CC BY 4.0, or CC0 1.0)
         - ``url``: Original iNaturalist sound URL
 
     **Captions (from AnimalSpeak):**
@@ -62,6 +64,32 @@ class INaturalist(Dataset):
         - ``fieldNotes``: Observer's notes about the recording
         - ``source``, ``data_source``: Origin of the data
         - ``identifier``: iNaturalist observation identifier
+
+    Available Splits
+    ----------------
+    - ``train``: Training set (random split)
+    - ``val``: Validation set (random split)
+    - ``all``: Complete dataset (train + val)
+    - ``train_unseen``: Training set excluding unseen taxa evaluated in BEANS-Zero benchmark
+    - ``val_unseen``: Validation set excluding unseen taxa evaluated in BEANS-Zero benchmark
+    - ``all_unseen``: Complete dataset excluding BEANS-Zero unseen taxa
+
+    The ``_unseen`` splits are designed for training models that will be evaluated
+    on BEANS-Zero's unseen taxa benchmark, ensuring no test taxa leak into the training data.
+
+    Note that all splits exclude examples overlapping with the following benchmark datasets:
+    - BEANS-Zero captioning test set (See the beans_zero dataset)
+
+    Remarks
+    -------
+    ⚠️ Some original audio files in m4a format were converted to WAV. This does not
+    resolve the issues with m4a as a bioacoustic recording format,
+    and the conversion to WAV via soundfile.write
+    (see scripts/data_preprocessing_scripts/inat_m4a_to_wav.py) may introduce decoder specific
+    metadata.
+    ⚠️ MP3 audio files that were unreadable by soundfile were also converted to WAV using librosa
+    and ffmpeg. This may introduce decoder specific metadata and potential quality issues.
+    (see scripts/data_preprocessing_scripts/inat_mp3_to_wav.py)
 
     References
     ----------
@@ -80,24 +108,29 @@ class INaturalist(Dataset):
     [32000, 16000]
 
     Load with pre-resampled 32kHz audio (no on-the-fly resampling needed)
-    >>> dataset_32k = INaturalist(split="train", sample_rate=32000)
+    >>> dataset_32k = INaturalist(split="train", sample_rate=32000, streaming=True)
 
     Load with pre-resampled 16kHz audio (no on-the-fly resampling needed)
-    >>> dataset_16k = INaturalist(split="train", sample_rate=16000)
+    >>> dataset_16k = INaturalist(split="train", sample_rate=16000, streaming=True)
     """
 
     info = DatasetInfo(
         name="inaturalist",
         owner="gagan; david",
         split_paths={
-            "train": "gs://esp-ml-datasets/inaturalist/v0.1.0/raw/metadata_2025_07_no_m4a.csv",
+            "train": f"{DATA_HOME}/inaturalist/v0.1.0/raw/train_20260201_v3.csv",
+            "train_unseen": f"{DATA_HOME}/inaturalist/v0.1.0/raw/train_unseen_20260201_v3.csv",
+            "val": f"{DATA_HOME}/inaturalist/v0.1.0/raw/val_20260201_v3.csv",
+            "val_unseen": f"{DATA_HOME}/inaturalist/v0.1.0/raw/val_unseen_20260201_v3.csv",
+            "all": f"{DATA_HOME}/inaturalist/v0.1.0/raw/all_20260201_v3.csv",
+            "all_unseen": f"{DATA_HOME}/inaturalist/v0.1.0/raw/all_unseen_20260201_v3.csv",
         },
         version="0.1.0",
         description="iNaturalist audio dataset with taxonomic metadata. "
         "Available at original (variable) sample rates and 32kHz (pre-resampled). "
         "Pre-resampled audio uses librosa's kaiser_best resampling method.",
         sources=["iNaturalist"],
-        license="CC BY",
+        license="CC BY-NC 4.0, CC BY 4.0, CC0 1.0",
     )
 
     # Mapping of sample rates to their corresponding path columns
@@ -149,7 +182,7 @@ class INaturalist(Dataset):
         self.sample_rate = sample_rate
 
         if data_root is None:
-            self.data_root = anypath("gs://esp-ml-datasets/inaturalist/v0.1.0/raw/")
+            self.data_root = anypath(f"{DATA_HOME}/inaturalist/v0.1.0/raw/")
         else:
             self.data_root = data_root
 

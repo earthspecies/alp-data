@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import warnings
 from io import StringIO
 from typing import Any, Iterator, List
 
@@ -11,7 +12,7 @@ import pandas as pd
 
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from esp_data.backends import BackendType
-from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
+from esp_data.io import DATA_HOME, AnyPathT, anypath, audio_stereo_to_mono, read_audio
 
 
 @register_dataset
@@ -68,7 +69,7 @@ class ArcticBirdSounds(Dataset):
         name="arctic_bird_sounds",
         owner="benjamin",
         split_paths={
-            "all": "gs://esp-ml-datasets/arctic_bird_sounds/all.csv",
+            "all": f"{DATA_HOME}/arctic_bird_sounds/all.csv",
         },
         version="0.1.0",
         description="[MISSING]",
@@ -266,9 +267,17 @@ class ArcticBirdSounds(Dataset):
         A list of all the available labels for anno_column
         """
         available_labels = set()
-        for _, row in self._data.iterrows():
+        for row in self._data:
             st = pd.read_csv(StringIO(row["selection_table"]), sep="\t")
             available_labels.update(st[anno_column].astype(str).tolist())
+        if self.unknown_label in available_labels:
+            available_labels.remove(self.unknown_label)
+
+        warnings.warn(
+            f"Events with unknown label={self.unknown_label} exist in dataset"
+            f"but {self.unknown_label} suppressed from get_available_labels output",
+            stacklevel=2,
+        )
 
         return sorted(available_labels)
 

@@ -71,6 +71,7 @@ class DatasetConfig(BaseModel):
     data_root: str | None = None
     streaming: bool = False
     backend: BackendType = "polars"
+    data_location: str | None = None
 
     @field_validator("transformations", mode="before")
     @classmethod
@@ -172,6 +173,28 @@ class ChainedDatasetConfig(BaseModel):
 
     dataset_name: str = "chained_dataset"
     datasets: list[DatasetConfig]
+
+
+class GenericDatasetConfig(BaseModel):
+    """Configuration for loading a dataset from a path via :class:`GenericDataset`.
+
+    The backend and streaming mode are determined automatically from the
+    ``info.yaml`` written alongside the data during ``save_to``.
+
+    Attributes
+    ----------
+    path : str
+        Source path (local or cloud) to load from.
+    """
+
+    model_config = ConfigDict(
+        arbitrary_types_allowed=True,
+        str_strip_whitespace=True,
+        extra="forbid",
+    )
+
+    dataset_name: str = "generic_dataset"
+    path: str
 
 
 class DatasetInfo(BaseModel):
@@ -454,6 +477,113 @@ class Dataset(ABC):
         """
         pass
 
+    def save_to(self, path: str, format: str = "webdataset", **kwargs: Any) -> int:
+        """Save the dataset to a file.
+
+        Writes sharded tar files and an ``info.yaml`` containing `DatasetInfo`
+        to ``path``. The ``info.yaml`` is read back automatically by
+        `Dataset.from_path` / `GenericDataset`.
+
+        Parameters
+        ----------
+        path : str
+            Destination path (supports local and cloud paths)
+        format : str, optional
+            Output format. Supported: ``"webdataset"``.
+            By default ``"webdataset"``.
+        **kwargs : Any
+            Additional arguments passed to the underlying backend writer.
+            For ``"webdataset"``: accepts ``encoder_fn``, ``shard_pattern``,
+            ``maxcount``, ``maxsize``.
+
+        Returns
+        -------
+        int
+            Number of samples written.
+
+        Raises
+        ------
+        RuntimeError
+            If no data is loaded yet.
+        """
+        if self._data is None:
+            raise RuntimeError("No data loaded. Call _load() first.")
+        n = self._data.save_to(self, path, format=format, **kwargs)
+        if format == "webdataset":  # This part needs to be improved
+            backend = "webdataset"
+        self._write_info(path, backend)
+        return n
+
+    def _write_info(self, path: str, backend: BackendType) -> None:
+        """Write `DatasetInfo` to ``info.yaml`` in the destination directory.
+
+        ``split_paths`` is replaced with a single entry pointing to ``path``
+        (only the exported split lives there). ``sample_rate`` is added when
+        set on the dataset instance.
+
+        Parameters
+        ----------
+        path : str
+            Destination directory (local or cloud) where ``info.yaml`` is written.
+        backend : BackendType
+            The backend used for the dataset.
+        """
+        import yaml
+
+        from esp_data.io import anypath
+        from esp_data.io.filesystem import filesystem_from_path
+
+        resolved = anypath(path)
+        info_dict = self.info.model_dump()
+
+        # Only the exported split is present in this directory.
+        split_name = getattr(self, "split", "default")
+        info_dict["split_paths"] = {split_name: str(resolved)}
+
+        # Preserve sample_rate so reloaders know what rate was used.
+        sample_rate = getattr(self, "sample_rate", None)
+        if sample_rate is not None:
+            info_dict["sample_rate"] = sample_rate
+
+        # Record backend so from_path can reload without the user specifying it.
+        info_dict["backend"] = backend
+        info_dict["streaming"] = self._streaming
+
+        info_path = resolved / "info.yaml"
+        fs = filesystem_from_path(info_path)
+        content = yaml.dump(info_dict, default_flow_style=False, allow_unicode=True)
+        with fs.open(str(info_path), "w") as f:
+            f.write(content)
+
+    @classmethod
+    def from_path(
+        cls,
+        path: str | AnyPathT,
+        **kwargs: Any,
+    ) -> "Dataset":
+        """Load a dataset from a path exported by `save_to`.
+
+        The backend and streaming mode are read from ``info.yaml`` written by
+        `save_to`. No manual ``backend`` or ``streaming`` arguments are needed.
+
+        Parameters
+        ----------
+        path : str | AnyPathT
+            Source path (local or cloud) — the directory produced by `save_to`.
+        **kwargs : Any
+            Additional arguments forwarded to the backend's ``from_path``
+            (e.g. ``data_processor`` for the webdataset backend).
+
+        Returns
+        -------
+        GenericDataset
+            Dataset instance loaded from the given path.
+        """
+        # Imported here to avoid circular import: generic_dataset imports Dataset
+        from esp_data.generic_dataset import GenericDataset
+
+        return GenericDataset(path, **kwargs)
+
     def apply_transformations(
         self, transformations: list[RegisteredTransformConfigs]
     ) -> dict[str, Any]:
@@ -592,25 +722,39 @@ def print_registered_datasets() -> None:
         print(dataset_class.info.model_dump_json(indent=2))
 
 
-def _make_dataset_from_config(dataset_config: DatasetConfig | ConcatConfig) -> Dataset:
+def _make_dataset_from_config(
+    dataset_config: DatasetConfig | ConcatConfig | GenericDatasetConfig,
+) -> tuple[Dataset, dict[str, Any]]:
     """Create a dataset instance from the given configuration.
 
     Parameters
     ----------
-    dataset_config : DatasetConfig | ConcatConfig
-        The configuration for the dataset to create. This can be either a
-        DatasetConfig or a ConcatConfig.
+    dataset_config : DatasetConfig | ConcatConfig | GenericDatasetConfig
+        The configuration for the dataset to create.
 
     Returns
     -------
-    Dataset
-        The dataset instance created from the configuration.
+    tuple[Dataset, dict[str, Any]]
+        The dataset instance and transformation metadata dict.
 
     Raises
     ------
     KeyError
         If the dataset is not registered
     """
+    if isinstance(dataset_config, GenericDatasetConfig):
+        from esp_data.generic_dataset import GenericDataset
+
+        return GenericDataset.from_config(dataset_config)
+
+    if isinstance(dataset_config, DatasetConfig) and dataset_config.data_location:
+        ds = Dataset.from_path(
+            dataset_config.data_location,
+            backend=dataset_config.backend,
+            streaming=dataset_config.streaming,
+        )
+        return ds, {}
+
     _dataset_class = _dataset_registry.get(dataset_config.dataset_name, None)
     if _dataset_class is None:
         raise KeyError(f"Dataset '{dataset_config.dataset_name}' is not registered.")
@@ -619,7 +763,9 @@ def _make_dataset_from_config(dataset_config: DatasetConfig | ConcatConfig) -> D
 
 
 def dataset_from_config(
-    dataset_config: DatasetConfig | ConcatConfig | ChainedDatasetConfig | AnyPathT | str,
+    dataset_config: (
+        DatasetConfig | ConcatConfig | ChainedDatasetConfig | GenericDatasetConfig | AnyPathT | str
+    ),
     key: str | None = None,
 ) -> tuple[Dataset, dict[str, Any]]:
     """Load a single dataset or a dataset collection from a configuration.
@@ -659,8 +805,9 @@ def dataset_from_config(
     KeyError
         If the specified key does not match any dataset configuration in the data.
     """
-    if isinstance(dataset_config, (DatasetConfig, ConcatConfig, ChainedDatasetConfig)):
-        # If a DatasetConfig is passed, we can directly create the dataset
+    if isinstance(
+        dataset_config, (DatasetConfig, ConcatConfig, ChainedDatasetConfig, GenericDatasetConfig)
+    ):
         return _make_dataset_from_config(dataset_config)
 
     data = read_yaml(dataset_config)
@@ -671,8 +818,8 @@ def dataset_from_config(
         data = data[key]
 
     if isinstance(data, dict):
-        if "dataset" in data or "concat" in data or "chain" in data:
-            if sum(k in data for k in ("concat", "dataset", "chain")) > 1:
+        if "dataset" in data or "concat" in data or "chain" in data or "generic" in data:
+            if sum(k in data for k in ("concat", "dataset", "chain", "generic")) > 1:
                 raise ValueError("Configuration cannot contain multiple dataset types at once.")
 
             if "dataset" in data:
@@ -688,9 +835,13 @@ def dataset_from_config(
                 cfg = data["chain"]
                 return _make_dataset_from_config(ChainedDatasetConfig.model_validate(cfg))
 
+            elif "generic" in data:
+                cfg = data["generic"]
+                return _make_dataset_from_config(GenericDatasetConfig.model_validate(cfg))
+
             else:
                 raise ValueError(
-                    "Configuration must contain either 'dataset','concat' or 'chain' key."
+                    "Configuration must contain either 'dataset', 'concat', 'chain', or 'generic' key."  # noqa: E501
                 )
         else:
             raise ValueError(
@@ -702,4 +853,5 @@ def dataset_from_config(
     1. A DatasetConfig represented as the value of a dict with a single 'dataset' key
     2. A ConcatConfig represented as the value of a dict with a single 'concat' key
     3. A ChainedDatasetConfig represented as the value of a dict with a single 'chain' key
+    4. A GenericDatasetConfig represented as the value of a dict with a single 'generic' key
     """)

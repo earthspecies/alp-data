@@ -11,9 +11,10 @@ import pandas as pd
 
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from esp_data.backends import BackendType
-from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
+from esp_data.io import DATA_HOME, AnyPathT, anypath, audio_stereo_to_mono, read_audio
 
-SPECIES_INFO_PATH = "gs://esp-ml-datasets/wabad/v0.1.0/raw/gbif_labels.csv"
+_RAW_ROOT = f"{DATA_HOME}/wabad/v0.1.0/raw"
+SPECIES_INFO_PATH = f"{_RAW_ROOT}/gbif_labels.csv"
 
 
 @register_dataset
@@ -60,6 +61,13 @@ class WABAD(Dataset):
     indices with species-based diversity indices. The dataset is published under a
     Creative Commons Attribution Non Commercial 4.0 International copyright.
 
+    Pre-resampled Audio
+    -------------------
+    Pre-resampled audio is available at 16 kHz and 32 kHz. When
+    ``sample_rate`` matches one of these rates, the pre-resampled files are
+    loaded directly (no on-the-fly resampling). For any other target rate,
+    audio is resampled on-the-fly using librosa's ``kaiser_best`` method.
+
     References
     ----------
     https://zenodo.org/records/15629388
@@ -70,12 +78,94 @@ class WABAD(Dataset):
     info = DatasetInfo(
         name="wabad",
         owner="benjamin",
-        split_paths={"all": "gs://esp-ml-datasets/wabad/v0.1.0/raw/all_info_gbif.csv"},
+        split_paths={
+            "all": f"{_RAW_ROOT}/all_info_gbif_v3.csv",
+            "CAT": f"{_RAW_ROOT}/CAT_info_gbif_v2.csv",
+            "POZO": f"{_RAW_ROOT}/POZO_info_gbif_v2.csv",
+            "BRE": f"{_RAW_ROOT}/BRE_info_gbif_v2.csv",
+            "EFFOR": f"{_RAW_ROOT}/EFFOR_info_gbif_v2.csv",
+            "MONTEB": f"{_RAW_ROOT}/MONTEB_info_gbif_v2.csv",
+            "CB": f"{_RAW_ROOT}/CB_info_gbif_v2.csv",
+            "FEU": f"{_RAW_ROOT}/FEU_info_gbif_v2.csv",
+            "BIAL": f"{_RAW_ROOT}/BIAL_info_gbif_v2.csv",
+            "SPMCO": f"{_RAW_ROOT}/SPMCO_info_gbif_v2.csv",
+            "OIO": f"{_RAW_ROOT}/OIO_info_gbif_v2.csv",
+            "OESF": f"{_RAW_ROOT}/OESF_info_gbif_v2.csv",
+            "QR": f"{_RAW_ROOT}/QR_info_gbif_v2.csv",
+            "HAG": f"{_RAW_ROOT}/HAG_info_gbif_v2.csv",
+            "VIL": f"{_RAW_ROOT}/VIL_info_gbif_v2.csv",
+            "RFP": f"{_RAW_ROOT}/RFP_info_gbif_v2.csv",
+            "HAK": f"{_RAW_ROOT}/HAK_info_gbif_v2.csv",
+            "SLOB": f"{_RAW_ROOT}/SLOB_info_gbif_v2.csv",
+            "BERB": f"{_RAW_ROOT}/BERB_info_gbif_v2.csv",
+            "COU": f"{_RAW_ROOT}/COU_info_gbif_v2.csv",
+            "OLIV": f"{_RAW_ROOT}/OLIV_info_gbif_v2.csv",
+            "EVROS": f"{_RAW_ROOT}/EVROS_info_gbif_v2.csv",
+            "FNCA": f"{_RAW_ROOT}/FNCA_info_gbif_v2.csv",
+            "RGU": f"{_RAW_ROOT}/RGU_info_gbif_v2.csv",
+            "CRUZ": f"{_RAW_ROOT}/CRUZ_info_gbif_v2.csv",
+            "JUNCA": f"{_RAW_ROOT}/JUNCA_info_gbif_v2.csv",
+            "PINA": f"{_RAW_ROOT}/PINA_info_gbif_v2.csv",
+            "GTLU": f"{_RAW_ROOT}/GTLU_info_gbif_v2.csv",
+            "MAPIMI": f"{_RAW_ROOT}/MAPIMI_info_gbif_v2.csv",
+            "SAL": f"{_RAW_ROOT}/SAL_info_gbif_v2.csv",
+            "ARD": f"{_RAW_ROOT}/ARD_info_gbif_v2.csv",
+            "MARTI": f"{_RAW_ROOT}/MARTI_info_gbif_v2.csv",
+            "DYOM": f"{_RAW_ROOT}/DYOM_info_gbif_v2.csv",
+            "VER": f"{_RAW_ROOT}/VER_info_gbif_v2.csv",
+            "SCHG": f"{_RAW_ROOT}/SCHG_info_gbif_v2.csv",
+            "GLEN": f"{_RAW_ROOT}/GLEN_info_gbif_v2.csv",
+            "HONDO": f"{_RAW_ROOT}/HONDO_info_gbif_v2.csv",
+            "NL": f"{_RAW_ROOT}/NL_info_gbif_v2.csv",
+            "BRCAS": f"{_RAW_ROOT}/BRCAS_info_gbif_v2.csv",
+            "NAV": f"{_RAW_ROOT}/NAV_info_gbif_v2.csv",
+            "KAR": f"{_RAW_ROOT}/KAR_info_gbif_v2.csv",
+            "BUR": f"{_RAW_ROOT}/BUR_info_gbif_v2.csv",
+            "KIB": f"{_RAW_ROOT}/KIB_info_gbif_v2.csv",
+            "SCHF": f"{_RAW_ROOT}/SCHF_info_gbif_v2.csv",
+            "TAM": f"{_RAW_ROOT}/TAM_info_gbif_v2.csv",
+            "HUAP": f"{_RAW_ROOT}/HUAP_info_gbif_v2.csv",
+            "DONG": f"{_RAW_ROOT}/DONG_info_gbif_v2.csv",
+            "CLH": f"{_RAW_ROOT}/CLH_info_gbif_v2.csv",
+            "HAR": f"{_RAW_ROOT}/HAR_info_gbif_v2.csv",
+            "BOLIN": f"{_RAW_ROOT}/BOLIN_info_gbif_v2.csv",
+            "SITH": f"{_RAW_ROOT}/SITH_info_gbif_v2.csv",
+            "RBA": f"{_RAW_ROOT}/RBA_info_gbif_v2.csv",
+            "MOPU": f"{_RAW_ROOT}/MOPU_info_gbif_v2.csv",
+            "CRAT": f"{_RAW_ROOT}/CRAT_info_gbif_v2.csv",
+            "PGF": f"{_RAW_ROOT}/PGF_info_gbif_v2.csv",
+            "PUUL": f"{_RAW_ROOT}/PUUL_info_gbif_v2.csv",
+            "MILLAN": f"{_RAW_ROOT}/MILLAN_info_gbif_v2.csv",
+            "BMT": f"{_RAW_ROOT}/BMT_info_gbif_v2.csv",
+            "SD": f"{_RAW_ROOT}/SD_info_gbif_v2.csv",
+            "UNI": f"{_RAW_ROOT}/UNI_info_gbif_v2.csv",
+            "SBN": f"{_RAW_ROOT}/SBN_info_gbif_v2.csv",
+            "DUNAS": f"{_RAW_ROOT}/DUNAS_info_gbif_v2.csv",
+            "PETI": f"{_RAW_ROOT}/PETI_info_gbif_v2.csv",
+            "LIM": f"{_RAW_ROOT}/LIM_info_gbif_v2.csv",
+            "BAM": f"{_RAW_ROOT}/BAM_info_gbif_v2.csv",
+            "DEVA": f"{_RAW_ROOT}/DEVA_info_gbif_v2.csv",
+            "ROTOK": f"{_RAW_ROOT}/ROTOK_info_gbif_v2.csv",
+            "CARI": f"{_RAW_ROOT}/CARI_info_gbif_v2.csv",
+            "PITI": f"{_RAW_ROOT}/PITI_info_gbif_v2.csv",
+            "RME": f"{_RAW_ROOT}/RME_info_gbif_v2.csv",
+            "MABI": f"{_RAW_ROOT}/MABI_info_gbif_v2.csv",
+            "EMP": f"{_RAW_ROOT}/EMP_info_gbif_v2.csv",
+            "EFFOU": f"{_RAW_ROOT}/EFFOU_info_gbif_v2.csv",
+        },
         version="0.1.0",
-        description="[MISSING]",
+        description="WABAD: This database includes 5,047 minutes of audio files "
+        "annotated to species-level by local experts with the start and end time, "
+        "and the upper and lower frequencies of each identified bird vocalisation "
+        "in the recordings. The database has a wide taxonomic and spatial coverage, "
+        "including information on 91,931 vocalisations from 1,192 bird species "
+        "recorded at 72 recording sites in 29 recording locations",
         sources="zenodo.org",
         license="CC-BY-4.0",
     )
+
+    _sample_rate_paths: dict[int, str] = {16000: "16khz_path", 32000: "32khz_path"}
+    _originals_path_column = "audio_fp"
 
     def __init__(
         self,
@@ -108,16 +198,15 @@ class WABAD(Dataset):
         self.annotation_columns = ["Species"]
         self.unknown_label = "Unknown"
         self.sample_rate = sample_rate
-        self.data_root = anypath(data_root) if data_root is not None else None
 
-        self.available_labels = pd.read_csv(SPECIES_INFO_PATH)["Species"].to_list()
+        self.full_dataset_available_labels = None  # placeholder for labels if split == all
 
-        # Load split CSV
         self._load()
 
-        # If no explicit data_root, assume parent dir of the split path
-        if self.data_root is None:
+        if data_root is None:
             self.data_root = anypath(self.info.split_paths[self.split]).parent
+        else:
+            self.data_root = anypath(data_root)
 
     @property
     def columns(self) -> list[str]:
@@ -126,6 +215,11 @@ class WABAD(Dataset):
     @property
     def available_splits(self) -> list[str]:
         return list(self.info.split_paths.keys())
+
+    @property
+    def available_sample_rates(self) -> list[int]:
+        """Return pre-resampled sample rates whose path columns exist in the data."""
+        return [sr for sr, col in self._sample_rate_paths.items() if col in self._data.columns]
 
     def _load(self) -> None:
         if self.split not in self.info.split_paths:
@@ -162,34 +256,47 @@ class WABAD(Dataset):
         return len(self._data)
 
     def _process(self, row: dict[str, Any]) -> dict[str, Any]:
-        # Resolve audio path
-        audio_fp = self.data_root / row["audio_fp"]
+        """Process a single row of the dataset.
 
-        # Read audio
-        audio, sample_rate = read_audio(audio_fp)
+        Parameters
+        ----------
+        row : dict[str, Any]
+            A dictionary representing a single row of the dataset.
+
+        Returns
+        -------
+        dict[str, Any]
+            The processed row.
+        """
+        use_presampled = False
+        if self.sample_rate is not None and self.sample_rate in self._sample_rate_paths:
+            path_column = self._sample_rate_paths[self.sample_rate]
+            if path_column in row and row[path_column] is not None and row[path_column] != "":
+                audio_path = anypath(self.data_root) / row[path_column]
+                use_presampled = True
+
+        if not use_presampled:
+            audio_path = anypath(self.data_root) / row[self._originals_path_column]
+
+        audio, sr = read_audio(audio_path)
         audio = audio_stereo_to_mono(audio, mono_method="average").astype(np.float32)
 
-        # Resample if necessary
-        if self.sample_rate is not None and sample_rate != self.sample_rate:
+        if not use_presampled and self.sample_rate is not None and sr != self.sample_rate:
             audio = librosa.resample(
                 y=audio,
-                orig_sr=sample_rate,
+                orig_sr=sr,
                 target_sr=self.sample_rate,
                 scale=True,
                 res_type="kaiser_best",
             )
-            sample_rate = self.sample_rate
+            sr = self.sample_rate
 
-        # Selection table
         st = pd.read_csv(StringIO(row["selection_table"]), sep="\t")
-
-        # Clip events outside audio (keep only events that begin before audio end)
-        audio_dur = len(audio) / float(sample_rate)
+        audio_dur = len(audio) / float(sr)
         st = st[st["Begin Time (s)"] < audio_dur].copy()
 
-        # Build output
         row["audio"] = audio
-        row["sample_rate"] = sample_rate
+        row["sample_rate"] = sr
         row["selection_table"] = st
 
         if self.output_take_and_give:
@@ -258,18 +365,26 @@ class WABAD(Dataset):
 
         return ds, {}
 
-    def get_available_labels(self) -> list[str]:
+    def get_available_labels(self, anno_column: str | None = "Species") -> list[str]:
         """
-        Return all possible labels for a given annotation column
-        anno_column is included as an optional argument for consistency
-        with other detection datasets.
+        Return all possible species labels
 
         Returns
         ---------
         A list of all the available labels for anno_column
         """
-
-        return self.available_labels
+        if self.split == "all":
+            if self.full_dataset_available_labels is None:
+                self.full_dataset_available_labels = pd.read_csv(SPECIES_INFO_PATH)[
+                    anno_column
+                ].to_list()
+            return self.full_dataset_available_labels
+        else:
+            available_labels = set()
+            for row in self._data:
+                st = pd.read_csv(StringIO(row["selection_table"]), sep="\t")
+                available_labels.update(st[anno_column].astype(str).tolist())
+            return sorted(available_labels)
 
     def __str__(self) -> str:
         base = f"{self.info.name} (v{self.info.version})"

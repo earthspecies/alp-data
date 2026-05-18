@@ -1,8 +1,8 @@
 """
-Unit tests for xeno_canto_annotated_jeantet_23 dataset.
+Unit tests for hawaiian_birds dataset.
 
 Run with:
-    pytest -q test_xeno_canto_annotated_jeantet_23.py
+    pytest -q test_hawaiian_birds.py
 """
 
 from __future__ import annotations
@@ -15,13 +15,15 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from esp_data.datasets import XenoCantoAnnotatedJeantet23
+from esp_data.datasets import HawaiianBirds
 
 
 # # --- Dataset snapshot ---
 
 # # Code to generate snapshot:
-# ds = XenoCantoAnnotatedJeantet23(split="all", sample_rate=16000, backend="pandas")
+# import hashlib
+# from esp_data.datasets import HawaiianBirds
+# ds = HawaiianBirds(split="all", sample_rate=16000, backend="pandas")
 
 # print("len(ds) =", len(ds))
 
@@ -42,43 +44,41 @@ from esp_data.datasets import XenoCantoAnnotatedJeantet23
 # print("annotations sha256:", h)
 
 # quit()
-# # # #
+# # #
 
-
-EXPECTED_LEN_ALL = 967  #
+EXPECTED_LEN_ALL = 635  #
 EXPECTED_FIRST_ITEM_AUDIO_SHA256 = (
-    "65fc1372fa64983d4998cf1be43d4469c7770e2f3485c860c654688ea3a3c30b"
+    "43c7ab6d988a5d329c82b24fe6cfc8642159e3e9809d38db88eff24632d539a3"
 )
-ANNOTATIONS_SHA256 = "c576e979a50c37b62c6d0d5c65f4b206ea1102547ece03b1a14767f7c1ca0ddb"
+ANNOTATIONS_SHA256 = "f84030805f8c3987110397d0a82174fdbd88ef5d93a17962dd1c817d65284f3e"
 # ---------------------------------------------------------------------------
 
 
 @pytest.fixture(scope="module")
-def ds() -> XenoCantoAnnotatedJeantet23:
-    """Load XenoCantoAnnotatedJeantet23 dataset for testing."""
-    return XenoCantoAnnotatedJeantet23(split="all", sample_rate=16000)
+def ds() -> HawaiianBirds:
+    """Load HawaiianBirds dataset for testing."""
+    return HawaiianBirds(split="all", sample_rate=16000)
 
 
 @pytest.fixture(scope="module")
-def ds_pandas() -> XenoCantoAnnotatedJeantet23:
-    """Load XenoCantoAnnotatedJeantet23 dataset for testing."""
-    return XenoCantoAnnotatedJeantet23(split="all", sample_rate=16000, backend="pandas")
+def ds_pandas() -> HawaiianBirds:
+    """Load HawaiianBirds dataset for testing with pandas backend."""
+    return HawaiianBirds(split="all", sample_rate=16000, backend="pandas")
 
 
 @pytest.fixture(scope="module")
-def sample_indices(ds: XenoCantoAnnotatedJeantet23) -> List[int]:
+def sample_indices(ds: HawaiianBirds) -> List[int]:
     """Deterministically choose up to 5 random indices for quick spot checks."""
     n = len(ds)
     rng = random.Random(23)
     return [rng.randrange(n) for _ in range(min(5, n))]
 
 
-def test_ds_not_empty(ds: XenoCantoAnnotatedJeantet23):
+def test_ds_not_empty(ds: HawaiianBirds):
     """Dataset should have at least one example."""
     assert len(ds) > 0, "Dataset appears empty"
 
-
-def test_check_audio(ds: XenoCantoAnnotatedJeantet23, sample_indices: List[int]):
+def test_check_audio(ds: HawaiianBirds, sample_indices: List[int]):
     """Basic audio integrity checks on a few random items."""
     for idx in sample_indices:
         item = ds[idx]
@@ -94,7 +94,7 @@ def test_check_audio(ds: XenoCantoAnnotatedJeantet23, sample_indices: List[int])
         assert not np.all(audio == 0), f"[{idx}] audio is all zeros"
 
 
-def test_dataset_length_matches_expected(ds: XenoCantoAnnotatedJeantet23):
+def test_dataset_length_matches_expected(ds: HawaiianBirds):
     """
     The dataset length should match the known, version-controlled expectation.
 
@@ -112,7 +112,17 @@ def test_dataset_length_matches_expected(ds: XenoCantoAnnotatedJeantet23):
     )
 
 
-def test_reference_item_stability(ds_pandas: XenoCantoAnnotatedJeantet23):
+def test_get_available_labels(ds: HawaiianBirds):
+    """Test get_available_labels for bird ID column."""
+    labels = ds.get_available_labels(anno_column="Species")
+    assert isinstance(labels, list), "get_available_labels should return a list"
+    assert len(labels) > 0, "Should have at least one bird ID"
+    # Check that all labels can be converted to strings
+    for label in labels:
+        assert isinstance(label, str), f"Species label for {label} should be string"
+
+
+def test_reference_item_stability(ds_pandas: HawaiianBirds):
     """
     Check that a canonical item (index 0) is bitwise-stable.
 
@@ -155,7 +165,6 @@ def test_reference_item_stability(ds_pandas: XenoCantoAnnotatedJeantet23):
         .to_csv(index=True)
         .encode("utf-8")
     )
-
     h = hashlib.sha256(csv_bytes).hexdigest()
 
     assert h == ANNOTATIONS_SHA256, (
@@ -167,9 +176,7 @@ def test_reference_item_stability(ds_pandas: XenoCantoAnnotatedJeantet23):
     )
 
 
-def test_check_selection_table(
-    ds: XenoCantoAnnotatedJeantet23, sample_indices: List[int]
-):
+def test_check_selection_table(ds: HawaiianBirds, sample_indices: List[int]):
     """Selection table should be a DataFrame with required columns and sane times."""
     required = {
         "Begin Time (s)",

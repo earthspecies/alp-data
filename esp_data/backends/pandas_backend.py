@@ -4,11 +4,15 @@ from __future__ import annotations
 
 import inspect
 import warnings
-from typing import Any, Callable, Iterator, Literal
+from functools import partial
+from typing import Any, Callable, Dict, Iterable, Iterator, Literal
 
 import pandas as pd
 
+from esp_data.io import anypath
+
 from .protocol import DataBackend
+from .webdataset_utils import write_to_webdataset
 
 
 class PandasBackend(DataBackend):
@@ -197,6 +201,48 @@ class PandasBackend(DataBackend):
             )
         df = pd.read_parquet(path, **filtered_kwargs)
         return cls(df, streaming=False)
+
+    @classmethod
+    def from_path(cls, path: str, *, streaming: bool = False, **kwargs: Any) -> "PandasBackend":
+        """Load a tabular file, dispatching on extension.
+
+        Parameters
+        ----------
+        path : str
+            Path to a ``.parquet``, ``.csv``, ``.json``, ``.jsonl``,
+            or ``.ndjson`` file.
+        streaming : bool, optional
+            Whether to use streaming (chunked) mode, by default False.
+        **kwargs : Any
+            Forwarded to the underlying reader.
+
+        Returns
+        -------
+        PandasBackend
+            Backend instance wrapping the loaded data.
+
+        Raises
+        ------
+        ValueError
+            If the file extension is not supported.
+        """
+        dir_path = anypath(path)
+        for file in dir_path.iterdir():
+            if file.suffix.lower() in {".parquet", ".csv", ".json", ".jsonl", ".ndjson"}:
+                path = file
+                break
+        p = str(path).lower()
+        if p.endswith(".parquet"):
+            return cls.from_parquet(path, streaming=streaming, **kwargs)
+        if p.endswith(".csv"):
+            return cls.from_csv(path, streaming=streaming, **kwargs)
+        if p.endswith(".json") or p.endswith(".jsonl") or p.endswith(".ndjson"):
+            lines = p.endswith(".jsonl") or p.endswith(".ndjson")
+            return cls.from_json(path, lines=lines, streaming=streaming, **kwargs)
+        raise ValueError(
+            f"Unsupported file extension for PandasBackend.from_path: {path!r}. "
+            "Supported: .parquet, .csv, .json, .jsonl, .ndjson"
+        )
 
     @property
     def is_streaming(self) -> bool:
@@ -960,8 +1006,6 @@ class PandasBackend(DataBackend):
             If the function does not return a pandas DataFrame
         """
         self._ensure_not_streaming("apply_fn")
-        from functools import partial
-
         fn = partial(fn, **fn_kwargs)
         new_df = self._df.apply(fn, **apply_kwargs)
         if not isinstance(new_df, pd.DataFrame):
@@ -1028,6 +1072,42 @@ class PandasBackend(DataBackend):
         df_clean = self._df.dropna(subset=output_feature, ignore_index=True)
 
         return PandasBackend(df_clean, streaming=False), label_map
+
+    def save_to(
+        self,
+        iterable: Iterator[Dict[str, Any]] | Iterable[Dict[str, Any]],
+        path: str,
+        format: str = "webdataset",
+        **kwargs: Any,
+    ) -> int:
+        """Save the DataFrame to a file.
+
+        Parameters
+        ----------
+        path : str
+            Destination path (supports local and cloud paths)
+        format : str, optional
+            Output format. Supported: ``"webdataset"``.
+            By default ``"webdataset"``.
+        **kwargs : Any
+            Additional arguments passed to the underlying writer.
+            For ``"webdataset"``: accepts ``encoder_fn``, ``shard_pattern``,
+            ``maxcount``, ``maxsize`` (see `write_to_webdataset`).
+
+        Returns
+        -------
+        int
+            Number of samples written.
+
+        Raises
+        ------
+        ValueError
+            If `format` is not supported
+        """
+        self._ensure_not_streaming("save_to")
+        if format == "webdataset":
+            return write_to_webdataset(iterable, anypath(path), **kwargs)
+        raise ValueError(f"Unsupported format: {format!r}. Supported formats: 'webdataset'")
 
     def __repr__(self) -> str:
         """Return string representation of the backend.

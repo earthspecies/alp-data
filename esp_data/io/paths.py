@@ -16,6 +16,8 @@ import os
 from pathlib import Path
 from typing import TypeAlias
 
+DATA_HOME = os.environ.get("ESP_DATA_HOME", "gs://esp-data-274503")
+
 
 class PureCloudPath:
     """Base class for cloud path manipulation.

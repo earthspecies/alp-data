@@ -48,6 +48,16 @@ def test_ds_not_empty(ds: AudioSetStrong):
     assert len(ds) > 0, "Dataset appears empty"
 
 
+def test_get_available_labels(ds: AudioSetStrong):
+    """Test get_available_labels for default column."""
+    labels = ds.get_available_labels()
+    assert isinstance(labels, list), "get_available_labels should return a list"
+    assert len(labels) > 0, "Should have at least one label"
+    # Check that all labels can be converted to strings
+    for label in labels:
+        assert isinstance(label, str), f"Label for {label} should be string"
+
+
 def test_dataset_length_matches_expected(ds: AudioSetStrong):
     """The dataset length should match the known, version-controlled expectation."""
     assert len(ds) == EXPECTED_LEN_TRAIN, (
@@ -125,7 +135,7 @@ def test_check_selection_table(ds: AudioSetStrong, sample_indices: List[int]):
             assert not (st["Begin Time (s)"] < 0).any(), f"[{idx}] negative begin times present"
 
 
-def test_get_available_labels(ds: AudioSetStrong, sample_indices: List[int]):
+def test_label_validity(ds: AudioSetStrong, sample_indices: List[int]):
     """Test that labels in selection tables are valid strings."""
     labels_sample = set()
     for idx in sample_indices:

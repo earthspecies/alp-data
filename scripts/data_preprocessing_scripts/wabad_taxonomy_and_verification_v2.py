@@ -218,6 +218,7 @@ def main() -> None:
         help="Directory to write outputs",
     )
     args = p.parse_args()
+    assert "all_" in args.out_fp  # subdatasets are constructed automatically
     data_root = anypath(args.split_csv).parent
 
     df = pd.read_csv(args.split_csv, keep_default_na=False, na_values=[""])
@@ -250,6 +251,24 @@ def main() -> None:
     # save species list
     pd.DataFrame({"Species": unique_labels}).to_csv("gbif_labels.csv", index=False)
     os.system("gsutil cp gbif_labels.csv gs://esp-ml-datasets/wabad/v0.1.0/raw/gbif_labels.csv")
+
+    # create sub-datasets
+    df = pd.read_csv(args.out_fp)
+    df["Subdataset"] = df["audio_fp"].map(lambda x: x.split("/")[0])
+    subdatasets = df["Subdataset"].unique()
+    for subdataset in subdatasets:
+        df_sub = df[df["Subdataset"] == subdataset]
+
+        sub_out_fp = args.out_fp.replace("all_", f"{subdataset}_")
+        out_dir, sub_out_fn = os.path.split(sub_out_fp)
+        df_sub.to_csv(sub_out_fn, index=False)
+        os.system(f"gsutil cp {sub_out_fn} {out_dir}")
+
+    # Print paths
+    for subdataset in subdatasets:
+        sub_out_fp = args.out_fp.replace("all_", f"{subdataset}_")
+        out_dir, sub_out_fn = os.path.split(sub_out_fp)
+        print(f'"{subdataset}": "{out_dir}/{sub_out_fn}",')
 
 
 if __name__ == "__main__":

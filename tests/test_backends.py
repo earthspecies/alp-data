@@ -5,6 +5,8 @@ import polars as pl
 import pytest
 
 from esp_data.backends import PandasBackend, PolarsBackend, get_backend
+from esp_data.backends.webdataset_backend import WebDatasetBackend
+from esp_data.backends.webdataset_utils import json_decoder
 
 
 class TestPandasBackend:
@@ -168,6 +170,31 @@ class TestPandasBackend:
         assert copied.unwrap is not backend.unwrap
         assert len(copied) == len(backend)
 
+    def test_save_to_unsupported_format_raises(self, tmp_path) -> None:
+        """Test that save_to raises for unsupported formats."""
+        df = pd.DataFrame({"a": [1, 2, 3]})
+        backend = PandasBackend(df)
+        with pytest.raises(ValueError, match="Unsupported format"):
+            backend.save_to(df, str(tmp_path / "out.csv"), format="csv")
+
+    def test_save_to_webdataset(self, tmp_path) -> None:
+        """Test saving to webdataset format and reading back."""
+        df = pd.DataFrame({"id": [0, 1, 2], "name": ["a", "b", "c"]})
+        backend = PandasBackend(df)
+        output_dir = tmp_path / "out"
+        backend.save_to(iter(backend), str(output_dir), format="webdataset", encoder_fn=None)
+        reloaded = list(WebDatasetBackend.from_path(output_dir, data_processor=json_decoder))
+        assert len(reloaded) == 3
+        assert {s["id"] for s in reloaded} == {0, 1, 2}
+
+    def test_save_to_streaming_raises(self, tmp_path) -> None:
+        """Test that save_to raises in streaming mode."""
+        csv_path = tmp_path / "data.csv"
+        pd.DataFrame({"a": [1, 2, 3]}).to_csv(str(csv_path), index=False)
+        backend = PandasBackend.from_csv(str(csv_path), streaming=True)
+        with pytest.raises(RuntimeError):
+            backend.save_to(self, str(tmp_path / "out"))
+
 
 class TestPolarsBackend:
     """Tests for PolarsBackend."""
@@ -262,6 +289,33 @@ class TestPolarsBackend:
         backend2 = PolarsBackend(df2)
         combined = PolarsBackend.concat([backend1, backend2])
         assert len(combined) == 4
+
+    def test_save_to_unsupported_format_raises(self, tmp_path) -> None:
+        """Test that save_to raises for unsupported formats."""
+        df = pl.DataFrame({"a": [1, 2, 3]})
+        backend = PolarsBackend(df)
+        with pytest.raises(ValueError, match="Unsupported format"):
+            backend.save_to(df, str(tmp_path / "out.csv"), format="csv")
+
+    def test_save_to_webdataset(self, tmp_path) -> None:
+        """Test saving to webdataset format and reading back."""
+        df = pl.DataFrame({"id": [0, 1, 2], "name": ["a", "b", "c"]})
+        backend = PolarsBackend(df)
+        output_dir = tmp_path / "out"
+        backend.save_to(iter(backend), str(output_dir), format="webdataset", encoder_fn=None)
+        reloaded = list(WebDatasetBackend.from_path(output_dir, data_processor=json_decoder))
+        assert len(reloaded) == 3
+        assert {s["id"] for s in reloaded} == {0, 1, 2}
+
+    def test_save_to_streaming_warns_and_writes(self, tmp_path) -> None:
+        """Test that save_to warns in streaming mode but still writes."""
+        df = pl.LazyFrame({"id": [0, 1, 2], "name": ["a", "b", "c"]})
+        backend = PolarsBackend(df, streaming=True)
+        output_dir = tmp_path / "out"
+        with pytest.warns(UserWarning, match="collection of LazyFrame"):
+            backend.save_to(iter(backend), str(output_dir), format="webdataset", encoder_fn=None)
+        reloaded = list(WebDatasetBackend.from_path(output_dir, data_processor=json_decoder))
+        assert len(reloaded) == 3
 
 
 class TestBackendFactory:

@@ -7,7 +7,7 @@ import numpy as np
 
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from esp_data.backends import BackendType
-from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
+from esp_data.io import DATA_HOME, AnyPathT, anypath, audio_stereo_to_mono, read_audio
 
 
 @register_dataset
@@ -27,12 +27,16 @@ class XenoCanto(Dataset):
     Available Metadata Fields
     -------------------------
     **Taxonomic Information:**
-        - ``canonical_name``: Canonical species name (primary identifier)
+        - ``canonical_name``: Canonical species name (primary identifier).
+            Linked to the GBIF backbone taxonomy.
         - ``species_common``: Common/vernacular species name
-        - ``scientificName``: Scientific species name (legacy field)
-        - ``vernacularName``: Vernacular name (if available)
+        - ``species``: Species scientific name
+        - ``scientificName``: Scientific species name with author (legacy field)
+        - ``scientific_name_unified``: Scientific name (before GBIF standardization)
         - ``genus``, ``family``, ``order``, ``class``, ``phylum``, ``kingdom``: Taxonomic hierarchy
-        - ``gbifID``: GBIF (Global Biodiversity Information Facility) identifier
+        - ``gbifID``, ``taxonKey``, ``speciesKey``: GBIF identifiers
+        - ``xc_clade``: Xeno-canto clade classification (e.g., "aves")
+        - ``Associated Taxa``: Background species in the recording
 
     **Audio File Paths:**
         - ``relative_path``: Path to original audio relative to data_root (variable sample rate)
@@ -42,24 +46,51 @@ class XenoCanto(Dataset):
 
     **Recording Metadata:**
         - ``eventDate``, ``eventTime``: When the recording was made
+        - ``year``, ``month``, ``day``: Date components
         - ``behavior``: Behavior being recorded (e.g., "calling song")
         - ``sex``: Sex of the recorded animal(s)
         - ``lifeStage``: Life stage (e.g., "adult")
+        - ``recordedBy``: Name of the recordist
 
     **Location:**
         - ``latitudeDecimal``, ``longitudeDecimal``: GPS coordinates
+            (also ``decimalLatitude``, ``decimalLongitude``)
+        - ``coordinateUncertaintyInMeters``: Coordinate precision
         - ``locality``, ``location``: Geographic location information
+        - ``country_code``, ``countryCode``: ISO country code
+        - ``continent``: Continent name
+        - ``verbatimElevation``: Elevation as recorded
 
     **Rights & Attribution:**
         - ``rightsHolder``: Copyright holder
-        - ``license``, ``license_text``: License information (e.g., CC BY-SA 4.0)
-        - ``url``, ``associatedMedia``: Original Xeno-canto sound URL
+        - ``recordedBy``: Name of the recordist
+        - ``license``, ``license_text``, ``license_url``: License information (e.g., CC BY-SA 4.0)
+        - ``media_license``, ``media_license_url``: Media-specific license
+        - ``media_url``: Direct audio file URL
 
     **Additional Fields:**
         - ``fieldNotes``, ``description``: Observer's notes about the recording
         - ``caption``, ``caption2``: Recording captions
         - ``xc_id``: Xeno-canto recording ID
-        - ``dataset``, ``source_version``: Data source information
+        - ``dataset``, ``source_version``, ``source_dataset``: Data source information
+        - ``occurrenceID``: GBIF occurrence identifier
+
+    Available Splits
+    ----------------
+    - ``train``: Training set (90% of data, random split)
+    - ``validation``: Validation set (10% of data, random split)
+    - ``all``: Complete dataset (train + validation)
+    - ``train_unseen``: Training set excluding unseen taxa evaluated in BEANS-Zero benchmark
+    - ``validation_unseen``: Validation set excluding unseen taxa evaluated in BEANS-Zero benchmark
+    - ``all_unseen``: Complete dataset excluding BEANS-Zero unseen taxa
+
+    The ``_unseen`` splits are designed for training models that will be evaluated
+    on BEANS-Zero's unseen taxa benchmark, ensuring no test taxa leak into the training data.
+
+    Note that all splits exclude examples overlapping with the following benchmark datasets:
+    - cbi (See the beans dataset)
+    - BEANS-Zero call-type, lifestage, and captioning test sets (See the beans_zero dataset)
+    - xeno-canto Jeantet et al. 2023 dataset (See the XenoCantoAnnotatedJeantet23 dataset)
 
     References
     ----------
@@ -77,29 +108,32 @@ class XenoCanto(Dataset):
     >>> print(dataset.available_sample_rates)
     [32000, 16000]
 
-    # Load with pre-resampled 32kHz audio (when available)
-    >>> dataset_32k = XenoCanto(split="train", sample_rate=32000)
+    Load with pre-resampled 32kHz audio (when available)
+    >>> dataset_32k = XenoCanto(split="train", sample_rate=32000, streaming=True)
 
-    # Load with pre-resampled 16kHz audio (when available)
-    >>> dataset_16k = XenoCanto(split="train", sample_rate=16000)
+    Load with pre-resampled 16kHz audio (when available)
+    >>> dataset_16k = XenoCanto(split="train", sample_rate=16000, streaming=True)
     """
 
     info = DatasetInfo(
         name="xeno-canto",
         owner="david; gagan",
         split_paths={
-            "train": "gs://esp-ml-datasets/xeno-canto/v0.1.0/raw/xeno_curated_train.csv",
-            "validation": "gs://esp-ml-datasets/xeno-canto/v0.1.0/raw/xeno_curated_val.csv",
-            "all": "gs://esp-ml-datasets/xeno-canto/v0.1.0/raw/xeno_curated_all.csv",
+            "train": f"{DATA_HOME}/xeno-canto/v0.1.0/raw/train_20260203_v2.csv",
+            "validation": f"{DATA_HOME}/xeno-canto/v0.1.0/raw/val_20260203_v2.csv",
+            "all": f"{DATA_HOME}/xeno-canto/v0.1.0/raw/all_20260203_v2.csv",
+            "train_unseen": f"{DATA_HOME}/xeno-canto/v0.1.0/raw/train_unseen_20260203_v2.csv",
+            "validation_unseen": f"{DATA_HOME}/xeno-canto/v0.1.0/raw/val_unseen_20260203_v2.csv",
+            "all_unseen": f"{DATA_HOME}/xeno-canto/v0.1.0/raw/all_unseen_20260203_v2.csv",
         },
         version="0.1.0",
         description="Xeno-canto audio dataset with taxonomic metadata. "
         "Available at original (variable) sample rates and 32kHz (pre-resampled). "
         "Pre-resampled audio uses librosa's kaiser_best resampling method. "
         "Xeno-canto dump as of Oct 2025. "
-        "Train/val split is 99%/1% with random seed 42.",
+        "Train/val split is 90%/10% with random seed 42.",
         sources=["Xeno-canto"],
-        license="multiple (mostly CC BY-NC-SA 4.0, CC BY-NC 4.0, CC BY-SA, CC0)",
+        license="CC BY-NC-SA 4.0, CC BY-NC 4.0, CC BY-SA, CC0",
     )
 
     # Mapping of sample rates to their corresponding path columns
@@ -151,9 +185,9 @@ class XenoCanto(Dataset):
         self.sample_rate = sample_rate
 
         if data_root is None:
-            self.data_root = anypath("gs://esp-ml-datasets/xeno-canto/v0.1.0/raw/")
-            self._data_root_32k = anypath("gs://esp-ml-datasets/xeno-canto/v0.1.0/raw/audio_32k/")
-            self._data_root_16k = anypath("gs://esp-ml-datasets/xeno-canto/v0.1.0/raw/audio_16k/")
+            self.data_root = anypath(f"{DATA_HOME}/xeno-canto/v0.1.0/raw/")
+            self._data_root_32k = anypath(f"{DATA_HOME}/xeno-canto/v0.1.0/raw/audio_32k/")
+            self._data_root_16k = anypath(f"{DATA_HOME}/xeno-canto/v0.1.0/raw/audio_16k/")
         else:
             self.data_root = anypath(data_root)
             self._data_root_32k = anypath(data_root)

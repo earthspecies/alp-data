@@ -1,9 +1,9 @@
+from .animal_sound_archive import AnimalSoundArchive
 from .animalspeak import AnimalSpeak
 from .anuraset import AnuraSetStrong
 from .arctic_bird_sounds import ArcticBirdSounds
 from .audioset import AudioSet
 from .audioset_strong import AudioSetStrong
-from .barkley_canyon import BarkleyCanyon, BarkleyCanyonDetection
 from .beans import Beans
 from .beans_zero import BeansZero
 from .bengalese_finch_calls import BengaleseFinchCalls
@@ -11,6 +11,7 @@ from .birdeep import Birdeep
 from .birdset import BirdSet
 from .chiffchaff_id import ChiffchaffId
 from .corvid_wascher import CorvidWascher
+from .dclde2026 import DCLDE2026
 from .dinardo_dolphin_whistles import DinardoDolphinWhistles
 from .esp_raincoast import ESPRaincoast
 from .geladas import Geladas
@@ -29,14 +30,14 @@ from .subsegmentation import Subsegmentation
 from .superb_starling import SuperbStarling
 from .voxaboxen import Voxaboxen, VoxaboxenEvents
 from .wabad import WABAD
+from .watkins import Watkins
 from .xeno_canto import XenoCanto
 from .xeno_canto_annotated_jeantet_23 import XenoCantoAnnotatedJeantet23
 from .zebra_finch_julie_elie import ZebraFinchJulieElie
 
 __all__ = [
+    "AnimalSoundArchive",
     "AnimalSpeak",
-    "BarkleyCanyon",
-    "BarkleyCanyonDetection",
     "GiantOtters",
     "INaturalist",
     "InsectSet459",
@@ -70,4 +71,6 @@ __all__ = [
     "GibbonSolos",
     "InfantMarmosetsVox",
     "CorvidWascher",
+    "DCLDE2026",
+    "Watkins",
 ]

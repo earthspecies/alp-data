@@ -1,8 +1,8 @@
 """
-Unit tests for WABAD dataset.
+Unit tests for ArcticBirdSounds dataset.
 
 Run with:
-    pytest -q test_wabad.py
+    pytest -q test_arctic_bird_sounds.py
 """
 
 from __future__ import annotations
@@ -15,14 +15,14 @@ import pandas as pd
 import pytest
 import hashlib
 
-from esp_data.datasets import WABAD
+from esp_data.datasets import ArcticBirdSounds
 
 
 # # --- Dataset snapshot ---
 
 # # Code to generate snapshot:
-# from esp_data.datasets import WABAD
-# ds = WABAD(split="all", sample_rate=16000, backend="pandas")
+# from esp_data.datasets import ArcticBirdSounds
+# ds = ArcticBirdSounds(split="all", sample_rate=16000, backend="pandas")
 
 # print("len(ds) =", len(ds))
 
@@ -45,40 +45,48 @@ from esp_data.datasets import WABAD
 # quit()
 # # # # #
 
-EXPECTED_LEN_ALL = 4297  #
+EXPECTED_LEN_ALL = 2280  #
 EXPECTED_FIRST_ITEM_AUDIO_SHA256 = (
-    "0f4bdebee1f396aff35873adcb7ffa0600a1f0f3e5817f1f1b83b2b2fde792f9"
+    "e670d0cced070346383af55fc271688540eaf0d6ef829661006fe22487e566bb"
 )
-ANNOTATIONS_SHA256 = "34cc59456125a71e189c1c4dd7605becead301ede0cf17dd34cee01937eafac9"
+ANNOTATIONS_SHA256 = "bcb96f257b423332aabead7cb507a907809ca1562c770445270a8cb017324faf"
 # ---------------------------------------------------------------------------
 
 
 @pytest.fixture(scope="module")
-def ds() -> WABAD:
-    """Load WABAD dataset for testing."""
-    return WABAD(split="all", sample_rate=16000, backend="pandas")
+def ds() -> ArcticBirdSounds:
+    """Load ArcticBirdSounds dataset for testing."""
+    return ArcticBirdSounds(split="all", sample_rate=16000, backend="pandas")
 
 
 @pytest.fixture(scope="module", autouse=True)
-def ds_polars() -> WABAD:
-    """Load WABAD dataset for testing."""
-    return WABAD(split="all", sample_rate=16000, backend="polars")
+def ds_polars() -> ArcticBirdSounds:
+    """Load ArcticBirdSounds dataset for testing."""
+    return ArcticBirdSounds(split="all", sample_rate=16000, backend="polars")
 
 
 @pytest.fixture(scope="module")
-def sample_indices(ds_polars: WABAD) -> List[int]:
+def sample_indices(ds_polars: ArcticBirdSounds) -> List[int]:
     """Deterministically choose up to 5 random indices for quick spot checks."""
     n = len(ds_polars)
     rng = random.Random(23)
     return [rng.randrange(n) for _ in range(min(5, n))]
 
 
-def test_ds_not_empty(ds: WABAD):
+def test_ds_not_empty(ds: ArcticBirdSounds):
     """Dataset should have at least one example."""
     assert len(ds) > 0, "Dataset appears empty"
 
+def test_get_available_labels(ds: ArcticBirdSounds):
+    """Test get_available_labels for bird ID column."""
+    labels = ds.get_available_labels(anno_column="Species")
+    assert isinstance(labels, list), "get_available_labels should return a list"
+    assert len(labels) > 0, "Should have at least one bird ID"
+    # Check that all labels can be converted to strings
+    for label in labels:
+        assert isinstance(label, str), f"Species label for {label} should be string"
 
-def test_check_audio(ds_polars: WABAD, sample_indices: List[int]):
+def test_check_audio(ds_polars: ArcticBirdSounds, sample_indices: List[int]):
     """Basic audio integrity checks on a few random items."""
     for idx in sample_indices:
         item = ds_polars[idx]
@@ -94,14 +102,14 @@ def test_check_audio(ds_polars: WABAD, sample_indices: List[int]):
         assert not np.all(audio == 0), f"[{idx}] audio is all zeros"
 
 
-def test_available_splits(ds: WABAD) -> None:
+def test_available_splits(ds: ArcticBirdSounds) -> None:
     """Test if available_splits returns correct split names."""
     # Available splits should contain these
     expected_splits = ["all"]
     assert all(split in ds.available_splits for split in expected_splits)
 
 
-def test_reference_item_stability(ds: WABAD):
+def test_reference_item_stability(ds: ArcticBirdSounds):
     """
     Check that a canonical item (index 0) is bitwise-stable.
 
@@ -157,7 +165,7 @@ def test_reference_item_stability(ds: WABAD):
     )
 
 
-def test_check_selection_table(ds: WABAD, sample_indices: List[int]):
+def test_check_selection_table(ds: ArcticBirdSounds, sample_indices: List[int]):
     """Selection table should be a DataFrame with required columns and sane times."""
     required = {
         "Begin Time (s)",

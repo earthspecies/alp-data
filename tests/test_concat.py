@@ -8,7 +8,7 @@ from typing import Dict, Any, Iterator, Optional
 from esp_data.dataset import Dataset, DatasetInfo, dataset_from_config
 from esp_data.concat import MergeException, ConcatenatedDataset
 from esp_data.backends import PandasBackend
-from esp_data import AnimalSpeak, BarkleyCanyon
+from esp_data import AnimalSpeak, Beans
 from esp_data.transforms import DeduplicateConfig, FilterConfig
 
 
@@ -418,24 +418,24 @@ class TestConcatenateDatasets:
 class TestIntegrationRealDatasets:
     """Integration tests with real datasets."""
 
-    def test_concatenate_animalspeak_and_barkley_canyon_validation(self):
-        """Integration test with AnimalSpeak validation and BarkleyCanyon datasets."""
+    def test_concatenate_animalspeak_and_beans_validation(self):
+        """Integration test with AnimalSpeak validation and Beans datasets."""
         # Load small validation splits (should be smaller than train splits)
         animalspeak = AnimalSpeak(
             split="validation", sample_rate=16000, backend="polars"
         )
-        barkley_canyon = BarkleyCanyon(
-            split="train", sample_rate=16000, backend="polars"
+        beans = Beans(
+            split="cbi_validation", sample_rate=16000, backend="polars"
         )
         # Test soft merge (should work despite different columns)
-        result = ConcatenatedDataset([animalspeak, barkley_canyon], merge_level="soft")
+        result = ConcatenatedDataset([animalspeak, beans], merge_level="soft")
 
         # Verify basic properties
-        assert len(result) == len(animalspeak) + len(barkley_canyon)
+        assert len(result) == len(animalspeak) + len(beans)
         assert result.sample_rate == 16000
 
         # Verify merged info
-        assert result.info.name == "animalspeak+barkley_canyon"
+        assert result.info.name == "animalspeak+beans"
         assert "david; marius; masato; gagan" in result.info.owner
         assert "Concatenated dataset from:" in result.info.description
 
@@ -450,12 +450,12 @@ class TestIntegrationRealDatasets:
 
         # Test that columns include both datasets
         animalspeak_cols = set(animalspeak.columns)
-        barkley_cols = set(barkley_canyon.columns)
+        beans_cols = set(beans.columns)
         result_cols = set(result.columns)
 
         # Soft merge should include all columns
         assert animalspeak_cols.issubset(result_cols)
-        assert barkley_cols.issubset(result_cols)
+        assert beans_cols.issubset(result_cols)
 
     def test_concatenate_same_dataset_different_output_mappings(self):
         """Test concatenating same dataset with different output_take_and_give mappings."""
@@ -463,7 +463,7 @@ class TestIntegrationRealDatasets:
         otag1 = {"species_common": "species", "caption": "text"}
         otag2 = {
             "species_common": "species",
-            "local_path": "path",
+            "audio_path": "path",
         }  # Different but compatible
 
         animalspeak1 = AnimalSpeak(
@@ -485,7 +485,7 @@ class TestIntegrationRealDatasets:
         expected_otag = {
             "species_common": "species",
             "caption": "text",
-            "local_path": "path",
+            "audio_path": "path",
         }
         assert result.output_take_and_give == expected_otag
 
@@ -514,26 +514,26 @@ class TestIntegrationRealDatasets:
         animalspeak = AnimalSpeak(
             split="validation", sample_rate=16000, backend="pandas"
         )
-        barkley_canyon = BarkleyCanyon(
-            split="train", sample_rate=16000, backend="pandas"
+        beans = Beans(
+            split="cbi_validation", sample_rate=16000, backend="pandas"
         )
 
         # Find common columns
-        common_cols = set(animalspeak.columns) & set(barkley_canyon.columns)
+        common_cols = set(animalspeak.columns) & set(beans.columns)
 
         if common_cols:
             result = ConcatenatedDataset(
-                [animalspeak, barkley_canyon], merge_level="overlap"
+                [animalspeak, beans], merge_level="overlap"
             )
 
             # Should only have common columns
             assert set(result.columns) == common_cols
-            assert len(result) == len(animalspeak) + len(barkley_canyon)
+            assert len(result) == len(animalspeak) + len(beans)
         else:
             # If no common columns, should fail
             with pytest.raises(MergeException, match="No common columns found"):
                 ConcatenatedDataset(
-                    [animalspeak, barkley_canyon], merge_level="overlap"
+                    [animalspeak, beans], merge_level="overlap"
                 )
 
 
@@ -541,7 +541,7 @@ class TestIntegrationRealDatasets:
 # https://github.com/earthspecies/esp-data/issues/98
 def test_pretransformed_before_concat():
     """Test applying transformations before and after concatenation."""
-    dedup_cfg = DeduplicateConfig(type="deduplicate", subset=["local_path"])
+    dedup_cfg = DeduplicateConfig(type="deduplicate", subset=["audio_path"])
 
     # Use AnimalSpeak - already updated to use backends
     aspeak = AnimalSpeak(split="validation", sample_rate=16000, backend="pandas")
@@ -558,24 +558,24 @@ def test_pretransformed_before_concat():
     # Should have removed duplicates (approximately back to original length)
     assert len_after_dedup <= original_len + 10  # Allow small variance
 
-    # Use BarkleyCanyon - already updated to use backends
-    barkley = BarkleyCanyon(split="train", sample_rate=16000, backend="pandas")
+    # Use Beans - already updated to use backends
+    beans = Beans(split="cbi_validation", sample_rate=16000, backend="pandas")
     filter_cfg = FilterConfig(
         type="filter",
         mode="exclude",
-        property="species_scientific",
-        values=["Sebastes ruberrimus"],
+        property="label",
+        values=["moublu"],
     )  # Filter out a species
-    len_before_filter = len(barkley)
-    _ = barkley.apply_transformations([dedup_cfg, filter_cfg])
-    len_after_filter = len(barkley)
+    len_before_filter = len(beans)
+    _ = beans.apply_transformations([filter_cfg])
+    len_after_filter = len(beans)
     # Should have filtered some rows
     assert len_after_filter <= len_before_filter
 
     # Concatenate datasets after transformations
-    ds = ConcatenatedDataset([aspeak, barkley], merge_level="soft")
+    ds = ConcatenatedDataset([aspeak, beans], merge_level="soft")
 
-    assert len(ds) == len(aspeak) + len(barkley)
+    assert len(ds) == len(aspeak) + len(beans)
 
     # Try indexing to ensure it works
     sample1 = ds[0]
@@ -609,25 +609,23 @@ def test_dtypes_after_concat(backend_type: str) -> None:
     animalspeak = AnimalSpeak(
         split="validation", sample_rate=16000, backend=backend_type
     )
-    barkley_canyon = BarkleyCanyon(
-        split="train", sample_rate=16000, backend=backend_type
+    beans = Beans(
+        split="cbi_validation", sample_rate=16000, backend=backend_type
     )
     # Test soft merge (should work despite different columns)
-    result = ConcatenatedDataset([animalspeak, barkley_canyon], merge_level="soft")
+    result = ConcatenatedDataset([animalspeak, beans], merge_level="soft")
 
     input_dtypes1 = animalspeak._data.unwrap.dtypes
     input_cols1 = animalspeak.columns
     input_dtype_data1 = {
         col: dtype
         for col, dtype in zip(input_cols1, input_dtypes1)
-        if col in input_cols1
     }
-    input_dtypes2 = barkley_canyon._data.unwrap.dtypes
-    input_cols2 = barkley_canyon.columns
+    input_dtypes2 = beans._data.unwrap.dtypes
+    input_cols2 = beans.columns
     input_dtype_data2 = {
         col: dtype
         for col, dtype in zip(input_cols2, input_dtypes2)
-        if col in input_cols2
     }
 
     result_dtypes = result._data.unwrap.dtypes
@@ -635,7 +633,6 @@ def test_dtypes_after_concat(backend_type: str) -> None:
     result_dtype_data = {
         col: dtype
         for col, dtype in zip(result_cols, result_dtypes)
-        if col in result_cols
     }
 
     # Check that columns from animalspeak have same dtypes in result
@@ -643,7 +640,7 @@ def test_dtypes_after_concat(backend_type: str) -> None:
         assert col in result_cols
         assert input_dtype_data1[col] == result_dtype_data[col]
 
-    # Check that columns from barkley_canyon have same dtypes in result
+    # Check that columns from beans have same dtypes in result
     for col in input_cols2:
         assert col in result_cols
         assert input_dtype_data2[col] == result_dtype_data[col]

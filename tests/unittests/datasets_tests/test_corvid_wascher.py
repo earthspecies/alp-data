@@ -1,8 +1,8 @@
 """
-Unit tests for subsegmentation dataset.
+Unit tests for corvid_wascher dataset.
 
 Run with:
-    pytest -q test_subsegmentation.py
+    pytest -q test_corvid_wascher.py
 """
 
 from __future__ import annotations
@@ -15,15 +15,14 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from esp_data.datasets import Subsegmentation
+from esp_data.datasets import CorvidWascher
 
 
 # # --- Dataset snapshot ---
 
 # # Code to generate snapshot:
 # import hashlib
-# from esp_data.datasets import Subsegmentation
-# ds = Subsegmentation(split="all", sample_rate=16000)
+# ds = CorvidWascher(split="all", sample_rate=16000, backend="pandas")
 
 # print("len(ds) =", len(ds))
 
@@ -33,7 +32,12 @@ from esp_data.datasets import Subsegmentation
 # h = hashlib.sha256(audio0.tobytes()).hexdigest()
 # print("sha256:", h)
 
-# csv_bytes = ds._data.sort_index(axis=0).sort_index(axis=1).to_csv(index=True).encode("utf-8")
+# csv_bytes = (
+#         ds._data.unwrap.sort_index(axis=0)
+#         .sort_index(axis=1)
+#         .to_csv(index=True)
+#         .encode("utf-8")
+#     )
 # h = hashlib.sha256(csv_bytes).hexdigest()
 
 # print("annotations sha256:", h)
@@ -41,40 +45,50 @@ from esp_data.datasets import Subsegmentation
 # quit()
 # # #
 
-EXPECTED_LEN_ALL = 11617  #
+EXPECTED_LEN_ALL = 4558  #
 EXPECTED_FIRST_ITEM_AUDIO_SHA256 = (
-    "4cef10c4acacce969ca48fd1e698bf9ad1971bdd44102bc4030b6193979f6977"
+    "68c4d5d3face2798386c70c7f6870df7caccaa1a99837d009feb62e7fc9e434a"
 )
-ANNOTATIONS_SHA256 = "92ab0d4b3c83788f60bd0734359dd9041a16c933545295bd824526d1ebeb252f"
+ANNOTATIONS_SHA256 = "7fadfbf0daa55fd3bdc45c66ade79f9a87b4774076f8669322b2b9ffbbed2e2a"
 # ---------------------------------------------------------------------------
 
 
 @pytest.fixture(scope="module")
-def ds() -> Subsegmentation:
-    """Load Subsegmentation dataset for testing."""
-    return Subsegmentation(split="all", sample_rate=16000)
+def ds() -> CorvidWascher:
+    """Load CorvidWascher dataset for testing."""
+    return CorvidWascher(split="all", sample_rate=16000)
 
 
 @pytest.fixture(scope="module")
-def ds_pandas() -> Subsegmentation:
-    """Load Subsegmentation dataset for testing with pandas backend."""
-    return Subsegmentation(split="all", sample_rate=16000, backend="pandas")
+def ds_pandas() -> CorvidWascher:
+    """Load CorvidWascher dataset for testing with pandas backend."""
+    return CorvidWascher(split="all", sample_rate=16000, backend="pandas")
 
 
 @pytest.fixture(scope="module")
-def sample_indices(ds: Subsegmentation) -> List[int]:
+def sample_indices(ds: CorvidWascher) -> List[int]:
     """Deterministically choose up to 5 random indices for quick spot checks."""
     n = len(ds)
     rng = random.Random(23)
     return [rng.randrange(n) for _ in range(min(5, n))]
 
 
-def test_ds_not_empty(ds: Subsegmentation):
+def test_ds_not_empty(ds: CorvidWascher):
     """Dataset should have at least one example."""
     assert len(ds) > 0, "Dataset appears empty"
 
 
-def test_check_audio(ds: Subsegmentation, sample_indices: List[int]):
+def test_get_available_labels(ds: CorvidWascher):
+    """Test get_available_labels for bird ID column."""
+    labels = ds.get_available_labels(anno_column="Species")
+    assert isinstance(labels, list), "get_available_labels should return a list"
+    assert len(labels) > 0, "Should have at least one bird ID"
+    # Check that all labels can be converted to strings
+    for label in labels:
+        assert isinstance(label, str), f"Species label for {label} should be string"
+
+
+def test_check_audio(ds: CorvidWascher, sample_indices: List[int]):
     """Basic audio integrity checks on a few random items."""
     for idx in sample_indices:
         item = ds[idx]
@@ -90,7 +104,7 @@ def test_check_audio(ds: Subsegmentation, sample_indices: List[int]):
         assert not np.all(audio == 0), f"[{idx}] audio is all zeros"
 
 
-def test_reference_item_stability(ds_pandas: Subsegmentation):
+def test_reference_item_stability(ds_pandas: CorvidWascher):
     """
     Check that a canonical item (index 0) is bitwise-stable.
 
@@ -146,16 +160,12 @@ def test_reference_item_stability(ds_pandas: Subsegmentation):
     )
 
 
-def test_check_selection_table(ds: Subsegmentation, sample_indices: List[int]):
+def test_check_selection_table(ds: CorvidWascher, sample_indices: List[int]):
     """Selection table should be a DataFrame with required columns and sane times."""
     required = {
         "Begin Time (s)",
         "End Time (s)",
         "Species",
-        "Annotation",
-        "Genus",
-        "Family",
-        "Order",
     }
 
     for idx in sample_indices:
@@ -175,15 +185,3 @@ def test_check_selection_table(ds: Subsegmentation, sample_indices: List[int]):
             assert not (
                 st["Begin Time (s)"] < 0
             ).any(), f"[{idx}] negative begin times present"
-
-
-def test_qc_flag_consistent(ds: Subsegmentation, sample_indices: List[int]):
-    """QC flag should reflect whether there are any rows in the selection table."""
-    for idx in sample_indices:
-        item = ds[idx]
-        assert "pass_qc" in item, f"[{idx}] missing 'pass_qc' key"
-        st = item["selection_table"]
-        expected_pass_qc = len(st) > 0
-        assert (
-            item["pass_qc"] == expected_pass_qc
-        ), f"[{idx}] qc inconsistent: pass_qc={item['pass_qc']} but len(st)={len(st)}"

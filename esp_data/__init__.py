@@ -6,6 +6,7 @@ from .dataset import (
     Dataset,
     DatasetConfig,
     DatasetInfo,
+    GenericDatasetConfig,
     dataset_class_from_name,
     dataset_from_config,
     list_registered_datasets,
@@ -14,13 +15,13 @@ from .dataset import (
     register_dataset,
 )
 from .datasets import (
+    DCLDE2026,
     WABAD,
+    AnimalSoundArchive,
     AnimalSpeak,
     AnuraSetStrong,
     ArcticBirdSounds,
     AudioSet,
-    BarkleyCanyon,
-    BarkleyCanyonDetection,
     Beans,
     BeansZero,
     BengaleseFinchCalls,
@@ -48,6 +49,7 @@ from .datasets import (
     XenoCantoAnnotatedJeantet23,
     ZebraFinchJulieElie,
 )
+from .generic_dataset import GenericDataset
 
 __all__ = [
     "dataset_from_config",
@@ -56,6 +58,7 @@ __all__ = [
     "DatasetConfig",
     "ConcatConfig",
     "ChainedDatasetConfig",
+    "GenericDatasetConfig",
     "list_registered_datasets",
     "print_registered_datasets",
     "dataset_class_from_name",
@@ -64,9 +67,8 @@ __all__ = [
     "dataset_class_from_name",
     "ConcatenatedDataset",
     "ChainedDataset",
+    "AnimalSoundArchive",
     "AnimalSpeak",
-    "BarkleyCanyon",
-    "BarkleyCanyonDetection",
     "GiantOtters",
     "INaturalist",
     "InsectSet459",
@@ -98,6 +100,8 @@ __all__ = [
     "NocturnalBirdMigration",
     "Birdeep",
     "Geladas",
+    "DCLDE2026",
     "DinardoDolphinWhistles",
     "GibbonSolos",
+    "GenericDataset",
 ]

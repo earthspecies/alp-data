@@ -5,11 +5,15 @@ from __future__ import annotations
 import inspect
 import logging
 import warnings
-from typing import Any, Callable, Iterator, Literal
+from functools import partial
+from typing import Any, Callable, Dict, Iterable, Iterator, Literal
 
 import polars as pl
 
+from esp_data.io import anypath
+
 from .protocol import DataBackend
+from .webdataset_utils import write_to_webdataset
 
 logger = logging.getLogger("esp_data")
 
@@ -28,6 +32,11 @@ class PolarsBackend(DataBackend):
         The polars DataFrame or LazyFrame to wrap
     streaming : bool
         Whether the backend is in streaming mode (LazyFrame)
+    streaming_chunk_size: int
+        Number of rows per batch when iterating in streaming mode (default: 1000)
+        1000 is a good number because its high enough to reduce I/O and any higher
+        doesn't help because the main latency source in Dataset __getitem__ calls
+        are in loading audio anyway.
 
     Examples
     --------
@@ -63,6 +72,7 @@ class PolarsBackend(DataBackend):
         df: pl.DataFrame | pl.LazyFrame,
         *,
         streaming: bool = False,
+        streaming_chunk_size: int = 1000,
     ) -> None:
         """Initialize the backend with a polars DataFrame or LazyFrame.
 
@@ -72,9 +82,12 @@ class PolarsBackend(DataBackend):
             The DataFrame or LazyFrame to wrap
         streaming : bool, optional
             Whether to use streaming mode (LazyFrame), by default False
+        streaming_chunk_size : int, optional
+            Number of rows per batch when iterating in streaming mode, by default 1000
         """
         self._df = df
         self._streaming = streaming
+        self._streaming_chunk_size = streaming_chunk_size
 
         # Auto-detect streaming mode if LazyFrame is provided
         if isinstance(df, pl.LazyFrame) and not streaming:
@@ -186,7 +199,10 @@ class PolarsBackend(DataBackend):
             Backend instance wrapping the loaded DataFrame or LazyFrame
         """
         # Filter out kwargs for any non-polars argument
-        valid_params = set(inspect.signature(pl.scan_csv).parameters.keys())
+        if streaming:
+            valid_params = set(inspect.signature(pl.scan_parquet).parameters.keys())
+        else:
+            valid_params = set(inspect.signature(pl.read_parquet).parameters.keys())
         filtered_kwargs = {k: v for k, v in kwargs.items() if k in valid_params}
         if streaming:
             # Use scan_parquet for lazy/streaming mode
@@ -195,6 +211,48 @@ class PolarsBackend(DataBackend):
         else:
             df = pl.read_parquet(path, **filtered_kwargs)
             return cls(df, streaming=False)
+
+    @classmethod
+    def from_path(cls, path: str, *, streaming: bool = False, **kwargs: Any) -> "PolarsBackend":
+        """Load a tabular file, dispatching on extension.
+
+        Parameters
+        ----------
+        path : str
+            Path to a directory containing ``.parquet``, ``.csv``, ``.json``, ``.jsonl``,
+            or ``.ndjson`` file.
+        streaming : bool, optional
+            Whether to use streaming (LazyFrame) mode, by default False.
+        **kwargs : Any
+            Forwarded to the underlying reader.
+
+        Returns
+        -------
+        PolarsBackend
+            Backend instance wrapping the loaded data.
+
+        Raises
+        ------
+        ValueError
+            If the file extension is not supported.
+        """
+        dir_path = anypath(path)
+        for file in dir_path.iterdir():
+            if file.suffix.lower() in {".parquet", ".csv", ".json", ".jsonl", ".ndjson"}:
+                path = file
+                break
+        p = str(file).lower()
+        if p.endswith(".parquet"):
+            return cls.from_parquet(path, streaming=streaming, **kwargs)
+        if p.endswith(".csv"):
+            return cls.from_csv(path, streaming=streaming, **kwargs)
+        if p.endswith(".json") or p.endswith(".jsonl") or p.endswith(".ndjson"):
+            lines = p.endswith(".jsonl") or p.endswith(".ndjson")
+            return cls.from_json(path, lines=lines, streaming=streaming, **kwargs)
+        raise ValueError(
+            f"Unsupported file extension for PolarsBackend.from_path: {path!r}. "
+            "Supported: .parquet, .csv, .json, .jsonl, .ndjson"
+        )
 
     @property
     def is_streaming(self) -> bool:
@@ -309,7 +367,9 @@ class PolarsBackend(DataBackend):
     def __iter__(self) -> Iterator[dict[str, Any]]:
         """Iterate over DataFrame rows as dictionaries.
 
-        In streaming mode (LazyFrame), collects and yields rows.
+        In streaming mode (LazyFrame), uses `LazyFrame.collect_batches()` to
+        materialize the query one chunk at a time, so the full result never
+        needs to live in memory at once.
         In eager mode (DataFrame), yields rows directly.
 
         Yields
@@ -317,9 +377,15 @@ class PolarsBackend(DataBackend):
         dict[str, Any]
             Dictionary for each row mapping column names to values
         """
-        df = self._ensure_collected()
-        for row in df.iter_rows(named=True):
-            yield row
+        if isinstance(self._df, pl.LazyFrame):
+            # TODO: polars LazyFrame.collect_batches is marked unstable!
+            # see: https://docs.pola.rs/api/python/dev/reference/lazyframe/api/polars.LazyFrame.collect_batches.html
+            for batch in self._df.collect_batches(chunk_size=self._streaming_chunk_size):
+                for row in batch.iter_rows(named=True):
+                    yield row
+        else:
+            for row in self._df.iter_rows(named=True):
+                yield row
 
     def iter_batches(self, batch_size: int = 1000) -> Iterator["PolarsBackend"]:
         """Iterate over DataFrame in batches.
@@ -332,17 +398,26 @@ class PolarsBackend(DataBackend):
         Yields
         ------
         PolarsBackend
-            Backend instances wrapping batches of up to batch_size rows
+            Backend instances wrapping batches of up to batch_size rows.
+            Yielded backends are always in eager mode.
 
-        Note
-        ----
-        In streaming mode, polars LazyFrame will be collected in one go.
-        For truly streaming batch processing, iterate and manually batch.
+        Notes
+        -----
+        In streaming mode, uses `LazyFrame.collect_batches(chunk_size=batch_size)`
+        to produce batches incrementally, so the full result never needs to
+        live in memory at once. Note that polars may return chunks that are
+        smaller than `batch_size`; it treats it as a hint rather than a strict
+        cap.
         """
-        df = self._ensure_collected()
-        for start_idx in range(0, len(df), batch_size):
-            end_idx = min(start_idx + batch_size, len(df))
-            yield PolarsBackend(df[start_idx:end_idx], streaming=False)
+        if self._streaming:
+            # TODO: collect_batches is unstable
+            for batch in self._df.collect_batches(chunk_size=batch_size):
+                yield PolarsBackend(batch, streaming=False)
+        else:
+            df = self._df
+            for start_idx in range(0, len(df), batch_size):
+                end_idx = min(start_idx + batch_size, len(df))
+                yield PolarsBackend(df[start_idx:end_idx], streaming=False)
 
     def filter_isin(
         self,
@@ -456,7 +531,21 @@ class PolarsBackend(DataBackend):
         -------
         list[Any]
             Sorted list of unique values (nulls excluded)
+
+        Notes
+        -----
+        In streaming mode (LazyFrame), materializes the full column to
+        compute uniques. A UserWarning is emitted because this forces
+        collection of the underlying query.
         """
+        if self._streaming:
+            warnings.warn(
+                "get_unique() requires collection of LazyFrame to compute uniques. "
+                "The backend itself is not modified, but the underlying query will "
+                "be executed in full.",
+                UserWarning,
+                stacklevel=2,
+            )
         df = self._ensure_collected()
         # Drop nulls and get unique values
         unique_values = df[column].drop_nulls().unique().to_list()
@@ -474,7 +563,21 @@ class PolarsBackend(DataBackend):
         -------
         dict[Any, int]
             Dictionary mapping unique values to their counts (nulls excluded)
+
+        Notes
+        -----
+        In streaming mode (LazyFrame), materializes the full column to
+        compute counts. A UserWarning is emitted because this forces
+        collection of the underlying query.
         """
+        if self._streaming:
+            warnings.warn(
+                "histogram() requires collection of LazyFrame to compute counts. "
+                "The backend itself is not modified, but the underlying query will "
+                "be executed in full.",
+                UserWarning,
+                stacklevel=2,
+            )
         df = self._ensure_collected()
         # Drop nulls and group by column to get counts
         counts_df = df.drop_nulls(subset=[column]).group_by(column).len()
@@ -641,7 +744,10 @@ class PolarsBackend(DataBackend):
         list[str]
             List of column names
         """
-        return self._df.collect_schema().names()
+        if self._streaming:
+            return self._df.collect_schema().names()
+        else:
+            return self._df.columns
 
     def column_exists(self, column: str) -> bool:
         """Check if a column exists in the DataFrame.
@@ -656,7 +762,10 @@ class PolarsBackend(DataBackend):
         bool
             True if column exists, False otherwise
         """
-        return column in self._df.columns
+        if self._streaming:
+            return column in self._df.collect_schema().names()
+        else:
+            return column in self._df.columns
 
     @property
     def unwrap(self) -> pl.DataFrame | pl.LazyFrame:
@@ -1048,8 +1157,6 @@ class PolarsBackend(DataBackend):
         self._ensure_not_streaming("apply_fn")
 
         # use partial to bind fn_kwargs to fn
-        from functools import partial
-
         fn_partial = partial(fn, **fn_kwargs)
         df = self._ensure_collected()
         # Apply function row-wise and create new column
@@ -1143,6 +1250,53 @@ class PolarsBackend(DataBackend):
             new_df = new_df.filter(pl.col(output_feature).list.len() > 0)
 
         return PolarsBackend(new_df, streaming=self._streaming), label_map
+
+    def save_to(
+        self,
+        iterable: Iterator[Dict[str, Any]] | Iterable[Dict[str, Any]],
+        path: str,
+        format: str = "webdataset",
+        **kwargs: Any,
+    ) -> int:
+        """Save the DataFrame to a file.
+
+        Parameters
+        ----------
+        path : str
+            Destination path (supports local and cloud paths)
+        format : str, optional
+            Output format. Supported: ``"webdataset"``.
+            By default ``"webdataset"``.
+        **kwargs : Any
+            Additional arguments passed to the underlying writer.
+            For ``"webdataset"``: accepts ``encoder_fn``, ``shard_pattern``,
+            ``maxcount``, ``maxsize`` (see `write_to_webdataset`).
+
+        Returns
+        -------
+        int
+            Number of samples written.
+
+        Notes
+        -----
+        In streaming mode (LazyFrame), the query is collected before writing.
+        A UserWarning is emitted because this forces full materialization.
+
+        Raises
+        ------
+        ValueError
+            If `format` is not supported
+        """
+        if format == "webdataset":
+            if self._streaming:
+                warnings.warn(
+                    "save_to() requires collection of LazyFrame before writing. "
+                    "The full result will be materialized in memory.",
+                    UserWarning,
+                    stacklevel=2,
+                )
+            return write_to_webdataset(iterable, anypath(path), **kwargs)
+        raise ValueError(f"Unsupported format: {format!r}. Supported formats: 'webdataset'")
 
     def __repr__(self) -> str:
         """Return string representation of the backend.
