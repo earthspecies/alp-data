@@ -36,7 +36,7 @@ def export_dir(tmp_path_factory: pytest.TempPathFactory, esc50_ds: BeansZero) ->
         Directory containing the written shard tar files.
     """
     out = tmp_path_factory.mktemp("esc50_wds")
-    esc50_ds.save_to(str(out), backend="webdataset", format="webdataset")
+    esc50_ds.save_to(str(out), format="webdataset")
     return out
 
 
