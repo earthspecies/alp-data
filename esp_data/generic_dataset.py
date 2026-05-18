@@ -45,7 +45,7 @@ class GenericDataset(Dataset):
         """Load a dataset from a path that points to a directory.
 
         The backend and streaming mode are determined from
-        ``info.yaml`` (written by `Dataset.save_to`) which must be present.
+        ``config.yaml`` (written by `Dataset.save_to`) which must be present.
         If not found, raises an error since the backend cannot be inferred.
 
         Parameters
@@ -59,20 +59,20 @@ class GenericDataset(Dataset):
         Raises
         ------
         ValueError
-            If no ``info.yaml`` is found.
+            If no ``config.yaml`` is found.
         """
         self.path = anypath(path)
         fs = filesystem_from_path(self.path)
-        info_path = self.path / "info.yaml"
+        info_path = self.path / "config.yaml"
         if fs.exists(info_path):
-            info_dict = read_yaml(info_path)
-            self.info = DatasetInfo(**info_dict)
+            config_dict = read_yaml(info_path)
+            self.info = DatasetInfo(**config_dict["info"])
         else:
             raise ValueError(
-                f"No info.yaml found at {info_path}. Cannot infer backend or streaming mode."
+                f"No config.yaml found at {info_path}. Cannot infer backend or streaming mode."
             )
 
-        super().__init__(backend=self.info.backend, streaming=self.info.streaming)
+        super().__init__(backend=config_dict["backend"], streaming=config_dict["streaming"])
 
         self._data = self._backend_class.from_path(self.path, streaming=self._streaming, **kwargs)
 
