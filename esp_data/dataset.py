@@ -477,9 +477,7 @@ class Dataset(ABC):
         """
         pass
 
-    def save_to(
-        self, path: str, backend: BackendType, format: str = "webdataset", **kwargs: Any
-    ) -> int:
+    def save_to(self, path: str, format: str = "webdataset", **kwargs: Any) -> int:
         """Save the dataset to a file.
 
         Writes sharded tar files and an ``info.yaml`` containing `DatasetInfo`
@@ -511,6 +509,8 @@ class Dataset(ABC):
         if self._data is None:
             raise RuntimeError("No data loaded. Call _load() first.")
         n = self._data.save_to(self, path, format=format, **kwargs)
+        if format == "webdataset":  # This part needs to be improved
+            backend = "webdataset"
         self._write_info(path, backend)
         return n
 
