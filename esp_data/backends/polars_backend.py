@@ -13,7 +13,6 @@ import polars as pl
 from esp_data.io import anypath
 
 from .protocol import DataBackend
-from .webdataset_utils import write_to_webdataset
 
 logger = logging.getLogger("esp_data")
 
@@ -1282,21 +1281,17 @@ class PolarsBackend(DataBackend):
         In streaming mode (LazyFrame), the query is collected before writing.
         A UserWarning is emitted because this forces full materialization.
 
-        Raises
-        ------
-        ValueError
-            If `format` is not supported
         """
-        if format == "webdataset":
-            if self._streaming:
-                warnings.warn(
-                    "save_to() requires collection of LazyFrame before writing. "
-                    "The full result will be materialized in memory.",
-                    UserWarning,
-                    stacklevel=2,
-                )
-            return write_to_webdataset(iterable, anypath(path), **kwargs)
-        raise ValueError(f"Unsupported format: {format!r}. Supported formats: 'webdataset'")
+        if format == "webdataset" and self._streaming:
+            warnings.warn(
+                "save_to() requires collection of LazyFrame before writing. "
+                "The full result will be materialized in memory.",
+                UserWarning,
+                stacklevel=2,
+            )
+        from esp_data.export import export_to
+
+        return export_to(iterable, path, format=format, **kwargs)
 
     def __repr__(self) -> str:
         """Return string representation of the backend.

@@ -512,9 +512,10 @@ class Dataset(ABC):
         """
         if self._data is None:
             raise RuntimeError("No data loaded. Call _load() first.")
-        n = self._data.save_to(self, path, format=format, **kwargs)
-        if format == "webdataset":  # This part needs to be improved
-            backend = "webdataset"
+        from esp_data.export import export_to
+
+        n, backend = export_to(self, path, format=format, **kwargs)
+        
         self._write_config(path, backend)
         return n
 

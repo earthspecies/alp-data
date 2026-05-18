@@ -440,20 +440,13 @@ class WebDatasetBackend(StreamingBackend):
         int
             Number of samples written.
 
-        Raises
-        ------
-        ValueError
-            If ``format`` is not ``"webdataset"``.
         """
-        if format != "webdataset":
-            raise ValueError(f"Unsupported format '{format}' for WebDatasetBackend")
+        from esp_data.export import export_to
 
-        from .webdataset_utils import write_to_webdataset
-
-        resolved = anypath(path)
-        return write_to_webdataset(
+        return export_to(
             iterable,
-            resolved,
+            path,
+            format=format,
             encoder_fn=encoder_fn,
             shard_pattern=shard_pattern,
             maxcount=maxcount,

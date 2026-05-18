@@ -12,7 +12,6 @@ import pandas as pd
 from esp_data.io import anypath
 
 from .protocol import DataBackend
-from .webdataset_utils import write_to_webdataset
 
 
 class PandasBackend(DataBackend):
@@ -1098,16 +1097,11 @@ class PandasBackend(DataBackend):
         -------
         int
             Number of samples written.
-
-        Raises
-        ------
-        ValueError
-            If `format` is not supported
         """
         self._ensure_not_streaming("save_to")
-        if format == "webdataset":
-            return write_to_webdataset(iterable, anypath(path), **kwargs)
-        raise ValueError(f"Unsupported format: {format!r}. Supported formats: 'webdataset'")
+        from esp_data.export import export_to
+
+        return export_to(iterable, path, format=format, **kwargs)
 
     def __repr__(self) -> str:
         """Return string representation of the backend.
