@@ -8,11 +8,13 @@ from .backends import BackendType, get_backend
 from .pandas_backend import PandasBackend
 from .polars_backend import PolarsBackend
 from .protocol import DataBackend
+from .pyarrow_backend import PyarrowBackend
 
 __all__ = [
     "DataBackend",
     "PandasBackend",
     "PolarsBackend",
+    "PyarrowBackend",
     "BackendType",
     "get_backend",
 ]

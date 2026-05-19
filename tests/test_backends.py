@@ -2,9 +2,10 @@
 
 import pandas as pd
 import polars as pl
+import pyarrow as pa
 import pytest
 
-from esp_data.backends import PandasBackend, PolarsBackend, get_backend
+from esp_data.backends import PandasBackend, PolarsBackend, PyarrowBackend, get_backend
 
 
 class TestPandasBackend:
@@ -264,6 +265,108 @@ class TestPolarsBackend:
         assert len(combined) == 4
 
 
+class TestPyarrowBackend:
+    """Test for PyarrowBackend"""
+
+    def test_init_and_unwrap(self) -> None:
+        """Test initialization and unwrapping."""
+        df = pa.table({"a": [1, 2, 3], "b": ["x", "y", "z"]})
+        backend = PyarrowBackend(df)
+        assert isinstance(backend.unwrap, pa.Table)
+        assert len(backend) == 3
+
+    def test_getitem_single_row(self) -> None:
+        """Test getting a single row as dict."""
+        df = pa.table({"a": [1, 2, 3], "b": ["x", "y", "z"]})
+        backend = PyarrowBackend(df)
+        row = backend[0]
+        assert isinstance(row, dict)
+        assert row == {"a": 1, "b": "x"}
+
+    def test_getitem_multiple_rows(self) -> None:
+        """Test getting multiple rows."""
+        df = pa.table({"a": [1, 2, 3], "b": ["x", "y", "z"]})
+        backend = PyarrowBackend(df)
+        subset = backend[[0, 2]]
+        assert isinstance(subset, PyarrowBackend)
+        assert len(subset) == 2
+
+    def test_getitem_slice(self) -> None:
+        """Test getting rows by slice."""
+        df = pa.table({"a": [1, 2, 3, 4], "b": ["w", "x", "y", "z"]})
+        backend = PyarrowBackend(df)
+        subset = backend[1:3]
+        assert isinstance(subset, PyarrowBackend)
+        assert len(subset) == 2
+
+    def test_iter(self) -> None:
+        """Test iteration over rows."""
+        df = pa.table({"a": [1, 2, 3], "b": ["x", "y", "z"]})
+        backend = PyarrowBackend(df)
+        rows = list(backend)
+        assert len(rows) == 3
+        assert rows[0] == {"a": 1, "b": "x"}
+
+    def test_filter_isin(self) -> None:
+        """Test filtering with isin."""
+        df = pa.table({"species": ["cat", "dog", "bird", "cat"]})
+        backend = PyarrowBackend(df)
+        filtered = backend.filter_isin("species", ["cat", "dog"])
+        assert len(filtered) == 3
+
+    def test_drop_duplicates(self) -> None:
+        """Test deduplication."""
+        df = pa.table({"a": [1, 2, 2, 3], "b": ["x", "y", "y", "z"]})
+        backend = PyarrowBackend(df)
+        deduped = backend.drop_duplicates()
+        assert len(deduped) == 3
+
+    def test_get_unique(self) -> None:
+        """Test getting unique values."""
+        df = pa.table({"species": ["cat", "dog", "bird", "cat", "dog"]})
+        backend = PyarrowBackend(df)
+        uniques = backend.get_unique("species")
+        assert set(uniques) == {"bird", "cat", "dog"}
+
+    def test_histogram(self) -> None:
+        """Test getting value counts (histogram)."""
+        df = pa.table({"species": ["cat", "dog", "bird", "cat", "dog", "cat"]})
+        backend = PyarrowBackend(df)
+        histogram = backend.histogram("species")
+        assert histogram == {"cat": 3, "dog": 2, "bird": 1}
+
+    def test_histogram_with_nulls(self) -> None:
+        """Test histogram excludes null values."""
+        df = pa.table({"species": ["cat", "dog", None, "cat", None, "bird"]})
+        backend = PyarrowBackend(df)
+        histogram = backend.histogram("species")
+        assert histogram == {"cat": 2, "dog": 1, "bird": 1}
+        assert None not in histogram
+
+    def test_map_column(self) -> None:
+        """Test mapping column values."""
+        df = pa.Table({"species": ["cat", "dog", "bird"]})
+        backend = PyarrowBackend(df)
+        mapping = {"cat": 0, "dog": 1, "bird": 2}
+        mapped = backend.map_column("species", mapping, "label")
+        assert "label" in mapped.columns
+        assert mapped[0]["label"] == 0
+
+    def test_columns_property(self) -> None:
+        """Test columns property."""
+        df = pa.Table({"a": [1, 2, 3], "b": ["x", "y", "z"]})
+        backend = PyarrowBackend(df)
+        assert backend.columns == ["a", "b"]
+
+    def test_concat(self) -> None:
+        """Test concatenation."""
+        df1 = pa.table({"a": [1, 2]})
+        df2 = pa.table({"a": [3, 4]})
+        backend1 = PyarrowBackend(df1)
+        backend2 = PyarrowBackend(df2)
+        combined = PyarrowBackend.concat([backend1, backend2])
+        assert len(combined) == 4
+
 class TestBackendFactory:
     """Tests for backend factory functions."""
 
@@ -277,6 +380,10 @@ class TestBackendFactory:
         backend_cls = get_backend("polars")
         assert backend_cls == PolarsBackend
 
+    def test_get_backend_pyarrow(self) -> None:
+        """Test getting pyarrow backend."""
+        backend_cls  = get_backend("pyarrow")
+        assert backend_cls == PyarrowBackend
     def test_get_backend_invalid(self) -> None:
         """Test getting invalid backend raises error."""
         with pytest.raises(ValueError, match="Unknown backend"):

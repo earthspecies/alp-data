@@ -8,14 +8,16 @@ from typing import Literal, Type
 from esp_data.backends.pandas_backend import PandasBackend
 from esp_data.backends.polars_backend import PolarsBackend
 from esp_data.backends.protocol import DataBackend
+from esp_data.backends.pyarrow_backend import PyarrowBackend
 
-BackendType = Literal["pandas", "polars"]
+BackendType = Literal["pandas", "polars", "pyarrow"]
 
 
 # We need to add new backends here when they are implemented
 _BACKEND_REGISTRY: dict[str, Type[DataBackend]] = {
     "pandas": PandasBackend,
     "polars": PolarsBackend,
+    "pyarrow": PyarrowBackend,
 }
 
 
