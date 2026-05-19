@@ -19,9 +19,20 @@ Available splits
 - ``feature_conditioned_detection``: ~100k v2 feature-conditioned
   detection examples (acoustic feature descriptions + examples + query,
   predict label).
+- ``call_type_all_v2_16k`` / ``call_type_all_v2_32k`` (and matching
+  ``call_type_*_v2_16k`` / ``call_type_*_v2_32k`` sub-splits): ~200k v2
+  call-type tasks each. Same task layout (multiple-choice ~75k, binary
+  ~50k, binary timestamps ~25k, same/different ~25k, counting ~25k);
+  the suffix indicates the audio's native sample rate.
+- ``species_mcq``: ~50k 4-way species multiple-choice (XC + iNat,
+  natively 32 kHz audio).
+- ``same_species``: ~200k binary same-species detection — given 2-5
+  reference clips, predict whether a query clip is the same species.
+  XC + iNat, natively 32 kHz.
 
-All audio is 16 kHz WAV. Each row returns a list of numpy arrays in
-``audios``, ordered to match the ``<AudioHere>`` positions in the prompt.
+Most splits ship 16 kHz WAV; ``*_v2_32k`` splits ship 32 kHz WAV. Each
+row returns a list of numpy arrays in ``audios``, ordered to match the
+``<AudioHere>`` positions in the prompt.
 """
 
 from __future__ import annotations
@@ -50,6 +61,8 @@ _SPLIT_DIRS: dict[str, str] = {
     "sed_fewshot": f"{_BASE_ROOT}/synthetic_sed_fewshot_16k",
     "call_type_all": f"{_BASE_ROOT}/synthetic_call_type_tasks_16k",
     "call_type_all_v1": f"{_V1_ROOT}/synthetic_call_type_tasks_16k_v1",
+    "call_type_all_v2_16k": f"{_BASE_ROOT}/synthetic_call_type_tasks_16k_v2",
+    "call_type_all_v2_32k": f"{_BASE_ROOT}/synthetic_call_type_tasks_32k_v2",
     "fewshot_detection": f"{_BASE_ROOT}/synthetic_fewshot_detection_16k_v2",
     "feature_conditioned_detection": (f"{_BASE_ROOT}/synthetic_feature_detection_gcs_16k_v2"),
 }
@@ -65,6 +78,7 @@ _AUDIO_ROOT_OVERRIDES: dict[str, str] = {
     "call_type_same_different_v1": _V1_ROOT,
     "call_type_counting_v1": _V1_ROOT,
     "species_mcq": "gs://esp-ml-datasets/",
+    "same_species": "gs://esp-ml-datasets/",
 }
 
 # Sub-splits that filter call_type_all by template_path
@@ -84,6 +98,23 @@ _CALL_TYPE_V1_SUBSPLITS: dict[str, str] = {
     "call_type_counting_v1": "audio_synth/counting",
 }
 
+# v2 sub-splits: maps split name → (parent split, template_path). The 16k and
+# 32k flavors share the task layout but ship audio at different native rates;
+# both filter their parent ``call_type_all_v2_*`` conversations.jsonl.
+_CALL_TYPE_V2_TEMPLATES: dict[str, str] = {
+    "multiple_choice": "audio_synth/multiple_choice",
+    "binary": "audio_synth/binary_audio",
+    "binary_timestamps": "audio_synth/binary_audio_timestamps",
+    "same_different": "audio_synth/same_different",
+    "counting": "audio_synth/counting",
+}
+
+_CALL_TYPE_V2_SUBSPLITS: dict[str, tuple[str, str]] = {
+    f"call_type_{task}_v2_{rate}": (f"call_type_all_v2_{rate}", template)
+    for rate in ("16k", "32k")
+    for task, template in _CALL_TYPE_V2_TEMPLATES.items()
+}
+
 _TASK_BY_TEMPLATE: dict[str, str] = {
     "audio_synth/fewshot_sed": "few_shot_sed",
     "audio_synth/multiple_choice": "call_type_multiple_choice",
@@ -93,11 +124,16 @@ _TASK_BY_TEMPLATE: dict[str, str] = {
     "audio_synth/counting": "call_type_counting",
     "audio_synth/fewshot_detection": "fewshot_detection",
     "species_mcq": "species_mcq",
+    "same_species": "same_species",
     "audio_synth/feature_conditioned_detection_gcs": "feature_conditioned_detection",
 }
 
 _ALL_SPLITS = (
-    list(_SPLIT_DIRS) + list(_CALL_TYPE_SUBSPLITS) + list(_CALL_TYPE_V1_SUBSPLITS) + ["species_mcq"]
+    list(_SPLIT_DIRS)
+    + list(_CALL_TYPE_SUBSPLITS)
+    + list(_CALL_TYPE_V1_SUBSPLITS)
+    + list(_CALL_TYPE_V2_SUBSPLITS)
+    + ["species_mcq", "same_species"]
 )
 
 
@@ -153,7 +189,14 @@ class DRASDIC(Dataset):
                 sub: f"{_SPLIT_DIRS['call_type_all_v1']}/{sub}.jsonl"
                 for sub in _CALL_TYPE_V1_SUBSPLITS
             },
+            "call_type_all_v2_16k": (f"{_SPLIT_DIRS['call_type_all_v2_16k']}/conversations.jsonl"),
+            "call_type_all_v2_32k": (f"{_SPLIT_DIRS['call_type_all_v2_32k']}/conversations.jsonl"),
+            **{
+                sub: f"{_SPLIT_DIRS[parent]}/conversations.jsonl"
+                for sub, (parent, _) in _CALL_TYPE_V2_SUBSPLITS.items()
+            },
             "species_mcq": "gs://esp-data-ingestion/drasdic/v0.1.0/species_mcq.jsonl",
+            "same_species": "gs://esp-data-ingestion/drasdic/v0.1.0/same_species.jsonl",
         },
         version="0.1.0",
         description=(
@@ -166,6 +209,9 @@ class DRASDIC(Dataset):
             "gs://foundation-model-data/synthetic/multi-audio/synthetic_call_type_tasks_16k",
             "gs://foundation-model-data/synthetic/multi-audio/synthetic_fewshot_detection_16k_v2",
             "gs://foundation-model-data/synthetic/multi-audio/synthetic_feature_detection_gcs_16k_v2",
+            "gs://foundation-model-data/synthetic/multi-audio/synthetic_call_type_tasks_16k_v2",
+            "gs://foundation-model-data/synthetic/multi-audio/synthetic_call_type_tasks_32k_v2",
+            "gs://esp-data-ingestion/drasdic/v0.1.0/same_species.jsonl",
         ],
         license="internal",
     )
@@ -188,11 +234,15 @@ class DRASDIC(Dataset):
             ``call_type_multiple_choice``, ``call_type_binary``,
             ``call_type_binary_timestamps``, ``call_type_same_different``,
             ``call_type_counting``, ``fewshot_detection``,
-            ``feature_conditioned_detection``.
+            ``feature_conditioned_detection``, ``call_type_all_v1`` (with
+            ``_v1`` sub-splits), ``call_type_all_v2_16k`` (with
+            ``_v2_16k`` sub-splits), or ``call_type_all_v2_32k`` (with
+            ``_v2_32k`` sub-splits, natively 32 kHz).
         output_take_and_give : dict[str, str] | None
             Optional column rename mapping.
         sample_rate : int | None
-            Target sample rate for resampling. Source audio is 16 kHz.
+            Target sample rate for resampling. Source audio is 16 kHz for
+            most splits; ``*_v2`` splits are natively 32 kHz.
         data_root : str | AnyPathT | None
             Override for the audio root directory. If ``None``, uses
             the default GCS path for the split.
@@ -243,10 +293,14 @@ class DRASDIC(Dataset):
 
         self._data = PolarsBackend(pl.DataFrame(records))
 
-        # Filter by template_path for v0 call-type sub-splits.
-        # v1 sub-splits have pre-split JSONL files and don't need filtering.
+        # Filter by template_path for v0 and v2 call-type sub-splits (single
+        # combined conversations.jsonl). v1 sub-splits have pre-split JSONL
+        # files and don't need filtering.
         if self.split in _CALL_TYPE_SUBSPLITS:
             template = _CALL_TYPE_SUBSPLITS[self.split]
+            self._data = self._data.filter_isin("template_path", [template])
+        elif self.split in _CALL_TYPE_V2_SUBSPLITS:
+            _, template = _CALL_TYPE_V2_SUBSPLITS[self.split]
             self._data = self._data.filter_isin("template_path", [template])
 
     @property
