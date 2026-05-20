@@ -187,6 +187,111 @@ class PyarrowBackend(DataBackend):
         indices = sorted(keys.values())
         return PyarrowBackend(df.take(indices), streaming=False)
 
+    def get_unique(self, column: str) -> list[Any]:
+        """Get sorted unique values from a column
+
+        Parameters
+        ----------
+        column : str
+            Column name
+
+        Returns
+        -------
+        list[Any]
+            Sorted list of unique values (nulls excluded)
+        """
+        df = self._ensure_collected()
+        unique_values = df.column(column).drop_null().unique().to_pylist()
+        return sorted(unique_values)
+
+    def histogram(self, column: str) -> dict[Any, int]:
+        """Get value counts (histogram) for a column.
+
+        Parameters
+        ----------
+        column : str
+            Column name
+
+        Returns
+        -------
+        dict[Any, int]
+            Dictionary mapping unique values to their counts (nulls excluded)
+        """
+        df = self._ensure_collected()
+        # Drop nulls and group by column to get counts
+        counts_table = (
+            df.select([column]).drop_null().group_by(column).aggregate([([], "count_all")])
+        )
+        # Convert to dictionary
+        counts_dict = counts_table.to_pydict()
+        return dict(zip(counts_dict[column], counts_dict["count_all"], strict=True))
+
+    def map_column(
+        self,
+        column: str,
+        mapping: dict[Any, Any],
+        output_column: str,
+        *,
+        default: Any | None = None,  # noqa ANN401
+    ) -> "PyarrowBackend":
+        """Create a new column by mapping values from an existing column.
+
+        Parameters
+        ----------
+        column : str
+            Source column name
+        mapping : dict[Any, Any]
+            Dictionary mapping source values to output values
+        output_column : str
+            Name of the new column to create
+        default : Any, optional
+            Value to use for unmapped keys, by default None
+
+        Returns
+        -------
+        PyarrowBackend
+            New backend with mapped column added
+        """
+        df = self._ensure_collected()
+        source = df.column(column).to_pylist()
+        mapped = [mapping.get(v, default) for v in source]
+        new_col = pa.array(mapped)
+        new_df = df.append_column(output_column, new_col)
+        return PyarrowBackend(new_df)
+
+    @classmethod
+    def concat(
+        cls,
+        backends: list["PyarrowBackend"],
+        *,
+        ignore_index: bool = True,
+        sort: bool = False,
+    ) -> "PyarrowBackend":
+        """Concatenate multiple backend instances vertically (row-wise).
+
+        Parameters
+        ----------
+        backends : list[PyarrowBackend]
+            List of backend instances to concatenate
+        sort : bool, optional
+            If True, sort columns alphabetically, by default False
+
+        Returns
+        -------
+        PyarrowBackend
+            New backend with concatenated data
+        """
+        dfs = [backend._df for backend in backends]
+
+        concatenated_df = pa.concat_tables(dfs)
+
+        if sort:
+            # Sort columns alphabetically
+            sorted_cols = sorted(concatenated_df.column_names)
+            concatenated_df = concatenated_df.select(sorted_cols)
+
+        return cls(concatenated_df)
+
     @property
     def unwrap(self) -> pa.Table:
         """Get the underlying Table object.
@@ -229,3 +334,17 @@ class PyarrowBackend(DataBackend):
                 f"LazyFrame operations require explicit collection. "
                 f"Consider using .collect() or iterate over the data."
             )
+
+    @property
+    def columns(self) -> list[str]:
+        """Get the list of column names.
+
+        Returns
+        -------
+        list[str]
+            List of column names
+        """
+        if self._streaming:
+            return self._df.collect_schema().names()
+        else:
+            return self._df.column_names

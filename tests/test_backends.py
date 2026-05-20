@@ -345,7 +345,7 @@ class TestPyarrowBackend:
 
     def test_map_column(self) -> None:
         """Test mapping column values."""
-        df = pa.Table({"species": ["cat", "dog", "bird"]})
+        df = pa.table({"species": ["cat", "dog", "bird"]})
         backend = PyarrowBackend(df)
         mapping = {"cat": 0, "dog": 1, "bird": 2}
         mapped = backend.map_column("species", mapping, "label")
@@ -354,7 +354,7 @@ class TestPyarrowBackend:
 
     def test_columns_property(self) -> None:
         """Test columns property."""
-        df = pa.Table({"a": [1, 2, 3], "b": ["x", "y", "z"]})
+        df = pa.table({"a": [1, 2, 3], "b": ["x", "y", "z"]})
         backend = PyarrowBackend(df)
         assert backend.columns == ["a", "b"]
 
