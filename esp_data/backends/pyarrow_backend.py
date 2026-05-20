@@ -9,7 +9,9 @@ from typing import Any, Iterator, Literal
 import pyarrow as pa
 import pyarrow.compute as pc
 import pyarrow.fs as pa_fs
+import pyarrow.parquet as pq
 from pyarrow import csv as pa_csv
+from pyarrow import json as pa_json
 
 from .protocol import DataBackend
 
@@ -92,12 +94,65 @@ class PyarrowBackend(DataBackend):
         return cls(df, streaming=False)
 
     @classmethod
-    def from_json(cls) -> None:
-        pass
+    def from_json(cls, path: str, *, streaming: bool = False, **kwargs: Any) -> "PyarrowBackend":
+        """Read a JSON file and return a wrapped DataFrame backend.
+
+        Parameters
+        ----------
+        path : str
+            Path to the JSON file (supports local and cloud paths)
+        streaming : bool, optional
+            If True, use streaming mode, by default False
+        **kwargs : Any
+            Additional pyarrow-specific arguments passed to `pyarrow.json.read_json`
+
+        Returns
+        -------
+        PyarrowBackend
+            Backend instance wrapping the loaded Table
+        """
+        valid_params = set(inspect.signature(pa_json.read_json).parameters.keys())
+        filtered_kwargs = {k: v for k, v in kwargs.items() if k in valid_params}
+
+        path_str = str(path)
+        if path_str.startswith("gs://"):
+            gcs = pa_fs.GcsFileSystem()
+            bucket_and_key = path_str[len("gs://") :]
+            with gcs.open_input_stream(bucket_and_key) as f:
+                df = pa_json.read_json(f, **filtered_kwargs)
+        else:
+            df = pa_json.read_json(path_str, **filtered_kwargs)
+        return cls(df, streaming=False)
 
     @classmethod
-    def from_parquet(cls) -> None:
-        pass
+    def from_parquet(cls, path: str, *, streaming: bool = False, **kwargs: Any) -> "PyarrowBackend":
+        """Read a Parquet file and return a wrapped DataFrame backend.
+
+        Parameters
+        ----------
+        path : str
+            Path to the Parquet file (supports local and cloud paths)
+        streaming : bool, optional
+            If True, use streaming mode, by default False
+        **kwargs : Any
+            Additional pyarrow-specific arguments passed to `pyarrow.parquet.read_table`
+
+        Returns
+        -------
+        PyarrowBackend
+            Backend instance wrapping the loaded Table
+        """
+        valid_params = set(inspect.signature(pq.read_table).parameters.keys())
+        filtered_kwargs = {k: v for k, v in kwargs.items() if k in valid_params}
+
+        path_str = str(path)
+        if path_str.startswith("gs://"):
+            gcs = pa_fs.GcsFileSystem()
+            bucket_and_key = path_str[len("gs://") :]
+            df = pq.read_table(bucket_and_key, filesystem=gcs, **filtered_kwargs)
+        else:
+            df = pq.read_table(path_str, **filtered_kwargs)
+        return cls(df, streaming=False)
 
     @property
     def is_streaming(self) -> None:
