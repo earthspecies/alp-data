@@ -22,38 +22,60 @@ logger = logging.getLogger("esp_data")
 class PyarrowBackend(DataBackend):
     """Pyarrow implementation of the DataBackend protocol.
 
-    This backend wraps a pyarrow Table and provides a unified interface
-    for DataBackend operations that can work across different backend implementations.
+    This backend wraps a pyarrow Table or RecordBatchReader and provides a unified
+    interface for DataBackend operations that can work across different backend
+    implementations.
 
-    Supports only Table mode currently.
+    Supports both eager (Table) and streaming (RecordBatchReader) modes.
 
     Parameters
     ----------
-    df : pa.Table
-        The pyarrow Table to wrap
+    df : pa.Table | pa.RecordBatchReader
+        The pyarrow Table or RecordBatchReader to wrap
     streaming : bool
-        Whether the backend is in streaming mode (Not implemented yet)
+        Whether the backend is in streaming mode
     streaming_chunk_size: int
         Number of rows per batch when iterating in streaming mode (default: 1000)
         1000 is a good number because its high enough to reduce I/O and any higher
         doesn't help because the main latency source in Dataset __getitem__ calls
         are in loading audio anyway.
+
+    Examples
+    --------
+    >>> import pyarrow as pa
+    >>> from esp_data.backends import PyarrowBackend
+    >>> table = pa.table({
+    ...     "species": ["cat", "dog", "fish", "cat", "dog", None],
+    ...     "count": [5, 3, 8, 2, 7, 1]
+    ... })
+    >>> backend = PyarrowBackend(table)
+    >>> row = backend[0]
+    >>> filtered = backend.filter_isin("species", ["cat", "dog"])
+    >>> assert filtered.unwrap["species"].to_pylist() == ["cat", "dog", "cat", "dog"]
+    >>> print(backend.columns)
+    ['species', 'count']
+    >>> for row in backend:
+    ...     print(row)
+    ...     break
+    {'species': 'cat', 'count': 5}
+    >>> collected = backend.collect()
+    >>> assert isinstance(collected.unwrap, pa.Table)
     """
 
     def __init__(
         self,
-        df: pa.Table,
+        df: pa.Table | pa.RecordBatchReader,
         *,
         streaming: bool = False,
         streaming_chunk_size: int = 1000,
     ) -> None:
-        """Initialize the backend with a pyarrow Table.
+        """Initialize the backend with a pyarrow Table or RecordBatchReader.
 
         Parameters
         ----------
-        df : pa.Table
-            The Table to wrap
-        streaming:
+        df : pa.Table | pa.RecordBatchReader
+            The Table or RecordBatchReader to wrap
+        streaming : bool, optional
             Whether to use streaming mode, by default False
         streaming_chunk_size : int, optional
             Number of rows per batch when iterating in streaming mode, by default 1000
@@ -62,8 +84,19 @@ class PyarrowBackend(DataBackend):
         self._streaming = streaming
         self._streaming_chunk_size = streaming_chunk_size
 
+        # Auto-detect streaming mode if RecordBatchReader is provided
+        if isinstance(df, pa.RecordBatchReader) and not streaming:
+            self._streaming = True
+
     @classmethod
-    def from_csv(cls, path: str, *, streaming: bool = False, **kwargs: Any) -> "PyarrowBackend":
+    def from_csv(
+        cls,
+        path: str,
+        *,
+        streaming: bool = False,
+        streaming_chunk_size: int = 1000,
+        **kwargs: Any,
+    ) -> "PyarrowBackend":
         """Read a CSV file and return a wrapped DataFrame backend.
 
         Parameters
@@ -71,39 +104,62 @@ class PyarrowBackend(DataBackend):
         path : str
             Path to the CSV file (supports local and cloud paths via cloudpathlib)
         streaming : bool, optional
-            If True, use streaming mode, by default False
+            If True, use streaming mode with RecordBatchReader, by default False
+        streaming_chunk_size : int, optional
+            Number of rows per batch in streaming mode, by default 1000
         **kwargs : Any
             Additional pyarrow-specific arguments
 
         Returns
         -------
         PyarrowBackend
-            Backend instance wrapping the loaded Table
+            Backend instance wrapping the loaded Table or RecordBatchReader
         """
-        # Filter out kwargs for any non-pyarrow argument
         valid_params = set(inspect.signature(pa_csv.read_csv).parameters.keys())
         filtered_kwargs = {k: v for k, v in kwargs.items() if k in valid_params}
 
         path_str = str(path)
-        if path_str.startswith("gs://"):
-            gcs = pa_fs.GcsFileSystem()
-            bucket_and_key = path_str[len("gs://") :]
-            with gcs.open_input_stream(bucket_and_key) as f:
-                df = pa_csv.read_csv(f, **filtered_kwargs)
+        if streaming:
+            if path_str.startswith("gs://"):
+                gcs = pa_fs.GcsFileSystem()
+                bucket_and_key = path_str[len("gs://") :]
+                # Keep file handle open — reader holds a reference to it
+                f = gcs.open_input_stream(bucket_and_key)
+                reader = pa_csv.open_csv(f, **filtered_kwargs)
+            else:
+                reader = pa_csv.open_csv(path_str, **filtered_kwargs)
+            return cls(reader, streaming=True, streaming_chunk_size=streaming_chunk_size)
         else:
-            df = pa_csv.read_csv(path_str, **filtered_kwargs)
-        return cls(df, streaming=False)
+            if path_str.startswith("gs://"):
+                gcs = pa_fs.GcsFileSystem()
+                bucket_and_key = path_str[len("gs://") :]
+                with gcs.open_input_stream(bucket_and_key) as f:
+                    df = pa_csv.read_csv(f, **filtered_kwargs)
+            else:
+                df = pa_csv.read_csv(path_str, **filtered_kwargs)
+            return cls(df, streaming=False)
 
     @classmethod
-    def from_json(cls, path: str, *, streaming: bool = False, **kwargs: Any) -> "PyarrowBackend":
+    def from_json(
+        cls,
+        path: str,
+        *,
+        lines: bool = False,
+        streaming: bool = False,
+        **kwargs: Any,
+    ) -> "PyarrowBackend":
         """Read a JSON file and return a wrapped DataFrame backend.
 
         Parameters
         ----------
         path : str
             Path to the JSON file (supports local and cloud paths)
+        lines : bool, optional
+            Ignored for PyArrow backend (pyarrow.json always reads line-delimited),
+            by default False
         streaming : bool, optional
-            If True, use streaming mode, by default False
+            If True, use streaming mode — not supported for JSON, raises
+            `NotImplementedError`, by default False
         **kwargs : Any
             Additional pyarrow-specific arguments passed to `pyarrow.json.read_json`
 
@@ -111,7 +167,18 @@ class PyarrowBackend(DataBackend):
         -------
         PyarrowBackend
             Backend instance wrapping the loaded Table
+
+        Raises
+        ------
+        NotImplementedError
+            If streaming=True, since pyarrow has no streaming JSON reader.
         """
+        if streaming:
+            raise NotImplementedError(
+                "Streaming mode is not supported for JSON files with the PyArrow backend. "
+                "Load eagerly or use the Polars backend with lines=True for streaming JSON."
+            )
+
         valid_params = set(inspect.signature(pa_json.read_json).parameters.keys())
         filtered_kwargs = {k: v for k, v in kwargs.items() if k in valid_params}
 
@@ -126,7 +193,14 @@ class PyarrowBackend(DataBackend):
         return cls(df, streaming=False)
 
     @classmethod
-    def from_parquet(cls, path: str, *, streaming: bool = False, **kwargs: Any) -> "PyarrowBackend":
+    def from_parquet(
+        cls,
+        path: str,
+        *,
+        streaming: bool = False,
+        streaming_chunk_size: int = 1000,
+        **kwargs: Any,
+    ) -> "PyarrowBackend":
         """Read a Parquet file and return a wrapped DataFrame backend.
 
         Parameters
@@ -134,26 +208,41 @@ class PyarrowBackend(DataBackend):
         path : str
             Path to the Parquet file (supports local and cloud paths)
         streaming : bool, optional
-            If True, use streaming mode, by default False
+            If True, use streaming mode with RecordBatchReader, by default False
+        streaming_chunk_size : int, optional
+            Number of rows per batch in streaming mode, by default 1000
         **kwargs : Any
             Additional pyarrow-specific arguments passed to `pyarrow.parquet.read_table`
 
         Returns
         -------
         PyarrowBackend
-            Backend instance wrapping the loaded Table
+            Backend instance wrapping the loaded Table or RecordBatchReader
         """
-        valid_params = set(inspect.signature(pq.read_table).parameters.keys())
-        filtered_kwargs = {k: v for k, v in kwargs.items() if k in valid_params}
-
         path_str = str(path)
-        if path_str.startswith("gs://"):
-            gcs = pa_fs.GcsFileSystem()
-            bucket_and_key = path_str[len("gs://") :]
-            df = pq.read_table(bucket_and_key, filesystem=gcs, **filtered_kwargs)
+        if streaming:
+            if path_str.startswith("gs://"):
+                gcs = pa_fs.GcsFileSystem()
+                bucket_and_key = path_str[len("gs://") :]
+                parquet_file = pq.ParquetFile(bucket_and_key, filesystem=gcs)
+            else:
+                parquet_file = pq.ParquetFile(path_str)
+            schema = parquet_file.schema_arrow
+            reader = pa.RecordBatchReader.from_batches(
+                schema,
+                parquet_file.iter_batches(batch_size=streaming_chunk_size),
+            )
+            return cls(reader, streaming=True, streaming_chunk_size=streaming_chunk_size)
         else:
-            df = pq.read_table(path_str, **filtered_kwargs)
-        return cls(df, streaming=False)
+            valid_params = set(inspect.signature(pq.read_table).parameters.keys())
+            filtered_kwargs = {k: v for k, v in kwargs.items() if k in valid_params}
+            if path_str.startswith("gs://"):
+                gcs = pa_fs.GcsFileSystem()
+                bucket_and_key = path_str[len("gs://") :]
+                df = pq.read_table(bucket_and_key, filesystem=gcs, **filtered_kwargs)
+            else:
+                df = pq.read_table(path_str, **filtered_kwargs)
+            return cls(df, streaming=False)
 
     @property
     def is_streaming(self) -> bool:
@@ -165,6 +254,53 @@ class PyarrowBackend(DataBackend):
             True if in streaming mode, False otherwise
         """
         return self._streaming
+
+    def _ensure_collected(self) -> pa.Table:
+        """Ensure the Table is collected (not a RecordBatchReader).
+
+        Returns
+        -------
+        pa.Table
+            The underlying Table (reads and consumes stream if streaming)
+        """
+        if isinstance(self._df, pa.RecordBatchReader):
+            return self._df.read_all()
+        return self._df
+
+    def collect(self) -> "PyarrowBackend":
+        """Materialize the RecordBatchReader and return an eager backend.
+
+        Returns
+        -------
+        PyarrowBackend
+            New backend in eager mode with materialized Table
+
+        Notes
+        -----
+        If the backend is already in eager mode, returns a new backend wrapping
+        the same Table. Calling this on a streaming backend consumes the reader.
+        """
+        return PyarrowBackend(self._ensure_collected(), streaming=False)
+
+    def _ensure_not_streaming(self, operation: str) -> None:
+        """Raise error if in streaming mode for operations that require eager evaluation.
+
+        Parameters
+        ----------
+        operation : str
+            Name of the operation being attempted
+
+        Raises
+        ------
+        RuntimeError
+            If backend is in streaming mode
+        """
+        if self._streaming:
+            raise RuntimeError(
+                f"Cannot perform '{operation}' in streaming mode. "
+                f"RecordBatchReader requires explicit collection. "
+                f"Consider using .collect() or iterate over the data."
+            )
 
     def __getitem__(self, key: int | list[int] | slice) -> dict[str, Any] | "PyarrowBackend":
         """Get row(s) from the Table using Pythonic indexing.
@@ -199,21 +335,13 @@ class PyarrowBackend(DataBackend):
             if key >= len(self._df):
                 raise IndexError(f"Index {key} out of bounds for Table of length {len(self._df)}")
             row = self._df.take([key]).to_pydict()
-            # Convert values from list to any
-            for key, value in row.items():
-                row[key] = value[0]
-            return row
+            # Convert values from list to scalar
+            return {k: v[0] for k, v in row.items()}
         elif isinstance(key, list):
             return PyarrowBackend(self._df.take(key), streaming=False)
         elif isinstance(key, slice):
-            if key.start is not None:
-                offset = key.start
-            else:
-                offset = 0
-            if key.stop is not None:
-                length = key.stop - offset
-            else:
-                length = None
+            offset = key.start if key.start is not None else 0
+            length = (key.stop - offset) if key.stop is not None else None
             return PyarrowBackend(self._df.slice(offset=offset, length=length))
         else:
             raise TypeError(f"Unsupported index type: {type(key)}")
@@ -227,15 +355,57 @@ class PyarrowBackend(DataBackend):
             Number of rows
         """
         self._ensure_not_streaming("__len__")
-        df = self._ensure_collected()
-        return len(df)
+        return len(self._df)
 
     def __iter__(self) -> Iterator[dict[str, Any]]:
-        for batch in self._df.to_batches(
-            max_chunksize=self._streaming_chunk_size if self._streaming else None
-        ):
-            for row in batch.to_pylist():
-                yield row
+        """Iterate over Table rows as dictionaries.
+
+        In streaming mode (RecordBatchReader), reads one batch at a time so the
+        full result never needs to live in memory at once.
+        In eager mode (Table), yields rows directly.
+
+        Yields
+        ------
+        dict[str, Any]
+            Dictionary for each row mapping column names to values
+        """
+        if isinstance(self._df, pa.RecordBatchReader):
+            for batch in self._df:
+                for row in batch.to_pylist():
+                    yield row
+        else:
+            for batch in self._df.to_batches(
+                max_chunksize=self._streaming_chunk_size if self._streaming else None
+            ):
+                for row in batch.to_pylist():
+                    yield row
+
+    def iter_batches(self, batch_size: int = 1000) -> Iterator["PyarrowBackend"]:
+        """Iterate over Table in batches.
+
+        Parameters
+        ----------
+        batch_size : int, optional
+            Number of rows per batch, by default 1000
+
+        Yields
+        ------
+        PyarrowBackend
+            Backend instances wrapping batches of rows.
+            Yielded backends are always in eager mode.
+
+        Notes
+        -----
+        In streaming mode, reads batches incrementally from the RecordBatchReader
+        so the full result never needs to live in memory at once.
+        """
+        if isinstance(self._df, pa.RecordBatchReader):
+            for batch in self._df:
+                yield PyarrowBackend(pa.Table.from_batches([batch]), streaming=False)
+        else:
+            df = self._df
+            for start_idx in range(0, len(df), batch_size):
+                yield PyarrowBackend(df.slice(start_idx, batch_size), streaming=False)
 
     def filter_isin(
         self, column: str, values: list[Any], *, negate: bool = False
@@ -256,11 +426,12 @@ class PyarrowBackend(DataBackend):
         PyarrowBackend
             New backend with filtered Table
         """
+        self._ensure_not_streaming("filter_isin")
         expr = pc.field(column).isin(values)
         if negate:
             expr = ~expr
         filtered_tb = self._df.filter(expr)
-        return PyarrowBackend(filtered_tb, streaming=self._streaming)
+        return PyarrowBackend(filtered_tb, streaming=False)
 
     def drop_duplicates(
         self,
@@ -284,7 +455,7 @@ class PyarrowBackend(DataBackend):
             New backend with duplicates removed
         """
         self._ensure_not_streaming("drop_duplicates")
-        df = self._ensure_collected()
+        df = self._df
         cols = subset if subset is not None else df.column_names
 
         # Build row indices grouped by key columns, keep first or last
@@ -314,15 +485,16 @@ class PyarrowBackend(DataBackend):
         PyarrowBackend
             New backend with null rows removed
         """
+        self._ensure_not_streaming("dropna")
         if subset is not None:
             mask = pc.is_valid(self._df.column(subset[0]))
             for col in subset[1:]:
                 mask = pc.and_(mask, pc.is_valid(self._df.column(col)))
-            return PyarrowBackend(self._df.filter(mask), streaming=self._streaming)
-        return PyarrowBackend(self._df.drop_null(), streaming=self._streaming)
+            return PyarrowBackend(self._df.filter(mask), streaming=False)
+        return PyarrowBackend(self._df.drop_null(), streaming=False)
 
     def get_unique(self, column: str) -> list[Any]:
-        """Get sorted unique values from a column
+        """Get sorted unique values from a column.
 
         Parameters
         ----------
@@ -333,7 +505,19 @@ class PyarrowBackend(DataBackend):
         -------
         list[Any]
             Sorted list of unique values (nulls excluded)
+
+        Notes
+        -----
+        In streaming mode, materializes the full stream to compute uniques.
+        A UserWarning is emitted because this consumes the underlying reader.
         """
+        if self._streaming:
+            warnings.warn(
+                "get_unique() requires collection of RecordBatchReader to compute uniques. "
+                "The backend itself is not modified, but the underlying stream will be consumed.",
+                UserWarning,
+                stacklevel=2,
+            )
         df = self._ensure_collected()
         unique_values = df.column(column).drop_null().unique().to_pylist()
         return sorted(unique_values)
@@ -350,13 +534,23 @@ class PyarrowBackend(DataBackend):
         -------
         dict[Any, int]
             Dictionary mapping unique values to their counts (nulls excluded)
+
+        Notes
+        -----
+        In streaming mode, materializes the full stream to compute counts.
+        A UserWarning is emitted because this consumes the underlying reader.
         """
+        if self._streaming:
+            warnings.warn(
+                "histogram() requires collection of RecordBatchReader to compute counts. "
+                "The backend itself is not modified, but the underlying stream will be consumed.",
+                UserWarning,
+                stacklevel=2,
+            )
         df = self._ensure_collected()
-        # Drop nulls and group by column to get counts
         counts_table = (
             df.select([column]).drop_null().group_by(column).aggregate([([], "count_all")])
         )
-        # Convert to dictionary
         counts_dict = counts_table.to_pydict()
         return dict(zip(counts_dict[column], counts_dict["count_all"], strict=True))
 
@@ -386,11 +580,11 @@ class PyarrowBackend(DataBackend):
         PyarrowBackend
             New backend with mapped column added
         """
-        df = self._ensure_collected()
-        source = df.column(column).to_pylist()
+        self._ensure_not_streaming("map_column")
+        source = self._df.column(column).to_pylist()
         mapped = [mapping.get(v, default) for v in source]
         new_col = pa.array(mapped)
-        new_df = df.append_column(output_column, new_col)
+        new_df = self._df.append_column(output_column, new_col)
         return PyarrowBackend(new_df)
 
     def rename_columns(
@@ -409,7 +603,9 @@ class PyarrowBackend(DataBackend):
         PyarrowBackend
             New backend with renamed columns
         """
-        new_df = self._df.rename_columns(mapping)
+        self._ensure_not_streaming("rename_columns")
+        new_names = [mapping.get(name, name) for name in self._df.column_names]
+        new_df = self._df.rename_columns(new_names)
         return PyarrowBackend(new_df)
 
     def add_column(
@@ -431,7 +627,15 @@ class PyarrowBackend(DataBackend):
         PyarrowBackend
             New backend with new column added
         """
-        new_df = self._df.append_column(column, [values])
+        self._ensure_not_streaming("add_column")
+        if isinstance(values, (pa.Array, pa.ChunkedArray)):
+            new_col = values
+        elif isinstance(values, list):
+            new_col = pa.array(values)
+        else:
+            # scalar — broadcast to length of table
+            new_col = pa.array([values] * len(self._df))
+        new_df = self._df.append_column(column, new_col)
         return PyarrowBackend(new_df)
 
     def select_columns(
@@ -450,6 +654,7 @@ class PyarrowBackend(DataBackend):
         PyarrowBackend
             New backend with only specified columns
         """
+        self._ensure_not_streaming("select_columns")
         return PyarrowBackend(self._df.select(columns))
 
     @classmethod
@@ -466,6 +671,8 @@ class PyarrowBackend(DataBackend):
         ----------
         backends : list[PyarrowBackend]
             List of backend instances to concatenate
+        ignore_index : bool, optional
+            Unused — present for API compatibility, by default True
         sort : bool, optional
             If True, sort columns alphabetically, by default False
 
@@ -479,41 +686,10 @@ class PyarrowBackend(DataBackend):
         concatenated_df = pa.concat_tables(dfs)
 
         if sort:
-            # Sort columns alphabetically
             sorted_cols = sorted(concatenated_df.column_names)
             concatenated_df = concatenated_df.select(sorted_cols)
 
         return cls(concatenated_df)
-
-    def _ensure_collected(self) -> pa.Table:
-        """Ensure the Table is collected (not lazy).
-
-        Returns
-        -------
-        pa.Table
-            The underlying Table
-        """
-        return self._df
-
-    def _ensure_not_streaming(self, operation: str) -> None:
-        """Raise error if in streaming mode for operations that require eager evaluation.
-
-        Parameters
-        ----------
-        operation : str
-            Name of the operation being attempted
-
-        Raises
-        ------
-        RuntimeError
-            If backend is in streaming mode
-        """
-        if self._streaming:
-            raise RuntimeError(
-                f"Cannot perform '{operation}' in streaming mode. "
-                f"LazyFrame operations require explicit collection. "
-                f"Consider using .collect() or iterate over the data."
-            )
 
     @property
     def columns(self) -> list[str]:
@@ -525,9 +701,8 @@ class PyarrowBackend(DataBackend):
             List of column names
         """
         if self._streaming:
-            return self._df.collect_schema().names()
-        else:
-            return self._df.column_names
+            return self._df.schema.names
+        return self._df.column_names
 
     def column_exists(self, column: str) -> bool:
         """Check if a column exists in the DataFrame.
@@ -542,16 +717,18 @@ class PyarrowBackend(DataBackend):
         bool
             True if column exists, False otherwise
         """
+        if self._streaming:
+            return column in self._df.schema.names
         return column in self._df.column_names
 
     @property
-    def unwrap(self) -> pa.Table:
-        """Get the underlying Table object.
+    def unwrap(self) -> pa.Table | pa.RecordBatchReader:
+        """Get the underlying Table or RecordBatchReader object.
 
         Returns
         -------
-        pa.Table
-            The underlying pyarrow Table
+        pa.Table | pa.RecordBatchReader
+            The underlying pyarrow Table or RecordBatchReader
         """
         return self._df
 
@@ -647,7 +824,7 @@ class PyarrowBackend(DataBackend):
         Special key "other" can be used to subsample all values not explicitly listed.
 
         If the backend is in streaming mode, a UserWarning will be issued and the
-        LazyFrame will be collected since sampling requires materialization.
+        RecordBatchReader will be consumed since sampling requires materialization.
 
         Note: The "other" key pools all unlisted values together and samples from
         the pooled group, rather than applying the ratio per unlisted category.
@@ -674,6 +851,14 @@ class PyarrowBackend(DataBackend):
         ValueError
             If any ratio is negative or greater than 1.0
         """
+        if self._streaming:
+            warnings.warn(
+                "subsample_by_column() requires collection of RecordBatchReader for sampling. "
+                "The returned backend will be in eager mode (streaming=False).",
+                UserWarning,
+                stacklevel=2,
+            )
+
         import numpy as np
 
         df = self._ensure_collected()
@@ -725,7 +910,7 @@ class PyarrowBackend(DataBackend):
         be downsampled (without replacement) to the target count.
 
         If the backend is in streaming mode, a UserWarning will be issued and the
-        LazyFrame will be collected since sampling requires materialization.
+        RecordBatchReader will be consumed since sampling requires materialization.
 
         Note: The "other" key pools all unlisted values together and samples from
         the pooled group to reach the target count, rather than applying the target
@@ -755,6 +940,14 @@ class PyarrowBackend(DataBackend):
         TypeError
             If any target count is not an integer
         """
+        if self._streaming:
+            warnings.warn(
+                "upsample_by_column() requires collection of RecordBatchReader for sampling. "
+                "The returned backend will be in eager mode (streaming=False).",
+                UserWarning,
+                stacklevel=2,
+            )
+
         import numpy as np
 
         df = self._ensure_collected()
@@ -814,25 +1007,23 @@ class PyarrowBackend(DataBackend):
         PyarrowBackend
             New backend with sampled rows
         """
+        self._ensure_not_streaming("sample_rows")
         import numpy as np
 
         rng = np.random.default_rng(seed=seed)
         indices = rng.choice(len(self._df), size=n, replace=replace).tolist()
-        return PyarrowBackend(self._df.take(indices), streaming=self._streaming)
+        return PyarrowBackend(self._df.take(indices), streaming=False)
 
     def copy(self) -> "PyarrowBackend":
         """Create a copy of the backend with a copied Table.
 
         Returns
         -------
-        PolarsBackend
+        PyarrowBackend
             New backend instance with copied Table
         """
-        # Preserve streaming mode
-        return PyarrowBackend(
-            self._df,
-            streaming=self._streaming,
-        )
+        self._ensure_not_streaming("copy")
+        return PyarrowBackend(self._df, streaming=False)
 
     def apply_fn(
         self,
@@ -854,8 +1045,9 @@ class PyarrowBackend(DataBackend):
         PyarrowBackend
             New backend wrapping the result of the function application
         """
+        self._ensure_not_streaming("apply_fn")
         result = fn(self._df, **fn_kwargs)
-        return PyarrowBackend(result, streaming=self._streaming)
+        return PyarrowBackend(result, streaming=False)
 
     def multilabel_from_features(
         self,
@@ -894,7 +1086,8 @@ class PyarrowBackend(DataBackend):
         ValueError
             If any input feature does not exist or is not of type List.
         """
-        df = self._ensure_collected()
+        self._ensure_not_streaming("multilabel_from_features")
+        df = self._df
 
         for f in input_features:
             if f not in df.column_names:
@@ -938,7 +1131,7 @@ class PyarrowBackend(DataBackend):
             mask = pc.greater(pc.list_value_length(new_df.column(output_feature)), 0)
             new_df = new_df.filter(mask)
 
-        return PyarrowBackend(new_df, streaming=self._streaming), label_map
+        return PyarrowBackend(new_df, streaming=False), label_map
 
     def __repr__(self) -> str:
         """Return string representation of the backend.
@@ -949,5 +1142,5 @@ class PyarrowBackend(DataBackend):
             String representation showing backend type and Table shape
         """
         if self._streaming:
-            return f"PyarrowBackend(streaming=True, chunk_size={self._chunk_size})"
+            return f"PyarrowBackend(streaming=True, chunk_size={self._streaming_chunk_size})"
         return f"PyarrowBackend(shape={self._df.shape})"
