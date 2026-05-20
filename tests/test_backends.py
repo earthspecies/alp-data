@@ -316,10 +316,10 @@ class TestPyarrowBackend:
 
     def test_drop_duplicates(self) -> None:
         """Test deduplication."""
-        df = pa.table({"a": [1, 2, 2, 3], "b": ["x", "y", "y", "z"]})
+        df = pa.table({"a": [1, 2, 2, 2, 3], "b": ["x", "y", "y", "x", "z"]})
         backend = PyarrowBackend(df)
         deduped = backend.drop_duplicates()
-        assert len(deduped) == 3
+        assert len(deduped) == 4
 
     def test_get_unique(self) -> None:
         """Test getting unique values."""

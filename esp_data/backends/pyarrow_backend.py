@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Iterator
+from typing import Any, Iterator, Literal
 
 import pyarrow as pa
+import pyarrow.compute as pc
 
 from .protocol import DataBackend
 
@@ -127,6 +128,64 @@ class PyarrowBackend(DataBackend):
         ):
             for row in batch.to_pylist():
                 yield row
+
+    def filter_isin(
+        self, column: str, values: list[Any], *, negate: bool = False
+    ) -> "PyarrowBackend":
+        """Filter Table rows where column values are in (or not in) a list.
+
+        Parameters
+        ----------
+        column : str
+            Column name to filter on
+        values : list[Any]
+            List of values to match
+        negate : bool, optional
+            If True, keep rows NOT in values list, by default False
+
+        Returns
+        -------
+        PyarrowBackend
+            New backend with filtered Table
+        """
+        expr = pc.field(column).isin(values)
+        filtered_tb = self._df.filter(expr)
+        return PyarrowBackend(filtered_tb, streaming=self._streaming)
+
+    def drop_duplicates(
+        self,
+        subset: list[str] | None = None,
+        *,
+        keep: Literal["first", "last"] = "first",
+    ) -> "PyarrowBackend":
+        """Remove duplicate rows from the Table.
+
+        Parameters
+        ----------
+        subset : list[str] | None, optional
+            Column names to consider for identifying duplicates.
+            If None, use all columns, by default None
+        keep : Literal["first", "last"], optional
+            Which duplicate to keep, by default "first"
+
+        Returns
+        -------
+        PyarrowBackend
+            New backend with duplicates removed
+        """
+        self._ensure_not_streaming("drop_duplicates")
+        df = self._ensure_collected()
+        cols = subset if subset is not None else df.column_names
+
+        # Build row indices grouped by key columns, keep first or last
+        keys: dict[tuple, int] = {}
+        for i in range(len(df)):
+            key = tuple(df.column(c)[i].as_py() for c in cols)
+            if key not in keys or keep == "last":
+                keys[key] = i
+
+        indices = sorted(keys.values())
+        return PyarrowBackend(df.take(indices), streaming=False)
 
     @property
     def unwrap(self) -> pa.Table:
