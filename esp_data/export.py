@@ -13,7 +13,7 @@ from esp_data.backends.webdataset_utils import (
 from esp_data.io import anypath
 
 __all__ = [
-    "export_to",
+    "export_dataset",
     "audio_encoder",
     "json_encoder",
     "audio_decoder",
@@ -23,7 +23,7 @@ __all__ = [
 _SUPPORTED_FORMATS = ("webdataset",)
 
 
-def export_to(
+def export_dataset(
     iterable: Iterator[dict[str, Any]] | Iterable[dict[str, Any]],
     path: str,
     format: str = "webdataset",

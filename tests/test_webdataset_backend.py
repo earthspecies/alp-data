@@ -14,8 +14,8 @@ import webdataset as wds
 
 from esp_data.backends import get_backend
 from esp_data.backends.webdataset_backend import WebDatasetBackend, _load_webdataset
-from esp_data.export import export_to
-from esp_data.export import audio_decoder, audio_encoder, export_to, json_decoder, json_encoder
+from esp_data.export import export_dataset
+from esp_data.export import audio_decoder, audio_encoder, export_dataset, json_decoder, json_encoder
 from esp_data.dataset import (
     Dataset,
     DatasetConfig,
@@ -1056,14 +1056,14 @@ class TestStreamingBackendProtocol:
 
 
 class TestExportTo:
-    """Tests for export_to with webdataset format."""
+    """Tests for export_dataset with webdataset format."""
 
     def test_json_round_trip(self, json_tar_dir: Path, tmp_path: Path) -> None:
-        """Test export_to then from_path yields identical samples."""
+        """Test export_dataset then from_path yields identical samples."""
         backend = WebDatasetBackend.from_path(json_tar_dir, data_processor=json_decoder)
         output_dir = tmp_path / "saved"
 
-        n, fmt = export_to(iter(backend), str(output_dir), encoder_fn=None)
+        n, fmt = export_dataset(iter(backend), str(output_dir), encoder_fn=None)
 
         assert n == 5
         assert fmt == "webdataset"
@@ -1076,11 +1076,11 @@ class TestExportTo:
             assert orig["name"] == reloaded_s["name"]
 
     def test_audio_round_trip(self, audio_tar_dir: Path, tmp_path: Path) -> None:
-        """Test export_to then from_path for audio samples."""
+        """Test export_dataset then from_path for audio samples."""
         backend = WebDatasetBackend.from_path(audio_tar_dir, data_processor=audio_decoder)
         output_dir = tmp_path / "saved"
 
-        n, _ = export_to(iter(backend), str(output_dir), encoder_fn=audio_encoder)
+        n, _ = export_dataset(iter(backend), str(output_dir), encoder_fn=audio_encoder)
 
         assert n == 5
         reloaded = WebDatasetBackend.from_path(output_dir, data_processor=audio_decoder)
@@ -1091,49 +1091,49 @@ class TestExportTo:
             assert isinstance(sample["audio"], np.ndarray)
 
     def test_creates_shard_files(self, json_tar_dir: Path, tmp_path: Path) -> None:
-        """Test that export_to creates shard tar files with the expected naming."""
+        """Test that export_dataset creates shard tar files with the expected naming."""
         backend = WebDatasetBackend.from_path(json_tar_dir, data_processor=json_decoder)
         output_dir = tmp_path / "saved"
 
-        export_to(iter(backend), str(output_dir), encoder_fn=None)
+        export_dataset(iter(backend), str(output_dir), encoder_fn=None)
 
         shard_files = list(output_dir.glob("shard_*.tar"))
         assert len(shard_files) >= 1
         assert (output_dir / "shard_0000.tar").exists()
 
     def test_returns_sample_count(self, json_tar_dir: Path, tmp_path: Path) -> None:
-        """Test that export_to return value equals the number of samples written."""
+        """Test that export_dataset return value equals the number of samples written."""
         backend = WebDatasetBackend.from_path(json_tar_dir, data_processor=json_decoder)
 
-        n, _ = export_to(iter(backend), str(tmp_path / "saved"), encoder_fn=None)
+        n, _ = export_dataset(iter(backend), str(tmp_path / "saved"), encoder_fn=None)
 
         assert n == 5
 
     def test_filtered_backend(self, json_tar_dir: Path, tmp_path: Path) -> None:
-        """Test that filters applied before export_to are reflected in the output."""
+        """Test that filters applied before export_dataset are reflected in the output."""
         backend = WebDatasetBackend.from_path(json_tar_dir, data_processor=json_decoder)
         filtered = backend.filter_isin("category", ["cat_0"])
         output_dir = tmp_path / "saved"
 
-        n, _ = export_to(iter(filtered), str(output_dir), encoder_fn=None)
+        n, _ = export_dataset(iter(filtered), str(output_dir), encoder_fn=None)
 
         assert n == 2
         reloaded = list(WebDatasetBackend.from_path(output_dir, data_processor=json_decoder))
         assert all(s["category"] == "cat_0" for s in reloaded)
 
     def test_creates_output_dir(self, json_tar_dir: Path, tmp_path: Path) -> None:
-        """Test that export_to creates the output directory if it does not exist."""
+        """Test that export_dataset creates the output directory if it does not exist."""
         backend = WebDatasetBackend.from_path(json_tar_dir, data_processor=json_decoder)
         output_dir = tmp_path / "new" / "nested" / "dir"
 
-        export_to(iter(backend), str(output_dir), encoder_fn=None)
+        export_dataset(iter(backend), str(output_dir), encoder_fn=None)
 
         assert output_dir.exists()
 
     def test_with_explicit_encoder(self, json_tar_dir: Path, tmp_path: Path) -> None:
-        """Test export_to accepts an explicit encoder_fn."""
+        """Test export_dataset accepts an explicit encoder_fn."""
         backend = WebDatasetBackend.from_path(json_tar_dir, data_processor=json_decoder)
 
-        n, _ = export_to(iter(backend), str(tmp_path / "saved"), encoder_fn=json_encoder)
+        n, _ = export_dataset(iter(backend), str(tmp_path / "saved"), encoder_fn=json_encoder)
 
         assert n == 5

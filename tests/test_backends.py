@@ -6,7 +6,7 @@ import pytest
 
 from esp_data.backends import PandasBackend, PolarsBackend, get_backend
 from esp_data.backends.webdataset_backend import WebDatasetBackend
-from esp_data.export import export_to, json_decoder
+from esp_data.export import export_dataset, json_decoder
 
 
 class TestPandasBackend:
@@ -287,12 +287,12 @@ class TestBackendFactory:
             get_backend("invalid")  # type: ignore
 
 
-class TestExportTo:
-    """Tests for the export_to function."""
+class TestExportDataset:
+    """Tests for the export_dataset function."""
 
     def test_webdataset_roundtrip(self, tmp_path) -> None:
         samples = [{"id": i, "name": str(i)} for i in range(3)]
-        n, fmt = export_to(iter(samples), str(tmp_path / "out"), format="webdataset", encoder_fn=None)
+        n, fmt = export_dataset(iter(samples), str(tmp_path / "out"), format="webdataset", encoder_fn=None)
         assert n == 3
         assert fmt == "webdataset"
         reloaded = list(WebDatasetBackend.from_path(tmp_path / "out", data_processor=json_decoder))
@@ -300,4 +300,4 @@ class TestExportTo:
 
     def test_unsupported_format_raises(self, tmp_path) -> None:
         with pytest.raises(ValueError, match="Unsupported format"):
-            export_to(iter([]), str(tmp_path / "out"), format="csv")
+            export_dataset(iter([]), str(tmp_path / "out"), format="csv")
