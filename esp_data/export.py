@@ -28,7 +28,7 @@ def export_dataset(
     path: str,
     format: str = "webdataset",
     **kwargs: Any,
-) -> tuple[int, str]:
+) -> dict[str, Any]:
     """Export an iterable of samples to a file.
 
     Parameters
@@ -46,8 +46,8 @@ def export_dataset(
 
     Returns
     -------
-    tuple[int, str]
-        A tuple containing the number of samples written and the format used.
+    dict[str, Any] :
+        Summary of export results
 
     Raises
     ------
