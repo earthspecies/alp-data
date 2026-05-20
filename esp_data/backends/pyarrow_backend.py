@@ -115,11 +115,10 @@ class PyarrowBackend(DataBackend):
         PyarrowBackend
             Backend instance wrapping the loaded Table or RecordBatchReader
         """
-        valid_params = set(inspect.signature(pa_csv.read_csv).parameters.keys())
-        filtered_kwargs = {k: v for k, v in kwargs.items() if k in valid_params}
-
         path_str = str(path)
         if streaming:
+            valid_params = set(inspect.signature(pa_csv.open_csv).parameters.keys())
+            filtered_kwargs = {k: v for k, v in kwargs.items() if k in valid_params}
             if path_str.startswith("gs://"):
                 gcs = pa_fs.GcsFileSystem()
                 bucket_and_key = path_str[len("gs://") :]
@@ -130,6 +129,8 @@ class PyarrowBackend(DataBackend):
                 reader = pa_csv.open_csv(path_str, **filtered_kwargs)
             return cls(reader, streaming=True, streaming_chunk_size=streaming_chunk_size)
         else:
+            valid_params = set(inspect.signature(pa_csv.read_csv).parameters.keys())
+            filtered_kwargs = {k: v for k, v in kwargs.items() if k in valid_params}
             if path_str.startswith("gs://"):
                 gcs = pa_fs.GcsFileSystem()
                 bucket_and_key = path_str[len("gs://") :]
@@ -330,7 +331,9 @@ class PyarrowBackend(DataBackend):
 
         if isinstance(key, int):
             # Return single row as dict
-            if key >= len(df):
+            if key < 0:
+                key += len(df)
+            if key < 0 or key >= len(df):
                 raise IndexError(f"Index {key} out of bounds for Table of length {len(df)}")
             row = df.take([key]).to_pydict()
             # Convert values from list to scalar
@@ -395,7 +398,9 @@ class PyarrowBackend(DataBackend):
         Notes
         -----
         In streaming mode, reads batches incrementally from the RecordBatchReader
-        so the full result never needs to live in memory at once.
+        so the full result never needs to live in memory at once. The `batch_size`
+        parameter is ignored in streaming mode; batch sizes are determined by the
+        underlying RecordBatchReader.
         """
         if isinstance(self._df, pa.RecordBatchReader):
             for batch in self._df:
@@ -456,14 +461,11 @@ class PyarrowBackend(DataBackend):
         df = self._df
         cols = subset if subset is not None else df.column_names
 
-        # Build row indices grouped by key columns, keep first or last
-        keys: dict[tuple, int] = {}
-        for i in range(len(df)):
-            key = tuple(df.column(c)[i].as_py() for c in cols)
-            if key not in keys or keep == "last":
-                keys[key] = i
-
-        indices = sorted(keys.values())
+        idx_col = "_row_idx_"
+        df_with_idx = df.append_column(idx_col, pa.array(range(len(df))))
+        agg_fn = "min" if keep == "first" else "max"
+        idx_table = df_with_idx.group_by(cols).aggregate([(idx_col, agg_fn)])
+        indices = sorted(idx_table.column(f"{idx_col}_{agg_fn}").to_pylist())
         return PyarrowBackend(df.take(indices), streaming=False)
 
     def dropna(
@@ -678,7 +680,17 @@ class PyarrowBackend(DataBackend):
         -------
         PyarrowBackend
             New backend with concatenated data
+
+        Raises
+        ------
+        RuntimeError
+            If any input backend is in streaming mode.
         """
+        for b in backends:
+            if b._streaming:
+                raise RuntimeError(
+                    "Cannot concat streaming backends. Call .collect() on each backend first."
+                )
         dfs = [backend._df for backend in backends]
 
         concatenated_df = pa.concat_tables(dfs)
@@ -732,6 +744,7 @@ class PyarrowBackend(DataBackend):
 
     def _sample_by_column_helper(
         self,
+        df: pa.Table,
         column: str,
         values_dict: dict[str, Any],
         *,
@@ -743,6 +756,8 @@ class PyarrowBackend(DataBackend):
 
         Parameters
         ----------
+        df : pa.Table
+            Already-collected table to sample from
         column : str
             Column name to group by
         values_dict : dict[str, Any]
@@ -761,7 +776,6 @@ class PyarrowBackend(DataBackend):
         PyarrowBackend
             New backend with sampled rows
         """
-        df = self._ensure_collected()
         groups = []
 
         unique_values_set = set(df.column(column).drop_null().unique().to_pylist())
@@ -887,6 +901,7 @@ class PyarrowBackend(DataBackend):
             return group_df.take(indices)
 
         return self._sample_by_column_helper(
+            df,
             column=column,
             values_dict=ratios,
             sample_fn=sample_by_ratio,
@@ -975,6 +990,7 @@ class PyarrowBackend(DataBackend):
             return group_df.take(indices)
 
         return self._sample_by_column_helper(
+            df,
             column=column,
             values_dict=target_counts,
             sample_fn=sample_by_target_count,
@@ -1013,12 +1029,12 @@ class PyarrowBackend(DataBackend):
         return PyarrowBackend(self._df.take(indices), streaming=False)
 
     def copy(self) -> "PyarrowBackend":
-        """Create a copy of the backend with a copied Table.
+        """Create a new backend wrapping the same underlying Table.
 
         Returns
         -------
         PyarrowBackend
-            New backend instance with copied Table
+            New backend instance wrapping the same immutable `pa.Table`
         """
         self._ensure_not_streaming("copy")
         return PyarrowBackend(self._df, streaming=False)
@@ -1065,12 +1081,12 @@ class PyarrowBackend(DataBackend):
             contain single values or lists of values.
         output_feature : str
             Name of the output column to store the generated label lists.
-        label_map : dict[str, Any] | None, optional
+        label_map : dict[Any, int] | None, optional
             Mapping of unique label values to integer IDs. If None, a mapping
             will be generated from the unique values in the input features.
         allow_missing_labels : bool, optional
             If True, rows with no labels will be included in the output.
-            If False, rows with no labels will be dropped. Default is True.
+            If False, rows with no labels will be dropped. Default is False.
 
         Returns
         -------

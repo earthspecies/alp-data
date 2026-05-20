@@ -634,8 +634,9 @@ class TestBackendFactory:
 
     def test_get_backend_pyarrow(self) -> None:
         """Test getting pyarrow backend."""
-        backend_cls  = get_backend("pyarrow")
+        backend_cls = get_backend("pyarrow")
         assert backend_cls == PyarrowBackend
+
     def test_get_backend_invalid(self) -> None:
         """Test getting invalid backend raises error."""
         with pytest.raises(ValueError, match="Unknown backend"):
