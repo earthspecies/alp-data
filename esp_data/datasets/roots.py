@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from collections.abc import Iterator
 from typing import Any
 
@@ -13,9 +14,69 @@ from esp_data.backends import BackendType
 from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
 
 _T1_V2_ROOT = "gs://foundation-model-data/synthetic/train_final/T1_with_captions_train_v2"
+_T3_ROOT = "gs://foundation-model-data/synthetic/train_final/T3_with_captions_train"
 _F0_AUDIO_ROOT = "gs://esp-data-ingestion/f0-prediction/audio_32k"
 _INAT_AUDIO_ROOT = "gs://esp-ml-datasets/inaturalist/v0.1.0/raw"
 _XC_AUDIO_ROOT = "gs://esp-ml-datasets/xeno-canto/v0.1.0/raw/audio"
+_CROP_RE = re.compile(r"__crop_(\d+)_(\d+)")
+
+
+def _t3_spec(filename: str, task: str) -> dict[str, str | None]:
+    split = filename.removesuffix("_clean.jsonl").removesuffix(".jsonl")
+    return {
+        "jsonl_path": f"{_T3_ROOT}/{filename}",
+        "audio_root": None,
+        "task": task,
+        "split": f"tier3_{split}",
+    }
+
+
+_T3_FILES: tuple[tuple[str, str], ...] = (
+    ("highest_pitch_species_mcq_wabad_v2_clean.jsonl", "roots_tier3_highest_pitch_species_mcq"),
+    ("highest_pitch_species_oe_wabad_v2_clean.jsonl", "roots_tier3_highest_pitch_species_open"),
+    (
+        "longest_voc_species_mcq_sed_diarization_v2_clean.jsonl",
+        "roots_tier3_longest_vocalization_mcq",
+    ),
+    ("longest_voc_species_mcq_sed_v2_clean.jsonl", "roots_tier3_longest_vocalization_mcq"),
+    ("longest_voc_species_mcq_wabad_v1_clean.jsonl", "roots_tier3_longest_vocalization_mcq"),
+    (
+        "longest_voc_species_oe_sed_diarization_v2_clean.jsonl",
+        "roots_tier3_longest_vocalization_open",
+    ),
+    ("longest_voc_species_oe_sed_v2_clean.jsonl", "roots_tier3_longest_vocalization_open"),
+    ("longest_voc_species_oe_wabad_v1_clean.jsonl", "roots_tier3_longest_vocalization_open"),
+    ("lowest_pitch_species_mcq_wabad_v2_clean.jsonl", "roots_tier3_lowest_pitch_species_mcq"),
+    ("lowest_pitch_species_oe_wabad_v2_clean.jsonl", "roots_tier3_lowest_pitch_species_open"),
+    ("species_count_oe_sed_diarization_v1_clean.jsonl", "roots_tier3_species_count"),
+    ("species_count_oe_sed_v1_clean.jsonl", "roots_tier3_species_count"),
+    ("species_count_oe_wabad_v1_clean.jsonl", "roots_tier3_species_count"),
+    ("species_voc_order_mcq_sed_diarization_v2_clean.jsonl", "roots_tier3_vocal_order_mcq"),
+    ("species_voc_order_mcq_sed_v2_clean.jsonl", "roots_tier3_vocal_order_mcq"),
+    ("species_voc_order_mcq_wabad_v2_clean.jsonl", "roots_tier3_vocal_order_mcq"),
+    ("species_voc_order_oe_sed_diarization_v2_clean.jsonl", "roots_tier3_vocal_order_open"),
+    ("species_voc_order_oe_sed_v2_clean.jsonl", "roots_tier3_vocal_order_open"),
+    ("species_voc_order_oe_wabad_v2_clean.jsonl", "roots_tier3_vocal_order_open"),
+    ("tier1_structural_caption_sed_diarization_v1_clean.jsonl", "roots_tier3_structural_caption"),
+    ("tier1_structural_caption_sed_v1_clean.jsonl", "roots_tier3_structural_caption"),
+    ("tier1_structural_caption_wabad_v1_clean.jsonl", "roots_tier3_structural_caption"),
+    (
+        "voc_cooccurrence_binary_sed_diarization_v2_clean.jsonl",
+        "roots_tier3_vocal_cooccurrence_binary",
+    ),
+    ("voc_cooccurrence_binary_sed_v2_clean.jsonl", "roots_tier3_vocal_cooccurrence_binary"),
+    ("voc_cooccurrence_binary_wabad_v1_clean.jsonl", "roots_tier3_vocal_cooccurrence_binary"),
+    ("voc_loc_mcq_sed_diarization_v2_clean.jsonl", "roots_tier3_vocal_location_mcq"),
+    ("voc_loc_mcq_sed_v2_clean.jsonl", "roots_tier3_vocal_location_mcq"),
+    ("voc_loc_mcq_wabad_v1_clean.jsonl", "roots_tier3_vocal_location_mcq"),
+    ("vocal_dominance_mcq_sed_diarization_v2_clean.jsonl", "roots_tier3_vocal_dominance_mcq"),
+    ("vocal_dominance_mcq_sed_v2_clean.jsonl", "roots_tier3_vocal_dominance_mcq"),
+    ("vocal_dominance_mcq_wabad_v1_clean.jsonl", "roots_tier3_vocal_dominance_mcq"),
+    ("vocal_dominance_oe_sed_diarization_v2_clean.jsonl", "roots_tier3_vocal_dominance_open"),
+    ("vocal_dominance_oe_sed_v2_clean.jsonl", "roots_tier3_vocal_dominance_open"),
+    ("vocal_dominance_oe_wabad_v1_clean.jsonl", "roots_tier3_vocal_dominance_open"),
+    ("wabad_cropped_templated_v1.jsonl", "roots_tier3_wabad_templated"),
+)
 
 _SPLIT_SPECS: dict[str, dict[str, str | None]] = {
     "tier1_v2_acoustic_caption_f0bioacoustic": {
@@ -91,6 +152,7 @@ _SPLIT_SPECS: dict[str, dict[str, str | None]] = {
         "task": "roots_tier1_vocal_description_mcq",
     },
 }
+_SPLIT_SPECS.update({spec["split"]: spec for spec in (_t3_spec(*entry) for entry in _T3_FILES)})
 
 
 @register_dataset
@@ -119,6 +181,7 @@ class ROOTS(Dataset):
         data_root: str | AnyPathT | None = None,
         task: str | None = None,
         jsonl_path: str | None = None,
+        max_duration_sec: float | None = None,
         backend: BackendType = "polars",
         streaming: bool = False,
     ) -> None:
@@ -138,6 +201,9 @@ class ROOTS(Dataset):
             Optional task override. When omitted, the built-in split task is used.
         jsonl_path
             Optional JSONL path override for ad hoc ROOTS-compatible splits.
+        max_duration_sec
+            Optional maximum effective audio duration. Rows with encoded crop
+            windows longer than this value are dropped at load time.
         backend
             Backend used to load the JSONL metadata.
         streaming
@@ -164,6 +230,7 @@ class ROOTS(Dataset):
         audio_root = data_root if data_root is not None else spec.get("audio_root")
         self.data_root = anypath(audio_root) if audio_root is not None else None
         self.task = task or spec.get("task") or "roots"
+        self.max_duration_sec = max_duration_sec
         self._load()
 
     @property
@@ -180,6 +247,49 @@ class ROOTS(Dataset):
             lines=True,
             streaming=self._streaming,
         )
+        if self.max_duration_sec is not None and not self._streaming:
+            self._filter_max_duration()
+
+    @staticmethod
+    def _crop_window(row: dict[str, Any]) -> tuple[float, float] | None:
+        audio_ids = row.get("audio_ids")
+        audio_paths = row.get("audio_paths")
+        candidates: list[str] = []
+        if isinstance(audio_ids, list):
+            candidates.extend(str(value) for value in audio_ids)
+        if isinstance(audio_paths, list):
+            candidates.extend(str(value) for value in audio_paths)
+
+        for value in candidates:
+            match = _CROP_RE.search(value)
+            if match is not None:
+                start_ms = int(match.group(1))
+                end_ms = int(match.group(2))
+                if end_ms <= start_ms:
+                    return None
+                return start_ms / 1000.0, end_ms / 1000.0
+        return None
+
+    @staticmethod
+    def _effective_duration_sec(row: dict[str, Any]) -> float | None:
+        crop_window = ROOTS._crop_window(row)
+        if crop_window is not None:
+            start_sec, end_sec = crop_window
+            return end_sec - start_sec
+        return None
+
+    def _filter_max_duration(self) -> None:
+        if self._data is None:
+            return
+
+        kept_indices: list[int] = []
+        for idx, row in enumerate(self._data):
+            duration = self._effective_duration_sec(row)
+            if duration is None or duration <= self.max_duration_sec:
+                kept_indices.append(idx)
+
+        if len(kept_indices) < len(self._data):
+            self._data = self._data[kept_indices]
 
     def _resolve_audio_path(self, row: dict[str, Any]) -> AnyPathT:
         audio_paths = row.get("audio_paths")
@@ -200,7 +310,13 @@ class ROOTS(Dataset):
 
     def _process(self, row: dict[str, Any]) -> dict[str, Any]:
         audio_path = self._resolve_audio_path(row)
-        audio, sample_rate = read_audio(audio_path)
+        crop_window = self._crop_window(row)
+        read_kwargs: dict[str, float] = {}
+        if crop_window is not None and "__crop_" not in str(audio_path):
+            start_sec, end_sec = crop_window
+            read_kwargs = {"start_time": start_sec, "end_time": end_sec}
+
+        audio, sample_rate = read_audio(audio_path, **read_kwargs)
         audio = audio_stereo_to_mono(audio, mono_method="average").astype(np.float32)
 
         if self.sample_rate is not None and sample_rate != self.sample_rate:
@@ -215,6 +331,9 @@ class ROOTS(Dataset):
 
         row["audio"] = audio
         row["audio_path"] = str(audio_path)
+        if crop_window is not None:
+            row["crop_start_sec"] = crop_window[0]
+            row["crop_end_sec"] = crop_window[1]
         row["sample_rate"] = sample_rate
         row["task"] = str(self.task)
 
@@ -246,6 +365,7 @@ class ROOTS(Dataset):
             data_root=cfg["data_root"],
             task=cfg.get("task"),
             jsonl_path=cfg.get("jsonl_path"),
+            max_duration_sec=cfg.get("max_duration_sec"),
             backend=cfg["backend"],
             streaming=cfg["streaming"],
         )
