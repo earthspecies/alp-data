@@ -324,25 +324,23 @@ class PyarrowBackend(DataBackend):
             If index is out of bounds
         TypeError
             If key type is not supported
-        RuntimeError
-            If backend is in streaming mode
         """
-        if self._streaming:
-            raise RuntimeError("Cannot use __getitem__ in streaming mode. Use iteration instead.")
+        self._ensure_not_streaming("__getitem__")
+        df = self._ensure_collected()
 
         if isinstance(key, int):
             # Return single row as dict
-            if key >= len(self._df):
-                raise IndexError(f"Index {key} out of bounds for Table of length {len(self._df)}")
-            row = self._df.take([key]).to_pydict()
+            if key >= len(df):
+                raise IndexError(f"Index {key} out of bounds for Table of length {len(df)}")
+            row = df.take([key]).to_pydict()
             # Convert values from list to scalar
             return {k: v[0] for k, v in row.items()}
         elif isinstance(key, list):
-            return PyarrowBackend(self._df.take(key), streaming=False)
+            return PyarrowBackend(df.take(key), streaming=False)
         elif isinstance(key, slice):
             offset = key.start if key.start is not None else 0
             length = (key.stop - offset) if key.stop is not None else None
-            return PyarrowBackend(self._df.slice(offset=offset, length=length))
+            return PyarrowBackend(df.slice(offset=offset, length=length))
         else:
             raise TypeError(f"Unsupported index type: {type(key)}")
 
@@ -1054,7 +1052,7 @@ class PyarrowBackend(DataBackend):
         input_features: list[str],
         output_feature: str,
         label_map: dict[Any, int] | None = None,
-        allow_missing_labels: bool = True,
+        allow_missing_labels: bool = False,
     ) -> tuple["PyarrowBackend", dict[Any, int]]:
         """Create a multi-label column by combining multiple input feature columns.
         Each row in the output column will contain a sorted list of integer IDs
