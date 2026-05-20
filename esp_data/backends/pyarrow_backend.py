@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import inspect
 import logging
 from typing import Any, Iterator, Literal
 
 import pyarrow as pa
 import pyarrow.compute as pc
+import pyarrow.fs as pa_fs
+from pyarrow import csv as pa_csv
 
 from .protocol import DataBackend
 
@@ -14,9 +17,24 @@ logger = logging.getLogger("esp_data")
 
 
 class PyarrowBackend(DataBackend):
-    """Pyarrow implementation of the DataFrameBackend protocol.
+    """Pyarrow implementation of the DataBackend protocol.
 
-    TO BE IMPLEMENTED
+    This backend wraps a pyarrow Table and provides a unified interface
+    for DataBackend operations that can work across different backend implementations.
+
+    Supports only Table mode currently.
+
+    Parameters
+    ----------
+    df : pa.Table
+        The pyarrow Table to wrap
+    streaming : bool
+        Whether the backend is in streaming mode (Not implemented yet)
+    streaming_chunk_size: int
+        Number of rows per batch when iterating in streaming mode (default: 1000)
+        1000 is a good number because its high enough to reduce I/O and any higher
+        doesn't help because the main latency source in Dataset __getitem__ calls
+        are in loading audio anyway.
     """
 
     def __init__(
@@ -42,8 +60,36 @@ class PyarrowBackend(DataBackend):
         self._streaming_chunk_size = streaming_chunk_size
 
     @classmethod
-    def from_csv(cls) -> None:
-        pass
+    def from_csv(cls, path: str, *, streaming: bool = False, **kwargs: Any) -> "PyarrowBackend":
+        """Read a CSV file and return a wrapped DataFrame backend.
+
+        Parameters
+        ----------
+        path : str
+            Path to the CSV file (supports local and cloud paths via cloudpathlib)
+        streaming : bool, optional
+            If True, use streaming mode, by default False
+        **kwargs : Any
+            Additional pyarrow-specific arguments
+
+        Returns
+        -------
+        PyarrowBackend
+            Backend instance wrapping the loaded Table
+        """
+        # Filter out kwargs for any non-pyarrow argument
+        valid_params = set(inspect.signature(pa_csv.read_csv).parameters.keys())
+        filtered_kwargs = {k: v for k, v in kwargs.items() if k in valid_params}
+
+        path_str = str(path)
+        if path_str.startswith("gs://"):
+            gcs = pa_fs.GcsFileSystem()
+            bucket_and_key = path_str[len("gs://") :]
+            with gcs.open_input_stream(bucket_and_key) as f:
+                df = pa_csv.read_csv(f, **filtered_kwargs)
+        else:
+            df = pa_csv.read_csv(path_str, **filtered_kwargs)
+        return cls(df, streaming=False)
 
     @classmethod
     def from_json(cls) -> None:
