@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-import inspect
-import logging
 import warnings
 from typing import Any, Callable, Iterator, Literal
 
+import numpy as np
 import pyarrow as pa
 import pyarrow.compute as pc
 import pyarrow.fs as pa_fs
@@ -16,7 +15,21 @@ from pyarrow import json as pa_json
 
 from .protocol import DataBackend
 
-logger = logging.getLogger("esp_data")
+
+def _open_gcs_input_stream(path_str: str) -> tuple[pa_fs.GcsFileSystem, str]:
+    """Return GcsFileSystem and bucket_and_key for a gs:// path.
+
+    Parameters
+    ----------
+    path_str : str
+        A path starting with ``gs://``
+
+    Returns
+    -------
+    tuple[pa_fs.GcsFileSystem, str]
+        GcsFileSystem instance and the path with the ``gs://`` prefix stripped
+    """
+    return pa_fs.GcsFileSystem(), path_str[len("gs://") :]
 
 
 class PyarrowBackend(DataBackend):
@@ -96,7 +109,7 @@ class PyarrowBackend(DataBackend):
         streaming: bool = False,
         streaming_chunk_size: int = 1000,
         **kwargs: Any,
-    ) -> "PyarrowBackend":
+    ) -> PyarrowBackend:
         """Read a CSV file and return a wrapped DataFrame backend.
 
         Parameters
@@ -117,27 +130,21 @@ class PyarrowBackend(DataBackend):
         """
         path_str = str(path)
         if streaming:
-            valid_params = set(inspect.signature(pa_csv.open_csv).parameters.keys())
-            filtered_kwargs = {k: v for k, v in kwargs.items() if k in valid_params}
             if path_str.startswith("gs://"):
-                gcs = pa_fs.GcsFileSystem()
-                bucket_and_key = path_str[len("gs://") :]
+                gcs, bucket_and_key = _open_gcs_input_stream(path_str)
                 # Keep file handle open — reader holds a reference to it
                 f = gcs.open_input_stream(bucket_and_key)
-                reader = pa_csv.open_csv(f, **filtered_kwargs)
+                reader = pa_csv.open_csv(f, **kwargs)
             else:
-                reader = pa_csv.open_csv(path_str, **filtered_kwargs)
+                reader = pa_csv.open_csv(path_str, **kwargs)
             return cls(reader, streaming=True, streaming_chunk_size=streaming_chunk_size)
         else:
-            valid_params = set(inspect.signature(pa_csv.read_csv).parameters.keys())
-            filtered_kwargs = {k: v for k, v in kwargs.items() if k in valid_params}
             if path_str.startswith("gs://"):
-                gcs = pa_fs.GcsFileSystem()
-                bucket_and_key = path_str[len("gs://") :]
+                gcs, bucket_and_key = _open_gcs_input_stream(path_str)
                 with gcs.open_input_stream(bucket_and_key) as f:
-                    df = pa_csv.read_csv(f, **filtered_kwargs)
+                    df = pa_csv.read_csv(f, **kwargs)
             else:
-                df = pa_csv.read_csv(path_str, **filtered_kwargs)
+                df = pa_csv.read_csv(path_str, **kwargs)
             return cls(df, streaming=False)
 
     @classmethod
@@ -148,7 +155,7 @@ class PyarrowBackend(DataBackend):
         lines: bool = False,
         streaming: bool = False,
         **kwargs: Any,
-    ) -> "PyarrowBackend":
+    ) -> PyarrowBackend:
         """Read a JSON file and return a wrapped DataFrame backend.
 
         Parameters
@@ -180,17 +187,13 @@ class PyarrowBackend(DataBackend):
                 "Load eagerly or use the Polars backend with lines=True for streaming JSON."
             )
 
-        valid_params = set(inspect.signature(pa_json.read_json).parameters.keys())
-        filtered_kwargs = {k: v for k, v in kwargs.items() if k in valid_params}
-
         path_str = str(path)
         if path_str.startswith("gs://"):
-            gcs = pa_fs.GcsFileSystem()
-            bucket_and_key = path_str[len("gs://") :]
+            gcs, bucket_and_key = _open_gcs_input_stream(path_str)
             with gcs.open_input_stream(bucket_and_key) as f:
-                df = pa_json.read_json(f, **filtered_kwargs)
+                df = pa_json.read_json(f, **kwargs)
         else:
-            df = pa_json.read_json(path_str, **filtered_kwargs)
+            df = pa_json.read_json(path_str, **kwargs)
         return cls(df, streaming=False)
 
     @classmethod
@@ -201,7 +204,7 @@ class PyarrowBackend(DataBackend):
         streaming: bool = False,
         streaming_chunk_size: int = 1000,
         **kwargs: Any,
-    ) -> "PyarrowBackend":
+    ) -> PyarrowBackend:
         """Read a Parquet file and return a wrapped DataFrame backend.
 
         Parameters
@@ -223,8 +226,7 @@ class PyarrowBackend(DataBackend):
         path_str = str(path)
         if streaming:
             if path_str.startswith("gs://"):
-                gcs = pa_fs.GcsFileSystem()
-                bucket_and_key = path_str[len("gs://") :]
+                gcs, bucket_and_key = _open_gcs_input_stream(path_str)
                 parquet_file = pq.ParquetFile(bucket_and_key, filesystem=gcs)
             else:
                 parquet_file = pq.ParquetFile(path_str)
@@ -235,14 +237,11 @@ class PyarrowBackend(DataBackend):
             )
             return cls(reader, streaming=True, streaming_chunk_size=streaming_chunk_size)
         else:
-            valid_params = set(inspect.signature(pq.read_table).parameters.keys())
-            filtered_kwargs = {k: v for k, v in kwargs.items() if k in valid_params}
             if path_str.startswith("gs://"):
-                gcs = pa_fs.GcsFileSystem()
-                bucket_and_key = path_str[len("gs://") :]
-                df = pq.read_table(bucket_and_key, filesystem=gcs, **filtered_kwargs)
+                gcs, bucket_and_key = _open_gcs_input_stream(path_str)
+                df = pq.read_table(bucket_and_key, filesystem=gcs, **kwargs)
             else:
-                df = pq.read_table(path_str, **filtered_kwargs)
+                df = pq.read_table(path_str, **kwargs)
             return cls(df, streaming=False)
 
     @property
@@ -268,7 +267,7 @@ class PyarrowBackend(DataBackend):
             return self._df.read_all()
         return self._df
 
-    def collect(self) -> "PyarrowBackend":
+    def collect(self) -> PyarrowBackend:
         """Materialize the RecordBatchReader and return an eager backend.
 
         Returns
@@ -303,7 +302,7 @@ class PyarrowBackend(DataBackend):
                 f"Consider using .collect() or iterate over the data."
             )
 
-    def __getitem__(self, key: int | list[int] | slice) -> dict[str, Any] | "PyarrowBackend":
+    def __getitem__(self, key: int | list[int] | slice) -> dict[str, Any] | PyarrowBackend:
         """Get row(s) from the Table using Pythonic indexing.
 
         Parameters
@@ -327,7 +326,7 @@ class PyarrowBackend(DataBackend):
             If key type is not supported
         """
         self._ensure_not_streaming("__getitem__")
-        df = self._ensure_collected()
+        df = self._df
 
         if isinstance(key, int):
             # Return single row as dict
@@ -341,6 +340,8 @@ class PyarrowBackend(DataBackend):
         elif isinstance(key, list):
             return PyarrowBackend(df.take(key), streaming=False)
         elif isinstance(key, slice):
+            if key.step is not None:
+                raise NotImplementedError("Step slicing is not supported. Use a list of indices.")
             offset = key.start if key.start is not None else 0
             length = (key.stop - offset) if key.stop is not None else None
             return PyarrowBackend(df.slice(offset=offset, length=length))
@@ -381,7 +382,7 @@ class PyarrowBackend(DataBackend):
                 for row in batch.to_pylist():
                     yield row
 
-    def iter_batches(self, batch_size: int = 1000) -> Iterator["PyarrowBackend"]:
+    def iter_batches(self, batch_size: int = 1000) -> Iterator[PyarrowBackend]:
         """Iterate over Table in batches.
 
         Parameters
@@ -397,14 +398,20 @@ class PyarrowBackend(DataBackend):
 
         Notes
         -----
-        In streaming mode, reads batches incrementally from the RecordBatchReader
-        so the full result never needs to live in memory at once. The `batch_size`
-        parameter is ignored in streaming mode; batch sizes are determined by the
-        underlying RecordBatchReader.
+        In streaming mode, accumulates batches from the RecordBatchReader and
+        yields chunks of exactly `batch_size` rows (last chunk may be smaller).
+        Only one chunk worth of data is held in memory at a time.
         """
         if isinstance(self._df, pa.RecordBatchReader):
+            pending: pa.Table | None = None
             for batch in self._df:
-                yield PyarrowBackend(pa.Table.from_batches([batch]), streaming=False)
+                chunk = pa.Table.from_batches([batch])
+                pending = chunk if pending is None else pa.concat_tables([pending, chunk])
+                while len(pending) >= batch_size:
+                    yield PyarrowBackend(pending.slice(0, batch_size), streaming=False)
+                    pending = pending.slice(batch_size)
+            if pending is not None and len(pending) > 0:
+                yield PyarrowBackend(pending, streaming=False)
         else:
             df = self._df
             for start_idx in range(0, len(df), batch_size):
@@ -412,7 +419,7 @@ class PyarrowBackend(DataBackend):
 
     def filter_isin(
         self, column: str, values: list[Any], *, negate: bool = False
-    ) -> "PyarrowBackend":
+    ) -> PyarrowBackend:
         """Filter Table rows where column values are in (or not in) a list.
 
         Parameters
@@ -441,7 +448,7 @@ class PyarrowBackend(DataBackend):
         subset: list[str] | None = None,
         *,
         keep: Literal["first", "last"] = "first",
-    ) -> "PyarrowBackend":
+    ) -> PyarrowBackend:
         """Remove duplicate rows from the Table.
 
         Parameters
@@ -471,7 +478,7 @@ class PyarrowBackend(DataBackend):
     def dropna(
         self,
         subset: list[str] | None = None,
-    ) -> "PyarrowBackend":
+    ) -> PyarrowBackend:
         """Remove rows with missing values.
 
         Parameters
@@ -561,7 +568,7 @@ class PyarrowBackend(DataBackend):
         output_column: str,
         *,
         default: Any | None = None,  # noqa ANN401
-    ) -> "PyarrowBackend":
+    ) -> PyarrowBackend:
         """Create a new column by mapping values from an existing column.
 
         Parameters
@@ -590,7 +597,7 @@ class PyarrowBackend(DataBackend):
     def rename_columns(
         self,
         mapping: dict[str, str],
-    ) -> "PyarrowBackend":
+    ) -> PyarrowBackend:
         """Rename Table columns.
 
         Parameters
@@ -612,7 +619,7 @@ class PyarrowBackend(DataBackend):
         self,
         column: str,
         values: Any,  # noqa ANN401
-    ) -> "PyarrowBackend":
+    ) -> PyarrowBackend:
         """Add a new column to the Table.
 
         Parameters
@@ -641,7 +648,7 @@ class PyarrowBackend(DataBackend):
     def select_columns(
         self,
         columns: list[str],
-    ) -> "PyarrowBackend":
+    ) -> PyarrowBackend:
         """Select a subset of columns from the Table.
 
         Parameters
@@ -660,11 +667,11 @@ class PyarrowBackend(DataBackend):
     @classmethod
     def concat(
         cls,
-        backends: list["PyarrowBackend"],
+        backends: list[PyarrowBackend],
         *,
         ignore_index: bool = True,
         sort: bool = False,
-    ) -> "PyarrowBackend":
+    ) -> PyarrowBackend:
         """Concatenate multiple backend instances vertically (row-wise).
 
         Parameters
@@ -751,7 +758,7 @@ class PyarrowBackend(DataBackend):
         sample_fn: Callable[[pa.Table, Any], pa.Table],
         other_sample_fn: Callable[[pa.Table, Any], pa.Table],
         dict_name: str,
-    ) -> "PyarrowBackend":
+    ) -> PyarrowBackend:
         """Helper function for sampling by column values.
 
         Parameters
@@ -804,7 +811,7 @@ class PyarrowBackend(DataBackend):
                 groups.append(sampled)
 
         if "other" in values_dict:
-            other_mask = ~pc.is_in(df.column(column), pa.array(list(explicit_values)))
+            other_mask = pc.invert(pc.is_in(df.column(column), pa.array(list(explicit_values))))
             other_df = df.filter(other_mask)
 
             other_param = values_dict["other"]
@@ -829,7 +836,7 @@ class PyarrowBackend(DataBackend):
         ratios: dict[str, float],
         *,
         seed: int = 42,
-    ) -> "PyarrowBackend":
+    ) -> PyarrowBackend:
         """Subsample rows by column values with specified ratios.
 
         For each unique value in the column, sample the specified ratio of rows.
@@ -870,8 +877,6 @@ class PyarrowBackend(DataBackend):
                 UserWarning,
                 stacklevel=2,
             )
-
-        import numpy as np
 
         df = self._ensure_collected()
 
@@ -915,7 +920,7 @@ class PyarrowBackend(DataBackend):
         target_counts: dict[str, int],
         *,
         seed: int = 42,
-    ) -> "PyarrowBackend":
+    ) -> PyarrowBackend:
         """Upsample rows by column values to target counts with replacement.
 
         For each unique value in the column, sample rows with replacement to reach
@@ -961,8 +966,6 @@ class PyarrowBackend(DataBackend):
                 stacklevel=2,
             )
 
-        import numpy as np
-
         df = self._ensure_collected()
 
         if column not in df.column_names:
@@ -1004,7 +1007,7 @@ class PyarrowBackend(DataBackend):
         *,
         seed: int = 42,
         replace: bool = False,
-    ) -> "PyarrowBackend":
+    ) -> PyarrowBackend:
         """Randomly sample n rows from the DataFrame.
 
         Parameters
@@ -1022,19 +1025,21 @@ class PyarrowBackend(DataBackend):
             New backend with sampled rows
         """
         self._ensure_not_streaming("sample_rows")
-        import numpy as np
 
         rng = np.random.default_rng(seed=seed)
         indices = rng.choice(len(self._df), size=n, replace=replace).tolist()
         return PyarrowBackend(self._df.take(indices), streaming=False)
 
-    def copy(self) -> "PyarrowBackend":
+    def copy(self) -> PyarrowBackend:
         """Create a new backend wrapping the same underlying Table.
 
         Returns
         -------
         PyarrowBackend
-            New backend instance wrapping the same immutable `pa.Table`
+            New backend instance wrapping the same `pa.Table`. This is a
+            zero-copy operation: `pa.Table` is immutable so no data is
+            duplicated. Matches the `DataBackend.copy` contract because no
+            mutation is possible through the returned backend.
         """
         self._ensure_not_streaming("copy")
         return PyarrowBackend(self._df, streaming=False)
@@ -1043,7 +1048,7 @@ class PyarrowBackend(DataBackend):
         self,
         fn: Callable,  # noqa ANN401
         **fn_kwargs: Any,
-    ) -> "PyarrowBackend":
+    ) -> PyarrowBackend:
         """Apply a custom function to the underlying Table.
 
         Parameters
@@ -1069,7 +1074,7 @@ class PyarrowBackend(DataBackend):
         output_feature: str,
         label_map: dict[Any, int] | None = None,
         allow_missing_labels: bool = False,
-    ) -> tuple["PyarrowBackend", dict[Any, int]]:
+    ) -> tuple[PyarrowBackend, dict[Any, int]]:
         """Create a multi-label column by combining multiple input feature columns.
         Each row in the output column will contain a sorted list of integer IDs
         corresponding to the labels found in the specified input feature columns.

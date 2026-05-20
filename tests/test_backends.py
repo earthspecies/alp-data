@@ -448,6 +448,13 @@ class TestPyarrowBackend:
         assert isinstance(subset, PyarrowBackend)
         assert len(subset) == 2
 
+    def test_getitem_slice_with_step_raises(self) -> None:
+        """Test slice with step raises NotImplementedError."""
+        df = pa.table({"a": [1, 2, 3, 4]})
+        backend = PyarrowBackend(df)
+        with pytest.raises(NotImplementedError):
+            backend[::2]
+
     def test_getitem_streaming_raises(self) -> None:
         """Test __getitem__ raises RuntimeError in streaming mode."""
         df = pa.table({"a": [1, 2, 3]})
@@ -617,6 +624,209 @@ class TestPyarrowBackend:
         result = backend.apply_fn(lambda t: t.slice(0, 2))
         assert isinstance(result, PyarrowBackend)
         assert len(result) == 2
+
+    # --- collect ---
+
+    def test_collect_eager_returns_same_data(self) -> None:
+        """Test collect on eager backend returns new backend with same data."""
+        df = pa.table({"a": [1, 2, 3]})
+        backend = PyarrowBackend(df)
+        collected = backend.collect()
+        assert isinstance(collected, PyarrowBackend)
+        assert collected.is_streaming is False
+        assert list(collected) == list(backend)
+
+    def test_collect_streaming_materializes(self) -> None:
+        """Test collect on streaming backend materializes to eager."""
+        df = pa.table({"a": [1, 2, 3]})
+        reader = pa.RecordBatchReader.from_batches(df.schema, df.to_batches())
+        backend = PyarrowBackend(reader, streaming=True)
+        collected = backend.collect()
+        assert collected.is_streaming is False
+        assert len(collected) == 3
+
+    # --- iter_batches ---
+
+    def test_iter_batches_eager(self) -> None:
+        """Test iter_batches yields correct-sized batches in eager mode."""
+        df = pa.table({"a": list(range(10))})
+        backend = PyarrowBackend(df)
+        batches = list(backend.iter_batches(batch_size=3))
+        assert len(batches) == 4  # 3+3+3+1
+        assert [len(b) for b in batches] == [3, 3, 3, 1]
+
+    def test_iter_batches_streaming_consistent_sizes(self) -> None:
+        """Test iter_batches rechunks streaming batches to consistent batch_size."""
+        df = pa.table({"a": list(range(10))})
+        # Two unequal raw batches: 7 and 3 rows
+        raw_batches = [df.slice(0, 7).to_batches()[0], df.slice(7).to_batches()[0]]
+        reader = pa.RecordBatchReader.from_batches(df.schema, raw_batches)
+        backend = PyarrowBackend(reader, streaming=True)
+        batches = list(backend.iter_batches(batch_size=4))
+        assert [len(b) for b in batches] == [4, 4, 2]
+
+    def test_iter_batches_yields_pyarrow_backends(self) -> None:
+        """Test iter_batches yields PyarrowBackend instances."""
+        df = pa.table({"a": [1, 2, 3]})
+        backend = PyarrowBackend(df)
+        for batch in backend.iter_batches(batch_size=2):
+            assert isinstance(batch, PyarrowBackend)
+            assert batch.is_streaming is False
+
+    # --- negative index ---
+
+    def test_getitem_negative_index(self) -> None:
+        """Test negative index returns correct row."""
+        df = pa.table({"a": [1, 2, 3]})
+        backend = PyarrowBackend(df)
+        assert backend[-1] == {"a": 3}
+        assert backend[-3] == {"a": 1}
+
+    def test_getitem_negative_index_out_of_bounds(self) -> None:
+        """Test negative index beyond length raises IndexError."""
+        df = pa.table({"a": [1, 2, 3]})
+        backend = PyarrowBackend(df)
+        with pytest.raises(IndexError):
+            backend[-4]
+
+    # --- streaming warnings ---
+
+    def test_get_unique_streaming_warns(self) -> None:
+        """Test get_unique emits UserWarning in streaming mode."""
+        df = pa.table({"a": ["x", "y", "x"]})
+        reader = pa.RecordBatchReader.from_batches(df.schema, df.to_batches())
+        backend = PyarrowBackend(reader, streaming=True)
+        with pytest.warns(UserWarning, match="get_unique"):
+            result = backend.get_unique("a")
+        assert set(result) == {"x", "y"}
+
+    def test_histogram_streaming_warns(self) -> None:
+        """Test histogram emits UserWarning in streaming mode."""
+        df = pa.table({"a": ["x", "y", "x"]})
+        reader = pa.RecordBatchReader.from_batches(df.schema, df.to_batches())
+        backend = PyarrowBackend(reader, streaming=True)
+        with pytest.warns(UserWarning, match="histogram"):
+            result = backend.histogram("a")
+        assert result == {"x": 2, "y": 1}
+
+    # --- subsample_by_column ---
+
+    def test_subsample_by_column_basic(self) -> None:
+        """Test subsample keeps correct ratio of rows per category."""
+        df = pa.table({"species": ["cat"] * 100 + ["dog"] * 100})
+        backend = PyarrowBackend(df)
+        result = backend.subsample_by_column("species", {"cat": 0.5, "dog": 0.1}, seed=0)
+        hist = result.histogram("species")
+        assert hist["cat"] == 50
+        assert hist["dog"] == 10
+
+    def test_subsample_by_column_other_key(self) -> None:
+        """Test 'other' key subsamples all unlisted values pooled together."""
+        df = pa.table({"species": ["cat"] * 10 + ["dog"] * 10 + ["bird"] * 10})
+        backend = PyarrowBackend(df)
+        result = backend.subsample_by_column("species", {"cat": 1.0, "other": 0.5}, seed=0)
+        hist = result.histogram("species")
+        assert hist["cat"] == 10
+        assert hist.get("dog", 0) + hist.get("bird", 0) == 10
+
+    def test_subsample_by_column_missing_column_raises(self) -> None:
+        """Test KeyError on missing column."""
+        df = pa.table({"a": [1, 2, 3]})
+        backend = PyarrowBackend(df)
+        with pytest.raises(KeyError):
+            backend.subsample_by_column("nonexistent", {"x": 0.5})
+
+    def test_subsample_by_column_invalid_ratio_raises(self) -> None:
+        """Test ValueError on ratio > 1."""
+        df = pa.table({"a": ["x", "y"]})
+        backend = PyarrowBackend(df)
+        with pytest.raises(ValueError):
+            backend.subsample_by_column("a", {"x": 1.5})
+
+    # --- upsample_by_column ---
+
+    def test_upsample_by_column_basic(self) -> None:
+        """Test upsample reaches target counts per category."""
+        df = pa.table({"species": ["cat"] * 5 + ["dog"] * 5})
+        backend = PyarrowBackend(df)
+        result = backend.upsample_by_column("species", {"cat": 20, "dog": 3}, seed=0)
+        hist = result.histogram("species")
+        assert hist["cat"] == 20
+        assert hist["dog"] == 3
+
+    def test_upsample_by_column_missing_column_raises(self) -> None:
+        """Test KeyError on missing column."""
+        df = pa.table({"a": [1, 2, 3]})
+        backend = PyarrowBackend(df)
+        with pytest.raises(KeyError):
+            backend.upsample_by_column("nonexistent", {"x": 10})
+
+    def test_upsample_by_column_negative_count_raises(self) -> None:
+        """Test ValueError on negative target count."""
+        df = pa.table({"a": ["x", "y"]})
+        backend = PyarrowBackend(df)
+        with pytest.raises(ValueError):
+            backend.upsample_by_column("a", {"x": -1})
+
+    def test_upsample_by_column_non_int_count_raises(self) -> None:
+        """Test TypeError on non-integer target count."""
+        df = pa.table({"a": ["x", "y"]})
+        backend = PyarrowBackend(df)
+        with pytest.raises(TypeError):
+            backend.upsample_by_column("a", {"x": 1.5})  # type: ignore
+
+    # --- multilabel_from_features ---
+
+    def test_multilabel_from_features_basic(self) -> None:
+        """Test multilabel creates correct integer label lists."""
+        df = pa.table({"tags": [["a", "b"], ["b", "c"], ["a"]]})
+        backend = PyarrowBackend(df)
+        result, label_map = backend.multilabel_from_features(["tags"], "labels")
+        assert set(label_map.keys()) == {"a", "b", "c"}
+        rows = list(result)
+        assert sorted(rows[0]["labels"]) == [label_map["a"], label_map["b"]]
+
+    def test_multilabel_from_features_scalar_column(self) -> None:
+        """Test multilabel wraps scalar column values into single-element lists."""
+        df = pa.table({"species": ["cat", "dog", "cat"]})
+        backend = PyarrowBackend(df)
+        result, label_map = backend.multilabel_from_features(["species"], "labels")
+        assert set(label_map.keys()) == {"cat", "dog"}
+        assert len(result) == 3
+
+    def test_multilabel_from_features_drops_empty_by_default(self) -> None:
+        """Test rows with no labels are dropped when allow_missing_labels=False."""
+        df = pa.table({"tags": [["a"], [], ["b"]]})
+        backend = PyarrowBackend(df)
+        result, _ = backend.multilabel_from_features(["tags"], "labels")
+        assert len(result) == 2
+
+    def test_multilabel_from_features_allow_missing_labels(self) -> None:
+        """Test rows with no labels are kept when allow_missing_labels=True."""
+        df = pa.table({"tags": [["a"], [], ["b"]]})
+        backend = PyarrowBackend(df)
+        result, _ = backend.multilabel_from_features(
+            ["tags"], "labels", allow_missing_labels=True
+        )
+        assert len(result) == 3
+
+    def test_multilabel_from_features_custom_label_map(self) -> None:
+        """Test custom label_map is used instead of auto-generated."""
+        df = pa.table({"tags": [["a", "b"]]})
+        backend = PyarrowBackend(df)
+        label_map = {"a": 10, "b": 20}
+        result, returned_map = backend.multilabel_from_features(
+            ["tags"], "labels", label_map=label_map
+        )
+        assert returned_map == label_map
+        assert sorted(list(result)[0]["labels"]) == [10, 20]
+
+    def test_multilabel_from_features_missing_feature_raises(self) -> None:
+        """Test ValueError on missing input feature column."""
+        df = pa.table({"a": [["x"]]})
+        backend = PyarrowBackend(df)
+        with pytest.raises(ValueError, match="does not exist"):
+            backend.multilabel_from_features(["nonexistent"], "labels")
 
 
 class TestBackendFactory:
