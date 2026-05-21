@@ -15,7 +15,7 @@ import webdataset as wds
 from esp_data.backends import get_backend
 from esp_data.backends.webdataset_backend import WebDatasetBackend, _load_webdataset
 from esp_data.export import export_dataset
-from esp_data.export import audio_decoder, audio_encoder, export_dataset, json_decoder, json_encoder
+from esp_data.backends.webdataset_utils import audio_decoder, audio_encoder, json_decoder, json_encoder
 from esp_data.dataset import (
     Dataset,
     DatasetConfig,
