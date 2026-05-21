@@ -33,14 +33,14 @@ More technically, dataset concatenation:
 
 ### A note on dataset merging
 
-In v1 of this approach, we have are three [merge strategies](#merge-strategies). Currently, because we use `pandas` DataFrames under the hood, the merge strategies are:
+There are three [merge strategies](#merge-strategies). The merge logic is implemented through the backend abstraction (`pandas` or `polars`), so the strategies behave consistently regardless of which backend the source datasets use:
 
 1. **Soft Merge**: Keeps all columns from all datasets, filling missing values with NaN.
 2. **Overlap Merge**: Keeps only columns that exist in all datasets.
 3. **Hard Merge**: Requires all datasets to have identical columns, raising an error if they differ.
 
 !!! warning
-    When merging two datasets, be aware that if a column with the same name appears in multiple datasets being concatenated, and the data type **dtype** of the column is not the same across datasets, the resulting column in the concatenated dataset will be of type `object` in pandas, which may lead to unexpected behavior in downstream processing because this can be a mixed data type!
+    When merging two datasets, be aware that if a column with the same name appears in multiple datasets being concatenated, and the data type (dtype) of the column is not the same across datasets, the resulting column in the concatenated dataset may be upcast to `object` (pandas) or fail to concatenate (polars). This can lead to unexpected behavior in downstream processing.
 
 ## How can I concatenate datasets?
 
@@ -49,17 +49,15 @@ Datasets can be concatenated using the `ConcatenatedDataset` class with differen
 ### Basic Usage
 
 ```python
-from esp_data.datasets import AnimalSpeak, BarkleyCanyon
-from esp_data.concat import ConcatanatedDataset
+from esp_data.datasets import AnimalSpeak, InsectSet459
+from esp_data.concat import ConcatenatedDataset
 
 # Load individual datasets
 dataset1 = AnimalSpeak(split="validation")
-dataset2 = BarkleyCanyon(split="train")
+dataset2 = InsectSet459(split="validation")
 
 print(f"Dataset 1 length: {len(dataset1)}")
-# 2033
 print(f"Dataset 2 length: {len(dataset2)}")
-# 9770
 
 # Concatenate with default soft merge
 combined_dataset = ConcatenatedDataset(
@@ -69,12 +67,8 @@ combined_dataset = ConcatenatedDataset(
 
 # Access the combined data
 print(f"Combined dataset length: {len(combined_dataset)}")
-# 11803
 sample = combined_dataset[0]  # Get first sample (should be AnimalSpeak)
 print(f"First sample: {sample.keys()}")
-
-# get last sample (should be BarkleyCanyon)
-print(f"Last sample: {combined_dataset[-1].keys()}")
 ```
 
 #### Create a combined dataset from a yaml config
@@ -113,13 +107,13 @@ combined_dataset = dataset_from_config("path/to/concat_config.yaml")
 You can apply transformations to the individual datasets *before* concatenation as shown in [transforms.md](transforms.md). This allows you to treat the data as needed, but you can also apply transformations *after* concatenation if you want to operate on the combined dataset as a whole. Here is an example of applying a filter transformation *after* concatenation:
 
 ```python
-from esp_data.datasets import AnimalSpeak, BarkleyCanyon
+from esp_data.datasets import AnimalSpeak, InsectSet459
 from esp_data.transforms import FilterConfig
 from esp_data.concat import ConcatenatedDataset
 
 # Load individual datasets
 dataset1 = AnimalSpeak(split="validation")
-dataset2 = BarkleyCanyon(split="train")
+dataset2 = InsectSet459(split="validation")
 # Concatenate datasets
 combined_dataset = ConcatenatedDataset([dataset1, dataset2])
 # Define a filter transformation
@@ -139,7 +133,7 @@ transform_metadata = combined_dataset.apply_transformations([filter_config])
     `NaN` for those datasets.
 
 
-As mentioned, ycou can also apply transforms to individual datasets before concatenation:
+As mentioned, you can also apply transforms to individual datasets before concatenation:
 
 ```python
 # Create and transform individual datasets
@@ -348,9 +342,9 @@ check_compatibility([dataset1, dataset2])
 
 ### Current Limitations
 
-1. **No Configuration Loading**: `ConcatenatedDataset` cannot be created from `DatasetConfig`
-2. **Memory Usage**: All source datasets remain in memory
-3. **Single Split**: Concatenated datasets only support the "concatenated" split
+1. **Memory Usage**: All source datasets remain in memory (`streaming=True` is not supported for concatenation; use `ChainedDataset` for streaming).
+2. **Single Split**: Concatenated datasets only support the "concatenated" split.
+3. **Uniform Backend**: All source datasets must use the same backend type (e.g., all polars or all pandas).
 
 ### Performance Considerations
 
