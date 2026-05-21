@@ -4,21 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Iterable, Iterator
 
-from esp_data.backends.webdataset_utils import (
-    audio_decoder,
-    audio_encoder,
-    json_decoder,
-    json_encoder,
-)
 from esp_data.io import anypath
-
-__all__ = [
-    "export_dataset",
-    "audio_encoder",
-    "json_encoder",
-    "audio_decoder",
-    "json_decoder",
-]
 
 _SUPPORTED_FORMATS = ("webdataset",)
 
