@@ -779,7 +779,7 @@
 - On-the-fly data transformations: Apply transformations such as filtering rows / columns, create label
 - (beta) Concatenation and merging of multiple datasets: Combine datasets into a single unified dataset for training or evaluation.</p>
 <h2 id="getting-started_1">Getting started</h2>
-<p><div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">esp_data</span><span class="w"> </span><span class="kn">import</span> <span class="n">Beans</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">esp_data</span><span class="w"> </span><span class="kn">import</span> <span class="n">Beans</span>
 </span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>
 </span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="c1"># Load &#39;train&#39; split of BEANS dataset at 16kHz sample rate</span>
 </span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="c1"># Resampling is done on the fly with librosa.resample</span>
@@ -805,7 +805,19 @@
 </span><span id="__span-0-24"><a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a>    <span class="nb">print</span><span class="p">(</span><span class="n">sample</span><span class="p">[</span><span class="s2">&quot;audio&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
 </span><span id="__span-0-25"><a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a>    <span class="k">break</span>
 </span></code></pre></div>
-Check out the datasets documentation for more details <a href="datasets/">here</a>.</p>
+<div class="admonition warning">
+<p class="admonition-title">PyTorch DataLoader with <code>num_workers &gt; 0</code> requires <code>spawn</code></p>
+<p>When wrapping an esp-data <code>Dataset</code> in a PyTorch <code>DataLoader</code> with
+<code>num_workers &gt; 0</code>, you must use the <code>"spawn"</code> multiprocessing start
+method instead of the default <code>"fork"</code> on Linux. esp-data datasets hold
+fsspec / <code>gcsfs</code> / <code>s3fs</code> handles that are not
+safe to inherit across a <code>fork</code> — workers may deadlock or return
+corrupted audio. Either call
+<code>torch.multiprocessing.set_start_method("spawn", force=True)</code> once at
+program start, or pass <code>multiprocessing_context=mp.get_context("spawn")</code>
+to the <code>DataLoader</code>.</p>
+</div>
+<p>Check out the datasets documentation for more details <a href="datasets/">here</a>.</p>
 <h2 id="installation">Installation</h2>
 <div class="language-sh highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/earthspecies/esp-data.git
 </span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="nb">cd</span><span class="w"> </span>esp-data

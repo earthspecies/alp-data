@@ -1102,7 +1102,7 @@
 <li>Tracks data provenance for debugging and analysis through a merged <code>DatasetInfo</code></li>
 </ul>
 <h3 id="a-note-on-dataset-merging">A note on dataset merging</h3>
-<p>In v1 of this approach, we have are three <a href="#merge-strategies">merge strategies</a>. Currently, because we use <code>pandas</code> DataFrames under the hood, the merge strategies are:</p>
+<p>There are three <a href="#merge-strategies">merge strategies</a>. The merge logic is implemented through the backend abstraction (<code>pandas</code> or <code>polars</code>), so the strategies behave consistently regardless of which backend the source datasets use:</p>
 <ol>
 <li><strong>Soft Merge</strong>: Keeps all columns from all datasets, filling missing values with NaN.</li>
 <li><strong>Overlap Merge</strong>: Keeps only columns that exist in all datasets.</li>
@@ -1110,37 +1110,31 @@
 </ol>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
-<p>When merging two datasets, be aware that if a column with the same name appears in multiple datasets being concatenated, and the data type <strong>dtype</strong> of the column is not the same across datasets, the resulting column in the concatenated dataset will be of type <code>object</code> in pandas, which may lead to unexpected behavior in downstream processing because this can be a mixed data type!</p>
+<p>When merging two datasets, be aware that if a column with the same name appears in multiple datasets being concatenated, and the data type (dtype) of the column is not the same across datasets, the resulting column in the concatenated dataset may be upcast to <code>object</code> (pandas) or fail to concatenate (polars). This can lead to unexpected behavior in downstream processing.</p>
 </div>
 <h2 id="how-can-i-concatenate-datasets">How can I concatenate datasets?</h2>
 <p>Datasets can be concatenated using the <code>ConcatenatedDataset</code> class with different merge strategies:</p>
 <h3 id="basic-usage">Basic Usage</h3>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">esp_data.datasets</span><span class="w"> </span><span class="kn">import</span> <span class="n">AnimalSpeak</span><span class="p">,</span> <span class="n">BarkleyCanyon</span>
-</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">esp_data.concat</span><span class="w"> </span><span class="kn">import</span> <span class="n">ConcatanatedDataset</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">esp_data.datasets</span><span class="w"> </span><span class="kn">import</span> <span class="n">AnimalSpeak</span><span class="p">,</span> <span class="n">InsectSet459</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">esp_data.concat</span><span class="w"> </span><span class="kn">import</span> <span class="n">ConcatenatedDataset</span>
 </span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>
 </span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="c1"># Load individual datasets</span>
 </span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="n">dataset1</span> <span class="o">=</span> <span class="n">AnimalSpeak</span><span class="p">(</span><span class="n">split</span><span class="o">=</span><span class="s2">&quot;validation&quot;</span><span class="p">)</span>
-</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="n">dataset2</span> <span class="o">=</span> <span class="n">BarkleyCanyon</span><span class="p">(</span><span class="n">split</span><span class="o">=</span><span class="s2">&quot;train&quot;</span><span class="p">)</span>
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="n">dataset2</span> <span class="o">=</span> <span class="n">InsectSet459</span><span class="p">(</span><span class="n">split</span><span class="o">=</span><span class="s2">&quot;validation&quot;</span><span class="p">)</span>
 </span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>
 </span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Dataset 1 length: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">dataset1</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="c1"># 2033</span>
-</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Dataset 2 length: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">dataset2</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="c1"># 9770</span>
-</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>
-</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a><span class="c1"># Concatenate with default soft merge</span>
-</span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a><span class="n">combined_dataset</span> <span class="o">=</span> <span class="n">ConcatenatedDataset</span><span class="p">(</span>
-</span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>    <span class="n">datasets</span><span class="o">=</span><span class="p">[</span><span class="n">dataset1</span><span class="p">,</span> <span class="n">dataset2</span><span class="p">],</span>
-</span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>    <span class="n">merge_level</span><span class="o">=</span><span class="s2">&quot;soft&quot;</span>  <span class="c1"># Options: &quot;soft&quot;, &quot;overlap&quot;, &quot;hard&quot;</span>
-</span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a><span class="p">)</span>
-</span><span id="__span-0-18"><a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>
-</span><span id="__span-0-19"><a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a><span class="c1"># Access the combined data</span>
-</span><span id="__span-0-20"><a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Combined dataset length: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">combined_dataset</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-</span><span id="__span-0-21"><a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a><span class="c1"># 11803</span>
-</span><span id="__span-0-22"><a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a><span class="n">sample</span> <span class="o">=</span> <span class="n">combined_dataset</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>  <span class="c1"># Get first sample (should be AnimalSpeak)</span>
-</span><span id="__span-0-23"><a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;First sample: </span><span class="si">{</span><span class="n">sample</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-</span><span id="__span-0-24"><a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a>
-</span><span id="__span-0-25"><a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a><span class="c1"># get last sample (should be BarkleyCanyon)</span>
-</span><span id="__span-0-26"><a id="__codelineno-0-26" name="__codelineno-0-26" href="#__codelineno-0-26"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Last sample: </span><span class="si">{</span><span class="n">combined_dataset</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Dataset 2 length: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">dataset2</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>
+</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="c1"># Concatenate with default soft merge</span>
+</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="n">combined_dataset</span> <span class="o">=</span> <span class="n">ConcatenatedDataset</span><span class="p">(</span>
+</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>    <span class="n">datasets</span><span class="o">=</span><span class="p">[</span><span class="n">dataset1</span><span class="p">,</span> <span class="n">dataset2</span><span class="p">],</span>
+</span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>    <span class="n">merge_level</span><span class="o">=</span><span class="s2">&quot;soft&quot;</span>  <span class="c1"># Options: &quot;soft&quot;, &quot;overlap&quot;, &quot;hard&quot;</span>
+</span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a><span class="p">)</span>
+</span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>
+</span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a><span class="c1"># Access the combined data</span>
+</span><span id="__span-0-18"><a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Combined dataset length: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">combined_dataset</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</span><span id="__span-0-19"><a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a><span class="n">sample</span> <span class="o">=</span> <span class="n">combined_dataset</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>  <span class="c1"># Get first sample (should be AnimalSpeak)</span>
+</span><span id="__span-0-20"><a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;First sample: </span><span class="si">{</span><span class="n">sample</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 </span></code></pre></div>
 <h4 id="create-a-combined-dataset-from-a-yaml-config">Create a combined dataset from a yaml config</h4>
 <p>You can also create a concatenated dataset from a YAML configuration file. Here is an example of how to do this:
@@ -1170,13 +1164,13 @@ The <code>concat</code> keyword is a <em>SPECIAL</em> keyword, which tells the <
 </span></code></pre></div>
 <h4 id="apply-transformations-before-after-concatenation">Apply transformations before / after concatenation</h4>
 <p>You can apply transformations to the individual datasets <em>before</em> concatenation as shown in <a href="../transforms/">transforms.md</a>. This allows you to treat the data as needed, but you can also apply transformations <em>after</em> concatenation if you want to operate on the combined dataset as a whole. Here is an example of applying a filter transformation <em>after</em> concatenation:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">esp_data.datasets</span><span class="w"> </span><span class="kn">import</span> <span class="n">AnimalSpeak</span><span class="p">,</span> <span class="n">BarkleyCanyon</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">esp_data.datasets</span><span class="w"> </span><span class="kn">import</span> <span class="n">AnimalSpeak</span><span class="p">,</span> <span class="n">InsectSet459</span>
 </span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">esp_data.transforms</span><span class="w"> </span><span class="kn">import</span> <span class="n">FilterConfig</span>
 </span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">esp_data.concat</span><span class="w"> </span><span class="kn">import</span> <span class="n">ConcatenatedDataset</span>
 </span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>
 </span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="c1"># Load individual datasets</span>
 </span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="n">dataset1</span> <span class="o">=</span> <span class="n">AnimalSpeak</span><span class="p">(</span><span class="n">split</span><span class="o">=</span><span class="s2">&quot;validation&quot;</span><span class="p">)</span>
-</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="n">dataset2</span> <span class="o">=</span> <span class="n">BarkleyCanyon</span><span class="p">(</span><span class="n">split</span><span class="o">=</span><span class="s2">&quot;train&quot;</span><span class="p">)</span>
+</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="n">dataset2</span> <span class="o">=</span> <span class="n">InsectSet459</span><span class="p">(</span><span class="n">split</span><span class="o">=</span><span class="s2">&quot;validation&quot;</span><span class="p">)</span>
 </span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="c1"># Concatenate datasets</span>
 </span><span id="__span-3-9"><a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="n">combined_dataset</span> <span class="o">=</span> <span class="n">ConcatenatedDataset</span><span class="p">([</span><span class="n">dataset1</span><span class="p">,</span> <span class="n">dataset2</span><span class="p">])</span>
 </span><span id="__span-3-10"><a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="c1"># Define a filter transformation</span>
@@ -1196,7 +1190,7 @@ The <code>concat</code> keyword is a <em>SPECIAL</em> keyword, which tells the <
 will end up dropping all rows from datasets that do not have the <code>species_common</code> column, since those rows will be
 <code>NaN</code> for those datasets.</p>
 </div>
-<p>As mentioned, ycou can also apply transforms to individual datasets before concatenation:</p>
+<p>As mentioned, you can also apply transforms to individual datasets before concatenation:</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1"># Create and transform individual datasets</span>
 </span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="n">animal_dataset</span> <span class="o">=</span> <span class="n">AnimalSpeak</span><span class="p">(</span><span class="n">split</span><span class="o">=</span><span class="s2">&quot;train&quot;</span><span class="p">)</span>
 </span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="n">animal_filter</span> <span class="o">=</span> <span class="n">FilterConfig</span><span class="p">(</span>
@@ -1361,9 +1355,9 @@ when you try to concatenate them.</p>
 <h2 id="limitations-and-considerations">Limitations and Considerations</h2>
 <h3 id="current-limitations">Current Limitations</h3>
 <ol>
-<li><strong>No Configuration Loading</strong>: <code>ConcatenatedDataset</code> cannot be created from <code>DatasetConfig</code></li>
-<li><strong>Memory Usage</strong>: All source datasets remain in memory</li>
-<li><strong>Single Split</strong>: Concatenated datasets only support the "concatenated" split</li>
+<li><strong>Memory Usage</strong>: All source datasets remain in memory (<code>streaming=True</code> is not supported for concatenation; use <code>ChainedDataset</code> for streaming).</li>
+<li><strong>Single Split</strong>: Concatenated datasets only support the "concatenated" split.</li>
+<li><strong>Uniform Backend</strong>: All source datasets must use the same backend type (e.g., all polars or all pandas).</li>
 </ol>
 <h3 id="performance-considerations">Performance Considerations</h3>
 <ul>
