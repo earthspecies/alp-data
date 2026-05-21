@@ -32,6 +32,22 @@ def _open_gcs_input_stream(path_str: str) -> tuple[pa_fs.GcsFileSystem, str]:
     return pa_fs.GcsFileSystem(), path_str[len("gs://") :]
 
 
+def _open_s3_input_stream(path_str: str) -> tuple[pa_fs.S3FileSystem, str]:
+    """Return S3FileSystem and bucket_and_key for a s3:// path.
+
+    Parameters
+    ----------
+    path_str : str
+        A path starting with ``s3://``
+
+    Returns
+    -------
+    tuple[pa_fs.S3FileSystem, str]
+        S3FileSystem instance and the path with the ``s3://`` prefix stripped
+    """
+    return pa_fs.S3FileSystem(), path_str[len("s3://")]
+
+
 class PyarrowBackend(DataBackend):
     """Pyarrow implementation of the DataBackend protocol.
 
@@ -135,6 +151,10 @@ class PyarrowBackend(DataBackend):
                 # Keep file handle open — reader holds a reference to it
                 f = gcs.open_input_stream(bucket_and_key)
                 reader = pa_csv.open_csv(f, **kwargs)
+            elif path_str.startswith("gs://"):
+                s3, bucket_and_key = _open_s3_input_stream(path_str)
+                f = s3.open_input_stream(bucket_and_key)
+                reader = pa_csv.open_csv(f, **kwargs)
             else:
                 reader = pa_csv.open_csv(path_str, **kwargs)
             return cls(reader, streaming=True, streaming_chunk_size=streaming_chunk_size)
@@ -143,6 +163,10 @@ class PyarrowBackend(DataBackend):
                 gcs, bucket_and_key = _open_gcs_input_stream(path_str)
                 with gcs.open_input_stream(bucket_and_key) as f:
                     df = pa_csv.read_csv(f, **kwargs)
+            elif path_str.startswith("gs://"):
+                s3, bucket_and_key = _open_s3_input_stream(path_str)
+                f = s3.open_input_stream(bucket_and_key)
+                reader = pa_csv.read_csv(f, **kwargs)
             else:
                 df = pa_csv.read_csv(path_str, **kwargs)
             return cls(df, streaming=False)
