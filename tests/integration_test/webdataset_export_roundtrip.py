@@ -7,7 +7,7 @@ import pytest
 import yaml
 
 from esp_data import Dataset
-from esp_data.export import audio_decoder
+from esp_data.backends.webdataset_utils import audio_decoder
 from esp_data.datasets import BeansZero
 
 SAMPLE_RATE = 16000

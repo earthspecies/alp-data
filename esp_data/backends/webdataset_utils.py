@@ -14,46 +14,44 @@ import soundfile as sf
 import webdataset as wds
 
 from esp_data.io import AnyPathT, filesystem_from_path
-from esp_data.io.paths import PureGSPath, PureR2Path
+from esp_data.io.paths import PureCloudPath, PureGSPath, PureR2Path, anypath
 
 
-def audio_decoder(data: dict, dtype: str = "float32", format: str = "FLAC") -> dict[str, Any]:
-    """Decode audio data from a WebDataset sample.
+def make_file_opener_for_wds(
+    file_path: str | AnyPathT,
+    mode: str = "wb",
+    block_size: int = 1024 * 1024 * 100,
+) -> callable:
+    """Make a file opener function for WebDataset.
 
-    Parameters
-    ----------
-    data: dict
-        The sample containing audio data in WebDataset format
-    dtype: str
-        The data type of the decoded audio data (default: "float32")
-    format: str
-        The format of the audio data (default: "FLAC")
+    If local path, create parent dirs if needed.
+
+    Arguments
+    ---------
+    file_path: str | AnyPathT
+        The file path to open
+    mode: str
+        The mode in which to open the file (default: "wb")
+    block_size: int
+        Block size for WebDataset (default: 100 MB)
 
     Returns
     -------
-    dict
-        Dictionary containing the decoded audio data and metadata.
-
-    Raises
-    ------
-    ValueError
-        If the sample does not contain an audio key ending with .flac, .wav, etc.
+    Callable
+        A function that opens the file in the specified mode
+        or a file object if the path is local.
     """
-    audio_key = next((k for k in data if k.endswith(f".{format.lower()}")), None)
-    if not audio_key:
-        raise ValueError("Sample must contain an audio key ending with .flac, .wav, etc.")
+    path_obj = anypath(file_path)
 
-    audio_buffer = io.BytesIO(data[audio_key])
-    audio_data, samplerate = sf.read(audio_buffer, dtype=dtype)
-
-    # Reconstruct sample
-    sample = {}
-    sample["audio"] = audio_data
-    sample["sample_rate"] = samplerate
-    md = json.loads(data.get("metadata.json", b"{}").decode("utf-8"))
-    sample.update(md)
-
-    return sample
+    if not isinstance(path_obj, PureCloudPath):
+        # Local filesystem - create parent dirs if needed
+        parent_dir = path_obj.parent
+        parent_dir.mkdir(parents=True, exist_ok=True)
+        return open(str(path_obj), mode=mode)
+    else:
+        # Remote filesystem (GCS, R2, etc.)
+        fs = filesystem_from_path(str(path_obj))
+        return fs.open(str(path_obj), mode=mode, block_size=block_size)
 
 
 def audio_encoder(
@@ -105,6 +103,45 @@ def audio_encoder(
     metadata = {k: v for k, v in sample.items() if k != "audio"}
     data_out["metadata.json"] = json.dumps(metadata, indent=2).encode("utf-8")
     return data_out
+
+
+def audio_decoder(data: dict, dtype: str = "float32", format: str = "FLAC") -> dict[str, Any]:
+    """Decode audio data from a WebDataset sample.
+
+    Parameters
+    ----------
+    data: dict
+        The sample containing audio data in WebDataset format
+    dtype: str
+        The data type of the decoded audio data (default: "float32")
+    format: str
+        The format of the audio data (default: "FLAC")
+
+    Returns
+    -------
+    dict
+        Dictionary containing the decoded audio data and metadata.
+
+    Raises
+    ------
+    ValueError
+        If the sample does not contain an audio key ending with .flac, .wav, etc.
+    """
+    audio_key = next((k for k in data if k.endswith(f".{format.lower()}")), None)
+    if not audio_key:
+        raise ValueError("Sample must contain an audio key ending with .flac, .wav, etc.")
+
+    audio_buffer = io.BytesIO(data[audio_key])
+    audio_data, samplerate = sf.read(audio_buffer, dtype=dtype)
+
+    # Reconstruct sample
+    sample = {}
+    sample["audio"] = audio_data
+    sample["sample_rate"] = samplerate
+    md = json.loads(data.get("metadata.json", b"{}").decode("utf-8"))
+    sample.update(md)
+
+    return sample
 
 
 def json_encoder(

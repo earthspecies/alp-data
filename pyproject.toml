@@ -36,6 +36,7 @@ dev = [
     "pytest>=7.1.2",
     "ruff>=0.15.10",
     "deptry>=0.23.0",
+    "tqdm>=4.67.3",
 ]
 
 [build-system]
