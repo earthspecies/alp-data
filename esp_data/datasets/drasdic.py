@@ -24,6 +24,16 @@ Available splits
   call-type tasks each. Same task layout (multiple-choice ~75k, binary
   ~50k, binary timestamps ~25k, same/different ~25k, counting ~25k);
   the suffix indicates the audio's native sample rate.
+- ``call_type_all_v2_32k_avex_hardneg`` (and matching
+  ``call_type_*_v2_32k_avex_hardneg`` sub-splits): 600k v2 32 kHz call-type
+  tasks synthesized with hard-negative sampling (60% cross-species, 14%
+  within-species, 26% random easy). Composition: multiple-choice ~225k,
+  binary ~150k, binary timestamps ~75k, same/different ~75k, counting
+  ~75k. MCQ prompts use the ``"if any?"`` suffix and ~15% of answers are
+  "None of the above".
+- ``call_type_multiple_choice_v2_32k_avex_hardneg_mcq_only``: 100k v2
+  32 kHz MCQ-only call-type tasks (no ``"if any?"`` suffix; every correct
+  answer is one of A-H). Same hard-negative pools as the 600k batch.
 - ``species_mcq``: ~50k 4-way species multiple-choice (XC + iNat,
   natively 32 kHz audio).
 - ``same_species``: ~200k binary same-species detection — given 2-5
@@ -63,6 +73,12 @@ _SPLIT_DIRS: dict[str, str] = {
     "call_type_all_v1": f"{_V1_ROOT}/synthetic_call_type_tasks_16k_v1",
     "call_type_all_v2_16k": f"{_BASE_ROOT}/synthetic_call_type_tasks_16k_v2",
     "call_type_all_v2_32k": f"{_BASE_ROOT}/synthetic_call_type_tasks_32k_v2",
+    "call_type_all_v2_32k_avex_hardneg": (
+        f"{_BASE_ROOT}/synthetic_call_type_tasks_32k_avex_hardneg_v2"
+    ),
+    "call_type_all_v2_32k_avex_hardneg_mcq_only": (
+        f"{_BASE_ROOT}/synthetic_call_type_tasks_32k_avex_hardneg_v2_mcq_only"
+    ),
     "fewshot_detection": f"{_BASE_ROOT}/synthetic_fewshot_detection_16k_v2",
     "feature_conditioned_detection": (f"{_BASE_ROOT}/synthetic_feature_detection_gcs_16k_v2"),
 }
@@ -114,6 +130,27 @@ _CALL_TYPE_V2_SUBSPLITS: dict[str, tuple[str, str]] = {
     for rate in ("16k", "32k")
     for task, template in _CALL_TYPE_V2_TEMPLATES.items()
 }
+
+# v2 32k avex hard-negative sub-splits — same task layout as ``*_v2_32k``
+# but synthesized with hard-negative sampling. Parent split:
+# ``call_type_all_v2_32k_avex_hardneg``.
+_CALL_TYPE_V2_SUBSPLITS.update(
+    {
+        f"call_type_{task}_v2_32k_avex_hardneg": (
+            "call_type_all_v2_32k_avex_hardneg",
+            template,
+        )
+        for task, template in _CALL_TYPE_V2_TEMPLATES.items()
+    }
+)
+
+# MCQ-only avex hard-negative split — only template is multiple_choice, so
+# the template filter is a no-op but kept for consistency with the other
+# v2 sub-splits.
+_CALL_TYPE_V2_SUBSPLITS["call_type_multiple_choice_v2_32k_avex_hardneg_mcq_only"] = (
+    "call_type_all_v2_32k_avex_hardneg_mcq_only",
+    "audio_synth/multiple_choice",
+)
 
 _TASK_BY_TEMPLATE: dict[str, str] = {
     "audio_synth/fewshot_sed": "few_shot_sed",
@@ -191,6 +228,12 @@ class DRASDIC(Dataset):
             },
             "call_type_all_v2_16k": (f"{_SPLIT_DIRS['call_type_all_v2_16k']}/conversations.jsonl"),
             "call_type_all_v2_32k": (f"{_SPLIT_DIRS['call_type_all_v2_32k']}/conversations.jsonl"),
+            "call_type_all_v2_32k_avex_hardneg": (
+                f"{_SPLIT_DIRS['call_type_all_v2_32k_avex_hardneg']}/conversations.jsonl"
+            ),
+            "call_type_all_v2_32k_avex_hardneg_mcq_only": (
+                f"{_SPLIT_DIRS['call_type_all_v2_32k_avex_hardneg_mcq_only']}/conversations.jsonl"
+            ),
             **{
                 sub: f"{_SPLIT_DIRS[parent]}/conversations.jsonl"
                 for sub, (parent, _) in _CALL_TYPE_V2_SUBSPLITS.items()
@@ -211,6 +254,14 @@ class DRASDIC(Dataset):
             "gs://foundation-model-data/synthetic/multi-audio/synthetic_feature_detection_gcs_16k_v2",
             "gs://foundation-model-data/synthetic/multi-audio/synthetic_call_type_tasks_16k_v2",
             "gs://foundation-model-data/synthetic/multi-audio/synthetic_call_type_tasks_32k_v2",
+            (
+                "gs://foundation-model-data/synthetic/multi-audio/"
+                "synthetic_call_type_tasks_32k_avex_hardneg_v2"
+            ),
+            (
+                "gs://foundation-model-data/synthetic/multi-audio/"
+                "synthetic_call_type_tasks_32k_avex_hardneg_v2_mcq_only"
+            ),
             "gs://esp-data-ingestion/drasdic/v0.1.0/same_species.jsonl",
         ],
         license="internal",
@@ -236,8 +287,11 @@ class DRASDIC(Dataset):
             ``call_type_counting``, ``fewshot_detection``,
             ``feature_conditioned_detection``, ``call_type_all_v1`` (with
             ``_v1`` sub-splits), ``call_type_all_v2_16k`` (with
-            ``_v2_16k`` sub-splits), or ``call_type_all_v2_32k`` (with
-            ``_v2_32k`` sub-splits, natively 32 kHz).
+            ``_v2_16k`` sub-splits), ``call_type_all_v2_32k`` (with
+            ``_v2_32k`` sub-splits, natively 32 kHz),
+            ``call_type_all_v2_32k_avex_hardneg`` (with
+            ``_v2_32k_avex_hardneg`` sub-splits — hard-negative sampling),
+            or ``call_type_multiple_choice_v2_32k_avex_hardneg_mcq_only``.
         output_take_and_give : dict[str, str] | None
             Optional column rename mapping.
         sample_rate : int | None
