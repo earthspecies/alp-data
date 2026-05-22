@@ -492,7 +492,7 @@ class Dataset(ABC):
         """
         pass
 
-    def save_to(self, path: str, format: str = "webdataset", **kwargs: Any) -> int:
+    def save_to(self, path: str, format: str = "webdataset", **kwargs: Any) -> dict[str, Any]:
         """Save the dataset to a file.
 
         Supports different output formats (e.g. "webdataset", "csv", "parquet") via the `format`
@@ -512,13 +512,14 @@ class Dataset(ABC):
             By default ``"webdataset"``.
         **kwargs : Any
             Additional arguments passed to the underlying backend writer.
-            For ``"webdataset"``: accepts ``encoder_fn``, ``shard_pattern``,
-            ``maxcount``, ``maxsize``.
+            For ``"webdataset"``: accepts ``encoder_fn``, ``num_samples_per_shard``,
+            ``max_workers``, ``compression``, ``shuffle``.
 
         Returns
         -------
-        int
-            Number of samples written.
+        dict[str, Any]
+            Export summary with keys: ``total_shards``, ``total_processed``,
+            ``total_failed``, ``output_path``, ``compression``.
 
         Raises
         ------
@@ -529,10 +530,10 @@ class Dataset(ABC):
             raise RuntimeError("No data loaded. Call _load() first.")
         from esp_data.exporters import export_dataset
 
-        n, backend = export_dataset(self, path, format=format, **kwargs)
+        summary = export_dataset(self, path, format=format, **kwargs)
 
-        self._write_config(path, backend)
-        return n
+        self._write_config(path, format)
+        return summary
 
     def _write_config(self, path: str, backend: BackendType) -> None:
         """Write configuration to ``config.yaml`` in the destination directory.

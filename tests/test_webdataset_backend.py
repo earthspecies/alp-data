@@ -1063,10 +1063,9 @@ class TestExportTo:
         backend = WebDatasetBackend.from_path(json_tar_dir, data_processor=json_decoder)
         output_dir = tmp_path / "saved"
 
-        n, fmt = export_dataset(iter(backend), str(output_dir), encoder_fn=None)
+        result = export_dataset(iter(backend), str(output_dir), encoder_fn=None)
 
-        assert n == 5
-        assert fmt == "webdataset"
+        assert result["total_processed"] == 5
         reloaded = WebDatasetBackend.from_path(output_dir, data_processor=json_decoder)
         original = list(backend)
         loaded = list(reloaded)
@@ -1080,9 +1079,9 @@ class TestExportTo:
         backend = WebDatasetBackend.from_path(audio_tar_dir, data_processor=audio_decoder)
         output_dir = tmp_path / "saved"
 
-        n, _ = export_dataset(iter(backend), str(output_dir), encoder_fn=audio_encoder)
+        result = export_dataset(iter(backend), str(output_dir), encoder_fn=audio_encoder)
 
-        assert n == 5
+        assert result["total_processed"] == 5
         reloaded = WebDatasetBackend.from_path(output_dir, data_processor=audio_decoder)
         samples = list(reloaded)
         assert len(samples) == 5
@@ -1105,9 +1104,9 @@ class TestExportTo:
         """Test that export_dataset return value equals the number of samples written."""
         backend = WebDatasetBackend.from_path(json_tar_dir, data_processor=json_decoder)
 
-        n, _ = export_dataset(iter(backend), str(tmp_path / "saved"), encoder_fn=None)
+        result = export_dataset(iter(backend), str(tmp_path / "saved"), encoder_fn=None)
 
-        assert n == 5
+        assert result["total_processed"] == 5
 
     def test_filtered_backend(self, json_tar_dir: Path, tmp_path: Path) -> None:
         """Test that filters applied before export_dataset are reflected in the output."""
@@ -1115,9 +1114,9 @@ class TestExportTo:
         filtered = backend.filter_isin("category", ["cat_0"])
         output_dir = tmp_path / "saved"
 
-        n, _ = export_dataset(iter(filtered), str(output_dir), encoder_fn=None)
+        result = export_dataset(iter(filtered), str(output_dir), encoder_fn=None)
 
-        assert n == 2
+        assert result["total_processed"] == 2
         reloaded = list(WebDatasetBackend.from_path(output_dir, data_processor=json_decoder))
         assert all(s["category"] == "cat_0" for s in reloaded)
 
@@ -1134,6 +1133,6 @@ class TestExportTo:
         """Test export_dataset accepts an explicit encoder_fn."""
         backend = WebDatasetBackend.from_path(json_tar_dir, data_processor=json_decoder)
 
-        n, _ = export_dataset(iter(backend), str(tmp_path / "saved"), encoder_fn=json_encoder)
+        result = export_dataset(iter(backend), str(tmp_path / "saved"), encoder_fn=json_encoder)
 
-        assert n == 5
+        assert result["total_processed"] == 5

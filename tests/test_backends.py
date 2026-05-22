@@ -293,9 +293,8 @@ class TestExportDataset:
 
     def test_webdataset_roundtrip(self, tmp_path) -> None:
         samples = [{"id": i, "name": str(i)} for i in range(3)]
-        n, fmt = export_dataset(iter(samples), str(tmp_path / "out"), format="webdataset", encoder_fn=None)
-        assert n == 3
-        assert fmt == "webdataset"
+        result = export_dataset(iter(samples), str(tmp_path / "out"), format="webdataset", encoder_fn=None)
+        assert result["total_processed"] == 3
         reloaded = list(WebDatasetBackend.from_path(tmp_path / "out", data_processor=json_decoder))
         assert {s["id"] for s in reloaded} == {0, 1, 2}
 

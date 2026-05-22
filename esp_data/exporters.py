@@ -538,7 +538,7 @@ def export_dataset(
     path: str,
     format: str = "webdataset",
     **kwargs: Any,
-) -> tuple[int, str]:
+) -> dict[str, Any]:
     """Export an iterable of samples to a file.
 
     Parameters
@@ -553,12 +553,13 @@ def export_dataset(
         Additional arguments. For ``"webdataset"``: accepts ``encoder_fn``
         (``Callable | None``). If ``None``, auto-detected from the first sample:
         samples with an ``"audio"`` key use `audio_encoder`, all others use
-        `json_encoder`.
+        `json_encoder`. Remaining kwargs are forwarded to `export_as_tar`.
 
     Returns
     -------
-    tuple[int, str]
-        ``(n_samples_written, format_name)``
+    dict[str, Any]
+        Export summary from `export_as_tar` with keys: ``total_shards``,
+        ``total_processed``, ``total_failed``, ``output_path``, ``compression``.
 
     Raises
     ------
@@ -573,7 +574,13 @@ def export_dataset(
             try:
                 first = next(iterable)
             except StopIteration:
-                return 0, "webdataset"
+                return {
+                    "total_shards": 0,
+                    "total_processed": 0,
+                    "total_failed": 0,
+                    "output_path": str(path),
+                    "compression": None,
+                }
             if "audio" in first:
                 sr = first.get("sample_rate", 16000)
                 encoder_fn = partial(audio_encoder, sample_rate=sr)
@@ -581,13 +588,14 @@ def export_dataset(
                 encoder_fn = json_encoder
             iterable = itertools.chain([first], iterable)
 
-        result = _write_webdataset_shard(
-            dataset=iterable,
+        if not hasattr(iterable, "__len__"):
+            iterable = list(iterable)
+
+        return export_as_tar(
+            ds=iterable,
             output_path=anypath(path),
-            shard_id=0,
-            indices=None,
             sample_prep_function=encoder_fn,
+            **kwargs,
         )
-        return len(result["processed_ids"]), "webdataset"
 
     raise ValueError(f"Unsupported format: {format!r}. Supported formats: {_SUPPORTED_FORMATS}")
