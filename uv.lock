@@ -17,7 +17,7 @@ resolution-markers = [
 ]
 
 [options]
-exclude-newer = "2026-05-15T08:34:35.783157374Z"
+exclude-newer = "2026-05-15T12:16:07.28596775Z"
 exclude-newer-span = "P7D"
 
 [options.exclude-newer-package]
@@ -775,6 +775,7 @@ dependencies = [
     { name = "s3fs" },
     { name = "semver" },
     { name = "soundfile" },
+    { name = "tqdm" },
     { name = "webdataset" },
 ]
 
@@ -795,7 +796,6 @@ dev = [
     { name = "prek" },
     { name = "pytest" },
     { name = "ruff" },
-    { name = "tqdm" },
 ]
 
 [package.metadata]
@@ -813,6 +813,7 @@ requires-dist = [
     { name = "s3fs", specifier = ">=2024.9.0" },
     { name = "semver" },
     { name = "soundfile", specifier = ">=0.13.1" },
+    { name = "tqdm", specifier = ">=4.67.3" },
     { name = "webdataset", specifier = ">=1.0.2" },
 ]
 
@@ -832,7 +833,6 @@ dev = [
     { name = "prek", specifier = ">=0.2.28" },
     { name = "pytest", specifier = ">=7.1.2" },
     { name = "ruff", specifier = ">=0.15.10" },
-    { name = "tqdm", specifier = ">=4.67.3" },
 ]
 
 [[package]]

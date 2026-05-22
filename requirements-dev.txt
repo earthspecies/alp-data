@@ -19,7 +19,6 @@ colorama==0.4.6
     #   mkdocs
     #   mkdocs-material
     #   pytest
-    #   tqdm
 deptry==0.25.1
 ghp-import==2.1.0
     # via mkdocs
@@ -119,7 +118,6 @@ six==1.17.0
     # via python-dateutil
 tomli==2.4.1 ; python_full_version < '3.15'
     # via deptry
-tqdm==4.67.3
 urllib3==2.6.3
     # via requests
 verspec==0.1.0
