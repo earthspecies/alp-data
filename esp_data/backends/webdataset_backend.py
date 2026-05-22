@@ -64,7 +64,9 @@ def _load_webdataset(
         path_str = str(path)
         protocol = path_str.split("://")[0]
         path_no_protocol = path_str[len(protocol) + 3 :]
-        shard_files = [f"{protocol}://{s}" for s in fs.glob(f"{path_no_protocol}/{file_pattern}")]
+        shard_files = [
+            f"{protocol}://{s}" for s in fs.glob(f"{path_no_protocol.rstrip('/')}/{file_pattern}")
+        ]
     else:
         shard_files = [str(s) for s in path.glob(file_pattern)]
 
