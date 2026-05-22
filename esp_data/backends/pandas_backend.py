@@ -5,14 +5,13 @@ from __future__ import annotations
 import inspect
 import warnings
 from functools import partial
-from typing import Any, Callable, Dict, Iterable, Iterator, Literal
+from typing import Any, Callable, Iterator, Literal
 
 import pandas as pd
 
 from esp_data.io import anypath
 
 from .protocol import DataBackend
-from .webdataset_utils import write_to_webdataset
 
 
 class PandasBackend(DataBackend):
@@ -1072,42 +1071,6 @@ class PandasBackend(DataBackend):
         df_clean = self._df.dropna(subset=output_feature, ignore_index=True)
 
         return PandasBackend(df_clean, streaming=False), label_map
-
-    def save_to(
-        self,
-        iterable: Iterator[Dict[str, Any]] | Iterable[Dict[str, Any]],
-        path: str,
-        format: str = "webdataset",
-        **kwargs: Any,
-    ) -> int:
-        """Save the DataFrame to a file.
-
-        Parameters
-        ----------
-        path : str
-            Destination path (supports local and cloud paths)
-        format : str, optional
-            Output format. Supported: ``"webdataset"``.
-            By default ``"webdataset"``.
-        **kwargs : Any
-            Additional arguments passed to the underlying writer.
-            For ``"webdataset"``: accepts ``encoder_fn``, ``shard_pattern``,
-            ``maxcount``, ``maxsize`` (see `write_to_webdataset`).
-
-        Returns
-        -------
-        int
-            Number of samples written.
-
-        Raises
-        ------
-        ValueError
-            If `format` is not supported
-        """
-        self._ensure_not_streaming("save_to")
-        if format == "webdataset":
-            return write_to_webdataset(iterable, anypath(path), **kwargs)
-        raise ValueError(f"Unsupported format: {format!r}. Supported formats: 'webdataset'")
 
     def __repr__(self) -> str:
         """Return string representation of the backend.

@@ -1,6 +1,6 @@
 """WebDataset implementation of the StreamingBackend protocol."""
 
-from typing import Any, Callable, Dict, Iterable, Iterator
+from typing import Any, Callable, Iterator
 
 import webdataset as wds
 
@@ -396,69 +396,6 @@ class WebDatasetBackend(StreamingBackend):
         new_backend = self._copy()
         new_backend._map_funcs.append(fn)
         return new_backend
-
-    def save_to(
-        self,
-        iterable: Iterator[Dict[str, Any]] | Iterable[Dict[str, Any]],
-        path: str | AnyPathT,
-        format: str = "webdataset",
-        encoder_fn: Callable | None = None,
-        shard_pattern: str = "shard_%04d.tar",
-        maxcount: int = 100_000,
-        maxsize: float = 3e9,
-    ) -> int:
-        """Write the backend's samples to sharded tar files on disk or cloud storage.
-
-        Applies all accumulated filters and maps before writing. Mirrors
-        `from_path` to provide a symmetric load/save API on the backend.
-
-        For cloud paths (GCS, R2), samples are written to a temporary local
-        directory first, then uploaded to the destination.
-
-        Parameters
-        ----------
-        path : str | AnyPathT
-            Destination directory (local or cloud). Created if it does not exist.
-        format : str, optional
-            Output format. Only ``"webdataset"`` is supported, by default
-            ``"webdataset"``.
-        encoder_fn : Callable | None, optional
-            Function ``dict[str, Any] -> dict[str, bytes]`` in WebDataset
-            format. If ``None``, auto-detected from the first sample:
-            samples with an ``"audio"`` key use `audio_encoder`, all others
-            use `json_encoder`.
-        shard_pattern : str, optional
-            Printf-style shard file name pattern, by default
-            ``"shard_%04d.tar"``.
-        maxcount : int, optional
-            Maximum samples per shard, by default 100 000.
-        maxsize : float, optional
-            Maximum shard size in bytes, by default 3 GB.
-
-        Returns
-        -------
-        int
-            Number of samples written.
-
-        Raises
-        ------
-        ValueError
-            If ``format`` is not ``"webdataset"``.
-        """
-        if format != "webdataset":
-            raise ValueError(f"Unsupported format '{format}' for WebDatasetBackend")
-
-        from .webdataset_utils import write_to_webdataset
-
-        resolved = anypath(path)
-        return write_to_webdataset(
-            iterable,
-            resolved,
-            encoder_fn=encoder_fn,
-            shard_pattern=shard_pattern,
-            maxcount=maxcount,
-            maxsize=maxsize,
-        )
 
     def __repr__(self) -> str:
         """Return string representation of the backend.
