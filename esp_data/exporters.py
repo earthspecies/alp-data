@@ -2,12 +2,13 @@
 
 import concurrent.futures
 import gc
+import itertools
 import logging
 import traceback
 import uuid
 from functools import partial
 from pathlib import Path
-from typing import Any, Callable, Iterable, Literal
+from typing import Any, Callable, Iterable, Iterator, Literal
 
 import numpy as np
 import pandas as pd
@@ -15,10 +16,12 @@ import webdataset as wds
 from tqdm import tqdm
 
 from esp_data import Dataset
-from esp_data.backends.webdataset_utils import audio_encoder, make_file_opener_for_wds
+from esp_data.backends.webdataset_utils import audio_encoder, json_encoder, make_file_opener_for_wds
 from esp_data.io import AnyPathT, anypath, exists
 
 logger = logging.getLogger("esp_data")
+
+_SUPPORTED_FORMATS = ("webdataset",)
 
 
 def _make_id() -> str:
@@ -158,7 +161,6 @@ def _write_webdataset_shard(
                 item = obj
 
             sample_id = str(item.get("id", _make_id()))
-            item["id"] = sample_id
 
             if (j + 1) % log_every == 0:
                 logger.info(
@@ -529,3 +531,63 @@ def export_as_tar(
     )
 
     return summary
+
+
+def export_dataset(
+    iterable: Iterator[dict[str, Any]] | Iterable[dict[str, Any]],
+    path: str,
+    format: str = "webdataset",
+    **kwargs: Any,
+) -> tuple[int, str]:
+    """Export an iterable of samples to a file.
+
+    Parameters
+    ----------
+    iterable : Iterator[dict[str, Any]] | Iterable[dict[str, Any]]
+        Iterable of sample dicts to write.
+    path : str
+        Destination directory (local or cloud).
+    format : str, optional
+        Output format. Supported: ``"webdataset"``. By default ``"webdataset"``.
+    **kwargs : Any
+        Additional arguments. For ``"webdataset"``: accepts ``encoder_fn``
+        (``Callable | None``). If ``None``, auto-detected from the first sample:
+        samples with an ``"audio"`` key use `audio_encoder`, all others use
+        `json_encoder`.
+
+    Returns
+    -------
+    tuple[int, str]
+        ``(n_samples_written, format_name)``
+
+    Raises
+    ------
+    ValueError
+        If `format` is not supported.
+    """
+    if format == "webdataset":
+        encoder_fn = kwargs.pop("encoder_fn", audio_encoder)
+
+        if encoder_fn is None:
+            iterable = iter(iterable)
+            try:
+                first = next(iterable)
+            except StopIteration:
+                return 0, "webdataset"
+            if "audio" in first:
+                sr = first.get("sample_rate", 16000)
+                encoder_fn = partial(audio_encoder, sample_rate=sr)
+            else:
+                encoder_fn = json_encoder
+            iterable = itertools.chain([first], iterable)
+
+        result = _write_webdataset_shard(
+            dataset=iterable,
+            output_path=anypath(path),
+            shard_id=0,
+            indices=None,
+            sample_prep_function=encoder_fn,
+        )
+        return len(result["processed_ids"]), "webdataset"
+
+    raise ValueError(f"Unsupported format: {format!r}. Supported formats: {_SUPPORTED_FORMATS}")

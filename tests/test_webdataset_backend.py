@@ -14,7 +14,7 @@ import webdataset as wds
 
 from esp_data.backends import get_backend
 from esp_data.backends.webdataset_backend import WebDatasetBackend, _load_webdataset
-from esp_data.export import export_dataset
+from esp_data.exporters import export_dataset
 from esp_data.backends.webdataset_utils import audio_decoder, audio_encoder, json_decoder, json_encoder
 from esp_data.dataset import (
     Dataset,
@@ -1099,7 +1099,7 @@ class TestExportTo:
 
         shard_files = list(output_dir.glob("shard_*.tar"))
         assert len(shard_files) >= 1
-        assert (output_dir / "shard_0000.tar").exists()
+        assert (output_dir / "shard_000000.tar").exists()
 
     def test_returns_sample_count(self, json_tar_dir: Path, tmp_path: Path) -> None:
         """Test that export_dataset return value equals the number of samples written."""

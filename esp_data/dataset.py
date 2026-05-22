@@ -527,7 +527,7 @@ class Dataset(ABC):
         """
         if self._data is None:
             raise RuntimeError("No data loaded. Call _load() first.")
-        from esp_data.export import export_dataset
+        from esp_data.exporters import export_dataset
 
         n, backend = export_dataset(self, path, format=format, **kwargs)
 

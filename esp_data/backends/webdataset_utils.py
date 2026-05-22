@@ -1,20 +1,14 @@
 """Utilities for encoding and decoding audio and JSON data for use in the WebDataset format."""
 
-import functools
 import io
-import itertools
 import json
-import tempfile
-from collections.abc import Iterable
-from pathlib import Path
-from typing import Any, Callable, Iterator
+from typing import Any
 
 import numpy as np
 import soundfile as sf
-import webdataset as wds
 
 from esp_data.io import AnyPathT, filesystem_from_path
-from esp_data.io.paths import PureCloudPath, PureGSPath, PureR2Path, anypath
+from esp_data.io.paths import PureCloudPath, anypath
 
 
 def make_file_opener_for_wds(
@@ -191,83 +185,3 @@ def json_decoder(
 
     json_data = json.loads(data["sample.json"].decode("utf-8"))
     return json_data
-
-
-def write_to_webdataset(
-    sample_iter: Iterator[dict[str, Any]] | Iterable[dict[str, Any]],
-    path: AnyPathT,
-    encoder_fn: Callable | None = audio_encoder,
-    shard_pattern: str = "shard_%04d.tar",
-    maxcount: int = 100_000,
-    maxsize: float = 3e9,
-) -> int:
-    """Write samples from an iterator or iterable to sharded WebDataset tar files.
-
-    For cloud paths (GCS, R2), samples are written to a temporary local
-    directory first, then uploaded to the destination.
-
-    Parameters
-    ----------
-    sample_iter : Iterator[dict[str, Any]] | Iterable[dict[str, Any]]
-        Iterator or iterable of sample dicts to write
-    path : AnyPathT
-        Destination directory (local or cloud). Created if it does not exist.
-        Callers must resolve strings via `anypath` before passing so cloud
-        URIs (``gs://``, ``r2://``) are detected correctly.
-    encoder_fn : Callable | None, optional
-        Function ``dict[str, Any] -> dict[str, bytes]`` in WebDataset format.
-        If ``None``, auto-detected from the first sample: samples with an
-        ``"audio"`` key use `audio_encoder`, all others use `json_encoder`.
-    shard_pattern : str, optional
-        Printf-style shard file name pattern, by default ``"shard_%04d.tar"``.
-    maxcount : int, optional
-        Maximum samples per shard, by default 100 000.
-    maxsize : float, optional
-        Maximum shard size in bytes, by default 3 GB.
-
-    Returns
-    -------
-    int
-        Number of samples written.
-    """
-
-    # Normalise iterables to iterators so next() works unconditionally
-    sample_iter = iter(sample_iter)
-
-    # PureR2Path covers both R2 and S3 URIs (anypath("s3://...") returns PureR2Path)
-    is_cloud = isinstance(path, (PureGSPath, PureR2Path))
-
-    if encoder_fn is None:
-        try:
-            first = next(sample_iter)
-        except StopIteration:
-            return 0
-        if "audio" in first:
-            sr = first.get("sample_rate", 16000)
-            encoder_fn = functools.partial(audio_encoder, sample_rate=sr)
-        else:
-            encoder_fn = json_encoder
-        sample_iter = itertools.chain([first], sample_iter)
-
-    def _write(write_path: Path) -> int:
-        write_path.mkdir(parents=True, exist_ok=True)
-        pattern = str(write_path / shard_pattern)
-        count = 0
-        with wds.ShardWriter(pattern, maxcount=maxcount, maxsize=maxsize, verbose=0) as sink:
-            for idx, sample in enumerate(sample_iter):
-                encoded = encoder_fn(sample)
-                encoded["__key__"] = f"sample_{idx:06d}"
-                sink.write(encoded)
-                count = idx + 1
-        return count
-
-    if is_cloud:
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            count = _write(Path(tmp_dir))
-            fs = filesystem_from_path(path)
-            for local_file in Path(tmp_dir).iterdir():
-                fs.put(str(local_file), str(path / local_file.name))
-    else:
-        count = _write(Path(str(path)))
-
-    return count
