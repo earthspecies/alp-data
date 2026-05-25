@@ -70,6 +70,51 @@ _SPLITS: dict[str, str] = {
     "ford-catalogue-pulsed-discrete-4way": (
         f"{_GCS_BASE}/ford_catalogue_pulsed_discrete_4way/test.jsonl"
     ),
+    # Ford catalogue NRKW pulsed-discrete few-shot MCQ variants.
+    "ford-catalogue-pulsed-discrete-4way-1shot": (
+        f"{_GCS_BASE}/ford_catalogue_pulsed_discrete_4way_1shot/test.jsonl"
+    ),
+    "ford-catalogue-pulsed-discrete-4way-2shot": (
+        f"{_GCS_BASE}/ford_catalogue_pulsed_discrete_4way_2shot/test.jsonl"
+    ),
+    "ford-catalogue-pulsed-discrete-4way-3shot": (
+        f"{_GCS_BASE}/ford_catalogue_pulsed_discrete_4way_3shot/test.jsonl"
+    ),
+    "ford-catalogue-pulsed-discrete-8way-1shot": (
+        f"{_GCS_BASE}/ford_catalogue_pulsed_discrete_8way_1shot/test.jsonl"
+    ),
+    "ford-catalogue-pulsed-discrete-8way-2shot": (
+        f"{_GCS_BASE}/ford_catalogue_pulsed_discrete_8way_2shot/test.jsonl"
+    ),
+    "ford-catalogue-pulsed-discrete-8way-3shot": (
+        f"{_GCS_BASE}/ford_catalogue_pulsed_discrete_8way_3shot/test.jsonl"
+    ),
+    # Raincoast 2025 NRKW MA few-shot MCQ with Ford-catalogue support clips.
+    "raincoast-2025-nrkw-ma-ford-support-4way-1shot": (
+        f"{_GCS_BASE}/raincoast_2025_nrkw_calltype_fewshot/"
+        "raincoast_2025_nrkw_ma_ford_support_4way_1shot/test.jsonl"
+    ),
+    "raincoast-2025-nrkw-ma-ford-support-4way-2shot": (
+        f"{_GCS_BASE}/raincoast_2025_nrkw_calltype_fewshot/"
+        "raincoast_2025_nrkw_ma_ford_support_4way_2shot/test.jsonl"
+    ),
+    "raincoast-2025-nrkw-ma-ford-support-4way-3shot": (
+        f"{_GCS_BASE}/raincoast_2025_nrkw_calltype_fewshot/"
+        "raincoast_2025_nrkw_ma_ford_support_4way_3shot/test.jsonl"
+    ),
+    # Raincoast 2025 NRKW MA few-shot MCQ with Raincoast support clips.
+    "raincoast-2025-nrkw-ma-raincoast-support-4way-1shot": (
+        f"{_GCS_BASE}/raincoast_2025_nrkw_calltype_fewshot/"
+        "raincoast_2025_nrkw_ma_raincoast_support_4way_1shot/test.jsonl"
+    ),
+    "raincoast-2025-nrkw-ma-raincoast-support-4way-2shot": (
+        f"{_GCS_BASE}/raincoast_2025_nrkw_calltype_fewshot/"
+        "raincoast_2025_nrkw_ma_raincoast_support_4way_2shot/test.jsonl"
+    ),
+    "raincoast-2025-nrkw-ma-raincoast-support-4way-3shot": (
+        f"{_GCS_BASE}/raincoast_2025_nrkw_calltype_fewshot/"
+        "raincoast_2025_nrkw_ma_raincoast_support_4way_3shot/test.jsonl"
+    ),
 }
 
 # Default audio root for splits whose audio was copied into the beans-pro folder.
@@ -87,6 +132,30 @@ _AUDIO_ROOT_OVERRIDES: dict[str, str] = {
         f"{_GCS_BASE}/raincoast_2025_pulsed_whistle_fewshot/"
     ),
     "ford-catalogue-pulsed-discrete-4way": "gs://esp-data-ingestion/ford-catalogue/",
+    "ford-catalogue-pulsed-discrete-4way-1shot": "gs://esp-data-ingestion/ford-catalogue/",
+    "ford-catalogue-pulsed-discrete-4way-2shot": "gs://esp-data-ingestion/ford-catalogue/",
+    "ford-catalogue-pulsed-discrete-4way-3shot": "gs://esp-data-ingestion/ford-catalogue/",
+    "ford-catalogue-pulsed-discrete-8way-1shot": "gs://esp-data-ingestion/ford-catalogue/",
+    "ford-catalogue-pulsed-discrete-8way-2shot": "gs://esp-data-ingestion/ford-catalogue/",
+    "ford-catalogue-pulsed-discrete-8way-3shot": "gs://esp-data-ingestion/ford-catalogue/",
+    "raincoast-2025-nrkw-ma-ford-support-4way-1shot": (
+        f"{_GCS_BASE}/raincoast_2025_nrkw_calltype_fewshot/"
+    ),
+    "raincoast-2025-nrkw-ma-ford-support-4way-2shot": (
+        f"{_GCS_BASE}/raincoast_2025_nrkw_calltype_fewshot/"
+    ),
+    "raincoast-2025-nrkw-ma-ford-support-4way-3shot": (
+        f"{_GCS_BASE}/raincoast_2025_nrkw_calltype_fewshot/"
+    ),
+    "raincoast-2025-nrkw-ma-raincoast-support-4way-1shot": (
+        f"{_GCS_BASE}/raincoast_2025_nrkw_calltype_fewshot/"
+    ),
+    "raincoast-2025-nrkw-ma-raincoast-support-4way-2shot": (
+        f"{_GCS_BASE}/raincoast_2025_nrkw_calltype_fewshot/"
+    ),
+    "raincoast-2025-nrkw-ma-raincoast-support-4way-3shot": (
+        f"{_GCS_BASE}/raincoast_2025_nrkw_calltype_fewshot/"
+    ),
 }
 
 
