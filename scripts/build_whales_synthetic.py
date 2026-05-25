@@ -663,7 +663,14 @@ def _setup_logging(verbose: bool) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--watkins-split", default="train")
-    parser.add_argument("--dclde-split", default="all_excl_beanszero")
+    parser.add_argument(
+        "--dclde-split",
+        default="all",
+        help=(
+            "DCLDE 2026 split to draw backgrounds from. `all` (default) covers all "
+            "9,883 files; `all_excl_beanszero` is a 1-row holdout with no 32k audio."
+        ),
+    )
     parser.add_argument("--min-clip-duration", type=float, default=2.0)
     parser.add_argument("--max-clip-duration", type=float, default=10.0)
     parser.add_argument("--snr-min", type=float, default=-5.0)
