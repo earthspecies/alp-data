@@ -601,6 +601,9 @@ def build_negative_row(
     row["32khz_path"] = rel_path
     row["duration_s"] = f"{clip_duration:.6f}"
     row["is_positive"] = "False"
+    # Explicit "None" label so the species column has a well-defined value for
+    # the no-call class instead of an empty / NaN cell.
+    row["species"] = "None"
     row["dclde_source_path"] = window.audio_path
     row["dclde_window_start_s"] = f"{bg_start:.6f}"
     row["dclde_window_end_s"] = f"{bg_end:.6f}"
