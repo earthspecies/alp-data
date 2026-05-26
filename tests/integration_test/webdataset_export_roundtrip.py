@@ -46,16 +46,17 @@ def test_shard_files_created(export_dir: Path) -> None:
     assert len(shards) >= 1
 
 
-def test_info_yaml_created(export_dir: Path) -> None:
+def test_config_yaml_created(export_dir: Path) -> None:
     """save_to must write info.yaml alongside the shard files."""
-    assert (export_dir / "info.yaml").exists()
+    assert (export_dir / "config.yaml").exists()
 
 
 def test_info_yaml_content(esc50_ds: BeansZero, export_dir: Path) -> None:
     """info.yaml must contain correct fields, single split entry, and sample_rate."""
-    with open(export_dir / "info.yaml") as f:
-        info = yaml.safe_load(f)
+    with open(export_dir / "config.yaml") as f:
+        config = yaml.safe_load(f)
 
+    info = config["info"]
     assert info["name"] == esc50_ds.info.name
     assert info["version"] == esc50_ds.info.version
     assert info["owner"] == esc50_ds.info.owner
@@ -65,7 +66,7 @@ def test_info_yaml_content(esc50_ds: BeansZero, export_dir: Path) -> None:
     assert info["split_paths"]["esc50"] == str(export_dir)
 
     # Sample rate used during export must be recorded.
-    assert info["sample_rate"] == SAMPLE_RATE
+    assert config["sample_rate"] == SAMPLE_RATE
 
 
 def test_info_loaded_on_from_path(esc50_ds: BeansZero, export_dir: Path) -> None:
