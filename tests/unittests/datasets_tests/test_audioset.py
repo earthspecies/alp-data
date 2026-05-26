@@ -267,7 +267,6 @@ def test_from_config_with_transformations() -> None:
     dataset_config = DatasetConfig(
         dataset_name="audioset",
         split="train",
-        data_root="gs://esp-ml-datasets/audioset/v0.1.0/raw/",
         streaming=True,
         backend="pandas",
     )

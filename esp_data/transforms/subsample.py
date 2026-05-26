@@ -96,7 +96,8 @@ class Subsample:
 
         Raises
         ------
-            KeyError: If the specified property is not found in the DataFrame columns.
+        KeyError
+            If the specified property is not found in the DataFrame columns.
         """
         if self.property not in backend.columns:
             raise KeyError(f"Property '{self.property}' not found in the DataFrame columns.")

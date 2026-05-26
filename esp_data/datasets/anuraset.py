@@ -11,7 +11,7 @@ import pandas as pd
 
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from esp_data.backends import BackendType
-from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
+from esp_data.io import DATA_HOME, AnyPathT, anypath, audio_stereo_to_mono, read_audio
 
 
 @register_dataset
@@ -74,10 +74,14 @@ class AnuraSetStrong(Dataset):
         name="anuraset_strong",
         owner="benjamin",
         split_paths={
-            "all": "gs://esp-ml-datasets/anuraset/anuraset_all_gbif_v2.csv",
+            "all": f"{DATA_HOME}/anuraset/anuraset_all_gbif_v3.csv",
         },
         version="0.1.0",
-        description="[MISSING]",
+        description="AnuraSet: A dataset for benchmarking Neotropical anuran"
+        "calls identification in passive acoustic monitoring by Canas et al. (2023): "
+        "We introduce a large-scale multi-species dataset of anuran amphibians"
+        "calls recorded by PAM, that comprises 27 hours of expert annotations"
+        "for 42 different species from two Brazilian biomes.",
         sources="Zenodo",
         license="CC BY 1.0",
     )

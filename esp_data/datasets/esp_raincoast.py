@@ -18,7 +18,6 @@ from esp_data.io import (
     anypath,
     audio_stereo_to_mono,
     read_audio,
-    read_text,
 )
 
 
@@ -167,13 +166,10 @@ class ESPRaincoast(Dataset):
                 location, lines=True, streaming=self._streaming
             )
         else:
-            from io import StringIO
-
-            csv_text = read_text(location, encoding="utf-8")
             # TODO: Polars picked up some inconsistencies in the data!
             # Column "Call Quality" has a mix of f64 and string types
             self._data = self._backend_class.from_csv(
-                StringIO(csv_text), streaming=self._streaming, infer_schema_length=10000
+                location, streaming=self._streaming, infer_schema_length=10000
             )
 
     @classmethod

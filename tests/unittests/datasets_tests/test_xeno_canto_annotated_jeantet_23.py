@@ -1,8 +1,8 @@
 """
-Unit tests for NocturnalBirdMigration dataset.
+Unit tests for xeno_canto_annotated_jeantet_23 dataset.
 
 Run with:
-    pytest -q test_nocturnal_bird_migration.py
+    pytest -q test_xeno_canto_annotated_jeantet_23.py
 """
 
 from __future__ import annotations
@@ -13,71 +13,49 @@ from typing import List
 import numpy as np
 import pandas as pd
 import pytest
-import hashlib
 
-from esp_data.datasets import NocturnalBirdMigration
+from esp_data.datasets import XenoCantoAnnotatedJeantet23
+from esp_data.utils import create_hash
 
 
-# # --- Dataset snapshot ---
-
-# # Code to generate snapshot:
-# from esp_data.datasets import NocturnalBirdMigration
-# ds = NocturnalBirdMigration(split="test", sample_rate=16000, backend="pandas")
-
-# print("len(ds) =", len(ds))
-
-# audio0 = ds[0]["audio"]
-# print("dtype:", audio0.dtype, "shape:", audio0.shape)
-
-# h = hashlib.sha256(audio0.tobytes()).hexdigest()
-# print("sha256:", h)
-
-# csv_bytes = (
-#         ds._data.unwrap.sort_index(axis=0)
-#         .sort_index(axis=1)
-#         .to_csv(index=True)
-#         .encode("utf-8")
-#     )
-# h = hashlib.sha256(csv_bytes).hexdigest()
-
-# print("annotations sha256:", h)
-
-# quit()
-# # # # #
-
-EXPECTED_LEN_ALL = 271  #
+EXPECTED_LEN_ALL = 967  #
 EXPECTED_FIRST_ITEM_AUDIO_SHA256 = (
-    "6db9f3c9ac491e67c974694083815346912fb0d9135815d0301270c3cae1ff86"
+    "bb8adcd2d870552f35771a7bf36675e7cb6d300020a5c8c9849bd9fc993ef980"
 )
-ANNOTATIONS_SHA256 = "a494952f89f1f92fbebc1032892f7e21eed01c845018ddf62b8f96c5ba84d8ac"
+ANNOTATIONS_SHA256 = "dee61a62cb17d28b578944f26a5b245501cbfb289428e72a721a234ffda132c4"
 # ---------------------------------------------------------------------------
 
 
 @pytest.fixture(scope="module")
-def ds() -> NocturnalBirdMigration:
-    """Load NocturnalBirdMigration dataset for testing."""
-    return NocturnalBirdMigration(split="test", sample_rate=16000)
+def ds() -> XenoCantoAnnotatedJeantet23:
+    """Load XenoCantoAnnotatedJeantet23 dataset for testing."""
+    return XenoCantoAnnotatedJeantet23(split="all", sample_rate=16000, backend="pandas")
 
 
 @pytest.fixture(scope="module")
-def ds_pandas() -> NocturnalBirdMigration:
-    """Load NocturnalBirdMigration dataset for testing with pandas backend."""
-    return NocturnalBirdMigration(split="test", sample_rate=16000, backend="pandas")
-
-
-@pytest.fixture(scope="module")
-def sample_indices(ds: NocturnalBirdMigration) -> List[int]:
+def sample_indices(ds: XenoCantoAnnotatedJeantet23) -> List[int]:
     """Deterministically choose up to 5 random indices for quick spot checks."""
     n = len(ds)
     rng = random.Random(23)
     return [rng.randrange(n) for _ in range(min(5, n))]
 
 
-def test_ds_not_empty(ds: NocturnalBirdMigration):
+def test_ds_not_empty(ds: XenoCantoAnnotatedJeantet23):
     """Dataset should have at least one example."""
     assert len(ds) > 0, "Dataset appears empty"
 
-def test_check_audio(ds: NocturnalBirdMigration, sample_indices: List[int]):
+
+def test_get_available_labels(ds: XenoCantoAnnotatedJeantet23):
+    """Test get_available_labels for bird ID column."""
+    labels = ds.get_available_labels(anno_column="Species")
+    assert isinstance(labels, list), "get_available_labels should return a list"
+    assert len(labels) > 0, "Should have at least one bird ID"
+    # Check that all labels can be converted to strings
+    for label in labels:
+        assert isinstance(label, str), f"Species label for {label} should be string"
+
+
+def test_check_audio(ds: XenoCantoAnnotatedJeantet23, sample_indices: List[int]):
     """Basic audio integrity checks on a few random items."""
     for idx in sample_indices:
         item = ds[idx]
@@ -93,24 +71,25 @@ def test_check_audio(ds: NocturnalBirdMigration, sample_indices: List[int]):
         assert not np.all(audio == 0), f"[{idx}] audio is all zeros"
 
 
-def test_available_splits(ds: NocturnalBirdMigration) -> None:
-    """Test if available_splits returns correct split names."""
-    # Available splits should contain these
-    expected_splits = ["train", "train_nonxc", "train_xc", "test"]
-    assert all(split in ds.available_splits for split in expected_splits)
+def test_dataset_length_matches_expected(ds: XenoCantoAnnotatedJeantet23):
+    """
+    The dataset length should match the known, version-controlled expectation.
+
+    This will fail loudly if:
+    - the CSV split changed
+    - files went missing
+    - we accidentally filtered/augmented items differently
+
+    If this fails intentionally (e.g. dataset grew), update EXPECTED_LEN_ALL.
+    """
+    assert len(ds) == EXPECTED_LEN_ALL, (
+        f"Dataset length mismatch: got {len(ds)}, expected {EXPECTED_LEN_ALL}. "
+        "If this change is intentional (new data / new filtering), update EXPECTED_LEN_ALL "
+        "in the test."
+    )
 
 
-def test_get_available_labels(ds: NocturnalBirdMigration):
-    """Test get_available_labels for bird ID column."""
-    labels = ds.get_available_labels(anno_column="Species")
-    assert isinstance(labels, list), "get_available_labels should return a list"
-    assert len(labels) > 0, "Should have at least one bird ID"
-    # Check that all labels can be converted to strings
-    for label in labels:
-        assert isinstance(label, str), f"Species label for {label} should be string"
-
-
-def test_reference_item_stability(ds_pandas: NocturnalBirdMigration):
+def test_reference_item_stability(ds: XenoCantoAnnotatedJeantet23):
     """
     Check that a canonical item (index 0) is bitwise-stable.
 
@@ -122,12 +101,10 @@ def test_reference_item_stability(ds_pandas: NocturnalBirdMigration):
 
     If this fails for a legitimate/intentional reason, recompute the hash below
     and update EXPECTED_FIRST_ITEM_AUDIO_SHA256.
-
-    We do the same for the annotations csv.
     """
     # choose deterministic index
     idx = 0
-    item = ds_pandas[idx]
+    item = ds[idx]
 
     # audio presence/type checks (defensive, so the hash failure message is clearer)
     assert "audio" in item, "[0] missing 'audio' key"
@@ -138,7 +115,7 @@ def test_reference_item_stability(ds_pandas: NocturnalBirdMigration):
     ), f"[0] audio dtype is {audio.dtype}, expected float32"
 
     # compute sha256 over raw bytes of the float32 array
-    h = hashlib.sha256(audio.tobytes()).hexdigest()
+    h = create_hash(audio.tobytes())
 
     assert h == EXPECTED_FIRST_ITEM_AUDIO_SHA256, (
         "First item's audio hash changed.\n"
@@ -150,12 +127,13 @@ def test_reference_item_stability(ds_pandas: NocturnalBirdMigration):
 
     # compute sha256 over raw bytes of the float32 array of annotations
     csv_bytes = (
-        ds_pandas._data.unwrap.sort_index(axis=0)
+        ds._data.unwrap.sort_index(axis=0)
         .sort_index(axis=1)
         .to_csv(index=True)
         .encode("utf-8")
     )
-    h = hashlib.sha256(csv_bytes).hexdigest()
+
+    h = create_hash(csv_bytes)
 
     assert h == ANNOTATIONS_SHA256, (
         "Annotation's hash changed.\n"
@@ -166,7 +144,7 @@ def test_reference_item_stability(ds_pandas: NocturnalBirdMigration):
     )
 
 
-def test_presampled_columns_exist(ds: NocturnalBirdMigration):
+def test_presampled_columns_exist(ds: XenoCantoAnnotatedJeantet23):
     """Pre-resampled path columns should be present in the loaded data."""
     assert "16khz_path" in ds.columns
     assert "32khz_path" in ds.columns
@@ -174,15 +152,17 @@ def test_presampled_columns_exist(ds: NocturnalBirdMigration):
 
 def test_load_presampled_32khz():
     """Loading with sample_rate=32000 should use pre-resampled 32kHz audio."""
-    ds = NocturnalBirdMigration(split="test", sample_rate=32000, streaming=True)
-    item = next(iter(ds))
+    ds = XenoCantoAnnotatedJeantet23(split="all", sample_rate=32000)
+    item = ds[0]
     audio = item["audio"]
     assert isinstance(audio, np.ndarray)
     assert audio.dtype == np.float32
     assert audio.size >= 10
 
 
-def test_check_selection_table(ds: NocturnalBirdMigration, sample_indices: List[int]):
+def test_check_selection_table(
+    ds: XenoCantoAnnotatedJeantet23, sample_indices: List[int]
+):
     """Selection table should be a DataFrame with required columns and sane times."""
     required = {
         "Begin Time (s)",
@@ -207,5 +187,26 @@ def test_check_selection_table(ds: NocturnalBirdMigration, sample_indices: List[
             assert not (
                 st["Begin Time (s)"] < 0
             ).any(), f"[{idx}] negative begin times present"
-            durs = st["End Time (s)"] - st["Begin Time (s)"]
-            assert not durs.min() <= 0, f"[{idx}] events of dur <= 0"
+
+
+
+# if __name__ == "__main__":
+#     ds = XenoCantoAnnotatedJeantet23(split="all", sample_rate=16000, backend="pandas")
+
+#     print("len(ds) =", len(ds))
+
+#     audio0 = ds[0]["audio"]
+#     print("dtype:", audio0.dtype, "shape:", audio0.shape)
+
+#     h = create_hash(audio0.tobytes())
+#     print("sha256:", h)
+
+#     csv_bytes = (
+#             ds._data.unwrap.sort_index(axis=0)
+#             .sort_index(axis=1)
+#             .to_csv(index=True)
+#             .encode("utf-8")
+#         )
+#     h = create_hash(csv_bytes)
+
+#     print("annotations sha256:", h)

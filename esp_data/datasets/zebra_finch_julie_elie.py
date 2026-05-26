@@ -8,7 +8,9 @@ import pandas as pd
 
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from esp_data.backends import BackendType
-from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
+from esp_data.io import DATA_HOME, AnyPathT, anypath, audio_stereo_to_mono, read_audio
+
+_CSV_ROOT = f"{DATA_HOME}/zebra_finch_julie_elie/v0.1.0/raw/csv_data"
 
 
 @register_dataset
@@ -37,7 +39,6 @@ class ZebraFinchJulieElie(Dataset):
     ...     split="test",
     ...     output_take_and_give={"label": "label"},
     ...     sample_rate=16000,
-    ...     data_root="gs://esp-ml-datasets/zebra_finch_julie_elie/v0.1.0/raw/"
     ... )
     """
 
@@ -45,10 +46,10 @@ class ZebraFinchJulieElie(Dataset):
         name="zebra_finch_julie_elie",
         owner="marius",
         split_paths={
-            "test": "gs://esp-ml-datasets/zebra_finch_julie_elie/v0.1.0/raw/csv_data/test.csv",
-            "train": "gs://esp-ml-datasets/zebra_finch_julie_elie/v0.1.0/raw/csv_data/train.csv",
-            "val": "gs://esp-ml-datasets/zebra_finch_julie_elie/v0.1.0/raw/csv_data/val.csv",
-            "full_dataset": "gs://esp-ml-datasets/zebra_finch_julie_elie/v0.1.0/raw/csv_data/full_dataset.csv",
+            "test": f"{_CSV_ROOT}/test.csv",
+            "train": f"{_CSV_ROOT}/train.csv",
+            "val": f"{_CSV_ROOT}/val.csv",
+            "full_dataset": f"{_CSV_ROOT}/full_dataset.csv",
         },
         version="0.1.0",
         description=(

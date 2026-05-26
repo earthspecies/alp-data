@@ -2,7 +2,7 @@
 
 ## What is esp-data?
 
-`esp-data` is an internal Python package that helps with all data-related tasks at ESP. It aims to make working with datasets easier, regardless of where they are stored and in which format.
+`esp-data` is a Python package that helps with all data-related tasks at ESP. It aims to make working with datasets easier, regardless of where they are stored and in which format.
 
 Key features:
 - Unified dataset interface: Access datasets stored locally, on cloud storage (e.g., Google Cloud Storage), or in various formats (e.g., CSV, JSON, Parquet) through a consistent API.
@@ -40,9 +40,28 @@ for sample in beans_streaming:
     print(sample["audio"].shape)
     break
 ```
+
+!!! warning "PyTorch DataLoader with `num_workers > 0` requires `spawn`"
+    When wrapping an esp-data `Dataset` in a PyTorch `DataLoader` with
+    `num_workers > 0`, you must use the `"spawn"` multiprocessing start
+    method instead of the default `"fork"` on Linux. esp-data datasets hold
+    fsspec / `gcsfs` / `s3fs` handles that are not
+    safe to inherit across a `fork` — workers may deadlock or return
+    corrupted audio. Either call
+    `torch.multiprocessing.set_start_method("spawn", force=True)` once at
+    program start, or pass `multiprocessing_context=mp.get_context("spawn")`
+    to the `DataLoader`.
+
 Check out the datasets documentation for more details [here](./datasets.md).
 
 ## Installation
+```sh
+git clone https://github.com/earthspecies/esp-data.git
+cd esp-data
+pip install -e .  # or uv sync
+```
+
+### EarthSpeciesProject Internal: Installation via pip / uv
 
 `esp-data` is currently a private package, hosted on ESP's internal Python package repository. Because it isn't available on the public PyPI index, you'll need to configure your project to use ESP's private package index in order to install and update `esp-data`:
 

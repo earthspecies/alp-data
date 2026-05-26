@@ -13,7 +13,7 @@ import pandas as pd
 from pydantic import BaseModel, Field, field_validator
 
 from esp_data.backends import DataBackend
-from esp_data.io import AnyPathT, exists, filesystem_from_path
+from esp_data.io import DATA_HOME, AnyPathT, exists, filesystem_from_path
 from esp_data.transforms import register_transform
 
 logger = logging.getLogger("esp_data")
@@ -22,9 +22,7 @@ TAXONOMY_RANKS = ["kingdom", "phylum", "class", "order", "family", "genus"]
 # TODO: need a better versioning system
 VERSION = "0.1.0"
 # location of precomputed outputs
-DEFAULT_PRECOMPUTED_LOCATION = (
-    "gs://esp-ml-datasets/gbif_taxonomy/v0.1.0/gbif_animals_converter_cache.json"
-)
+DEFAULT_PRECOMPUTED_LOCATION = f"{DATA_HOME}/gbif_taxonomy/v0.1.0/gbif_animals_converter_cache.json"
 # Use current script directory for cache
 this_dir = Path(__file__).parent.resolve()
 PRECOMPUTED_CACHE_PATH = str(this_dir / "gbif_animals_converter_cache_0.1.0.json")

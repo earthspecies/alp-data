@@ -12,7 +12,7 @@ import pandas as pd
 
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from esp_data.backends import BackendType
-from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
+from esp_data.io import DATA_HOME, AnyPathT, anypath, audio_stereo_to_mono, read_audio
 
 
 @register_dataset
@@ -29,6 +29,9 @@ class NocturnalBirdMigration(Dataset):
     entirely of xeno-canto recordings which the dataset authors annotated. The train
     split consists of recordings submitted by French citizen-scientists, as well as
     xeno-canto recordings annotated by the dataset authors.
+
+    Note that the license is mixed (due to origins on xeno-canto); most restrictive
+    is CC-BY-NC-SA 4.0. See zenodo page for full license details.
 
     Description from the paper:
 
@@ -69,7 +72,7 @@ class NocturnalBirdMigration(Dataset):
 
     References
     ----------
-    https://zenodo.org/records/14039937
+    https://zenodo.org/records/17573913
     https://arxiv.org/pdf/2412.03633
 
     """
@@ -79,18 +82,20 @@ class NocturnalBirdMigration(Dataset):
         owner="benjamin",
         split_paths={
             # Full training set
-            "train": "gs://esp-ml-datasets/nocturnal_bird_migration/train_v2.csv",
+            "train": f"{DATA_HOME}/nocturnal_bird_migration/train_v2_1.csv",
             # Training subset: no xeno-canto
-            "train_nonxc": "gs://esp-ml-datasets/nocturnal_bird_migration/train_nonxc_v2.csv",
+            "train_nonxc": f"{DATA_HOME}/nocturnal_bird_migration/train_nonxc_v2_1.csv",
             # Training subset: xeno-canto recordings only
-            "train_xc": "gs://esp-ml-datasets/nocturnal_bird_migration/train_xc_v2.csv",
+            "train_xc": f"{DATA_HOME}/nocturnal_bird_migration/train_xc_v2_1.csv",
             # Held-out test set
-            "test": "gs://esp-ml-datasets/nocturnal_bird_migration/test_v2.csv",
+            "test": f"{DATA_HOME}/nocturnal_bird_migration/test_v2_1.csv",
         },
         version="0.1.0",
-        description="[MISSING]",
+        description="Dataset of nocturnal vocalizations from migratory birds in Europe. "
+        "Vocalizations are annotated with start- and end- times, as well as high- and"
+        "low-frequencies.",
         sources="Zenodo, xeno-canto",
-        license="CC BY-ND 3.0",
+        license="CC-BY-NC-SA 4.0",
     )
 
     _sample_rate_paths: dict[int, str] = {16000: "16khz_path", 32000: "32khz_path"}

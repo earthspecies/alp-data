@@ -12,7 +12,7 @@ import pandas as pd
 
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from esp_data.backends import BackendType
-from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
+from esp_data.io import DATA_HOME, AnyPathT, anypath, audio_stereo_to_mono, read_audio
 
 
 @register_dataset
@@ -68,13 +68,15 @@ class Birdeep(Dataset):
         name="birdeep",
         owner="benjamin",
         split_paths={
-            "train": "gs://esp-ml-datasets/birdeep/train_formatted_v2.csv",
-            "val": "gs://esp-ml-datasets/birdeep/val_formatted_v2.csv",
-            "test": "gs://esp-ml-datasets/birdeep/test_formatted_v2.csv",
-            "all": "gs://esp-ml-datasets/birdeep/all_formatted_v2.csv",
+            "train": f"{DATA_HOME}/birdeep/train_formatted_v3.csv",
+            "val": f"{DATA_HOME}/birdeep/val_formatted_v3.csv",
+            "test": f"{DATA_HOME}/birdeep/test_formatted_v3.csv",
+            "all": f"{DATA_HOME}/birdeep/all_formatted_v3.csv",
         },
         version="0.1.0",
-        description="[MISSING]",
+        description="Dataset of bird vocalizations with bounding boxes, originally released in: "
+        "A Bird Song Detector for improving bird identification "
+        "through Deep Learning: a case study from Doñana by Alba Márquez-Rodríguez et al. (2025)",
         sources="HuggingFace",
         license="MIT",
     )

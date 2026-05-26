@@ -11,7 +11,7 @@ import pandas as pd
 
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from esp_data.backends import BackendType
-from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
+from esp_data.io import DATA_HOME, AnyPathT, anypath, audio_stereo_to_mono, read_audio
 
 
 @register_dataset
@@ -69,7 +69,7 @@ class Powdermill(Dataset):
         name="powdermill",
         owner="benjamin",
         split_paths={
-            "all": "gs://esp-ml-datasets/powdermill/all_gbif.csv",
+            "all": f"{DATA_HOME}/powdermill/all_gbif.csv",
         },
         version="0.1.0",
         description="[MISSING]",

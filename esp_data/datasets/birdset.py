@@ -7,9 +7,9 @@ import numpy as np
 
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from esp_data.backends import BackendType
-from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
+from esp_data.io import DATA_HOME, AnyPathT, anypath, audio_stereo_to_mono, read_audio
 
-_GCS_ROOT = "gs://esp-ml-datasets/birdset/v0.1.0/raw"
+_GCS_ROOT = f"{DATA_HOME}/birdset/v0.1.0/raw"
 
 
 @register_dataset
@@ -94,23 +94,23 @@ class BirdSet(Dataset):
         name="birdset",
         owner="marius; gagan; david",
         split_paths={
-            "HSN-test": f"{_GCS_ROOT}/HSN_test.csv",
-            "HSN-test_5s": f"{_GCS_ROOT}/HSN_test_5s.csv",
-            "NBP-test": f"{_GCS_ROOT}/NBP_test.csv",
-            "NBP-test_5s": f"{_GCS_ROOT}/NBP_test_5s.csv",
-            "NES-test": f"{_GCS_ROOT}/NES_test.csv",
-            "NES-test_5s": f"{_GCS_ROOT}/NES_test_5s.csv",
-            "PER-test": f"{_GCS_ROOT}/PER_test.csv",
-            "PER-test_5s": f"{_GCS_ROOT}/PER_test_5s.csv",
-            "POW-test": f"{_GCS_ROOT}/POW_test.csv",
-            "POW-test_5s": f"{_GCS_ROOT}/POW_test_5s.csv",
-            "SSW-test": f"{_GCS_ROOT}/SSW_test.csv",
-            "SSW-test_5s": f"{_GCS_ROOT}/SSW_test_5s.csv",
-            "SNE-test": f"{_GCS_ROOT}/SNE_test.csv",
-            "SNE-test_5s": f"{_GCS_ROOT}/SNE_test_5s.csv",
-            "UHH-test": f"{_GCS_ROOT}/UHH_test.csv",
-            "UHH-test_5s": f"{_GCS_ROOT}/UHH_test_5s.csv",
-            "all": f"{_GCS_ROOT}/birdset_all.csv",
+            "HSN-test": f"{_GCS_ROOT}/HSN_test_v2.csv",
+            "HSN-test_5s": f"{_GCS_ROOT}/HSN_test_5s_v2.csv",
+            "NBP-test": f"{_GCS_ROOT}/NBP_test_v2.csv",
+            "NBP-test_5s": f"{_GCS_ROOT}/NBP_test_5s_v2.csv",
+            "NES-test": f"{_GCS_ROOT}/NES_test_v2.csv",
+            "NES-test_5s": f"{_GCS_ROOT}/NES_test_5s_v2.csv",
+            "PER-test": f"{_GCS_ROOT}/PER_test_v2.csv",
+            "PER-test_5s": f"{_GCS_ROOT}/PER_test_5s_v2.csv",
+            "POW-test": f"{_GCS_ROOT}/POW_test_v2.csv",
+            "POW-test_5s": f"{_GCS_ROOT}/POW_test_5s_v2.csv",
+            "SSW-test": f"{_GCS_ROOT}/SSW_test_v2.csv",
+            "SSW-test_5s": f"{_GCS_ROOT}/SSW_test_5s_v2.csv",
+            "SNE-test": f"{_GCS_ROOT}/SNE_test_v2.csv",
+            "SNE-test_5s": f"{_GCS_ROOT}/SNE_test_5s_v2.csv",
+            "UHH-test": f"{_GCS_ROOT}/UHH_test_v2.csv",
+            "UHH-test_5s": f"{_GCS_ROOT}/UHH_test_5s_v2.csv",
+            "all": f"{_GCS_ROOT}/birdset_all_v2.csv",
         },
         version="0.1.0",
         description=(
