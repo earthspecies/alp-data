@@ -535,7 +535,7 @@ class Dataset(ABC):
         self._write_config(path, format)
         return summary
 
-    def _write_config(self, path: str, backend: BackendType) -> None:
+    def _write_config(self, path: str, format: str) -> None:  # noqa: A002
         """Write configuration to ``config.yaml`` in the destination directory.
 
         ``split_paths`` is replaced with a single entry pointing to ``path``
@@ -546,8 +546,10 @@ class Dataset(ABC):
         ----------
         path : str
             Destination directory (local or cloud) where ``config.yaml`` is written.
-        backend : BackendType
-            The backend used for the dataset.
+        format : str
+            The export format (e.g. ``"webdataset"``, ``"parquet"``).
+            Stored under the ``format`` key so `GenericDataset` can resolve
+            the appropriate backend on load.
         """
         import yaml
 
@@ -567,8 +569,8 @@ class Dataset(ABC):
         if sample_rate is not None:
             config_dict["sample_rate"] = sample_rate
 
-        # Record backend so from_path can reload without the user specifying it.
-        config_dict["backend"] = backend
+        # Store format so GenericDataset can pick the right backend on load.
+        config_dict["format"] = format
         config_dict["streaming"] = self._streaming
 
         config_path = resolved / "config.yaml"

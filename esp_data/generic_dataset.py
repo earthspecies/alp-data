@@ -5,10 +5,21 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict, Iterator, Sequence
 
+from esp_data.backends import BackendType
 from esp_data.dataset import Dataset, DatasetInfo, GenericDatasetConfig, register_dataset
 from esp_data.io import AnyPathT, anypath, filesystem_from_path, read_yaml
 
 logger = logging.getLogger(__name__)
+
+_FORMAT_DEFAULT_BACKEND: dict[str, BackendType] = {
+    "webdataset": "webdataset",
+    "parquet": "polars",
+}
+
+_FORMAT_COMPATIBLE_BACKENDS: dict[str, set[BackendType]] = {
+    "webdataset": {"webdataset"},
+    "parquet": {"pandas", "polars"},
+}
 
 
 @register_dataset
@@ -40,18 +51,24 @@ class GenericDataset(Dataset):
     def __init__(
         self,
         path: str | AnyPathT,
+        *,
+        backend: BackendType | None = None,
         **kwargs: Any,
     ) -> None:
         """Load a dataset from a path that points to a directory.
 
-        The backend and streaming mode are determined from
-        ``config.yaml`` (written by `Dataset.save_to`) which must be present.
-        If not found, raises an error since the backend cannot be inferred.
+        The export format is read from ``config.yaml`` (written by `Dataset.save_to`).
+        If `backend` is not provided, a default backend is chosen for the format.
+        If `backend` is provided, it must be compatible with the stored format.
 
         Parameters
         ----------
         path : str | AnyPathT
             Source path (local or cloud).
+        backend : BackendType | None
+            Backend to use for loading. If ``None``, the default backend for the
+            stored format is used (``"pandas"`` for ``"parquet"``,
+            ``"webdataset"`` for ``"webdataset"``).
         **kwargs : Any
             Additional arguments forwarded to the backend's ``from_path``
             (e.g. ``data_processor`` for the webdataset backend).
@@ -59,7 +76,8 @@ class GenericDataset(Dataset):
         Raises
         ------
         ValueError
-            If no ``config.yaml`` is found.
+            If no ``config.yaml`` is found, or if `backend` is incompatible
+            with the stored format.
         """
         self.path = anypath(path)
         fs = filesystem_from_path(self.path)
@@ -69,10 +87,24 @@ class GenericDataset(Dataset):
             self.info = DatasetInfo(**config_dict["info"])
         else:
             raise ValueError(
-                f"No config.yaml found at {info_path}. Cannot infer backend or streaming mode."
+                f"No config.yaml found at {info_path}. Cannot infer format or streaming mode."
             )
 
-        super().__init__(backend=config_dict["backend"], streaming=config_dict["streaming"])
+        # Support both old configs (backend key) and new configs (format key).
+        fmt = config_dict.get("format") or config_dict.get("backend")
+
+        if backend is not None:
+            compatible = _FORMAT_COMPATIBLE_BACKENDS.get(fmt, {backend})
+            if backend not in compatible:
+                raise ValueError(
+                    f"Backend {backend!r} is not compatible with format {fmt!r}. "
+                    f"Compatible backends: {compatible}"
+                )
+            resolved_backend: BackendType = backend
+        else:
+            resolved_backend = _FORMAT_DEFAULT_BACKEND.get(fmt, fmt)
+
+        super().__init__(backend=resolved_backend, streaming=config_dict["streaming"])
 
         self._data = self._backend_class.from_path(self.path, streaming=self._streaming, **kwargs)
 

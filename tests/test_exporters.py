@@ -22,6 +22,7 @@ from esp_data.exporters import (
     _chunk_dataset_indices,
     _error_handler,
     _write_webdataset_shard,
+    export_as_parquet,
     export_as_tar,
     make_file_opener_for_wds,
 )
@@ -324,3 +325,46 @@ def test_export_as_tar_to_cloud(audio_dataset_records) -> None:
         assert "text" in sample
 
     rm(created_shard_path)
+
+
+def test_export_as_parquet(json_dataset_records, tmp_path) -> None:
+    output_path = tmp_path / "test_parquet_export"
+    result = export_as_parquet(json_dataset_records, output_path)
+
+    assert result["total_processed"] == len(json_dataset_records)
+    assert result["total_failed"] == 0
+
+    parquet_file = output_path / "data.parquet"
+    assert parquet_file.exists()
+
+    table = pa.parquet.read_table(str(parquet_file))
+    assert table.num_rows == len(json_dataset_records)
+    assert set(table.column_names) == {"text", "label"}
+
+
+def test_export_as_parquet_roundtrip(json_dataset_records, tmp_path) -> None:
+    output_path = tmp_path / "test_parquet_roundtrip"
+    export_as_parquet(json_dataset_records, output_path)
+
+    import pandas as pd
+    df = pd.read_parquet(str(output_path / "data.parquet"))
+
+    assert len(df) == len(json_dataset_records)
+    for i, row in df.iterrows():
+        assert row["text"] == json_dataset_records[i]["text"]
+        assert row["label"] == json_dataset_records[i]["label"]
+
+
+def test_export_as_parquet_with_numpy(tmp_path) -> None:
+    records = [
+        {"embedding": np.random.rand(128).astype(np.float32), "label": i}
+        for i in range(5)
+    ]
+    output_path = tmp_path / "test_parquet_numpy"
+    result = export_as_parquet(records, output_path)
+
+    assert result["total_processed"] == 5
+    table = pa.parquet.read_table(str(output_path / "data.parquet"))
+    assert table.num_rows == 5
+    assert "embedding" in table.column_names
+    assert "label" in table.column_names

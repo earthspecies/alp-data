@@ -12,6 +12,8 @@ from typing import Any, Callable, Iterable, Iterator, Literal
 
 import numpy as np
 import pandas as pd
+import pyarrow as pa
+import pyarrow.parquet as pq
 import webdataset as wds
 from tqdm import tqdm
 
@@ -21,7 +23,7 @@ from esp_data.io import AnyPathT, anypath, exists
 
 logger = logging.getLogger("esp_data")
 
-_SUPPORTED_FORMATS = ("webdataset",)
+_SUPPORTED_FORMATS = ("webdataset", "parquet")
 
 
 def _make_id() -> str:
@@ -533,6 +535,64 @@ def export_as_tar(
     return summary
 
 
+def export_as_parquet(
+    dataset: Iterable[dict] | Dataset,
+    output_path: str | AnyPathT,
+    *,
+    compression: str | None = "snappy",
+    error_handling: str = "warn",
+) -> dict[str, Any]:
+    """Export a dataset as a single Parquet file.
+
+    Parameters
+    ----------
+    dataset : Iterable[dict] | Dataset
+        Iterable of sample dicts or an esp_data.Dataset.
+    output_path : str | AnyPathT
+        Directory path (local or cloud) where ``data.parquet`` is written.
+    compression : str | None
+        Parquet compression codec (e.g. ``"snappy"``, ``"gzip"``, ``"zstd"``).
+        Pass ``None`` for no compression. By default ``"snappy"``.
+    error_handling : str
+        How to handle per-sample errors: ``"warn"``, ``"raise"``, or ``"ignore"``.
+        By default ``"warn"``.
+
+    Returns
+    -------
+    dict[str, Any]
+        Summary dict with keys: ``total_processed``, ``total_failed``,
+        ``output_path``, ``compression``.
+    """
+    output_path = anypath(output_path)
+    if isinstance(output_path, Path):
+        output_path.mkdir(parents=True, exist_ok=True)
+
+    samples: list[dict] = []
+    failed_ids: list[str] = []
+    for i, item in enumerate(dataset):
+        sample_id = str(item.get("id", _make_id()))
+        try:
+            samples.append(item)
+        except Exception as e:
+            failed_ids.append(sample_id)
+            _error_handler(e, sample_id, error_handling)
+        if i % 1 == 0:
+            logger.info(f"{i + 1} samples handled")
+
+    if samples:
+        table = pa.Table.from_pylist(samples)
+        pq.write_table(table, str(output_path / "data.parquet"), compression=compression)
+
+    logger.info(f"Parquet export complete: {len(samples)} processed, {len(failed_ids)} failed")
+
+    return {
+        "total_processed": len(samples),
+        "total_failed": len(failed_ids),
+        "output_path": str(output_path),
+        "compression": compression,
+    }
+
+
 def export_dataset(
     iterable: Iterator[dict[str, Any]] | Iterable[dict[str, Any]],
     path: str,
@@ -595,6 +655,15 @@ def export_dataset(
             ds=iterable,
             output_path=anypath(path),
             sample_prep_function=encoder_fn,
+            **kwargs,
+        )
+
+    if format == "parquet":
+        if not hasattr(iterable, "__len__"):
+            iterable = list(iterable)
+        return export_as_parquet(
+            dataset=iterable,
+            output_path=anypath(path),
             **kwargs,
         )
 
