@@ -5,6 +5,7 @@ import json
 from typing import Any
 
 import numpy as np
+import pandas as pd
 import soundfile as sf
 
 from esp_data.io import AnyPathT, filesystem_from_path
@@ -48,6 +49,86 @@ def make_file_opener_for_wds(
         return fs.open(str(path_obj), mode=mode, block_size=block_size)
 
 
+def _is_tabular(v: object) -> bool:
+    """Return True if `v` is a tabular type (pandas/polars DataFrame or PyArrow Table).
+
+    Returns
+    -------
+    bool
+        True if `v` is a `pd.DataFrame`, `pl.DataFrame`, `pl.LazyFrame`, or `pa.Table`.
+    """
+    import pyarrow as pa
+
+    try:
+        import polars as pl
+
+        if isinstance(v, (pl.DataFrame, pl.LazyFrame)):
+            return True
+    except ImportError:
+        pass
+    return isinstance(v, (pd.DataFrame, pa.Table))
+
+
+def _tabular_to_parquet_bytes(v: object) -> bytes:
+    """Serialize a tabular value to Parquet bytes.
+
+    Parameters
+    ----------
+    v : object
+        Tabular value to serialize. Must be one of `pd.DataFrame`,
+        `pl.DataFrame`, `pl.LazyFrame`, or `pa.Table`.
+
+    Returns
+    -------
+    bytes
+        Parquet-encoded bytes.
+
+    Raises
+    ------
+    TypeError
+        If `v` is not a supported tabular type.
+    """
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+
+    try:
+        import polars as pl
+
+        if isinstance(v, pl.LazyFrame):
+            v = v.collect()
+        if isinstance(v, pl.DataFrame):
+            table = v.to_arrow()
+            buf = io.BytesIO()
+            pq.write_table(table, buf)
+            return buf.getvalue()
+    except ImportError:
+        pass
+
+    if isinstance(v, pd.DataFrame):
+        table = pa.Table.from_pandas(v)
+    elif isinstance(v, pa.Table):
+        table = v
+    else:
+        raise TypeError(f"Unsupported tabular type: {type(v)}")
+
+    buf = io.BytesIO()
+    pq.write_table(table, buf)
+    return buf.getvalue()
+
+
+def _parquet_bytes_to_dataframe(data: bytes) -> pd.DataFrame:
+    """Deserialize Parquet bytes to a pandas DataFrame.
+
+    Returns
+    -------
+    pd.DataFrame
+        Decoded tabular data.
+    """
+    import pyarrow.parquet as pq
+
+    return pq.read_table(io.BytesIO(data)).to_pandas()
+
+
 def audio_encoder(
     sample: dict[str, Any],
     sample_rate: int = 16000,
@@ -55,6 +136,10 @@ def audio_encoder(
     format: str = "FLAC",
 ) -> dict[str, Any]:
     """Encode audio data in the sample to a specific format.
+
+    Non-audio tabular fields (`pd.DataFrame`, `pl.DataFrame`, `pl.LazyFrame`,
+    `pa.Table`) are stored as individual Parquet files named `{key}.parquet`.
+    All remaining non-audio fields are stored in `metadata.json`.
 
     Parameters
     ----------
@@ -94,13 +179,21 @@ def audio_encoder(
 
     data_out[f"audio.{format.lower()}"] = audio_buffer.getvalue()
 
-    metadata = {k: v for k, v in sample.items() if k != "audio"}
+    tabular = {k: v for k, v in sample.items() if k != "audio" and _is_tabular(v)}
+    metadata = {k: v for k, v in sample.items() if k not in ("audio", *tabular)}
+
+    for key, tab in tabular.items():
+        data_out[f"{key}.parquet"] = _tabular_to_parquet_bytes(tab)
+
     data_out["metadata.json"] = json.dumps(metadata, indent=2).encode("utf-8")
     return data_out
 
 
 def audio_decoder(data: dict, dtype: str = "float32", format: str = "FLAC") -> dict[str, Any]:
     """Decode audio data from a WebDataset sample.
+
+    Parquet files stored alongside the audio (e.g., `selection_table.parquet`)
+    are decoded back to `pd.DataFrame` and included in the returned sample.
 
     Parameters
     ----------
@@ -115,6 +208,7 @@ def audio_decoder(data: dict, dtype: str = "float32", format: str = "FLAC") -> d
     -------
     dict
         Dictionary containing the decoded audio data and metadata.
+        Tabular fields are returned as `pd.DataFrame`.
 
     Raises
     ------
@@ -135,6 +229,11 @@ def audio_decoder(data: dict, dtype: str = "float32", format: str = "FLAC") -> d
     md = json.loads(data.get("metadata.json", b"{}").decode("utf-8"))
     sample.update(md)
 
+    for key, value in data.items():
+        if key.endswith(".parquet"):
+            field_name = key[: -len(".parquet")]
+            sample[field_name] = _parquet_bytes_to_dataframe(value)
+
     return sample
 
 
@@ -143,6 +242,10 @@ def json_encoder(
     indent: int = 2,
 ) -> dict[str, Any]:
     """Encode a sample to JSON format.
+
+    Tabular fields (`pd.DataFrame`, `pl.DataFrame`, `pl.LazyFrame`, `pa.Table`)
+    are stored as individual Parquet files named `{key}.parquet` alongside
+    `sample.json`.
 
     Parameters
     ----------
@@ -155,15 +258,26 @@ def json_encoder(
     -------
     dict
         Dictionary containing the encoded sample in JSON format.
+        Tabular fields are stored as separate `{key}.parquet` entries.
     """
-    json_data = json.dumps(sample, indent=indent).encode("utf-8")
-    return {"sample.json": json_data}
+    tabular = {k: v for k, v in sample.items() if _is_tabular(v)}
+    non_tabular = {k: v for k, v in sample.items() if k not in tabular}
+
+    data_out = {}
+    for key, tab in tabular.items():
+        data_out[f"{key}.parquet"] = _tabular_to_parquet_bytes(tab)
+
+    data_out["sample.json"] = json.dumps(non_tabular, indent=indent).encode("utf-8")
+    return data_out
 
 
 def json_decoder(
     data: dict[str, Any],
 ) -> dict[str, Any]:
     """Decode a sample from JSON format.
+
+    Parquet files stored alongside `sample.json` (e.g., `selection_table.parquet`)
+    are decoded back to `pd.DataFrame` and included in the returned sample.
 
     Parameters
     ----------
@@ -174,6 +288,7 @@ def json_decoder(
     -------
     dict
         Dictionary containing the decoded sample.
+        Tabular fields are returned as `pd.DataFrame`.
 
     Raises
     ------
@@ -183,5 +298,11 @@ def json_decoder(
     if "sample.json" not in data:
         raise ValueError("Sample must contain 'sample.json' key with JSON data")
 
-    json_data = json.loads(data["sample.json"].decode("utf-8"))
-    return json_data
+    sample = json.loads(data["sample.json"].decode("utf-8"))
+
+    for key, value in data.items():
+        if key.endswith(".parquet"):
+            field_name = key[: -len(".parquet")]
+            sample[field_name] = _parquet_bytes_to_dataframe(value)
+
+    return sample

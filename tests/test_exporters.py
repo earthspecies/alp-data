@@ -1,17 +1,31 @@
 "Exporter functional api unit tests"
 
-import pytest
-import numpy as np
 import io
 import json
-import soundfile as sf
 from pathlib import Path
 from typing import Any
 
-from esp_data.io import anypath, filesystem_from_path, rm, exists
-from esp_data.exporters import _error_handler, make_file_opener_for_wds, _write_webdataset_shard, export_as_tar, _chunk_dataset_indices
-from esp_data.backends.webdataset_utils import audio_decoder, json_encoder, audio_encoder
+import numpy as np
+import pandas as pd
+import pyarrow as pa
+import pytest
+import soundfile as sf
+
 from esp_data.backends.webdataset_backend import _load_webdataset as load_webdataset
+from esp_data.backends.webdataset_utils import (
+    audio_decoder,
+    audio_encoder,
+    json_decoder,
+    json_encoder,
+)
+from esp_data.exporters import (
+    _chunk_dataset_indices,
+    _error_handler,
+    _write_webdataset_shard,
+    export_as_tar,
+    make_file_opener_for_wds,
+)
+from esp_data.io import anypath, exists, filesystem_from_path, rm
 
 
 @pytest.fixture
@@ -105,6 +119,85 @@ def test_audio_encoder(audio_dataset_records: list[dict[str, Any]]
         assert samplerate == 16000
         # assert close to original audio data
         np.allclose(audio_data, audio_dataset_records[i]["audio"], atol=1e-5)
+
+
+@pytest.fixture
+def tabular_df() -> pd.DataFrame:
+    return pd.DataFrame(
+        {"Begin Time (s)": [0.1, 1.5], "End Time (s)": [0.8, 2.0], "Species": ["A", "B"]}
+    )
+
+
+def test_audio_encoder_with_dataframe(tabular_df: pd.DataFrame) -> None:
+    """Tabular fields are stored as .parquet, not in metadata.json."""
+    sample = {
+        "audio": np.random.rand(16000).astype(np.float32),
+        "selection_table": tabular_df,
+        "label": 42,
+    }
+    encoded = audio_encoder(sample)
+    assert "selection_table.parquet" in encoded
+    assert "audio.flac" in encoded
+    metadata = json.loads(encoded["metadata.json"].decode("utf-8"))
+    assert "selection_table" not in metadata
+    assert metadata["label"] == 42
+
+
+def test_audio_encoder_decoder_roundtrip_with_dataframe(tabular_df: pd.DataFrame) -> None:
+    """DataFrame survives audio encode→decode round-trip."""
+    sample = {
+        "audio": np.random.rand(16000).astype(np.float32),
+        "selection_table": tabular_df,
+        "label": 42,
+    }
+    decoded = audio_decoder(audio_encoder(sample))
+    assert "selection_table" in decoded
+    pd.testing.assert_frame_equal(decoded["selection_table"], tabular_df)
+    assert decoded["label"] == 42
+
+
+def test_audio_encoder_with_pyarrow_table() -> None:
+    """pa.Table fields are serialized as .parquet."""
+    table = pa.table({"x": [1, 2], "y": [3.0, 4.0]})
+    sample = {
+        "audio": np.random.rand(16000).astype(np.float32),
+        "annotations": table,
+    }
+    encoded = audio_encoder(sample)
+    assert "annotations.parquet" in encoded
+    decoded = audio_decoder(encoded)
+    assert "annotations" in decoded
+    assert isinstance(decoded["annotations"], pd.DataFrame)
+    assert list(decoded["annotations"].columns) == ["x", "y"]
+
+
+def test_json_encoder_with_dataframe(tabular_df: pd.DataFrame) -> None:
+    """Tabular fields stored as .parquet alongside sample.json."""
+    sample = {"selection_table": tabular_df, "label": 7}
+    encoded = json_encoder(sample)
+    assert "selection_table.parquet" in encoded
+    assert "sample.json" in encoded
+    non_tabular = json.loads(encoded["sample.json"].decode("utf-8"))
+    assert "selection_table" not in non_tabular
+    assert non_tabular["label"] == 7
+
+
+def test_json_encoder_decoder_roundtrip_with_dataframe(tabular_df: pd.DataFrame) -> None:
+    """DataFrame survives json encode→decode round-trip."""
+    sample = {"selection_table": tabular_df, "label": 7}
+    decoded = json_decoder(json_encoder(sample))
+    assert "selection_table" in decoded
+    pd.testing.assert_frame_equal(decoded["selection_table"], tabular_df)
+    assert decoded["label"] == 7
+
+
+def test_json_encoder_with_pyarrow_table() -> None:
+    """pa.Table fields serialized and decoded as pd.DataFrame via json encoder."""
+    table = pa.table({"a": [10, 20], "b": ["x", "y"]})
+    sample = {"annotations": table, "meta": "test"}
+    decoded = json_decoder(json_encoder(sample))
+    assert isinstance(decoded["annotations"], pd.DataFrame)
+    assert list(decoded["annotations"]["a"]) == [10, 20]
 
 
 def test_error_handler() -> None:
@@ -207,7 +300,7 @@ def test_export_as_tar(audio_dataset_records, tmp_path) -> None:
 
 def test_export_as_tar_to_cloud(audio_dataset_records) -> None:
     """Test exporting a dataset as a tar file."""
-    output_path = "gs://esp-ci-cd-tests/esp-data-tests/exporters/" # Cloud path for testing
+    output_path = "gs://esp-ci-cd-tests/esp-data-tests/exporters/"  # Cloud path for testing
     export_as_tar(audio_dataset_records, output_path, sample_prep_function=audio_encoder)
 
     # Check if the tar file was created
