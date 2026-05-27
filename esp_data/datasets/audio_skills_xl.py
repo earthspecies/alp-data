@@ -37,6 +37,10 @@ _AUDIOSET_BACKED_SOURCES: set[str] = {"wavcaps", "audioset", "audioset_sl"}
 
 _GCS_ROOT = "gs://esp-ml-datasets/audio_skills_xl/v0.1.0/raw/"
 _AUDIOSET_GCS_ROOT = "gs://esp-ml-datasets/audioset/v0.2.0/raw/"
+# wavcaps split rebuilt to recover MCQ items whose AudioSet audio is present in
+# our copy but was dropped by the original build (42,058 -> 89,370 items).
+# Audio is still resolved against AudioSet; only the metadata CSV is re-hosted.
+_WAVCAPS_CSV = "gs://esp-data-ingestion/AudioSkillsXL/v0.1.0/raw/wavcaps.csv"
 _MESSAGES_DTYPE = pl.List(
     pl.Struct(
         [
@@ -47,8 +51,14 @@ _MESSAGES_DTYPE = pl.List(
 )
 
 
-def _parse_messages_json(value: Any) -> Any:
-    """Parse JSON-encoded chat messages into structured turns."""
+def _parse_messages_json(value: object) -> object:
+    """Parse JSON-encoded chat messages into structured turns.
+
+    Returns
+    -------
+    object
+        The parsed list of message dicts, or ``value`` unchanged if not a str.
+    """
     if isinstance(value, str):
         return json.loads(value)
     return value
@@ -72,7 +82,10 @@ class AudioSkillsXL(Dataset):
 
     **AudioSet-backed sources** (audio from AudioSet v0.2.0 on GCS):
 
-    - ``wavcaps`` – WavCaps / AudioSet Strongly Labeled captioning QA.
+    - ``wavcaps`` – WavCaps 4-way multiple-choice QA (sound source / attribute
+      identification), audio from AudioSet v0.2.0.  Completed from 42,058 to
+      89,370 items by resolving every AudioSkills WavCaps item against the
+      AudioSet audio already in our copy.
     - ``audioset`` – Full AudioSet conversation QA (2.8 M → ~1.6 M with audio).
     - ``audioset_sl`` – AudioSet Strongly Labeled subset QA.
 
@@ -101,7 +114,7 @@ class AudioSkillsXL(Dataset):
         owner="david",
         split_paths={
             "counting_qa": f"{_GCS_ROOT}counting_qa.csv",
-            "wavcaps": f"{_GCS_ROOT}wavcaps.csv",
+            "wavcaps": _WAVCAPS_CSV,
             "fsd50k": f"{_GCS_ROOT}fsd50k.csv",
             "clotho_v2": f"{_GCS_ROOT}clotho_v2.csv",
             "audioset": f"{_GCS_ROOT}audioset.csv",
@@ -157,6 +170,11 @@ class AudioSkillsXL(Dataset):
             ``"polars"`` or ``"pandas"``.
         streaming : bool
             Lazy / streaming mode.
+
+        Raises
+        ------
+        ValueError
+            If ``sources`` contains a name not in ``SOURCES``.
         """
         super().__init__(output_take_and_give, backend=backend, streaming=streaming)
         self.split = split
@@ -228,7 +246,7 @@ class AudioSkillsXL(Dataset):
                     return str(local)
         return gcs_path
 
-    def _load_source(self, source: str):
+    def _load_source(self, source: str) -> DataBackend:
         path = self._resolve_split_path(source)
         if self._backend_class is PandasBackend:
             return PandasBackend.from_csv(
@@ -241,7 +259,13 @@ class AudioSkillsXL(Dataset):
         return self._normalize_messages_backend(backend)
 
     def _normalize_messages_backend(self, backend: DataBackend) -> DataBackend:
-        """Ensure `messages` has the same structured schema as chat-native datasets."""
+        """Ensure `messages` has the same structured schema as chat-native datasets.
+
+        Returns
+        -------
+        DataBackend
+            The backend with a structured ``messages`` column.
+        """
         if "messages" not in backend.columns or not isinstance(backend, PolarsBackend):
             return backend
 
@@ -264,7 +288,13 @@ class AudioSkillsXL(Dataset):
     }
 
     def _resolve_audio_path(self, row: dict[str, Any]) -> tuple[AnyPathT, bool]:
-        """Return ``(audio_path, is_presampled)``."""
+        """Resolve the audio path for a row.
+
+        Returns
+        -------
+        tuple[AnyPathT, bool]
+            ``(audio_path, is_presampled)``.
+        """
         source = row.get("source", "")
         is_audioset_backed = source in _AUDIOSET_BACKED_SOURCES
         root = self.audioset_data_root if is_audioset_backed else self.data_root
