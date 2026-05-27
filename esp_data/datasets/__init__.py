@@ -16,6 +16,7 @@ from .birdeep import Birdeep
 from .birdset import BirdSet
 from .chiffchaff_id import ChiffchaffId
 from .corvid_wascher import CorvidWascher
+from .dartmouth_avian_soundscapes import DartmouthAvianSoundscapes
 from .dclde2026 import DCLDE2026
 from .dinardo_dolphin_whistles import DinardoDolphinWhistles
 from .drasdic import DRASDIC
@@ -96,6 +97,7 @@ __all__ = [
     "GibbonSolos",
     "InfantMarmosetsVox",
     "CorvidWascher",
+    "DartmouthAvianSoundscapes",
     "DCLDE2026",
     "DRASDIC",
     "Watkins",
