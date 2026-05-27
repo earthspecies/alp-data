@@ -34,6 +34,7 @@ from .macaques_coo_calls import MacaquesCooCalls
 from .nocturnal_bird_migration import NocturnalBirdMigration
 from .pipit_id import PipitId
 from .powdermill import Powdermill
+from .pteroset import PteroSet
 from .roots import ROOTS
 from .spanish_carrion_crows_flight_clips import SpanishCarrionCrowsFlightClips
 from .subsegmentation import Subsegmentation
@@ -87,6 +88,7 @@ __all__ = [
     "HawaiianBirds",
     "AnuraSetStrong",
     "Powdermill",
+    "PteroSet",
     "ROOTS",
     "SpanishCarrionCrowsFlightClips",
     "ArcticBirdSounds",
