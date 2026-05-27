@@ -19,6 +19,7 @@ from .corvid_wascher import CorvidWascher
 from .dartmouth_avian_soundscapes import DartmouthAvianSoundscapes
 from .dclde2026 import DCLDE2026
 from .dinardo_dolphin_whistles import DinardoDolphinWhistles
+from .dori import DORI
 from .drasdic import DRASDIC
 from .esp_raincoast import ESPRaincoast
 from .f0_bioacoustic import F0Bioacoustic
@@ -101,6 +102,7 @@ __all__ = [
     "CorvidWascher",
     "DartmouthAvianSoundscapes",
     "DCLDE2026",
+    "DORI",
     "DRASDIC",
     "Watkins",
     "Whales",
