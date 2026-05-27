@@ -85,6 +85,7 @@ class BeansPro(Dataset):
             "alarm-call-presence": "gs://esp-data-ingestion/beans-pro/v0.1.0/raw/alarm_call_presence/test.jsonl",
             "flight-call-presence": "gs://esp-data-ingestion/beans-pro/v0.1.0/raw/flight_call_presence/test.jsonl",
             "call-type-fixed-vocab": "gs://esp-data-ingestion/beans-pro/v0.1.0/raw/call_type_fixed_vocab/test.jsonl",
+            "ford-phd-description": "gs://esp-data-ingestion/beans-pro/v0.1.0/raw/ford_phd_description/test.jsonl",
         },
         version="0.1.0",
         description=(
@@ -115,6 +116,7 @@ class BeansPro(Dataset):
         "alarm-call-presence": "gs://esp-data-ingestion/xeno-canto/v0.1.0/raw/",
         "flight-call-presence": "gs://esp-data-ingestion/xeno-canto/v0.1.0/raw/",
         "call-type-fixed-vocab": "gs://esp-data-ingestion/xeno-canto/v0.1.0/raw/",
+        "ford-phd-description": "gs://esp-data-ingestion/ford-catalogue/",
     }
 
     _originals_path_column = "audio_path_original_sample_rate"
@@ -174,13 +176,10 @@ class BeansPro(Dataset):
     def _load(self) -> None:
         if self.split not in self.info.split_paths:
             raise LookupError(
-                f"Invalid split: {self.split}. "
-                f"Expected one of {list(self.info.split_paths.keys())}"
+                f"Invalid split: {self.split}. Expected one of {list(self.info.split_paths.keys())}"
             )
         location = self.info.split_paths[self.split]
-        self._data = self._backend_class.from_json(
-            location, lines=True, orient="records"
-        )
+        self._data = self._backend_class.from_json(location, lines=True, orient="records")
 
     @classmethod
     def from_config(cls, dataset_config: DatasetConfig) -> tuple["BeansPro", dict[str, Any]]:
