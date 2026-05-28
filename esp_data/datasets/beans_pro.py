@@ -50,6 +50,16 @@ class BeansPro(Dataset):
       binary detection. Source: BEANS-Zero call variants.
     - ``call-type-fixed-vocab``: 999 examples, 5-label multilabel
       call-type classification. Source: BEANS-Zero call variants.
+    - ``weldy-call-or-song``: 6,824 balanced examples across 18 species,
+      per-species call vs. song binary classification (each species has
+      ``min(n_call, n_song)`` of each label, ≥5/5). Audio is the exact
+      2-s window from the original Weldy annotation. Source: Weldy NW
+      Dawn Chorus dataset (CA/OR/WA federal forests, 2022 dawn chorus).
+    - ``weldy-drum-call-song``: 1,263 balanced examples (421 drum + 421
+      call + 421 song), species-agnostic 3-way classification. Drum
+      annotations in Weldy lack a species ID ("Woodpecker drum"), so the
+      task is species-agnostic across all three classes for parity. Source:
+      Weldy NW Dawn Chorus dataset.
 
     Schema
     ------
@@ -86,6 +96,8 @@ class BeansPro(Dataset):
             "flight-call-presence": "gs://esp-data-ingestion/beans-pro/v0.1.0/raw/flight_call_presence/test.jsonl",
             "call-type-fixed-vocab": "gs://esp-data-ingestion/beans-pro/v0.1.0/raw/call_type_fixed_vocab/test.jsonl",
             "ford-phd-description": "gs://esp-data-ingestion/beans-pro/v0.1.0/raw/ford_phd_description/test.jsonl",
+            "weldy-call-or-song": "gs://esp-data-ingestion/beans-pro/v0.1.0/raw/weldy_call_or_song/test.jsonl",
+            "weldy-drum-call-song": "gs://esp-data-ingestion/beans-pro/v0.1.0/raw/weldy_drum_call_song/test.jsonl",
         },
         version="0.1.0",
         description=(
@@ -117,6 +129,8 @@ class BeansPro(Dataset):
         "flight-call-presence": "gs://esp-data-ingestion/xeno-canto/v0.1.0/raw/",
         "call-type-fixed-vocab": "gs://esp-data-ingestion/xeno-canto/v0.1.0/raw/",
         "ford-phd-description": "gs://esp-data-ingestion/ford-catalogue/",
+        "weldy-call-or-song": "gs://esp-data-ingestion/beans-pro/v0.1.0/raw/weldy_call_or_song/",
+        "weldy-drum-call-song": "gs://esp-data-ingestion/beans-pro/v0.1.0/raw/weldy_drum_call_song/",
     }
 
     _originals_path_column = "audio_path_original_sample_rate"
