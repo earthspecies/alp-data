@@ -60,6 +60,12 @@ class BeansPro(Dataset):
       annotations in Weldy lack a species ID ("Woodpecker drum"), so the
       task is species-agnostic across all three classes for parity. Source:
       Weldy NW Dawn Chorus dataset.
+    - ``weldy-call-or-song-6s``: same row set as ``weldy-call-or-song`` but
+      each segment is a 6-s contiguous slice (target 2-s window plus 2-s
+      flanks on each side, silence-padded at recording boundaries). Each
+      row's ``metadata`` carries a ``flank_annotations`` summary for
+      post-eval label-leakage analysis (in a dense dawn chorus, ~73 % of
+      rows have same-species same-sonotype annotations in the flanks).
 
     Schema
     ------
@@ -98,6 +104,7 @@ class BeansPro(Dataset):
             "ford-phd-description": "gs://esp-data-ingestion/beans-pro/v0.1.0/raw/ford_phd_description/test.jsonl",
             "weldy-call-or-song": "gs://esp-data-ingestion/beans-pro/v0.1.0/raw/weldy_call_or_song/test.jsonl",
             "weldy-drum-call-song": "gs://esp-data-ingestion/beans-pro/v0.1.0/raw/weldy_drum_call_song/test.jsonl",
+            "weldy-call-or-song-6s": "gs://esp-data-ingestion/beans-pro/v0.1.0/raw/weldy_call_or_song_6s/test.jsonl",
         },
         version="0.1.0",
         description=(
@@ -131,6 +138,7 @@ class BeansPro(Dataset):
         "ford-phd-description": "gs://esp-data-ingestion/ford-catalogue/",
         "weldy-call-or-song": "gs://esp-data-ingestion/beans-pro/v0.1.0/raw/weldy_call_or_song/",
         "weldy-drum-call-song": "gs://esp-data-ingestion/beans-pro/v0.1.0/raw/weldy_drum_call_song/",
+        "weldy-call-or-song-6s": "gs://esp-data-ingestion/beans-pro/v0.1.0/raw/weldy_call_or_song_6s/",
     }
 
     _originals_path_column = "audio_path_original_sample_rate"
