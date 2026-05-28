@@ -16,10 +16,12 @@ from .polars_backend import PolarsBackend
 from .protocol import DataBackend, StreamingDataBackend
 
 __all__ = [
+    # Protocols
     "DataBackend",
     "StreamingDataBackend",
     "PandasBackend",
     "PolarsBackend",
+    # Registry
     "BackendType",
     "get_backend",
 ]
