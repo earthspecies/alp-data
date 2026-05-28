@@ -7,19 +7,19 @@ from typing import Literal, Type
 
 from alp_data.backends.pandas_backend import PandasBackend
 from alp_data.backends.polars_backend import PolarsBackend
-from alp_data.backends.protocol import DataBackend
+from alp_data.backends.protocol import DataBackend, StreamingBackend
 
 BackendType = Literal["pandas", "polars"]
 
 
 # We need to add new backends here when they are implemented
-_BACKEND_REGISTRY: dict[str, Type[DataBackend]] = {
+_BACKEND_REGISTRY: dict[str, Type[DataBackend | StreamingBackend]] = {
     "pandas": PandasBackend,
     "polars": PolarsBackend,
 }
 
 
-def get_backend(backend: BackendType) -> Type[DataBackend]:
+def get_backend(backend: BackendType) -> Type[DataBackend | StreamingBackend]:
     """Get the backend class for the specified backend type.
 
     Parameters
@@ -29,7 +29,7 @@ def get_backend(backend: BackendType) -> Type[DataBackend]:
 
     Returns
     -------
-    Type[DataBackend]
+    Type[DataBackend | StreamingBackend]
         The backend class (not an instance)
 
     Raises
