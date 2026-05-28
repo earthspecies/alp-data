@@ -46,6 +46,7 @@ from .synthetic_scenes import SyntheticScenes
 from .voxaboxen import Voxaboxen, VoxaboxenEvents
 from .wabad import WABAD
 from .watkins import Watkins
+from .weldy_dawn_chorus import WeldyDawnChorus
 from .whales import Whales
 from .xeno_canto import XenoCanto
 from .xeno_canto_annotated_jeantet_23 import XenoCantoAnnotatedJeantet23
@@ -105,5 +106,6 @@ __all__ = [
     "DORI",
     "DRASDIC",
     "Watkins",
+    "WeldyDawnChorus",
     "Whales",
 ]
