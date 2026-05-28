@@ -576,7 +576,7 @@ def export_as_parquet(
         except Exception as e:
             failed_ids.append(sample_id)
             _error_handler(e, sample_id, error_handling)
-        if i % 1 == 0:
+        if i % 100 == 0:
             logger.info(f"{i + 1} samples handled")
 
     if samples:
