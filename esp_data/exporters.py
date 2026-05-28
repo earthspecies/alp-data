@@ -19,11 +19,12 @@ from tqdm import tqdm
 
 from esp_data import Dataset
 from esp_data.backends.webdataset_utils import audio_encoder, json_encoder, make_file_opener_for_wds
-from esp_data.io import AnyPathT, anypath, exists
+from esp_data.io import AnyPathT, anypath, exists, filesystem_from_path
 
 logger = logging.getLogger("esp_data")
 
 _SUPPORTED_FORMATS = ("webdataset", "parquet")
+_PARQUET_ROW_GROUP_SIZE = 10_000
 
 
 def _make_id() -> str:
@@ -544,6 +545,11 @@ def export_as_parquet(
 ) -> dict[str, Any]:
     """Export a dataset as a single Parquet file.
 
+    Writes in row groups of `_PARQUET_ROW_GROUP_SIZE` to avoid buffering the
+    entire dataset in memory. Supports both local and cloud (GCS, R2) paths.
+    Each sample is validated individually so a bad sample is skipped rather
+    than aborting the whole export.
+
     Parameters
     ----------
     dataset : Iterable[dict] | Dataset
@@ -567,26 +573,50 @@ def export_as_parquet(
     if isinstance(output_path, Path):
         output_path.mkdir(parents=True, exist_ok=True)
 
-    samples: list[dict] = []
+    parquet_path = output_path / "data.parquet"
+    fs = filesystem_from_path(output_path)
+
     failed_ids: list[str] = []
-    for i, item in enumerate(dataset):
-        sample_id = str(item.get("id", _make_id()))
-        try:
-            samples.append(item)
-        except Exception as e:
-            failed_ids.append(sample_id)
-            _error_handler(e, sample_id, error_handling)
-        if i % 100 == 0:
-            logger.info(f"{i + 1} samples handled")
+    total_processed = 0
+    batch: list[dict] = []
+    writer: pq.ParquetWriter | None = None
+    schema: pa.Schema | None = None
 
-    if samples:
-        table = pa.Table.from_pylist(samples)
-        pq.write_table(table, str(output_path / "data.parquet"), compression=compression)
+    try:
+        for i, item in enumerate(dataset):
+            sample_id = str(item.get("id", _make_id()))
+            try:
+                row = pa.Table.from_pylist([item])
+                if writer is None:
+                    schema = row.schema
+                    writer = pq.ParquetWriter(
+                        fs.open(str(parquet_path), "wb"),
+                        schema,
+                        compression=compression,
+                    )
+                batch.append(item)
+                total_processed += 1
+            except Exception as e:
+                failed_ids.append(sample_id)
+                _error_handler(e, sample_id, error_handling)
 
-    logger.info(f"Parquet export complete: {len(samples)} processed, {len(failed_ids)} failed")
+            if len(batch) >= _PARQUET_ROW_GROUP_SIZE:
+                writer.write_table(pa.Table.from_pylist(batch, schema=schema))
+                batch.clear()
+
+            if (i + 1) % 100 == 0:
+                logger.info(f"{i + 1} samples handled")
+
+        if batch and writer is not None:
+            writer.write_table(pa.Table.from_pylist(batch, schema=schema))
+    finally:
+        if writer is not None:
+            writer.close()
+
+    logger.info(f"Parquet export complete: {total_processed} processed, {len(failed_ids)} failed")
 
     return {
-        "total_processed": len(samples),
+        "total_processed": total_processed,
         "total_failed": len(failed_ids),
         "output_path": str(output_path),
         "compression": compression,
@@ -659,8 +689,6 @@ def export_dataset(
         )
 
     if format == "parquet":
-        if not hasattr(iterable, "__len__"):
-            iterable = list(iterable)
         return export_as_parquet(
             dataset=iterable,
             output_path=anypath(path),

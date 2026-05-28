@@ -67,7 +67,7 @@ class GenericDataset(Dataset):
             Source path (local or cloud).
         backend : BackendType | None
             Backend to use for loading. If ``None``, the default backend for the
-            stored format is used (``"pandas"`` for ``"parquet"``,
+            stored format is used (``"polars"`` for ``"parquet"``,
             ``"webdataset"`` for ``"webdataset"``).
         **kwargs : Any
             Additional arguments forwarded to the backend's ``from_path``

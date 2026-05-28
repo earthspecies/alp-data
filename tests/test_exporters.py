@@ -8,6 +8,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 import pyarrow as pa
+import pyarrow.parquet as pq
 import pytest
 import soundfile as sf
 
@@ -337,7 +338,7 @@ def test_export_as_parquet(json_dataset_records, tmp_path) -> None:
     parquet_file = output_path / "data.parquet"
     assert parquet_file.exists()
 
-    table = pa.parquet.read_table(str(parquet_file))
+    table = pq.read_table(str(parquet_file))
     assert table.num_rows == len(json_dataset_records)
     assert set(table.column_names) == {"text", "label"}
 
@@ -346,7 +347,6 @@ def test_export_as_parquet_roundtrip(json_dataset_records, tmp_path) -> None:
     output_path = tmp_path / "test_parquet_roundtrip"
     export_as_parquet(json_dataset_records, output_path)
 
-    import pandas as pd
     df = pd.read_parquet(str(output_path / "data.parquet"))
 
     assert len(df) == len(json_dataset_records)
@@ -364,7 +364,7 @@ def test_export_as_parquet_with_numpy(tmp_path) -> None:
     result = export_as_parquet(records, output_path)
 
     assert result["total_processed"] == 5
-    table = pa.parquet.read_table(str(output_path / "data.parquet"))
+    table = pq.read_table(str(output_path / "data.parquet"))
     assert table.num_rows == 5
     assert "embedding" in table.column_names
     assert "label" in table.column_names
