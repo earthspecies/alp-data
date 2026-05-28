@@ -1,59 +1,132 @@
 """Utilities for encoding and decoding audio and JSON data for use in the WebDataset format."""
 
-import functools
 import io
-import itertools
 import json
-import tempfile
-from collections.abc import Iterable
-from pathlib import Path
-from typing import Any, Callable, Iterator
+from typing import Any
 
 import numpy as np
+import pandas as pd
 import soundfile as sf
-import webdataset as wds
 
 from esp_data.io import AnyPathT, filesystem_from_path
-from esp_data.io.paths import PureGSPath, PureR2Path
+from esp_data.io.paths import PureCloudPath, anypath
 
 
-def audio_decoder(data: dict, dtype: str = "float32", format: str = "FLAC") -> dict[str, Any]:
-    """Decode audio data from a WebDataset sample.
+def make_file_opener_for_wds(
+    file_path: str | AnyPathT,
+    mode: str = "wb",
+    block_size: int = 1024 * 1024 * 100,
+) -> callable:
+    """Make a file opener function for WebDataset.
 
-    Parameters
-    ----------
-    data: dict
-        The sample containing audio data in WebDataset format
-    dtype: str
-        The data type of the decoded audio data (default: "float32")
-    format: str
-        The format of the audio data (default: "FLAC")
+    If local path, create parent dirs if needed.
+
+    Arguments
+    ---------
+    file_path: str | AnyPathT
+        The file path to open
+    mode: str
+        The mode in which to open the file (default: "wb")
+    block_size: int
+        Block size for WebDataset (default: 100 MB)
 
     Returns
     -------
-    dict
-        Dictionary containing the decoded audio data and metadata.
+    Callable
+        A function that opens the file in the specified mode
+        or a file object if the path is local.
+    """
+    path_obj = anypath(file_path)
+
+    if not isinstance(path_obj, PureCloudPath):
+        # Local filesystem - create parent dirs if needed
+        parent_dir = path_obj.parent
+        parent_dir.mkdir(parents=True, exist_ok=True)
+        return open(str(path_obj), mode=mode)
+    else:
+        # Remote filesystem (GCS, R2, etc.)
+        fs = filesystem_from_path(str(path_obj))
+        return fs.open(str(path_obj), mode=mode, block_size=block_size)
+
+
+def _is_tabular(v: object) -> bool:
+    """Return True if `v` is a tabular type (pandas/polars DataFrame or PyArrow Table).
+
+    Returns
+    -------
+    bool
+        True if `v` is a `pd.DataFrame`, `pl.DataFrame`, `pl.LazyFrame`, or `pa.Table`.
+    """
+    import pyarrow as pa
+
+    try:
+        import polars as pl
+
+        if isinstance(v, (pl.DataFrame, pl.LazyFrame)):
+            return True
+    except ImportError:
+        pass
+    return isinstance(v, (pd.DataFrame, pa.Table))
+
+
+def _tabular_to_parquet_bytes(v: object) -> bytes:
+    """Serialize a tabular value to Parquet bytes.
+
+    Parameters
+    ----------
+    v : object
+        Tabular value to serialize. Must be one of `pd.DataFrame`,
+        `pl.DataFrame`, `pl.LazyFrame`, or `pa.Table`.
+
+    Returns
+    -------
+    bytes
+        Parquet-encoded bytes.
 
     Raises
     ------
-    ValueError
-        If the sample does not contain an audio key ending with .flac, .wav, etc.
+    TypeError
+        If `v` is not a supported tabular type.
     """
-    audio_key = next((k for k in data if k.endswith(f".{format.lower()}")), None)
-    if not audio_key:
-        raise ValueError("Sample must contain an audio key ending with .flac, .wav, etc.")
+    import pyarrow as pa
+    import pyarrow.parquet as pq
 
-    audio_buffer = io.BytesIO(data[audio_key])
-    audio_data, samplerate = sf.read(audio_buffer, dtype=dtype)
+    try:
+        import polars as pl
 
-    # Reconstruct sample
-    sample = {}
-    sample["audio"] = audio_data
-    sample["sample_rate"] = samplerate
-    md = json.loads(data.get("metadata.json", b"{}").decode("utf-8"))
-    sample.update(md)
+        if isinstance(v, pl.LazyFrame):
+            v = v.collect()
+        if isinstance(v, pl.DataFrame):
+            table = v.to_arrow()
+            buf = io.BytesIO()
+            pq.write_table(table, buf)
+            return buf.getvalue()
+    except ImportError:
+        pass
 
-    return sample
+    if isinstance(v, pd.DataFrame):
+        table = pa.Table.from_pandas(v)
+    elif isinstance(v, pa.Table):
+        table = v
+    else:
+        raise TypeError(f"Unsupported tabular type: {type(v)}")
+
+    buf = io.BytesIO()
+    pq.write_table(table, buf)
+    return buf.getvalue()
+
+
+def _parquet_bytes_to_dataframe(data: bytes) -> pd.DataFrame:
+    """Deserialize Parquet bytes to a pandas DataFrame.
+
+    Returns
+    -------
+    pd.DataFrame
+        Decoded tabular data.
+    """
+    import pyarrow.parquet as pq
+
+    return pq.read_table(io.BytesIO(data)).to_pandas()
 
 
 def audio_encoder(
@@ -63,6 +136,10 @@ def audio_encoder(
     format: str = "FLAC",
 ) -> dict[str, Any]:
     """Encode audio data in the sample to a specific format.
+
+    Non-audio tabular fields (`pd.DataFrame`, `pl.DataFrame`, `pl.LazyFrame`,
+    `pa.Table`) are stored as individual Parquet files named `{key}.parquet`.
+    All remaining non-audio fields are stored in `metadata.json`.
 
     Parameters
     ----------
@@ -102,9 +179,62 @@ def audio_encoder(
 
     data_out[f"audio.{format.lower()}"] = audio_buffer.getvalue()
 
-    metadata = {k: v for k, v in sample.items() if k != "audio"}
+    tabular = {k: v for k, v in sample.items() if k != "audio" and _is_tabular(v)}
+    metadata = {k: v for k, v in sample.items() if k not in ("audio", *tabular)}
+
+    for key, tab in tabular.items():
+        data_out[f"{key}.parquet"] = _tabular_to_parquet_bytes(tab)
+
     data_out["metadata.json"] = json.dumps(metadata, indent=2).encode("utf-8")
     return data_out
+
+
+def audio_decoder(data: dict, dtype: str = "float32", format: str = "FLAC") -> dict[str, Any]:
+    """Decode audio data from a WebDataset sample.
+
+    Parquet files stored alongside the audio (e.g., `selection_table.parquet`)
+    are decoded back to `pd.DataFrame` and included in the returned sample.
+
+    Parameters
+    ----------
+    data: dict
+        The sample containing audio data in WebDataset format
+    dtype: str
+        The data type of the decoded audio data (default: "float32")
+    format: str
+        The format of the audio data (default: "FLAC")
+
+    Returns
+    -------
+    dict
+        Dictionary containing the decoded audio data and metadata.
+        Tabular fields are returned as `pd.DataFrame`.
+
+    Raises
+    ------
+    ValueError
+        If the sample does not contain an audio key ending with .flac, .wav, etc.
+    """
+    audio_key = next((k for k in data if k.endswith(f".{format.lower()}")), None)
+    if not audio_key:
+        raise ValueError("Sample must contain an audio key ending with .flac, .wav, etc.")
+
+    audio_buffer = io.BytesIO(data[audio_key])
+    audio_data, samplerate = sf.read(audio_buffer, dtype=dtype)
+
+    # Reconstruct sample
+    sample = {}
+    sample["audio"] = audio_data
+    sample["sample_rate"] = samplerate
+    md = json.loads(data.get("metadata.json", b"{}").decode("utf-8"))
+    sample.update(md)
+
+    for key, value in data.items():
+        if key.endswith(".parquet"):
+            field_name = key[: -len(".parquet")]
+            sample[field_name] = _parquet_bytes_to_dataframe(value)
+
+    return sample
 
 
 def json_encoder(
@@ -112,6 +242,10 @@ def json_encoder(
     indent: int = 2,
 ) -> dict[str, Any]:
     """Encode a sample to JSON format.
+
+    Tabular fields (`pd.DataFrame`, `pl.DataFrame`, `pl.LazyFrame`, `pa.Table`)
+    are stored as individual Parquet files named `{key}.parquet` alongside
+    `sample.json`.
 
     Parameters
     ----------
@@ -124,15 +258,26 @@ def json_encoder(
     -------
     dict
         Dictionary containing the encoded sample in JSON format.
+        Tabular fields are stored as separate `{key}.parquet` entries.
     """
-    json_data = json.dumps(sample, indent=indent).encode("utf-8")
-    return {"sample.json": json_data}
+    tabular = {k: v for k, v in sample.items() if _is_tabular(v)}
+    non_tabular = {k: v for k, v in sample.items() if k not in tabular}
+
+    data_out = {}
+    for key, tab in tabular.items():
+        data_out[f"{key}.parquet"] = _tabular_to_parquet_bytes(tab)
+
+    data_out["sample.json"] = json.dumps(non_tabular, indent=indent).encode("utf-8")
+    return data_out
 
 
 def json_decoder(
     data: dict[str, Any],
 ) -> dict[str, Any]:
     """Decode a sample from JSON format.
+
+    Parquet files stored alongside `sample.json` (e.g., `selection_table.parquet`)
+    are decoded back to `pd.DataFrame` and included in the returned sample.
 
     Parameters
     ----------
@@ -143,6 +288,7 @@ def json_decoder(
     -------
     dict
         Dictionary containing the decoded sample.
+        Tabular fields are returned as `pd.DataFrame`.
 
     Raises
     ------
@@ -152,85 +298,11 @@ def json_decoder(
     if "sample.json" not in data:
         raise ValueError("Sample must contain 'sample.json' key with JSON data")
 
-    json_data = json.loads(data["sample.json"].decode("utf-8"))
-    return json_data
+    sample = json.loads(data["sample.json"].decode("utf-8"))
 
+    for key, value in data.items():
+        if key.endswith(".parquet"):
+            field_name = key[: -len(".parquet")]
+            sample[field_name] = _parquet_bytes_to_dataframe(value)
 
-def write_to_webdataset(
-    sample_iter: Iterator[dict[str, Any]] | Iterable[dict[str, Any]],
-    path: AnyPathT,
-    encoder_fn: Callable | None = audio_encoder,
-    shard_pattern: str = "shard_%04d.tar",
-    maxcount: int = 100_000,
-    maxsize: float = 3e9,
-) -> int:
-    """Write samples from an iterator or iterable to sharded WebDataset tar files.
-
-    For cloud paths (GCS, R2), samples are written to a temporary local
-    directory first, then uploaded to the destination.
-
-    Parameters
-    ----------
-    sample_iter : Iterator[dict[str, Any]] | Iterable[dict[str, Any]]
-        Iterator or iterable of sample dicts to write
-    path : AnyPathT
-        Destination directory (local or cloud). Created if it does not exist.
-        Callers must resolve strings via `anypath` before passing so cloud
-        URIs (``gs://``, ``r2://``) are detected correctly.
-    encoder_fn : Callable | None, optional
-        Function ``dict[str, Any] -> dict[str, bytes]`` in WebDataset format.
-        If ``None``, auto-detected from the first sample: samples with an
-        ``"audio"`` key use `audio_encoder`, all others use `json_encoder`.
-    shard_pattern : str, optional
-        Printf-style shard file name pattern, by default ``"shard_%04d.tar"``.
-    maxcount : int, optional
-        Maximum samples per shard, by default 100 000.
-    maxsize : float, optional
-        Maximum shard size in bytes, by default 3 GB.
-
-    Returns
-    -------
-    int
-        Number of samples written.
-    """
-
-    # Normalise iterables to iterators so next() works unconditionally
-    sample_iter = iter(sample_iter)
-
-    # PureR2Path covers both R2 and S3 URIs (anypath("s3://...") returns PureR2Path)
-    is_cloud = isinstance(path, (PureGSPath, PureR2Path))
-
-    if encoder_fn is None:
-        try:
-            first = next(sample_iter)
-        except StopIteration:
-            return 0
-        if "audio" in first:
-            sr = first.get("sample_rate", 16000)
-            encoder_fn = functools.partial(audio_encoder, sample_rate=sr)
-        else:
-            encoder_fn = json_encoder
-        sample_iter = itertools.chain([first], sample_iter)
-
-    def _write(write_path: Path) -> int:
-        write_path.mkdir(parents=True, exist_ok=True)
-        pattern = str(write_path / shard_pattern)
-        count = 0
-        with wds.ShardWriter(pattern, maxcount=maxcount, maxsize=maxsize, verbose=0) as sink:
-            for idx, sample in enumerate(sample_iter):
-                encoded = encoder_fn(sample)
-                encoded["__key__"] = f"sample_{idx:06d}"
-                sink.write(encoded)
-                count = idx + 1
-        return count
-
-    if is_cloud:
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            count = _write(Path(tmp_dir))
-            fs = filesystem_from_path(path)
-            for local_file in Path(tmp_dir).iterdir():
-                fs.put(str(local_file), str(path / local_file.name))
-    else:
-        count = _write(Path(str(path)))
-
-    return count
+    return sample

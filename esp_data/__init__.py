@@ -49,7 +49,7 @@ from .datasets import (
     XenoCantoAnnotatedJeantet23,
     ZebraFinchJulieElie,
 )
-from .export import export_dataset
+from .exporters import export_dataset
 from .generic_dataset import GenericDataset
 
 __all__ = [

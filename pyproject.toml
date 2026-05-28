@@ -19,6 +19,7 @@ dependencies = [
     "semver",
     "soundfile>=0.13.1",
     "webdataset>=1.0.2",
+    "tqdm>=4.67.3",
 ]
 
 [dependency-groups]

@@ -19,6 +19,9 @@ jobs:
               with:
                   enable-cache: "auto"
 
+            - name: 'Set up Cloud SDK'
+              uses: 'google-github-actions/setup-gcloud@v3'
+
             - name: "Set up Python"
               uses: actions/setup-python@v5
               with:
