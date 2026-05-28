@@ -66,6 +66,14 @@ class BeansPro(Dataset):
       row's ``metadata`` carries a ``flank_annotations`` summary for
       post-eval label-leakage analysis (in a dense dawn chorus, ~73 % of
       rows have same-species same-sonotype annotations in the flanks).
+    - ``weldy-call-or-song-sp`` / ``weldy-call-or-song-sp-6s``: same row
+      sets as the two non-species-conditioned splits above (audio reused
+      via ``data_root`` pointer), but ``instruction`` carries the focal
+      species name, e.g. *"Is the Hermit Thrush making a call or a song in
+      this recording?"*. Removes the species-agnostic ambiguity that
+      arises in dawn-chorus windows containing multiple species'
+      vocalisations (~30 % of 2-s windows have a co-occurring different
+      species with a different sonotype).
 
     Schema
     ------
@@ -105,6 +113,8 @@ class BeansPro(Dataset):
             "weldy-call-or-song": "gs://esp-data-ingestion/beans-pro/v0.1.0/raw/weldy_call_or_song/test.jsonl",
             "weldy-drum-call-song": "gs://esp-data-ingestion/beans-pro/v0.1.0/raw/weldy_drum_call_song/test.jsonl",
             "weldy-call-or-song-6s": "gs://esp-data-ingestion/beans-pro/v0.1.0/raw/weldy_call_or_song_6s/test.jsonl",
+            "weldy-call-or-song-sp": "gs://esp-data-ingestion/beans-pro/v0.1.0/raw/weldy_call_or_song_sp/test.jsonl",
+            "weldy-call-or-song-sp-6s": "gs://esp-data-ingestion/beans-pro/v0.1.0/raw/weldy_call_or_song_sp_6s/test.jsonl",
         },
         version="0.1.0",
         description=(
@@ -139,6 +149,10 @@ class BeansPro(Dataset):
         "weldy-call-or-song": "gs://esp-data-ingestion/beans-pro/v0.1.0/raw/weldy_call_or_song/",
         "weldy-drum-call-song": "gs://esp-data-ingestion/beans-pro/v0.1.0/raw/weldy_drum_call_song/",
         "weldy-call-or-song-6s": "gs://esp-data-ingestion/beans-pro/v0.1.0/raw/weldy_call_or_song_6s/",
+        # The species-conditioned splits reuse audio from the non-conditioned
+        # splits — same relative paths, just a different prompt per row.
+        "weldy-call-or-song-sp": "gs://esp-data-ingestion/beans-pro/v0.1.0/raw/weldy_call_or_song/",
+        "weldy-call-or-song-sp-6s": "gs://esp-data-ingestion/beans-pro/v0.1.0/raw/weldy_call_or_song_6s/",
     }
 
     _originals_path_column = "audio_path_original_sample_rate"
