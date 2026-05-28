@@ -22,9 +22,14 @@ the HF repos — only in the NOAA/NCEI archive) is **deferred to Phase 2**.
   per-row `license` column.
 
 ## Splits
-`all`, `train`, `test` (the collection's partition), and per-source `onc`,
-`orcasound`, `ooi`. ONC also contributes ~1/5-of-positives **unlabelled
-negatives** (`is_negative` / `presence=0`).
+`all`, `train`, `test` (the collection's partition), per-source `onc`,
+`orcasound`, `ooi`, and `onc_benchmark`. ONC also contributes
+~1/5-of-positives **unlabelled negatives** (`is_negative` / `presence=0`).
+
+`onc_benchmark` is the **expert-labelled presence/absence test set** (385 *full*
+~5-min recordings, not cropped 15 s clips): `presence` = expert `mammal_present`
+(159 present / 226 absent), with three amateur-annotator columns
+(`amateur_1/2/3`). License CC-BY-4.0.
 
 ## GCS layout
 ```
@@ -71,6 +76,6 @@ item = ds[0]            # item["audio"], item["species"], item["ecotype"], ...
 
 ## Notes / caveats
 - DORI human labels for ONC are by an **amateur** labeller (Jaccard ~0.7 vs an
-  expert; species/ecotype not expert-validated); the separate `ONC-Benchmark`
-  repo is an expert-verified presence test set (not yet ingested here).
-- Phase 2 TODO: SanctSound audio (from NOAA/NCEI) + `ONC-Benchmark`.
+  expert; species/ecotype not expert-validated). The `onc_benchmark` split is
+  the expert-verified counterpart (presence/absence).
+- Phase 2 TODO: SanctSound audio (from NOAA/NCEI); fix the OOI FLAC-decode loss.

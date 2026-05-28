@@ -44,8 +44,8 @@ def test_expected_length(ds: DORI):
 
 
 def test_available_splits(ds: DORI) -> None:
-    """available_splits should expose all six split names."""
-    for split in ["all", "train", "test", "onc", "orcasound", "ooi"]:
+    """available_splits should expose all split names."""
+    for split in ["all", "train", "test", "onc", "orcasound", "ooi", "onc_benchmark"]:
         assert split in ds.available_splits
 
 

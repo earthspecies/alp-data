@@ -46,9 +46,12 @@ class DORI(Dataset):
 
     Splits
     ------
-        - ``all``  : every clip
+        - ``all``  : every cropped 15 s clip
         - ``train`` / ``test`` : the collection's train/test partition
         - ``onc`` / ``orcasound`` / ``ooi`` : per-source
+        - ``onc_benchmark`` : the expert-labelled ONC presence/absence test set
+          (385 *full* recordings, ``presence`` = expert ``mammal_present`` plus
+          three amateur-annotator columns; not the cropped 15 s clips)
 
     Pre-resampled Audio
     -------------------
@@ -72,6 +75,7 @@ class DORI(Dataset):
             "onc": f"{_GCS_ROOT}/onc.csv",
             "orcasound": f"{_GCS_ROOT}/orcasound.csv",
             "ooi": f"{_GCS_ROOT}/ooi.csv",
+            "onc_benchmark": f"{_GCS_ROOT}/onc_benchmark.csv",
         },
         version="0.1.0",
         description=(
