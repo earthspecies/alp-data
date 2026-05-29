@@ -301,7 +301,8 @@ def test_export_as_tar(audio_dataset_records, tmp_path) -> None:
 def test_export_as_tar_to_cloud(audio_dataset_records) -> None:
     """Test exporting a dataset as a tar file."""
     output_path = "gs://esp-ci-cd-tests/esp-data-tests/exporters/"  # Cloud path for testing
-    export_as_tar(audio_dataset_records, output_path, sample_prep_function=audio_encoder)
+
+    export_as_tar(audio_dataset_records, output_path, sample_prep_function=audio_encoder, error_handling="raise")
 
     # Check if the tar file was created
     created_shard_path = anypath(output_path) / "shard_000000.tar"
@@ -323,4 +324,5 @@ def test_export_as_tar_to_cloud(audio_dataset_records) -> None:
         assert len(sample["audio"]) == 16000
         assert "text" in sample
 
-    rm(created_shard_path)
+    # Remove the content of the output_path
+    rm(anypath(output_path) / "*")
