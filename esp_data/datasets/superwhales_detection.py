@@ -1,4 +1,4 @@
-"""SuperWhale Detection dataset — aggregate of 11 marine mammal detection datasets.
+"""SuperWhale Detection dataset — aggregate of 12 marine mammal detection datasets.
 
 Each row represents one audio file and carries a ``selection_table`` column: a
 TSV-encoded blob listing per-event annotations (begin/end times, frequencies,
@@ -8,7 +8,7 @@ also contain ``canonical_name``, ``genus``, ``family``, ``species_common``, and
 
 Component Datasets
 ------------------
-The merged detection CSV is built from 11 source datasets spanning baleen
+The merged detection CSV is built from 12 source datasets spanning baleen
 whales, odontocetes, and mixed-species recordings.  Each source dataset is
 identified by its ``source_dataset`` column value in the CSV.  See
 ``DETECTION_CATALOG`` for per-dataset documentation.
@@ -128,6 +128,33 @@ DETECTION_CATALOG: dict[str, dict[str, Any]] = {
         "rows": 23,
         "source_url": "https://www.cetus.ucsd.edu/dclde/datasetDocumentation.html",
     },
+    "dclde_2018_hf_annotations": {
+        "description": (
+            "DCLDE 2018 HF Odontocete: high-frequency HARP recordings "
+            "(200 kHz) of marine mammal echolocation encounters from "
+            "Gulf of Mexico (GofMX-DT), Cape Hatteras (HAT-A), "
+            "Jacksonville (JAX-D), and Atlantic (WAT-Hz, WAT-NC) sites. "
+            "1,213 audio files (~758 hours) with encounter-level start/"
+            "end annotations covering Cuvier's beaked whale, Gervais' and "
+            "Sowerby's beaked whales, Risso's dolphin, short-finned pilot "
+            "whale, Fraser's dolphin, Stenella spp., plus suborder-level "
+            "Odontoceti for unidentified clicks. Pre-resampled 16/32 kHz "
+            "WAV available for ~98% of files."
+        ),
+        "species": [
+            "Ziphius cavirostris",
+            "Mesoplodon europaeus",
+            "Mesoplodon bidens",
+            "Grampus griseus",
+            "Globicephala macrorhynchus",
+            "Lagenodelphis hosei",
+            "Stenella",
+        ],
+        "call_types": ["click"],
+        "license": "CC0-1.0",
+        "rows": 1213,
+        "source_url": "https://doi.org/10.25921/400a-tf35",
+    },
     "dolphinfree": {
         "description": (
             "DolphinFree: short-duration common dolphin whistle "
@@ -202,7 +229,13 @@ DETECTION_CATALOG: dict[str, dict[str, Any]] = {
 
 
 def _selection_table_has_events(tsv: str) -> bool:
-    """Return True if the selection-table TSV blob has ≥1 event row."""
+    """Return True if the selection-table TSV blob has ≥1 event row.
+
+    Returns
+    -------
+    bool
+        True when ``tsv`` contains at least one data row after the header line.
+    """
     if not tsv:
         return False
     lines = tsv.strip().split("\n")
@@ -273,8 +306,7 @@ class SuperWhaleDetectionConfig(DatasetConfig):
     include_datasets: list[str] | None = Field(
         default=None,
         description=(
-            "Source-dataset names to include.  None = all.  "
-            "See DETECTION_CATALOG for valid names."
+            "Source-dataset names to include.  None = all.  See DETECTION_CATALOG for valid names."
         ),
     )
     positives_only: dict[str, bool] = Field(
@@ -402,11 +434,19 @@ class SuperWhaleDetection(Dataset):
     # ── Loading & filtering ────────────────────────────────────────────
 
     def _load(self) -> None:
-        """Load the merged detection CSV, then apply dataset & positives filters."""
+        """Load the merged detection CSV, then apply dataset & positives filters.
+
+        Raises
+        ------
+        LookupError
+            If ``self.split`` is not a key in ``info.split_paths``.
+        ValueError
+            If ``include_datasets`` contains a name not present in
+            ``DETECTION_CATALOG``.
+        """
         if self.split not in self.info.split_paths:
             raise LookupError(
-                f"Invalid split: {self.split}. "
-                f"Expected one of {list(self.info.split_paths.keys())}"
+                f"Invalid split: {self.split}. Expected one of {list(self.info.split_paths.keys())}"
             )
 
         location = self.info.split_paths[self.split]
@@ -429,9 +469,7 @@ class SuperWhaleDetection(Dataset):
             is_positives_only = self.positives_only_map.get(source_ds, True)
             if is_positives_only:
                 ds_rows = df["source_dataset"] == source_ds
-                has_events = df.loc[ds_rows, "selection_table"].apply(
-                    _selection_table_has_events
-                )
+                has_events = df.loc[ds_rows, "selection_table"].apply(_selection_table_has_events)
                 keep_mask.loc[ds_rows] = has_events
 
         df = df[keep_mask].reset_index(drop=True)
@@ -460,10 +498,16 @@ class SuperWhaleDetection(Dataset):
     def from_config(
         cls, dataset_config: SuperWhaleDetectionConfig
     ) -> tuple["SuperWhaleDetection", dict[str, Any]]:
-        """Create a SuperWhaleDetection instance from a config."""
-        cfg = dataset_config.model_dump(
-            exclude={"dataset_name", "transformations"}
-        )
+        """Create a SuperWhaleDetection instance from a config.
+
+        Returns
+        -------
+        tuple[SuperWhaleDetection, dict[str, Any]]
+            The instantiated dataset and a metadata dict from
+            ``apply_transformations`` (empty when no transforms are
+            configured).
+        """
+        cfg = dataset_config.model_dump(exclude={"dataset_name", "transformations"})
         ds = cls(
             split=cfg["split"],
             include_datasets=cfg.get("include_datasets"),
@@ -482,7 +526,16 @@ class SuperWhaleDetection(Dataset):
     # ── Iteration / indexing ───────────────────────────────────────────
 
     def _resolve_audio_path(self, row: dict[str, Any]) -> tuple[AnyPathT, bool]:
-        """Return (full_audio_path, is_presampled)."""
+        """Resolve the audio path for ``row``, preferring a pre-resampled file.
+
+        Returns
+        -------
+        tuple[AnyPathT, bool]
+            ``(audio_path, is_presampled)``. ``is_presampled`` is True when the
+            row carries a non-empty path column matching ``self.sample_rate``;
+            otherwise the original ``audio_path`` is returned and the caller is
+            expected to resample on the fly.
+        """
         if self.sample_rate is not None and self.sample_rate in self._sample_rate_paths:
             col = self._sample_rate_paths[self.sample_rate]
             if col in row and row[col] is not None and str(row[col]).strip():
@@ -490,7 +543,16 @@ class SuperWhaleDetection(Dataset):
         return self.data_root / row["audio_path"], False
 
     def _process(self, row: dict[str, Any]) -> dict[str, Any]:
-        """Process a single row: load audio, parse selection table."""
+        """Process a single row: load audio, parse selection table.
+
+        Returns
+        -------
+        dict[str, Any]
+            The row dict with ``audio`` (numpy float32 array), ``sample_rate``
+            (int), and ``selection_table`` (parsed ``pd.DataFrame`` clipped to
+            the loaded audio's duration) populated. When ``output_take_and_give``
+            is configured the dict is reduced/renamed accordingly.
+        """
         audio_path, is_presampled = self._resolve_audio_path(row)
         window_start = row.get("window_start_sec")
         window_end = row.get("window_end_sec")
@@ -565,11 +627,7 @@ class SuperWhaleDetection(Dataset):
 
     def __str__(self) -> str:
         n = len(self) if self._data is not None and not self._streaming else "?"
-        ds_count = (
-            len(self.include_datasets)
-            if self.include_datasets
-            else len(DETECTION_CATALOG)
-        )
+        ds_count = len(self.include_datasets) if self.include_datasets else len(DETECTION_CATALOG)
         return (
             f"{self.info.name} (v{self.info.version}), split='{self.split}'\n"
             f"  Rows: {n}  |  Source datasets: {ds_count}\n"
@@ -605,6 +663,17 @@ class SuperWhaleDetection(Dataset):
 
         This requires iterating the serialised TSV, so it is relatively
         expensive on first call.
+
+        Returns
+        -------
+        list[str]
+            Sorted distinct non-null values seen in ``annotation_column``
+            across every row's selection table.
+
+        Raises
+        ------
+        RuntimeError
+            If the dataset has not been loaded (``_load`` has not been called).
         """
         if self._data is None:
             raise RuntimeError("No data loaded.")
