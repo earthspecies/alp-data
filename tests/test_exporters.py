@@ -302,6 +302,9 @@ def test_export_as_tar_to_cloud(audio_dataset_records) -> None:
     """Test exporting a dataset as a tar file."""
     output_path = "gs://esp-ci-cd-tests/esp-data-tests/exporters/"  # Cloud path for testing
 
+    # Remove the content of the output_path
+    rm(anypath(output_path) / "*")
+
     export_as_tar(audio_dataset_records, output_path, sample_prep_function=audio_encoder, error_handling="raise")
 
     # Check if the tar file was created
