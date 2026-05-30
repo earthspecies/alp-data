@@ -3,6 +3,7 @@ from .animalspeak import AnimalSpeak
 from .anuraset import AnuraSetStrong
 from .arctic_bird_sounds import ArcticBirdSounds
 from .audio_skills_xl import AudioSkillsXL
+from .audiocaps import AudioCaps
 from .audioset import AudioSet
 from .audioset_strong import AudioSetStrong
 from .barkley_canyon import BarkleyCanyon, BarkleyCanyonDetection
@@ -15,6 +16,7 @@ from .bengalese_finch_calls import BengaleseFinchCalls
 from .birdeep import Birdeep
 from .birdset import BirdSet
 from .chiffchaff_id import ChiffchaffId
+from .clotho import Clotho
 from .corvid_wascher import CorvidWascher
 from .dartmouth_avian_soundscapes import DartmouthAvianSoundscapes
 from .dclde2026 import DCLDE2026
@@ -55,6 +57,7 @@ from .zebra_finch_julie_elie import ZebraFinchJulieElie
 __all__ = [
     "AnimalSoundArchive",
     "AnimalSpeak",
+    "AudioCaps",
     "AudioSkillsXL",
     "BarkleyCanyon",
     "BarkleyCanyonDetection",
@@ -100,6 +103,7 @@ __all__ = [
     "DinardoDolphinWhistles",
     "GibbonSolos",
     "InfantMarmosetsVox",
+    "Clotho",
     "CorvidWascher",
     "DartmouthAvianSoundscapes",
     "DCLDE2026",
