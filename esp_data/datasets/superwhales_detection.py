@@ -1,4 +1,4 @@
-"""SuperWhale Detection dataset — aggregate of 12 marine mammal detection datasets.
+"""SuperWhale Detection dataset — aggregate of 13 marine mammal detection datasets.
 
 Each row represents one audio file and carries a ``selection_table`` column: a
 TSV-encoded blob listing per-event annotations (begin/end times, frequencies,
@@ -8,7 +8,7 @@ also contain ``canonical_name``, ``genus``, ``family``, ``species_common``, and
 
 Component Datasets
 ------------------
-The merged detection CSV is built from 12 source datasets spanning baleen
+The merged detection CSV is built from 13 source datasets spanning baleen
 whales, odontocetes, and mixed-species recordings.  Each source dataset is
 identified by its ``source_dataset`` column value in the CSV.  See
 ``DETECTION_CATALOG`` for per-dataset documentation.
@@ -154,6 +154,32 @@ DETECTION_CATALOG: dict[str, dict[str, Any]] = {
         "license": "CC0-1.0",
         "rows": 1213,
         "source_url": "https://doi.org/10.25921/400a-tf35",
+    },
+    "zenodo_17282717_mediterranean_cetacean_clips": {
+        "description": (
+            "Mediterranean cetacean PAM clips (Jankauskaite et al. 2025): "
+            "low-cost HydroMoth deployments on fishing boats and boat-based "
+            "surveys in the Western Mediterranean Sea (2022-2024). 777 "
+            "expert-annotated WAV clips at heterogeneous sample rates "
+            "(48 / 96 / 192 / 384 kHz) cut from the deployment recordings, "
+            "one clip per acoustic event with signalType (clicks / whistles "
+            "/ mixed) and quality (low/medium/high) metadata. Adds "
+            "Mediterranean geographic coverage and two species novel to "
+            "SuperWhales: Stenella coeruleoalba (striped dolphin) and "
+            "Globicephala melas (long-finned pilot whale)."
+        ),
+        "species": [
+            "Physeter macrocephalus",
+            "Tursiops truncatus",
+            "Stenella coeruleoalba",
+            "Grampus griseus",
+            "Globicephala melas",
+            "Delphinidae",
+        ],
+        "call_types": ["click", "whistle", "mixed"],
+        "license": "CC-BY-4.0",
+        "rows": 777,
+        "source_url": "https://zenodo.org/records/17282717",
     },
     "dolphinfree": {
         "description": (
