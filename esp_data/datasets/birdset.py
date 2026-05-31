@@ -1,15 +1,22 @@
 """BirdSet dataset"""
 
+from io import StringIO
 from typing import Any, Iterator
 
 import librosa
 import numpy as np
+import pandas as pd
 
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from esp_data.backends import BackendType
 from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
 
 _GCS_ROOT = "gs://esp-ml-datasets/birdset/v0.1.0/raw"
+# Per-recording, WABAD-shape aggregations of the strongly-labeled splits
+# live in a different bucket (we can't write to esp-ml-datasets). The
+# manifest CSVs' path columns still resolve against _GCS_ROOT because the
+# BirdSet class hardcodes that as data_root.
+_AGG_ROOT = "gs://esp-data-ingestion/birdset/v0.1.0/raw"
 
 
 @register_dataset
@@ -110,6 +117,12 @@ class BirdSet(Dataset):
             "SNE-test_5s": f"{_GCS_ROOT}/SNE_test_5s.csv",
             "UHH-test": f"{_GCS_ROOT}/UHH_test.csv",
             "UHH-test_5s": f"{_GCS_ROOT}/UHH_test_5s.csv",
+            # Per-recording, WABAD-shape aggregation of SSW-test events:
+            # one row per soundscape with the strong labels serialized as a
+            # selection_table TSV blob. Enables WABAD-style window_annotations
+            # / annotation_features / multilabel chain blocks on the SSW
+            # split. Audio paths still resolve against _GCS_ROOT.
+            "SSW-test-aggregated": f"{_AGG_ROOT}/SSW_test_aggregated.csv",
             "all": f"{_GCS_ROOT}/birdset_all.csv",
         },
         version="0.1.0",
@@ -228,6 +241,24 @@ class BirdSet(Dataset):
         return len(self._data)
 
     def _process(self, row: dict[str, Any]) -> dict[str, Any]:
+        """Process a row: resolve audio, optionally crop to a chain-selected
+        window, and parse any embedded selection_table TSV.
+
+        When the row contains ``window_start_sec`` / ``window_end_sec`` (set
+        by the ``window_annotations`` chain transform, used by the
+        WABAD-shape ``SSW-test-aggregated`` split), only the corresponding
+        audio segment is loaded from GCS instead of the full recording.
+        When the row contains a ``selection_table`` TSV-blob string (also
+        from the WABAD-shape aggregation), it is parsed into a DataFrame and
+        clipped to the loaded audio's duration. Legacy splits without these
+        fields are unaffected.
+
+        Returns
+        -------
+        dict[str, Any]
+            Row with ``audio`` (numpy float32, mono), ``sample_rate``
+            populated, and ``selection_table`` parsed when present.
+        """
         use_presampled = False
         if self.sample_rate is not None and self.sample_rate in self._sample_rate_paths:
             col = self._sample_rate_paths[self.sample_rate]
@@ -235,28 +266,47 @@ class BirdSet(Dataset):
                 audio_path = self.data_root / row[col]
                 use_presampled = True
 
-        if use_presampled:
-            audio, sr = read_audio(audio_path)
-            audio = audio.astype(np.float32)
-            audio = audio_stereo_to_mono(audio, mono_method="average")
-        else:
+        if not use_presampled:
             audio_path = self.data_root / row[self._originals_path_column]
-            audio, sr = read_audio(audio_path)
-            audio = audio.astype(np.float32)
-            audio = audio_stereo_to_mono(audio, mono_method="average")
 
-            if self.sample_rate is not None and sr != self.sample_rate:
-                audio = librosa.resample(
-                    y=audio,
-                    orig_sr=sr,
-                    target_sr=self.sample_rate,
-                    scale=True,
-                    res_type="kaiser_best",
-                )
-                sr = self.sample_rate
+        window_start = row.get("window_start_sec")
+        window_end = row.get("window_end_sec")
+
+        if window_start is not None and window_end is not None:
+            audio, sr = read_audio(
+                audio_path, start_time=float(window_start), end_time=float(window_end)
+            )
+        else:
+            audio, sr = read_audio(audio_path)
+
+        audio = audio.astype(np.float32)
+        audio = audio_stereo_to_mono(audio, mono_method="average")
+
+        if not use_presampled and self.sample_rate is not None and sr != self.sample_rate:
+            audio = librosa.resample(
+                y=audio,
+                orig_sr=sr,
+                target_sr=self.sample_rate,
+                scale=True,
+                res_type="kaiser_best",
+            )
+            sr = self.sample_rate
 
         row["audio"] = audio
         row["sample_rate"] = sr
+
+        raw_st = row.get("selection_table")
+        if raw_st is not None:
+            if isinstance(raw_st, str):
+                st = pd.read_csv(StringIO(raw_st), sep="\t")
+            elif isinstance(raw_st, pd.DataFrame):
+                st = raw_st
+            else:
+                st = pd.DataFrame()
+            audio_dur = len(audio) / float(sr)
+            if "Begin Time (s)" in st.columns:
+                st = st[st["Begin Time (s)"] < audio_dur].copy()
+            row["selection_table"] = st
 
         if self.output_take_and_give:
             item = {}
