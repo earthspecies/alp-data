@@ -20,6 +20,47 @@ _INAT_AUDIO_ROOT = "gs://esp-ml-datasets/inaturalist/v0.1.0/raw"
 _XC_AUDIO_ROOT = "gs://esp-ml-datasets/xeno-canto/v0.1.0/raw/audio"
 _CROP_RE = re.compile(r"__crop_(\d+)_(\d+)")
 
+# Pre-resampled 32 kHz mirrors of audio sources that the synthetic ROOTS splits
+# otherwise hit at 16 kHz / 22.05 kHz / 44.1 kHz. When the consumer requests
+# sample_rate=32000 we redirect to these mirrors to avoid live resampling.
+#
+# Order matters: longer / more-specific prefixes must come before shorter
+# ones that would also match (e.g. iNat's audio_16k/audio/ before audio_16k/).
+_PRESAMPLED_32K_MAP: tuple[tuple[str, str], ...] = (
+    (
+        "gs://fewshot/data_large_clean/animalspeak_pseudovox/",
+        "gs://foundation-model-data/synthetic/animalspeak_pseudovox_32k/",
+    ),
+    (
+        "gs://foundation-model-data/synthetic/synthetic_sed_scenes_16k/audio/",
+        "gs://foundation-model-data/synthetic/synthetic_sed_scenes_32k/audio/",
+    ),
+    (
+        "gs://foundation-model-data/synthetic/synthetic_sed_diarization_16k/audio/",
+        "gs://foundation-model-data/synthetic/synthetic_sed_diarization_32k/audio/",
+    ),
+    (
+        "gs://foundation-model-data/synthetic/cropped/wabad/audio/",
+        "gs://foundation-model-data/synthetic/cropped/wabad/audio_32k/",
+    ),
+    (
+        "gs://esp-ml-datasets/wabad/v0.1.0/raw/",
+        "gs://esp-ml-datasets/wabad/v0.1.0/raw/audio_32k/",
+    ),
+    (
+        "gs://esp-ml-datasets/inaturalist/v0.1.0/raw/audio_16k/audio/",
+        "gs://esp-ml-datasets/inaturalist/v0.1.0/raw/audio_32khz/",
+    ),
+    (
+        "gs://esp-ml-datasets/inaturalist/v0.1.0/raw/audio_16k/",
+        "gs://esp-ml-datasets/inaturalist/v0.1.0/raw/audio_32k/",
+    ),
+    (
+        "gs://esp-ml-datasets/xeno-canto/v0.1.0/raw/audio/",
+        "gs://esp-ml-datasets/xeno-canto/v0.1.0/raw/audio_32k/",
+    ),
+)
+
 
 def _t3_spec(filename: str, task: str) -> dict[str, str | None]:
     split = filename.removesuffix("_clean.jsonl").removesuffix(".jsonl")
@@ -300,13 +341,43 @@ class ROOTS(Dataset):
 
         audio_path = str(audio_paths[0])
         if audio_path.startswith(("gs://", "s3://", "r2://", "/")):
-            return anypath(audio_path)
+            return anypath(self._prefer_presampled(audio_path))
         if self.data_root is None:
             raise ValueError(
                 f"ROOTS row '{row.get('id', '<unknown>')}' has relative audio path "
                 f"{audio_path!r}, but no data_root is configured."
             )
-        return self.data_root / audio_path
+        joined = str(self.data_root).rstrip("/") + "/" + audio_path.lstrip("/")
+        return anypath(self._prefer_presampled(joined))
+
+    def _prefer_presampled(self, audio_path: str) -> str:
+        """Rewrite an audio URI to its pre-resampled 32 kHz mirror if available.
+
+        Mirrors are produced by ``scripts/resample_to_32khz.py`` and are
+        assumed to be complete; missing files surface as read errors at
+        load time.
+
+        Parameters
+        ----------
+        audio_path : str
+            Source audio URI (absolute ``gs://`` or local) to redirect.
+
+        Returns
+        -------
+        str
+            The mirror URI when ``self.sample_rate == 32000`` and
+            ``audio_path`` matches a known prefix in
+            ``_PRESAMPLED_32K_MAP``; otherwise ``audio_path`` unchanged.
+        """
+        if self.sample_rate != 32000:
+            return audio_path
+        for src_prefix, dst_prefix in _PRESAMPLED_32K_MAP:
+            if audio_path.startswith(dst_prefix):
+                return audio_path
+            if audio_path.startswith(src_prefix):
+                rewritten = dst_prefix + audio_path[len(src_prefix) :]
+                return re.sub(r"\.[^./]+$", ".wav", rewritten)
+        return audio_path
 
     def _process(self, row: dict[str, Any]) -> dict[str, Any]:
         audio_path = self._resolve_audio_path(row)
