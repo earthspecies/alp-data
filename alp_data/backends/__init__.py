@@ -14,12 +14,14 @@ from .backends import BackendType, get_backend
 from .pandas_backend import PandasBackend
 from .polars_backend import PolarsBackend
 from .protocol import DataBackend, StreamingDataBackend
+from .webdataset_backend import WebDatasetBackend
 
 __all__ = [
     "DataBackend",
     "StreamingDataBackend",
     "PandasBackend",
     "PolarsBackend",
+    "WebDatasetBackend",
     "BackendType",
     "get_backend",
 ]
