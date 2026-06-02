@@ -26,6 +26,8 @@ audioread==3.1.0
     # via librosa
 botocore==1.42.70
     # via aiobotocore
+braceexpand==0.1.7
+    # via webdataset
 certifi==2026.2.25
     # via requests
 cffi==2.0.0
@@ -143,6 +145,7 @@ numpy==2.2.6
     #   scipy
     #   soundfile
     #   soxr
+    #   webdataset
 oauthlib==3.3.1
     # via requests-oauthlib
 packaging==26.0
@@ -197,7 +200,9 @@ python-dateutil==2.9.0.post0
 pytz==2026.1.post1
     # via pandas
 pyyaml==6.0.3
-    # via esp-data
+    # via
+    #   esp-data
+    #   webdataset
 requests==2.32.5
     # via
     #   gcsfs
@@ -257,6 +262,8 @@ urllib3==2.6.3
     # via
     #   botocore
     #   requests
+webdataset==1.0.2
+    # via esp-data
 wrapt==2.1.2
     # via aiobotocore
 yarl==1.23.0

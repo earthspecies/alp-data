@@ -6,7 +6,6 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
-import polars as pl
 import soundfile as sf
 
 from esp_data.io import AnyPathT, filesystem_from_path
@@ -60,8 +59,13 @@ def _is_tabular(v: object) -> bool:
     """
     import pyarrow as pa
 
-    if isinstance(v, (pl.DataFrame, pl.LazyFrame)):
-        return True
+    try:
+        import polars as pl
+
+        if isinstance(v, (pl.DataFrame, pl.LazyFrame)):
+            return True
+    except ImportError:
+        pass
     return isinstance(v, (pd.DataFrame, pa.Table))
 
 
@@ -87,13 +91,18 @@ def _tabular_to_parquet_bytes(v: object) -> bytes:
     import pyarrow as pa
     import pyarrow.parquet as pq
 
-    if isinstance(v, pl.LazyFrame):
-        v = v.collect()
-    if isinstance(v, pl.DataFrame):
-        table = v.to_arrow()
-        buf = io.BytesIO()
-        pq.write_table(table, buf)
-        return buf.getvalue()
+    try:
+        import polars as pl
+
+        if isinstance(v, pl.LazyFrame):
+            v = v.collect()
+        if isinstance(v, pl.DataFrame):
+            table = v.to_arrow()
+            buf = io.BytesIO()
+            pq.write_table(table, buf)
+            return buf.getvalue()
+    except ImportError:
+        pass
 
     if isinstance(v, pd.DataFrame):
         table = pa.Table.from_pandas(v)

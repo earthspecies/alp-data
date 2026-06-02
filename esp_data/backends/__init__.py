@@ -4,7 +4,7 @@ This module provides a protocol-based backend system that allows esp-data to wor
 with multiple data libraries through a common interface.
 
 Two protocols are defined:
-- StreamingDataBackend: For streaming-only data formats (e.g., WebDataset/tar files)
+- StreamingBackend: For streaming-only data formats (e.g., WebDataset/tar files)
   that only support iteration, not random access.
 - DataBackend: For in-memory data formats (e.g., pandas, polars DataFrames)
   that support both random access and iteration.
@@ -13,13 +13,19 @@ Two protocols are defined:
 from .backends import BackendType, get_backend
 from .pandas_backend import PandasBackend
 from .polars_backend import PolarsBackend
-from .protocol import DataBackend, StreamingDataBackend
+from .protocol import DataBackend, StreamingBackend
+from .webdataset_backend import WebDatasetBackend
 
 __all__ = [
+    # Protocols
     "DataBackend",
-    "StreamingDataBackend",
+    "StreamingBackend",
+    # DataBackend implementations
     "PandasBackend",
     "PolarsBackend",
+    # StreamingBackend implementations
+    "WebDatasetBackend",
+    # Registry
     "BackendType",
     "get_backend",
 ]
