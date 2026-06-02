@@ -5,6 +5,9 @@ import polars as pl
 import pytest
 
 from esp_data.backends import PandasBackend, PolarsBackend, get_backend
+from esp_data.backends.webdataset_backend import WebDatasetBackend
+from esp_data.backends.webdataset_utils import json_decoder
+from esp_data.exporters import export_dataset
 
 
 class TestPandasBackend:
@@ -281,3 +284,18 @@ class TestBackendFactory:
         """Test getting invalid backend raises error."""
         with pytest.raises(ValueError, match="Unknown backend"):
             get_backend("invalid")  # type: ignore
+
+
+class TestExportDataset:
+    """Tests for the export_dataset function."""
+
+    def test_webdataset_roundtrip(self, tmp_path) -> None:
+        samples = [{"id": i, "name": str(i)} for i in range(3)]
+        result = export_dataset(iter(samples), str(tmp_path / "out"), format="webdataset", encoder_fn=None)
+        assert result["total_processed"] == 3
+        reloaded = list(WebDatasetBackend.from_path(tmp_path / "out", data_processor=json_decoder))
+        assert {s["id"] for s in reloaded} == {0, 1, 2}
+
+    def test_unsupported_format_raises(self, tmp_path) -> None:
+        with pytest.raises(ValueError, match="Unsupported format"):
+            export_dataset(iter([]), str(tmp_path / "out"), format="csv")

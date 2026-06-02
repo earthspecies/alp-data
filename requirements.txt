@@ -36,6 +36,8 @@ cffi==2.0.0
     #   soundfile
 charset-normalizer==3.4.6
     # via requests
+colorama==0.4.6 ; sys_platform == 'win32'
+    # via tqdm
 cryptography==46.0.5
     # via google-auth
 decorator==5.2.1
@@ -246,6 +248,8 @@ standard-sunau==3.13.0 ; python_full_version >= '3.13'
     #   librosa
 threadpoolctl==3.6.0
     # via scikit-learn
+tqdm==4.67.3
+    # via esp-data
 typing-extensions==4.15.0
     # via
     #   aiosignal

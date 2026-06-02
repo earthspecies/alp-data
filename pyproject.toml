@@ -18,6 +18,7 @@ dependencies = [
     "s3fs>=2024.9.0",
     "semver",
     "soundfile>=0.13.1",
+    "tqdm>=4.67.3",
     "webdataset>=1.0.2",
 ]
 
