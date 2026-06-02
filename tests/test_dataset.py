@@ -1,5 +1,8 @@
 """Unit tests for the dataset module."""
 
+import io
+import json
+import tarfile
 from pathlib import Path
 from typing import Any, Dict, Literal
 
@@ -12,6 +15,7 @@ from esp_data import (
     Dataset,
     DatasetConfig,
     DatasetInfo,
+    GenericDataset,
     dataset_from_config,
     list_registered_datasets,
     print_registered_datasets,
@@ -303,3 +307,139 @@ def test_wrong_collection_from_config():
 
     with pytest.raises(ValueError, match="Invalid configuration format."):
         dataset_from_config("tests/samples/test_wrong_config.yml", key="config3")
+
+
+# ---------------------------------------------------------------------------
+# GenericDataset / Dataset.from_path / Dataset.save_to
+# ---------------------------------------------------------------------------
+
+_SAMPLE_ROWS = [{"id": i, "name": f"item_{i}"} for i in range(5)]
+
+
+def _make_parquet(tmp_path: Path) -> Path:
+    path = tmp_path / "data.parquet"
+    pd.DataFrame(_SAMPLE_ROWS).to_parquet(str(path), index=False)
+    return path
+
+
+def _make_csv(tmp_path: Path) -> Path:
+    path = tmp_path / "data.csv"
+    pd.DataFrame(_SAMPLE_ROWS).to_csv(str(path), index=False)
+    return path
+
+
+def _make_json(tmp_path: Path) -> Path:
+    path = tmp_path / "data.jsonl"
+    with open(path, "w") as f:
+        for row in _SAMPLE_ROWS:
+            f.write(json.dumps(row) + "\n")
+    return path
+
+
+def _make_webdataset_dir(tmp_path: Path) -> Path:
+    wds_dir = tmp_path / "wds"
+    wds_dir.mkdir()
+    tar_path = wds_dir / "shard_0000.tar"
+    with tarfile.open(tar_path, "w") as tar:
+        for row in _SAMPLE_ROWS:
+            key = f"sample_{row['id']:04d}"
+            data = json.dumps(row, indent=2).encode("utf-8")
+            info = tarfile.TarInfo(name=f"{key}.sample.json")
+            info.size = len(data)
+            tar.addfile(info, io.BytesIO(data))
+    return wds_dir
+
+def _make_config_yaml(tmp_path: Path, backend: str, streaming: bool) -> Path:
+    info = {
+        "name": "test_dataset",
+        "owner": "test_owner",
+        "split_paths": {"train": "data.parquet"},
+        "version": "1.0.0",
+        "description": "Test dataset",
+        "sources": ["test"],
+        "license": "CC0",
+    }
+    config = {
+        "info": info,
+        "backend": backend,
+        "streaming": streaming,
+    }
+    path = tmp_path / "config.yaml"
+    with open(path, "w") as f:
+        yaml.dump(config, f)
+    return path
+
+
+def test_from_path_parquet(tmp_path):
+    """Dataset.from_path loads parquet and returns GenericDataset."""
+    _make_parquet(tmp_path)
+    _make_config_yaml(tmp_path, backend="polars", streaming=False)
+    ds = Dataset.from_path(tmp_path)
+    assert isinstance(ds, GenericDataset)
+    assert len(ds) == 5
+    rows = list(ds)
+    assert {r["id"] for r in rows} == {0, 1, 2, 3, 4}
+
+
+def test_from_path_csv(tmp_path):
+    """Dataset.from_path loads CSV and returns GenericDataset."""
+    _make_csv(tmp_path)
+    _make_config_yaml(tmp_path, backend="polars", streaming=False)
+
+    ds = Dataset.from_path(tmp_path)
+    assert isinstance(ds, GenericDataset)
+    assert len(ds) == 5
+
+
+def test_from_path_jsonl(tmp_path):
+    """Dataset.from_path loads JSON lines and returns GenericDataset."""
+    _make_json(tmp_path)
+    _make_config_yaml(tmp_path, backend="polars", streaming=False)
+    ds = Dataset.from_path(tmp_path)
+    assert isinstance(ds, GenericDataset)
+    assert len(ds) == 5
+
+
+def test_from_path_webdataset(tmp_path):
+    """Dataset.from_path loads webdataset directory and returns GenericDataset."""
+    from esp_data.backends.webdataset_utils import json_decoder
+
+    wds_dir = _make_webdataset_dir(tmp_path)
+    _make_config_yaml(wds_dir, backend="webdataset", streaming=True)
+    ds = Dataset.from_path(str(wds_dir), data_processor=json_decoder)
+    assert isinstance(ds, GenericDataset)
+    rows = [row for row in ds]
+    assert len(rows) == 5
+    assert {r["id"] for r in rows} == {0, 1, 2, 3, 4}
+
+
+def test_from_path_webdataset_no_len(tmp_path):
+    """GenericDataset wrapping webdataset raises on __len__ and __getitem__."""
+    from esp_data.backends.webdataset_utils import json_decoder
+
+    wds_dir = _make_webdataset_dir(tmp_path)
+    _make_config_yaml(wds_dir, backend="webdataset", streaming=True)
+    ds = Dataset.from_path(str(wds_dir), data_processor=json_decoder)
+    with pytest.raises(NotImplementedError):
+        len(ds)
+    with pytest.raises(RuntimeError):
+        ds[0]
+
+
+def test_from_path_reads_config_yaml(tmp_path):
+    """Dataset.from_path populates info from config.yaml if present."""
+    _make_parquet(tmp_path)
+    _make_config_yaml(tmp_path, backend="polars", streaming=False)
+    ds = Dataset.from_path(str(tmp_path))
+    assert ds.info.name == "test_dataset"
+    assert ds.info.version == "1.0.0"
+
+
+def test_dataset_save_to_no_data_raises(tmp_path):
+    """Dataset.save_to raises RuntimeError when _data is None."""
+    _make_parquet(tmp_path)
+    _make_config_yaml(tmp_path, backend="polars", streaming=False)
+    ds = Dataset.from_path(str(tmp_path))
+    ds._data = None
+    with pytest.raises(RuntimeError, match="No data loaded"):
+        ds.save_to(str(tmp_path / "out"))

@@ -6,6 +6,7 @@ from .dataset import (
     Dataset,
     DatasetConfig,
     DatasetInfo,
+    GenericDatasetConfig,
     dataset_class_from_name,
     dataset_from_config,
     list_registered_datasets,
@@ -48,6 +49,8 @@ from .datasets import (
     XenoCantoAnnotatedJeantet23,
     ZebraFinchJulieElie,
 )
+from .exporters import export_dataset
+from .generic_dataset import GenericDataset
 
 __all__ = [
     "dataset_from_config",
@@ -56,6 +59,7 @@ __all__ = [
     "DatasetConfig",
     "ConcatConfig",
     "ChainedDatasetConfig",
+    "GenericDatasetConfig",
     "list_registered_datasets",
     "print_registered_datasets",
     "dataset_class_from_name",
@@ -64,6 +68,7 @@ __all__ = [
     "dataset_class_from_name",
     "ConcatenatedDataset",
     "ChainedDataset",
+    "export_dataset",
     "AnimalSoundArchive",
     "AnimalSpeak",
     "GiantOtters",
@@ -100,6 +105,5 @@ __all__ = [
     "DCLDE2026",
     "DinardoDolphinWhistles",
     "GibbonSolos",
-    "export_dataset",
+    "GenericDataset",
 ]
-from .exporters import export_dataset
