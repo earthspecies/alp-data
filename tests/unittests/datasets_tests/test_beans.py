@@ -3,10 +3,10 @@
 import pytest
 import numpy as np
 
-from esp_data.datasets import Beans
-from esp_data import Dataset, DatasetConfig
-from esp_data.io import exists
-from esp_data.utils import create_hash
+from alp_data.datasets import Beans
+from alp_data import Dataset, DatasetConfig
+from alp_data.io import exists
+from alp_data.utils import create_hash
 
 EXPECTED_FIRST_VAL_ITEM_AUDIO_SHA256 = "595ba74365124bc8872c828c46c2449572b91bd4c3e84288322e5f45e77dd340"
 EXPECTED_VAL_ANNOTATIONS_SHA256 = "ff988a4b930682c25d928d5a6b71748d2d7f18c37fadb9b1df498ce9f875ea59"

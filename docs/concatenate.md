@@ -1,4 +1,4 @@
-# `esp_data.concat` Module
+# `alp_data.concat` Module
 
 ## Combining Datasets: Concatenation vs Chaining
 
@@ -49,8 +49,8 @@ Datasets can be concatenated using the `ConcatenatedDataset` class with differen
 ### Basic Usage
 
 ```python
-from esp_data.datasets import AnimalSpeak, BarkleyCanyon
-from esp_data.concat import ConcatanatedDataset
+from alp_data.datasets import AnimalSpeak, BarkleyCanyon
+from alp_data.concat import ConcatanatedDataset
 
 # Load individual datasets
 dataset1 = AnimalSpeak(split="validation")
@@ -104,7 +104,7 @@ Here, we're concatenating two splits of the `beans` dataset and applying some tr
 The `concat` keyword is a *SPECIAL* keyword, which tells the `dataset_from_config` function to create a `ConcatenatedDataset` instead of a regular dataset. Here's the python code for loading this config:
 
 ```python
-from esp_data import dataset_from_config
+from alp_data import dataset_from_config
 combined_dataset = dataset_from_config("path/to/concat_config.yaml")
 ```
 
@@ -113,9 +113,9 @@ combined_dataset = dataset_from_config("path/to/concat_config.yaml")
 You can apply transformations to the individual datasets *before* concatenation as shown in [transforms.md](transforms.md). This allows you to treat the data as needed, but you can also apply transformations *after* concatenation if you want to operate on the combined dataset as a whole. Here is an example of applying a filter transformation *after* concatenation:
 
 ```python
-from esp_data.datasets import AnimalSpeak, BarkleyCanyon
-from esp_data.transforms import FilterConfig
-from esp_data.concat import ConcatenatedDataset
+from alp_data.datasets import AnimalSpeak, BarkleyCanyon
+from alp_data.transforms import FilterConfig
+from alp_data.concat import ConcatenatedDataset
 
 # Load individual datasets
 dataset1 = AnimalSpeak(split="validation")
@@ -282,7 +282,7 @@ except MergeException as e:
 The `output_take_and_give` mappings are merged and validated:
 
 ```python
-from esp_data.datasets import AnimalSpeak
+from alp_data.datasets import AnimalSpeak
 
 # Create datasets with compatible column mappings
 # i.e., either completely different mappings valid to each dataset individually,
@@ -360,12 +360,12 @@ check_compatibility([dataset1, dataset2])
 
 ## Function Reference
 
-::: esp_data.concat.ConcatenatedDataset
+::: alp_data.concat.ConcatenatedDataset
     handler: python
     options:
         show_source: true
 
-::: esp_data.concat.MergeException
+::: alp_data.concat.MergeException
     handler: python
     options:
         show_source: true

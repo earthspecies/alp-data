@@ -8,7 +8,7 @@
 - Make sure that only objects that are needed outside a module are exposed in the `__init__.py`. Tests don't count as external usage; they should import directly from the submodule if something isn't in `__init__.py`.
 
 # Key Directories
-- `esp_data` - main python library
+- `alp_data` - main python library
 
 # Environment Setup
 - Make sure you use `uv run` for running python commands

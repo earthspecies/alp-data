@@ -15,13 +15,13 @@ import pandas as pd
 import pytest
 import hashlib
 
-from esp_data.datasets import ArcticBirdSounds
+from alp_data.datasets import ArcticBirdSounds
 
 
 # # --- Dataset snapshot ---
 
 # # Code to generate snapshot:
-# from esp_data.datasets import ArcticBirdSounds
+# from alp_data.datasets import ArcticBirdSounds
 # ds = ArcticBirdSounds(split="all", sample_rate=16000, backend="pandas")
 
 # print("len(ds) =", len(ds))

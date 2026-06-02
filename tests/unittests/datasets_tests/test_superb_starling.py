@@ -16,7 +16,7 @@ import pytest
 import hashlib
 
 # from superb_starling_dataset import SuperbStarling
-from esp_data.datasets.superb_starling import SuperbStarling
+from alp_data.datasets.superb_starling import SuperbStarling
 
 # Sara generated hashes locally in slurm /home dir on Nov 24 2025
 # use the code scripts/generate_hashes.py

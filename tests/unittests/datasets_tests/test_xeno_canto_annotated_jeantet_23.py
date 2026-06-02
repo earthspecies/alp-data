@@ -14,8 +14,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from esp_data.datasets import XenoCantoAnnotatedJeantet23
-from esp_data.utils import create_hash
+from alp_data.datasets import XenoCantoAnnotatedJeantet23
+from alp_data.utils import create_hash
 
 
 EXPECTED_LEN_ALL = 967  #

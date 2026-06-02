@@ -17,7 +17,7 @@ resolution-markers = [
 ]
 
 [options]
-exclude-newer = "2026-04-30T20:29:30.398784Z"
+exclude-newer = "2026-05-26T12:20:15.599793Z"
 exclude-newer-span = "P7D"
 
 [options.exclude-newer-package]
@@ -172,6 +172,80 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/61/62/06741b579156360248d1ec624842ad0edf697050bbaf7c3e46394e106ad1/aiosignal-1.4.0.tar.gz", hash = "sha256:f47eecd9468083c2029cc99945502cb7708b082c232f9aca65da147157b251c7", size = 25007, upload-time = "2025-07-03T22:54:43.528Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/fb/76/641ae371508676492379f16e2fa48f4e2c11741bd63c48be4b12a6b09cba/aiosignal-1.4.0-py3-none-any.whl", hash = "sha256:053243f8b92b990551949e63930a839ff0cf0b0ebbe0597b0f3fb19e1a0fe82e", size = 7490, upload-time = "2025-07-03T22:54:42.156Z" },
+]
+
+[[package]]
+name = "alp-data"
+version = "1.9.0"
+source = { editable = "." }
+dependencies = [
+    { name = "gcsfs" },
+    { name = "google-cloud-secret-manager" },
+    { name = "google-cloud-storage" },
+    { name = "intervaltree" },
+    { name = "librosa" },
+    { name = "pandas" },
+    { name = "polars", extra = ["pyarrow"] },
+    { name = "pydantic" },
+    { name = "pyyaml" },
+    { name = "resampy" },
+    { name = "s3fs" },
+    { name = "semver" },
+    { name = "soundfile" },
+]
+
+[package.dev-dependencies]
+benchmark = [
+    { name = "matplotlib" },
+    { name = "memory-profiler" },
+    { name = "torch", version = "2.11.0", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "sys_platform == 'darwin'" },
+    { name = "torch", version = "2.11.0+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "sys_platform != 'darwin' and sys_platform != 'linux'" },
+    { name = "torch", version = "2.11.0+cu128", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "sys_platform == 'linux'" },
+]
+dev = [
+    { name = "deptry" },
+    { name = "mike" },
+    { name = "mkdocs" },
+    { name = "mkdocs-material" },
+    { name = "mkdocstrings-python" },
+    { name = "prek" },
+    { name = "pytest" },
+    { name = "ruff" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "gcsfs", specifier = ">=2024.9.0.post1" },
+    { name = "google-cloud-secret-manager", specifier = ">=2.23.1" },
+    { name = "google-cloud-storage", specifier = ">=2.19.0" },
+    { name = "intervaltree", specifier = ">=3.1.0" },
+    { name = "librosa", specifier = ">=0.11.0" },
+    { name = "pandas" },
+    { name = "polars", extras = ["pyarrow"], specifier = ">=1.33.1" },
+    { name = "pydantic", specifier = ">=2" },
+    { name = "pyyaml", specifier = ">=6.0.2" },
+    { name = "resampy" },
+    { name = "s3fs", specifier = ">=2024.9.0" },
+    { name = "semver" },
+    { name = "soundfile", specifier = ">=0.13.1" },
+]
+
+[package.metadata.requires-dev]
+benchmark = [
+    { name = "matplotlib", specifier = ">=3.10.7" },
+    { name = "memory-profiler", specifier = ">=0.61.0" },
+    { name = "torch", marker = "sys_platform != 'linux'", specifier = ">=2.9.1", index = "https://download.pytorch.org/whl/cpu" },
+    { name = "torch", marker = "sys_platform == 'linux'", specifier = ">=2.9.1", index = "https://download.pytorch.org/whl/cu128" },
+]
+dev = [
+    { name = "deptry", specifier = ">=0.23.0" },
+    { name = "mike", specifier = ">=2.1.3" },
+    { name = "mkdocs", specifier = ">=1.6.1" },
+    { name = "mkdocs-material", specifier = ">=9.6.11" },
+    { name = "mkdocstrings-python", specifier = ">=1.16.10" },
+    { name = "prek", specifier = ">=0.2.28" },
+    { name = "pytest", specifier = ">=7.1.2" },
+    { name = "ruff", specifier = ">=0.15.10" },
 ]
 
 [[package]]
@@ -719,80 +793,6 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/a3/8c/e079c44ed98464930e83ca54ea5d40fec522d234e8428e06a1be7f6c7a9a/deptry-0.25.1-pp311-pypy311_pp73-musllinux_1_1_aarch64.whl", hash = "sha256:e6f7b8fa72932e51e86799b10dcd29381b2132dc799c790dca3b28ab08dffb28", size = 2049576, upload-time = "2026-03-18T23:22:12.797Z" },
     { url = "https://files.pythonhosted.org/packages/4d/f2/6a89ad9e5e8e9d37def57a28020d6d7fbcf900b2e5f4dfbbace349cdca91/deptry-0.25.1-pp311-pypy311_pp73-musllinux_1_1_x86_64.whl", hash = "sha256:e3fa3321078e11cd1ac3f10ce3ff0547731c53f9253b87c757a8749c76fe8fa9", size = 2144676, upload-time = "2026-03-18T23:22:26.319Z" },
     { url = "https://files.pythonhosted.org/packages/04/9a/b3358690a1a47381d995c3d3587798ab2cd086baf4b839e35183599aa2e1/deptry-0.25.1-pp311-pypy311_pp73-win_amd64.whl", hash = "sha256:03c032c32492fde434736954fbcaff09c02bf207b0f793b77e9040300e34b344", size = 1715518, upload-time = "2026-03-18T23:22:20.486Z" },
-]
-
-[[package]]
-name = "esp-data"
-version = "1.9.0"
-source = { editable = "." }
-dependencies = [
-    { name = "gcsfs" },
-    { name = "google-cloud-secret-manager" },
-    { name = "google-cloud-storage" },
-    { name = "intervaltree" },
-    { name = "librosa" },
-    { name = "pandas" },
-    { name = "polars", extra = ["pyarrow"] },
-    { name = "pydantic" },
-    { name = "pyyaml" },
-    { name = "resampy" },
-    { name = "s3fs" },
-    { name = "semver" },
-    { name = "soundfile" },
-]
-
-[package.dev-dependencies]
-benchmark = [
-    { name = "matplotlib" },
-    { name = "memory-profiler" },
-    { name = "torch", version = "2.11.0", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "sys_platform == 'darwin'" },
-    { name = "torch", version = "2.11.0+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "sys_platform != 'darwin' and sys_platform != 'linux'" },
-    { name = "torch", version = "2.11.0+cu128", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "sys_platform == 'linux'" },
-]
-dev = [
-    { name = "deptry" },
-    { name = "mike" },
-    { name = "mkdocs" },
-    { name = "mkdocs-material" },
-    { name = "mkdocstrings-python" },
-    { name = "prek" },
-    { name = "pytest" },
-    { name = "ruff" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "gcsfs", specifier = ">=2024.9.0.post1" },
-    { name = "google-cloud-secret-manager", specifier = ">=2.23.1" },
-    { name = "google-cloud-storage", specifier = ">=2.19.0" },
-    { name = "intervaltree", specifier = ">=3.1.0" },
-    { name = "librosa", specifier = ">=0.11.0" },
-    { name = "pandas" },
-    { name = "polars", extras = ["pyarrow"], specifier = ">=1.33.1" },
-    { name = "pydantic", specifier = ">=2" },
-    { name = "pyyaml", specifier = ">=6.0.2" },
-    { name = "resampy" },
-    { name = "s3fs", specifier = ">=2024.9.0" },
-    { name = "semver" },
-    { name = "soundfile", specifier = ">=0.13.1" },
-]
-
-[package.metadata.requires-dev]
-benchmark = [
-    { name = "matplotlib", specifier = ">=3.10.7" },
-    { name = "memory-profiler", specifier = ">=0.61.0" },
-    { name = "torch", marker = "sys_platform != 'linux'", specifier = ">=2.9.1", index = "https://download.pytorch.org/whl/cpu" },
-    { name = "torch", marker = "sys_platform == 'linux'", specifier = ">=2.9.1", index = "https://download.pytorch.org/whl/cu128" },
-]
-dev = [
-    { name = "deptry", specifier = ">=0.23.0" },
-    { name = "mike", specifier = ">=2.1.3" },
-    { name = "mkdocs", specifier = ">=1.6.1" },
-    { name = "mkdocs-material", specifier = ">=9.6.11" },
-    { name = "mkdocstrings-python", specifier = ">=1.16.10" },
-    { name = "prek", specifier = ">=0.2.28" },
-    { name = "pytest", specifier = ">=7.1.2" },
-    { name = "ruff", specifier = ">=0.15.10" },
 ]
 
 [[package]]

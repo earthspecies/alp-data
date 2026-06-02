@@ -1,8 +1,8 @@
 # Getting Started
 
-## What is esp-data?
+## What is alp-data?
 
-`esp-data` is a Python package that helps with all data-related tasks at ESP. It aims to make working with datasets easier, regardless of where they are stored and in which format.
+`alp-data` is a Python package that helps with all data-related tasks at ESP. It aims to make working with datasets easier, regardless of where they are stored and in which format.
 
 Key features:
 - Unified dataset interface: Access datasets stored locally, on cloud storage (e.g., Google Cloud Storage), or in various formats (e.g., CSV, JSON, Parquet) through a consistent API.
@@ -14,7 +14,7 @@ Key features:
 
 ## Getting started
 ```python
-from esp_data import Beans
+from alp_data import Beans
 
 # Load 'train' split of BEANS dataset at 16kHz sample rate
 # Resampling is done on the fly with librosa.resample
@@ -44,14 +44,14 @@ Check out the datasets documentation for more details [here](./datasets.md).
 
 ## Installation
 ```sh
-git clone https://github.com/earthspecies/esp-data.git
-cd esp-data
+git clone https://github.com/earthspecies/alp-data.git
+cd alp-data
 pip install -e .  # or uv sync
 ```
 
 ### EarthSpeciesProject Internal: Installation via pip / uv
 
-`esp-data` is currently a private package, hosted on ESP's internal Python package repository. Because it isn't available on the public PyPI index, you'll need to configure your project to use ESP's private package index in order to install and update `esp-data`:
+`alp-data` is currently a private package, hosted on ESP's internal Python package repository. Because it isn't available on the public PyPI index, you'll need to configure your project to use ESP's private package index in order to install and update `alp-data`:
 
 ### 1. Install `keyring` (one-time setup)
 
@@ -70,7 +70,7 @@ uv tool install keyring --with keyrings.google-artifactregistry-auth
 !!! tip
     `uv tool` allows you to install Python packages that provide command-line interfaces for system-wide use. The dependencies are installed in an isolated virtual environment, separate from your current project.
 
-### 2. Set up Google Cloud to access `esp-data` package
+### 2. Set up Google Cloud to access `alp-data` package
 
 This step is required if you haven't set up Google Cloud on your device yet. If Google Cloud isn't properly set up the following steps will fail.
 
@@ -129,18 +129,18 @@ url = "https://oauth2accesstoken@us-central1-python.pkg.dev/okapi-274503/esp-pyp
 explicit = true
 
 [tool.uv.sources]
-esp-data = { index = "esp-pypi" }
+alp-data = { index = "esp-pypi" }
 
 [tool.uv]
 keyring-provider = "subprocess"
 ```
 
-### 4. Add `esp-data` as a dependency
+### 4. Add `alp-data` as a dependency
 
-You can now add `esp-data` to your project by running:
+You can now add `alp-data` to your project by running:
 
 ```sh
-uv add esp-data
+uv add alp-data
 ```
 
 Alternatively, you can manually update the `dependencies` section of your `pyproject.toml` and then run:

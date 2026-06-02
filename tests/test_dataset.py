@@ -7,8 +7,8 @@ from typing import Any, Dict, Optional, Literal
 import pandas as pd
 from pydantic import BaseModel
 
-from esp_data.io import anypath, AnyPathT
-from esp_data import (
+from alp_data.io import anypath, AnyPathT
+from alp_data import (
     Dataset,
     DatasetConfig,
     DatasetInfo,
@@ -18,8 +18,8 @@ from esp_data import (
     list_registered_datasets,
     print_registered_datasets
 )
-from esp_data.transforms import register_transform, transform_from_config
-from esp_data.backends import PandasBackend
+from alp_data.transforms import register_transform, transform_from_config
+from alp_data.backends import PandasBackend
 
 
 def test_register_dataset():

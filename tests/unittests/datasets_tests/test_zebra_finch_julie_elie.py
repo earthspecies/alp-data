@@ -2,9 +2,9 @@
 
 import pytest
 
-from esp_data.datasets import ZebraFinchJulieElie
-from esp_data import Dataset, DatasetConfig
-from esp_data.io import anypath, exists
+from alp_data.datasets import ZebraFinchJulieElie
+from alp_data import Dataset, DatasetConfig
+from alp_data.io import anypath, exists
 
 
 @pytest.fixture
@@ -245,10 +245,10 @@ def test_string_representation(dataset: Dataset) -> None:
 def test_class_registration() -> None:
     """Test that the dataset class is properly registered."""
     # Test that we can import the class
-    from esp_data.datasets import ZebraFinchJulieElie
+    from alp_data.datasets import ZebraFinchJulieElie
 
     # Test that it's in the __all__ list
-    import esp_data.datasets as datasets
+    import alp_data.datasets as datasets
     assert "ZebraFinchJulieElie" in datasets.__all__
 
     # Test that the class has the correct decorator

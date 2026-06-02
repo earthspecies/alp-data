@@ -15,8 +15,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from esp_data.datasets import AnuraSetStrong
-from esp_data.utils import create_hash
+from alp_data.datasets import AnuraSetStrong
+from alp_data.utils import create_hash
 
 EXPECTED_LEN_ALL = 1612  #
 EXPECTED_FIRST_ITEM_AUDIO_SHA256 = (

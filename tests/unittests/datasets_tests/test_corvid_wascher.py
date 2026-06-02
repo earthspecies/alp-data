@@ -15,7 +15,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from esp_data.datasets import CorvidWascher
+from alp_data.datasets import CorvidWascher
 
 
 # # --- Dataset snapshot ---

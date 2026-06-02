@@ -15,14 +15,14 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from esp_data.datasets import HawaiianBirds
+from alp_data.datasets import HawaiianBirds
 
 
 # # --- Dataset snapshot ---
 
 # # Code to generate snapshot:
 # import hashlib
-# from esp_data.datasets import HawaiianBirds
+# from alp_data.datasets import HawaiianBirds
 # ds = HawaiianBirds(split="all", sample_rate=16000, backend="pandas")
 
 # print("len(ds) =", len(ds))

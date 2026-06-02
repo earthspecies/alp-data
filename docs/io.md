@@ -1,4 +1,4 @@
-# `esp_data.io` module
+# `alp_data.io` module
 
 ## What does it do?
 
@@ -10,7 +10,7 @@ The `io` module provides a set of functions for reading and writing data to and 
 
 You can use this module to:
 
-1. [Path manipulation with `anypath`](#esp_dataioanypath) - join paths, get path components, change extensions, etc.
+1. [Path manipulation with `anypath`](#alp_dataioanypath) - join paths, get path components, change extensions, etc.
 2. [Download and upload files (and folders)](#download-and-upload-files-with-filesystem) to and from cloud storage locations
 3. [List the contents](#filesystem-folder-operations) of buckets
 4. [Delete files](#delete-files) with filesystem operations
@@ -21,8 +21,8 @@ You can use this module to:
 
 There are two interfaces available:
 
--   `esp_data.io.anypath` a [path-like interface](#esp_dataioanypath), if you're familiar with `pathlib` you can use this interface for path manipulation operations, like joining paths, listing path parts, path parents etc. **Note**: For cloud paths (gs://, s3://), this interface provides path manipulation only, not file I/O. For local paths, it returns `pathlib.Path` which supports full file I/O operations.
--   `esp_data.io.filesystem` a [filesystem type interface](#filesystem-approach-with-esp_dataiofilesystem) this is the interface to use for reading and writing files on cloud storage, copying files between cloud and local locations, listing files in buckets etc.
+-   `alp_data.io.anypath` a [path-like interface](#alp_dataioanypath), if you're familiar with `pathlib` you can use this interface for path manipulation operations, like joining paths, listing path parts, path parents etc. **Note**: For cloud paths (gs://, s3://), this interface provides path manipulation only, not file I/O. For local paths, it returns `pathlib.Path` which supports full file I/O operations.
+-   `alp_data.io.filesystem` a [filesystem type interface](#filesystem-approach-with-alp_dataiofilesystem) this is the interface to use for reading and writing files on cloud storage, copying files between cloud and local locations, listing files in buckets etc.
 
 ## Why two interfaces?
 The `anypath` factory function is user-friendly and returns the appropriate path type:
@@ -35,12 +35,12 @@ The `filesystem` interface is required for cloud file operations:
 -   When you need to perform a search (a glob) operation for files in cloud storage. See [folder operations](#filesystem-folder-operations) for more details.
 -   When you need to check if a cloud file exists, delete cloud files, or read/write cloud file contents.
 
-## `esp_data.io.anypath`
+## `alp_data.io.anypath`
 
 Let's start by exploring the `anypath` function for path manipulation.
 
 ```python
-from esp_data.io import anypath
+from alp_data.io import anypath
 ```
 
 ```python
@@ -77,7 +77,7 @@ json_path.unlink()
 Cloud files are identified by their prefix: "gs://" for Google Cloud and "r2://" or "s3://" for Cloudflare
 
 ```python
-from esp_data.io import PureGSPath
+from alp_data.io import PureGSPath
 gs_path = anypath("gs://some-bucket/some-file")
 isinstance(gs_path, PureGSPath)
 # Output: True
@@ -95,13 +95,13 @@ isinstance(gs_path, PureGSPath)
     gs_path.is_dir()  # AttributeError: no 'is_dir' method
     ```
 
-    For file operations on cloud paths, use the [`filesystem` interface](#filesystem-approach-with-esp_dataiofilesystem) or standalone utility functions like `esp_data.io.exists()` and `esp_data.io.rm()`.
+    For file operations on cloud paths, use the [`filesystem` interface](#filesystem-approach-with-alp_dataiofilesystem) or standalone utility functions like `alp_data.io.exists()` and `alp_data.io.rm()`.
 
 !!! remark
     **Note**: Cloudflare paths use the "r2://" prefix which gets converted to "s3://" internally because Cloudflare R2 uses the S3 API. The returned objects are `PureR2Path` (or `PureS3Path`) instances.
 
 ```python
-from esp_data.io import PureR2Path
+from alp_data.io import PureR2Path
 r2_path = anypath("r2://some-bucket/some-file")
 isinstance(r2_path, PureR2Path)
 # Output: True
@@ -109,7 +109,7 @@ print(r2_path)
 # Output: s3://some-bucket/some-file
 ```
 
-[Back to Top](#esp_dataio-module)
+[Back to Top](#alp_dataio-module)
 
 ### Path manipulation methods
 
@@ -250,7 +250,7 @@ print(path.is_absolute())
 # Output: True
 ```
 
-[Back to Top](#esp_dataio-module)
+[Back to Top](#alp_dataio-module)
 
 ### Summary: anypath behavior
 
@@ -264,22 +264,22 @@ print(path.is_absolute())
     | `.bucket` property | N/A | ✅ Yes |
 
     **For cloud file operations**, use:
-    - The [`filesystem` interface](#filesystem-approach-with-esp_dataiofilesystem) for most operations
-    - `esp_data.io.exists(path)` to check if a file exists
-    - `esp_data.io.rm(path)` to delete a file
-    - `esp_data.io.read_audio(path)` to read audio files
+    - The [`filesystem` interface](#filesystem-approach-with-alp_dataiofilesystem) for most operations
+    - `alp_data.io.exists(path)` to check if a file exists
+    - `alp_data.io.rm(path)` to delete a file
+    - `alp_data.io.read_audio(path)` to read audio files
 
 !!! note
     Cloud storage systems like GCS and S3 don't have true "folders" like local filesystems. They use prefixes to simulate folder structures. When working with paths, remember that "gs://bucket/folder/file.txt" is really just a single object with a name that contains forward slashes.
 
-[Back to Top](#esp_dataio-module)
+[Back to Top](#alp_dataio-module)
 
-## Filesystem approach with `esp_data.io.filesystem`
+## Filesystem approach with `alp_data.io.filesystem`
 
 Let's now dive into the filesystem approach for file operations.
 
 ```python
-from esp_data.io import filesystem, filesystem_from_path
+from alp_data.io import filesystem, filesystem_from_path
 ```
 
 You can instantiate a filesystem for a local, Google Cloud or R2 bucket with `filesystem`
@@ -332,7 +332,7 @@ fs.exists("esp-ci-cd-tests/docstest")
 You can also use the standalone utility functions:
 
 ```python
-from esp_data.io import exists, rm
+from alp_data.io import exists, rm
 
 # check existence
 exists("gs://esp-ci-cd-tests/docstest")
@@ -341,7 +341,7 @@ exists("gs://esp-ci-cd-tests/docstest")
 rm("gs://esp-ci-cd-tests/docstest")
 ```
 
-[Back to Top](#esp_dataio-module)
+[Back to Top](#alp_dataio-module)
 
 ### Filesystem folder operations
 
@@ -360,7 +360,7 @@ Output:
 ...
 ```
 
-[Back to Top](#esp_dataio-module)
+[Back to Top](#alp_dataio-module)
 
 ### Download and upload files with `filesystem`
 
@@ -378,7 +378,7 @@ fs.put("foofoo.txt", "esp-ci-cd-tests/foo.txt")
 # Output: [None]
 ```
 
-[Back to Top](#esp_dataio-module)
+[Back to Top](#alp_dataio-module)
 
 ### Move files from one cloud location to another cloud location
 
@@ -401,12 +401,12 @@ fs.exists("esp-ci-cd-tests/foo3.txt")
 # Output: True
 ```
 
-[Back to Top](#esp_dataio-module)
+[Back to Top](#alp_dataio-module)
 
 ## Read audio from a remote file
 
 ```python
-from esp_data.io import read_audio
+from alp_data.io import read_audio
 
 audio, sample_rate = read_audio("gs://esp-ci-cd-tests/esp-data-tests/some_subfolder/nri-battlesounds.mp3")
 print(audio.shape, sample_rate)
@@ -416,11 +416,11 @@ print(audio.shape, sample_rate)
 ## Get info about an audio file before reading
 
 ```python
-from esp_data.io import get_audio_info
+from alp_data.io import get_audio_info
 
 info = get_audio_info("gs://esp-ci-cd-tests/esp-data-tests/some_subfolder/nri-battlesounds.mp3")
 print(info.keys())
 # dict_keys(['sr', 'duration', 'num_frames', 'num_channels', 'format', 'subtype'])
 ```
 
-[Back to Top](#esp_dataio-module)
+[Back to Top](#alp_dataio-module)

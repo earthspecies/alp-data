@@ -16,7 +16,7 @@ import pandas as pd
 import polars as pl
 import pytest
 
-from esp_data.datasets import AudioSetStrong
+from alp_data.datasets import AudioSetStrong
 
 EXPECTED_LEN_TRAIN = 8115
 EXPECTED_FIRST_ITEM_AUDIO_SHA256 = (

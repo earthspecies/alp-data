@@ -14,13 +14,13 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from esp_data.datasets.dclde2026 import (
+from alp_data.datasets.dclde2026 import (
     DCLDE2026,
     ECOTYPE_LABELS,
     PROVENANCE_COLUMNS,
     SPECIES_LABELS,
 )
-from esp_data.utils import create_hash
+from alp_data.utils import create_hash
 
 
 EXPECTED_LEN_ALL = 9883
@@ -232,7 +232,7 @@ def test_str_representation(ds_pandas: DCLDE2026) -> None:
 
 # if __name__ == "__main__":
 #     # Code to generate snapshot:
-#     from esp_data.datasets.dclde2026 import DCLDE2026
+#     from alp_data.datasets.dclde2026 import DCLDE2026
 #     ds = DCLDE2026(split="all", sample_rate=16000, backend="pandas")
 
 #     audio0 = ds[0]["audio"]

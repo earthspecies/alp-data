@@ -2,8 +2,8 @@ import pandas as pd
 import polars as pl
 import pytest
 
-from esp_data.transforms import MultiLabelFromFeatures
-from esp_data.backends import PandasBackend, PolarsBackend
+from alp_data.transforms import MultiLabelFromFeatures
+from alp_data.backends import PandasBackend, PolarsBackend
 
 
 @pytest.mark.parametrize(

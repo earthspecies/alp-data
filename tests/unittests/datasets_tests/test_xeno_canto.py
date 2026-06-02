@@ -2,8 +2,8 @@
 
 import pytest
 
-from esp_data.datasets import XenoCanto
-from esp_data import Dataset, DatasetConfig
+from alp_data.datasets import XenoCanto
+from alp_data import Dataset, DatasetConfig
 
 
 @pytest.fixture

@@ -35,7 +35,7 @@ What's new ? 🚀
 
 Cluster-first workflow (SLURM)
 ------------------------------
-This repository’s benchmark tooling is intended to be run on a cluster using the SLURM-compatible job wrappers in the `esp-data/jobs/` folder. The instructions below focus on submitting and monitoring those job scripts.
+This repository’s benchmark tooling is intended to be run on a cluster using the SLURM-compatible job wrappers in the `alp-data/jobs/` folder. The instructions below focus on submitting and monitoring those job scripts.
 
 Configurations
 --------------
@@ -86,7 +86,7 @@ sbatch jobs/benchmark_latency_default.sh --dataset beans
 sbatch jobs/benchmark_loading_time_default.sh --dataset beans
 ```
 ```
-# loading time over every available dataset in esp-data
+# loading time over every available dataset in alp-data
 sbatch jobs/multi_dataset_loading_time.sh
 ```
 
@@ -126,7 +126,7 @@ Collecting results and plots
 - Plots are written to `scripts/benchmarks/fig/` inside the job’s workspace; results are saved as CSV files to a GCS bucket.
 - To copy plots to your local machine via SSH:
 ```bash
-    scp -P 22 username@cluster:esp-data/scripts/benchmarks/fig/* ./your/target/directory/
+    scp -P 22 username@cluster:alp-data/scripts/benchmarks/fig/* ./your/target/directory/
 ```
 
 What you can do

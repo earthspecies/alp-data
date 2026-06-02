@@ -1,7 +1,7 @@
 """Convert iNaturalist .m4a originals to .wav and update split CSVs.
 
 The ``originals_path`` column in iNaturalist split CSVs contains some files
-encoded as ``.m4a``. ``esp_data.io.read_audio`` is backed by ``soundfile``
+encoded as ``.m4a``. ``alp_data.io.read_audio`` is backed by ``soundfile``
 (libsndfile) which cannot decode ``.m4a``, so these rows fail at load /
 migration time.
 
@@ -41,7 +41,7 @@ import polars as pl
 import soundfile as sf
 from tqdm import tqdm
 
-from esp_data.io import DATA_HOME, exists, filesystem_from_path
+from alp_data.io import DATA_HOME, exists, filesystem_from_path
 
 logging.basicConfig(
     level=logging.INFO,

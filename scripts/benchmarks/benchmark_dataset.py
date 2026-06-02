@@ -13,7 +13,7 @@ import click
 import torch
 import yaml
 
-from esp_data import Dataset, DatasetConfig, dataset_from_config
+from alp_data import Dataset, DatasetConfig, dataset_from_config
 
 logging.basicConfig(
     level=logging.INFO,

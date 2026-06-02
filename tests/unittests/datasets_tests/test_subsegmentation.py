@@ -15,14 +15,14 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from esp_data.datasets import Subsegmentation
+from alp_data.datasets import Subsegmentation
 
 
 # # --- Dataset snapshot ---
 
 # # Code to generate snapshot:
 # import hashlib
-# from esp_data.datasets import Subsegmentation
+# from alp_data.datasets import Subsegmentation
 # ds = Subsegmentation(split="all", sample_rate=16000)
 
 # print("len(ds) =", len(ds))

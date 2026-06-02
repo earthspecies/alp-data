@@ -14,8 +14,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from esp_data.datasets import NocturnalBirdMigration
-from esp_data.utils import create_hash
+from alp_data.datasets import NocturnalBirdMigration
+from alp_data.utils import create_hash
 
 
 EXPECTED_LEN_ALL = 271  #
@@ -181,7 +181,7 @@ def test_check_selection_table(ds: NocturnalBirdMigration, sample_indices: List[
 
 # if __name__ == "__main__":
 #     # Code to generate snapshot:
-#     from esp_data.datasets import NocturnalBirdMigration
+#     from alp_data.datasets import NocturnalBirdMigration
 #     ds = NocturnalBirdMigration(split="test", sample_rate=16000, backend="pandas")
 
 #     print("len(ds) =", len(ds))
