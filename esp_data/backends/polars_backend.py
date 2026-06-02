@@ -5,9 +5,12 @@ from __future__ import annotations
 import inspect
 import logging
 import warnings
+from functools import partial
 from typing import Any, Callable, Iterator, Literal
 
 import polars as pl
+
+from esp_data.io import anypath
 
 from .protocol import DataBackend
 
@@ -207,6 +210,48 @@ class PolarsBackend(DataBackend):
         else:
             df = pl.read_parquet(path, **filtered_kwargs)
             return cls(df, streaming=False)
+
+    @classmethod
+    def from_path(cls, path: str, *, streaming: bool = False, **kwargs: Any) -> "PolarsBackend":
+        """Load a tabular file, dispatching on extension.
+
+        Parameters
+        ----------
+        path : str
+            Path to a directory containing ``.parquet``, ``.csv``, ``.json``, ``.jsonl``,
+            or ``.ndjson`` file.
+        streaming : bool, optional
+            Whether to use streaming (LazyFrame) mode, by default False.
+        **kwargs : Any
+            Forwarded to the underlying reader.
+
+        Returns
+        -------
+        PolarsBackend
+            Backend instance wrapping the loaded data.
+
+        Raises
+        ------
+        ValueError
+            If the file extension is not supported.
+        """
+        dir_path = anypath(path)
+        for file in dir_path.iterdir():
+            if file.suffix.lower() in {".parquet", ".csv", ".json", ".jsonl", ".ndjson"}:
+                path = file
+                break
+        p = str(file).lower()
+        if p.endswith(".parquet"):
+            return cls.from_parquet(path, streaming=streaming, **kwargs)
+        if p.endswith(".csv"):
+            return cls.from_csv(path, streaming=streaming, **kwargs)
+        if p.endswith(".json") or p.endswith(".jsonl") or p.endswith(".ndjson"):
+            lines = p.endswith(".jsonl") or p.endswith(".ndjson")
+            return cls.from_json(path, lines=lines, streaming=streaming, **kwargs)
+        raise ValueError(
+            f"Unsupported file extension for PolarsBackend.from_path: {path!r}. "
+            "Supported: .parquet, .csv, .json, .jsonl, .ndjson"
+        )
 
     @property
     def is_streaming(self) -> bool:
@@ -1111,8 +1156,6 @@ class PolarsBackend(DataBackend):
         self._ensure_not_streaming("apply_fn")
 
         # use partial to bind fn_kwargs to fn
-        from functools import partial
-
         fn_partial = partial(fn, **fn_kwargs)
         df = self._ensure_collected()
         # Apply function row-wise and create new column
