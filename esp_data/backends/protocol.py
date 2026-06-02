@@ -5,7 +5,7 @@ It enables support for multiple data handling libraries (pandas, polars, etc.) t
 a common abstraction layer.
 
 Two protocols are defined:
-- StreamingBackend: For streaming-only data formats (e.g., WebDataset/tar files)
+- StreamingDataBackend: For streaming-only data formats (e.g., WebDataset/tar files)
   that only support iteration, not random access.
 - DataBackend: For in-memory data formats (e.g., pandas, polars DataFrames)
   that support both random access and iteration.
@@ -16,7 +16,7 @@ from __future__ import annotations
 from typing import Any, Callable, Iterator, Literal, Protocol, overload
 
 
-class StreamingBackend(Protocol):
+class StreamingDataBackend(Protocol):
     """Protocol defining the interface for streaming-only data backends.
 
     This protocol is designed for data formats that only support sequential
@@ -33,7 +33,7 @@ class StreamingBackend(Protocol):
     def is_streaming(self) -> bool:
         """Check if backend is in streaming mode.
 
-        For StreamingBackend implementations, this should always return True.
+        For StreamingDataBackend implementations, this should always return True.
 
         Returns
         -------
@@ -103,7 +103,7 @@ class StreamingBackend(Protocol):
         values: list[Any],
         *,
         negate: bool = False,
-    ) -> "StreamingBackend":
+    ) -> "StreamingDataBackend":
         """Filter samples where column values are in (or not in) a list.
 
         This filter is applied lazily during iteration.
@@ -119,7 +119,7 @@ class StreamingBackend(Protocol):
 
         Returns
         -------
-        StreamingBackend
+        StreamingDataBackend
             Self with filter configured (applied during iteration)
         """
         ...
@@ -127,7 +127,7 @@ class StreamingBackend(Protocol):
     def dropna(
         self,
         subset: list[str] | None = None,
-    ) -> "StreamingBackend":
+    ) -> "StreamingDataBackend":
         """Remove samples with missing values.
 
         This filter is applied lazily during iteration.
@@ -140,7 +140,7 @@ class StreamingBackend(Protocol):
 
         Returns
         -------
-        StreamingBackend
+        StreamingDataBackend
             Self with dropna configured (applied during iteration)
         """
         ...
@@ -152,7 +152,7 @@ class StreamingBackend(Protocol):
         output_column: str,
         *,
         default: Any | None = None,  # noqa ANN401
-    ) -> "StreamingBackend":
+    ) -> "StreamingDataBackend":
         """Create a new column by mapping values from an existing column.
 
         This transformation is applied lazily during iteration.
@@ -170,7 +170,7 @@ class StreamingBackend(Protocol):
 
         Returns
         -------
-        StreamingBackend
+        StreamingDataBackend
             Self with mapping configured (applied during iteration)
         """
         ...
@@ -178,7 +178,7 @@ class StreamingBackend(Protocol):
     def apply_fn(
         self,
         fn: Callable[[dict[str, Any]], dict[str, Any]],
-    ) -> "StreamingBackend":
+    ) -> "StreamingDataBackend":
         """Apply a custom function to each sample during iteration.
 
         Parameters
@@ -189,7 +189,7 @@ class StreamingBackend(Protocol):
 
         Returns
         -------
-        StreamingBackend
+        StreamingDataBackend
             Self with function configured (applied during iteration)
         """
         ...
