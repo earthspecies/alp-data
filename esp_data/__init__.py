@@ -100,4 +100,6 @@ __all__ = [
     "DCLDE2026",
     "DinardoDolphinWhistles",
     "GibbonSolos",
+    "export_dataset",
 ]
+from .exporters import export_dataset
