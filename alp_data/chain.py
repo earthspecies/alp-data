@@ -62,11 +62,11 @@ class ChainedDataset(Dataset):
         if len(streaming_modes) > 1:
             raise ChainException(
                 "All datasets must have the same streaming mode "
-                "to be concatenated into a ConcatenatedDataset."
+                "to be combined into a ChainedDataset."
             )
         _streaming = streaming_modes.pop()
 
-        # _backend_class doesn'gt matter here since we override all data access methods
+        # _backend_class doesn't matter here since we override all data access methods
         super().__init__(streaming=_streaming)
 
         self._source_datasets = datasets
@@ -145,19 +145,19 @@ class ChainedDataset(Dataset):
     def from_config(
         cls, chain_config: ChainedDatasetConfig
     ) -> tuple["ChainedDataset", dict[str, Any]]:
-        """Create a ConcatenatedDataset from a ConcatConfig object.
+        """Create a `ChainedDataset` from a `ChainedDatasetConfig` object.
 
         Parameters
         ----------
         chain_config : ChainedDatasetConfig
-            Configuration object specifying the datasets to concatenate
-            and how to merge them.
+            Configuration object specifying the datasets to chain together.
 
         Returns
         -------
         tuple[ChainedDataset, dict]
-            A tuple containing the ConcatenatedDataset instance
-            and metadata about transformations applied.
+            A tuple containing the `ChainedDataset` instance and a metadata
+            dict aggregating transform metadata from each source dataset,
+            keyed by `f"{dataset_name}_metadata"`.
         """
         datasets = []
         metadata = {}

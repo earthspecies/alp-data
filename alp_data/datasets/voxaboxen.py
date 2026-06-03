@@ -14,7 +14,7 @@ from pydantic import Field
 from alp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from alp_data.backends import BackendType
 from alp_data.dataset import register_config
-from alp_data.io import DATA_HOME, AnyPathT, anypath, audio_stereo_to_mono, read_audio, read_text
+from alp_data.io import DATA_HOME, AnyPathT, anypath, audio_stereo_to_mono, read_audio
 
 _FILES_ROOT = f"{DATA_HOME}/voxaboxen/files"
 _OZF_SYN_ROOT = f"{_FILES_ROOT}/OZF_synthetic"
@@ -326,9 +326,7 @@ class Voxaboxen(Dataset):
             )
 
         location = self.info.split_paths[self.split]
-        # Read CSV content
-        csv_text = read_text(location, encoding="utf-8")
-        self._data = self._backend_class.from_csv(StringIO(csv_text), streaming=self._streaming)
+        self._data = self._backend_class.from_csv(location, streaming=self._streaming)
 
     @classmethod
     def from_config(cls, dataset_config: VoxaboxenConfig) -> tuple["Voxaboxen", dict[str, Any]]:
@@ -759,9 +757,7 @@ class VoxaboxenEvents(Dataset):
             )
 
         location = self.info.split_paths[self.split]
-        # Read CSV content
-        csv_text = read_text(location, encoding="utf-8")
-        self._data = self._backend_class.from_csv(StringIO(csv_text), streaming=self._streaming)
+        self._data = self._backend_class.from_csv(location, streaming=self._streaming)
 
     @classmethod
     def from_config(cls, dataset_config: DatasetConfig) -> tuple["VoxaboxenEvents", dict[str, Any]]:
