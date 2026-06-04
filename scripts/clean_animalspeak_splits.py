@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from esp_data.io import DATA_HOME
+from alp_data.io import DATA_HOME
 
 _RAW_ROOT = f"{DATA_HOME}/animalspeak/v0.1.0/raw/16KHz"
 

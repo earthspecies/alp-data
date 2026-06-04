@@ -3,10 +3,10 @@
 import pytest
 import numpy as np
 
-from esp_data.datasets import AnimalSpeak
-from esp_data import Dataset, DatasetConfig
-from esp_data.io import exists
-from esp_data.utils import create_hash
+from alp_data.datasets import AnimalSpeak
+from alp_data import Dataset, DatasetConfig
+from alp_data.io import exists
+from alp_data.utils import create_hash
 
 
 VAL_EXPECTED_FIRST_ITEM_AUDIO_SHA256 = "28061661586286684f61a92f14bf66a7f5a207a48bd8ec0809b1b8e1924d7d99"
@@ -408,7 +408,7 @@ def test_train_reference_item_stability() -> None:
 
 # if __name__ == "__main__":
 #     # generate hash
-#     from esp_data.utils import create_hash
+#     from alp_data.utils import create_hash
 #     ds_train = AnimalSpeak(split="validation", sample_rate=16000, backend="pandas")
 
 #     # print("len(ds) =", len(ds))

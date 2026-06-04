@@ -1,5 +1,5 @@
 [project]
-name = "esp-data"
+name = "alp-data"
 version = "1.9.0"
 description = "Data tools for ESP projects"
 readme = "README.md"
@@ -68,14 +68,14 @@ url = "https://download.pytorch.org/whl/cu128"
 explicit = true
 
 [tool.hatch.build.targets.wheel]
-packages = ["esp_data"]
+packages = ["alp_data"]
 
 [tool.hatch.metadata]
 allow-direct-references = true
 
 [tool.pytest.ini_options]
 pythonpath = [
-  ".", "esp_data",
+  ".", "alp_data",
 ]
 python_files = [
     "test_*.py",
@@ -124,11 +124,6 @@ allow-star-arg-any = true # suppress ANN401 for *args and **kwargs arguments
 
 [tool.codespell]
 skip = "*.csv, *.ipynb"
-
-[[tool.uv.index]]
-name = "esp-pypi"
-url = "https://oauth2accesstoken@us-central1-python.pkg.dev/okapi-274503/esp-pypi/"
-publish-url = "https://oauth2accesstoken@us-central1-python.pkg.dev/okapi-274503/esp-pypi/"
 
 [tool.deptry]
 exclude = ["conftest.py", ".venv", "tests", "scripts", "docs/hooks/.*"]

@@ -18,7 +18,7 @@ import numpy as np
 import pandas as pd
 from taxonomy.gbif_converter import GBIFConverter
 
-from esp_data.io import anypath, audio_stereo_to_mono, read_audio
+from alp_data.io import anypath, audio_stereo_to_mono, read_audio
 
 converter = GBIFConverter()
 

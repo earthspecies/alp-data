@@ -34,7 +34,7 @@ jobs:
               run: uv run deptry .
 
             - name: Run Doctests
-              run: uv run pytest --doctest-modules esp_data
+              run: uv run pytest --doctest-modules alp_data
 
             - name: Run tests
               run: uv run pytest tests

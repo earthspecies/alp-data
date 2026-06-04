@@ -14,8 +14,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from esp_data.datasets import WABAD
-from esp_data.utils import create_hash
+from alp_data.datasets import WABAD
+from alp_data.utils import create_hash
 
 
 EXPECTED_LEN_ALL = 4297  #
@@ -206,7 +206,7 @@ def test_check_selection_table(ds: WABAD, sample_indices: List[int]):
 
 if __name__ == "__main__":
     # Code to generate snapshot for WABAD:
-    from esp_data.datasets import WABAD
+    from alp_data.datasets import WABAD
     ds = WABAD(split="all", sample_rate=16000, backend="pandas")
 
     print("len(ds) =", len(ds))

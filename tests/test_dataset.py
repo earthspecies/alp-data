@@ -8,7 +8,7 @@ import pytest
 import yaml
 from pydantic import BaseModel
 
-from esp_data import (
+from alp_data import (
     Dataset,
     DatasetConfig,
     DatasetInfo,
@@ -18,9 +18,9 @@ from esp_data import (
     register_config,
     register_dataset,
 )
-from esp_data.backends import PandasBackend
-from esp_data.io import AnyPathT
-from esp_data.transforms import register_transform, transform_from_config
+from alp_data.backends import PandasBackend
+from alp_data.io import AnyPathT
+from alp_data.transforms import register_transform, transform_from_config
 
 
 def test_register_dataset():

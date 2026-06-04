@@ -2,9 +2,9 @@
 
 import pytest
 
-from esp_data.datasets import BengaleseFinchCalls
-from esp_data import Dataset, DatasetConfig
-from esp_data.io import exists
+from alp_data.datasets import BengaleseFinchCalls
+from alp_data import Dataset, DatasetConfig
+from alp_data.io import exists
 
 
 @pytest.fixture
@@ -184,9 +184,9 @@ def test_string_representation(dataset: Dataset) -> None:
 
 
 def test_class_registration() -> None:
-    from esp_data.datasets import BengaleseFinchCalls as _Cls  # noqa: N811
+    from alp_data.datasets import BengaleseFinchCalls as _Cls  # noqa: N811
 
-    import esp_data.datasets as datasets
+    import alp_data.datasets as datasets
 
     assert "BengaleseFinchCalls" in datasets.__all__
     assert hasattr(_Cls, "info")

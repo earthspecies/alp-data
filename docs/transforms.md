@@ -1,4 +1,4 @@
-# `esp_data.transforms` module
+# `alp_data.transforms` module
 
 ## What are Transforms?
 
@@ -20,7 +20,7 @@ Transforms can be used in two ways:
 
 1. Direct instantiation:
 ```python
-from esp_data.transforms import Filter
+from alp_data.transforms import Filter
 
 # Create a filter transform
 filter_transform = Filter(
@@ -35,7 +35,7 @@ transformed_data, metadata = filter_transform(data)
 
 2. Using configuration:
 ```python
-from esp_data.transforms import FilterConfig, transform_from_config
+from alp_data.transforms import FilterConfig, transform_from_config
 
 # Create a configuration
 config = FilterConfig(
@@ -91,7 +91,7 @@ class MyTransform:
 
 3. Register your transform:
 ```python
-from esp_data.transforms import register_transform
+from alp_data.transforms import register_transform
 
 register_transform(MyTransformConfig, MyTransform)
 ```
@@ -104,7 +104,7 @@ The module provides several built-in transforms to handle common data transforma
 ### Filter Transform
 The `Filter` transform allows you to selectively include or exclude rows from your dataset based on specific property values.
 
-::: esp_data.transforms.Filter
+::: alp_data.transforms.Filter
     handler: python
     options:
         show_root_heading: true
@@ -113,7 +113,7 @@ The `Filter` transform allows you to selectively include or exclude rows from yo
 ### LabelFromFeature Transform
 The `LabelFromFeature` transform converts categorical features into numerical labels. Example use case: Converting a 'species' column with values like 'dog', 'cat', 'bird' into numerical labels 0, 1, 2.
 
-::: esp_data.transforms.LabelFromFeature
+::: alp_data.transforms.LabelFromFeature
     handler: python
     options:
         show_root_heading: true
@@ -122,7 +122,7 @@ The `LabelFromFeature` transform converts categorical features into numerical la
 ### MultiLabelFromFeatures Transform
 The `MultiLabelFromFeatures` transform extends the functionality of `LabelFromFeature` to handle multiple features simultaneously. Example use case: Creating labels from multiple categorical columns like 'species', 'breed', and 'color' in a single operation.
 
-::: esp_data.transforms.MultiLabelFromFeatures
+::: alp_data.transforms.MultiLabelFromFeatures
     handler: python
     options:
         show_root_heading: true
@@ -131,7 +131,7 @@ The `MultiLabelFromFeatures` transform extends the functionality of `LabelFromFe
 ### Subsample Transform
 The `Subsample` transform reduces the size of your dataset by sampling a subset of the data.  Example use case: Creating a 10% random sample of a large dataset for initial testing.
 
-::: esp_data.transforms.Subsample
+::: alp_data.transforms.Subsample
     handler: python
     options:
         show_root_heading: true
@@ -140,7 +140,7 @@ The `Subsample` transform reduces the size of your dataset by sampling a subset 
 ### BalancedSample Transform
 The `BalancedSample` transform performs balanced sampling of the data, ensuring balanced representation across different categories.
 
-::: esp_data.transforms.BalancedSample
+::: alp_data.transforms.BalancedSample
     handler: python
     options:
         show_root_heading: true
@@ -149,7 +149,7 @@ The `BalancedSample` transform performs balanced sampling of the data, ensuring 
 ### Deduplicate Transform
 The `Deduplicate` transform removes duplicate rows from your dataset based on specified columns. Example use case: Ensuring that each entry in a dataset is unique based on a combination of 'species' and 'location'.
 
-::: esp_data.transforms.Deduplicate
+::: alp_data.transforms.Deduplicate
     handler: python
     options:
         show_root_heading: true
@@ -159,7 +159,7 @@ The `Deduplicate` transform removes duplicate rows from your dataset based on sp
 ### SelectColumns Transform
 The `SelectColumns` transform allows you to select a subset of columns from your dataset. Example use case: Keeping only the 'audio' and 'label' columns for a machine learning task.
 
-::: esp_data.transforms.SelectColumns
+::: alp_data.transforms.SelectColumns
     handler: python
     options:
         show_root_heading: true
@@ -169,7 +169,7 @@ The `SelectColumns` transform allows you to select a subset of columns from your
 ### LongTailUpsample Transform
 The `LongTailUpsample` transform performs upsampling of underrepresented classes in a long-tailed distribution. Example use case: Increasing the number of samples for rare species in a biodiversity dataset.
 
-::: esp_data.transforms.LongTailUpsample
+::: alp_data.transforms.LongTailUpsample
     handler: python
     options:
         show_root_heading: true
@@ -179,7 +179,7 @@ The `LongTailUpsample` transform performs upsampling of underrepresented classes
 ### AddTaxonomy Transform
 The `AddTaxonomy` transform adds precomputed GBIF taxonomic information to your dataset based on existing features. Example use case: Adding family and order information to a dataset with a 'species' column using GBIF taxonomy.
 
-::: esp_data.discover.AddTaxonomy
+::: alp_data.discover.AddTaxonomy
     handler: python
     options:
         show_root_heading: true

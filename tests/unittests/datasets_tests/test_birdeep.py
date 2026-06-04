@@ -15,7 +15,7 @@ import pandas as pd
 import pytest
 import hashlib
 
-from esp_data.datasets import Birdeep
+from alp_data.datasets import Birdeep
 
 
 EXPECTED_LEN_ALL = 291  #
@@ -173,8 +173,8 @@ def test_check_selection_table(ds: Birdeep, sample_indices: List[int]):
 
 # if __name__ == "__main__":
 #     # Generate hash
-#     from esp_data.datasets import Birdeep
-#     from esp_data.utils import create_hash
+#     from alp_data.datasets import Birdeep
+#     from alp_data.utils import create_hash
 #     ds = Birdeep(split="all", sample_rate=16000, backend="pandas")
 
 #     audio0 = ds[0]["audio"]

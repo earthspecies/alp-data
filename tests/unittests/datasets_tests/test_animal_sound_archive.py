@@ -5,8 +5,8 @@ import hashlib
 import numpy as np
 import pytest
 
-from esp_data import Dataset, DatasetConfig
-from esp_data.datasets import AnimalSoundArchive
+from alp_data import Dataset, DatasetConfig
+from alp_data.datasets import AnimalSoundArchive
 
 
 @pytest.fixture

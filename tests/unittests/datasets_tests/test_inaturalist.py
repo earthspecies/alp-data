@@ -5,8 +5,8 @@ import hashlib
 import numpy as np
 import pytest
 
-from esp_data.datasets import INaturalist
-from esp_data import Dataset, DatasetConfig
+from alp_data.datasets import INaturalist
+from alp_data import Dataset, DatasetConfig
 
 # Expected SHA256 hash of the first item's audio (index 0) at default (variable) sample rate
 # This ensures bitwise stability of the dataset over time.

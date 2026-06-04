@@ -1,4 +1,4 @@
-# `esp_data.datasets` module
+# `alp_data.datasets` module
 
 ## What are ESP Datasets?
 
@@ -16,7 +16,7 @@ Datasets can be loaded following two different approaches:
 
 1. Direct instantiation:
 ```python
-from esp_data.datasets import AnimalSpeak
+from alp_data.datasets import AnimalSpeak
 
 # Create a dataset instance
 dataset = AnimalSpeak(
@@ -30,8 +30,8 @@ print(len(dataset))  # Get dataset size
 
 2. Using configuration:
 ```python
-from esp_data import DatasetConfig
-from esp_data.datasets import AnimalSpeak
+from alp_data import DatasetConfig
+from alp_data.datasets import AnimalSpeak
 
 # Create a configuration
 config = DatasetConfig(
@@ -69,7 +69,7 @@ dataset:
 ```
 
 ```python
-from esp_data import dataset_from_config
+from alp_data import dataset_from_config
 
 ds, transform_metadata = dataset_from_config("path/to/config.yaml")
 
@@ -104,8 +104,8 @@ Transforms can be used in a sequential way, as in first get the original dataset
     The order of the transforms is important. If you have multiple transforms, they will be applied in the order they are defined in the configuration. So, for e.g., if you change the name of a column with LabelFromFeatureTransform, it will effect the Filter Transform
 
 ```python
-from esp_data.datasets import AnimalSpeak
-from esp_data.transforms import FilterConfig, LabelFromFeatureConfig
+from alp_data.datasets import AnimalSpeak
+from alp_data.transforms import FilterConfig, LabelFromFeatureConfig
 
 # Create a dataset
 aspeak_output_map = {
@@ -135,8 +135,8 @@ dataset.apply_transformations([filter_config, label_from_feature_config])
 Transforms can also be specified in the dataset configuration to be automatically applied when the dataset is instantiated.
 
 ```python
-from esp_data import DatasetConfig
-from esp_data.transforms import FilterConfig, LabelFromFeatureConfig
+from alp_data import DatasetConfig
+from alp_data.transforms import FilterConfig, LabelFromFeatureConfig
 
 # Create transform configurations
 filter_config = FilterConfig(
@@ -171,7 +171,7 @@ print(metadata["label_from_feature"].keys())
 
 The list of available dataset will grow over time. Please refer to the next section if you wish to use your own Dataset or add a new one to the list of officially supported ones.
 
-::: esp_data.datasets
+::: alp_data.datasets
     options:
         show_root_toc_entry: false
         heading_level: 3
@@ -189,8 +189,8 @@ To create a new dataset, you need to subclass the base `Dataset` class and imple
 ### 1. Basic Structure
 
 ```python
-from esp_data import Dataset, DatasetInfo, register_dataset
-from esp_data.io import anypath, AnyPathT
+from alp_data import Dataset, DatasetInfo, register_dataset
+from alp_data.io import anypath, AnyPathT
 from typing import Any, Dict, Optional
 import pandas as pd
 
@@ -349,7 +349,7 @@ sample = dataset[0]
 print(len(dataset))
 
 # Use with transforms
-from esp_data.transforms import Filter
+from alp_data.transforms import Filter
 filter_transform = Filter(property="category", values=["A", "B"])
 dataset.apply_transformations([filter_transform])
 ```

@@ -5,11 +5,11 @@ import pytest
 import pandas as pd
 from typing import Dict, Any, Iterator, Optional
 
-from esp_data.dataset import Dataset, DatasetInfo, dataset_from_config
-from esp_data.concat import MergeException, ConcatenatedDataset
-from esp_data.backends import PandasBackend
-from esp_data import AnimalSpeak, Beans
-from esp_data.transforms import DeduplicateConfig, FilterConfig
+from alp_data.dataset import Dataset, DatasetInfo, dataset_from_config
+from alp_data.concat import MergeException, ConcatenatedDataset
+from alp_data.backends import PandasBackend
+from alp_data import AnimalSpeak, Beans
+from alp_data.transforms import DeduplicateConfig, FilterConfig
 
 
 # Mock Dataset classes for testing
@@ -538,7 +538,7 @@ class TestIntegrationRealDatasets:
 
 
 # Test to reproduce issue #98
-# https://github.com/earthspecies/esp-data/issues/98
+# https://github.com/earthspecies/alp-data/issues/98
 def test_pretransformed_before_concat():
     """Test applying transformations before and after concatenation."""
     dedup_cfg = DeduplicateConfig(type="deduplicate", subset=["audio_path"])

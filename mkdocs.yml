@@ -1,4 +1,4 @@
-site_name: esp-data
+site_name: alp-data
 site_description: TODO
 strict: true
 site_url: http://go/python/docs
@@ -6,8 +6,8 @@ site_url: http://go/python/docs
 # TODO (milad) check out https://mkdocstrings.github.io/recipes/
 # TODO (milad) check out options here: https://github.com/mkdocstrings/mkdocstrings/blob/main/mkdocs.yml
 
-repo_name: earthspecies/esp-data
-repo_url: https://github.com/earthspecies/esp-data
+repo_name: earthspecies/alp-data
+repo_url: https://github.com/earthspecies/alp-data
 
 nav:
   - Getting Started: index.md

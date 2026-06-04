@@ -3,7 +3,7 @@
 import numpy as np
 import soundfile as sf
 
-from esp_data.io.read_utils import (
+from alp_data.io.read_utils import (
     _read_audio_from_file,
     read_audio,
     audio_stereo_to_mono,
@@ -155,7 +155,7 @@ def test_read_mp3_by_time_from_gcs() -> None:
 def test_read_mp3_from_bytes() -> None:
     """Test reading MP3 from bytes using _read_audio_from_bytes."""
     # First read the remote MP3 to get the bytes
-    from esp_data.io.filesystem import filesystem_from_path
+    from alp_data.io.filesystem import filesystem_from_path
 
     remote_path = "gs://esp-ci-cd-tests/esp-data-tests/some_subfolder/nri-battlesounds.mp3"
     fs = filesystem_from_path(remote_path)
@@ -171,7 +171,7 @@ def test_read_mp3_from_bytes() -> None:
 
 def test_read_mp3_from_bytes_with_offset() -> None:
     """Test reading MP3 from bytes with offset."""
-    from esp_data.io.filesystem import filesystem_from_path
+    from alp_data.io.filesystem import filesystem_from_path
 
     remote_path = "gs://esp-ci-cd-tests/esp-data-tests/some_subfolder/nri-battlesounds.mp3"
     fs = filesystem_from_path(remote_path)
@@ -188,7 +188,7 @@ def test_read_mp3_from_bytes_with_offset() -> None:
 
 def test_read_mp3_from_bytes_with_frames() -> None:
     """Test reading specific number of frames from MP3 bytes."""
-    from esp_data.io.filesystem import filesystem_from_path
+    from alp_data.io.filesystem import filesystem_from_path
 
     remote_path = "gs://esp-ci-cd-tests/esp-data-tests/some_subfolder/nri-battlesounds.mp3"
     fs = filesystem_from_path(remote_path)

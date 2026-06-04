@@ -1,7 +1,7 @@
 """Convert iNaturalist .mp3 originals to .wav and update split CSVs.
 
 Some ``originals_path`` rows in iNaturalist split CSVs point at ``.mp3``
-files that fail to decode through ``esp_data.io.read_audio`` (libsndfile).
+files that fail to decode through ``alp_data.io.read_audio`` (libsndfile).
 This script targets only those broken rows: mp3s that ``read_audio`` can
 already decode are left alone (no wav sibling, no CSV rewrite).
 
@@ -9,7 +9,7 @@ This script:
 
 1. Scans every iNaturalist split CSV for rows whose ``originals_path`` ends
    in ``.mp3``.
-2. For each unique mp3 blob, attempts ``esp_data.io.read_audio``. If that
+2. For each unique mp3 blob, attempts ``alp_data.io.read_audio``. If that
    succeeds, the row is left untouched. If it fails, falls back to
    ``librosa.load`` (which uses ``audioread``/``ffmpeg``) and writes a
    sibling ``.wav`` blob at the original sample rate, preserving channels.
@@ -47,8 +47,8 @@ import polars as pl
 import soundfile as sf
 from tqdm import tqdm
 
-from esp_data.io import exists, filesystem_from_path
-from esp_data.io.read_utils import read_audio
+from alp_data.io import exists, filesystem_from_path
+from alp_data.io.read_utils import read_audio
 
 logging.basicConfig(
     level=logging.INFO,
@@ -94,7 +94,7 @@ def _src_dst(rel_path: str) -> tuple[str, str, str]:
 def convert_one(rel_path: str) -> dict:
     """Convert a single ``.mp3`` blob to a sibling ``.wav`` blob if needed.
 
-    First probes the source with ``esp_data.io.read_audio``. If that
+    First probes the source with ``alp_data.io.read_audio``. If that
     succeeds, the row is reported as ``"readable"`` and no ``.wav`` is
     written. Only if ``read_audio`` raises does the function fall back to
     ``librosa.load`` (via ``audioread``/``ffmpeg``) and write the wav

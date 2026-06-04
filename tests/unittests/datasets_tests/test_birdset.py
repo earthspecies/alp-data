@@ -13,8 +13,8 @@ from typing import List
 import numpy as np
 import pytest
 
-from esp_data.datasets import BirdSet
-from esp_data.utils import create_hash
+from alp_data.datasets import BirdSet
+from alp_data.utils import create_hash
 
 EXPECTED_LEN = 15120
 EXPECTED_FIRST_ITEM_AUDIO_SHA256 = "c6c84647649f958f1ab9eef45276bc590d629ebfb94999d241f9e045b94acde8"
@@ -188,7 +188,7 @@ def test_output_take_and_give() -> None:
 
 def test_from_config() -> None:
     """from_config round-trip should produce a usable dataset."""
-    from esp_data import DatasetConfig
+    from alp_data import DatasetConfig
 
     cfg = DatasetConfig(dataset_name="birdset", split=SPLIT)
     ds, meta = BirdSet.from_config(cfg)

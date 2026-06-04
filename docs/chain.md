@@ -1,4 +1,4 @@
-# `esp_data.chain` Module
+# `alp_data.chain` Module
 
 ## What is Dataset chaining?
 
@@ -17,8 +17,8 @@ For combining datasets with transformation support, see [concatenate.md](concate
 ### Basic Usage
 
 ```python
-from esp_data.datasets import InsectSet459, BirdSet
-from esp_data.chain import ChainedDataset
+from alp_data.datasets import InsectSet459, BirdSet
+from alp_data.chain import ChainedDataset
 
 # Load individual datasets
 dataset1 = InsectSet459(split="validation")
@@ -92,7 +92,7 @@ chain:
 Load the configuration in Python:
 
 ```python
-from esp_data import dataset_from_config
+from alp_data import dataset_from_config
 
 chained_dataset, metadata = dataset_from_config("path/to/chain_config.yaml")
 ```
@@ -149,12 +149,12 @@ for item in chained:
 
 ## Function Reference
 
-::: esp_data.chain.ChainedDataset
+::: alp_data.chain.ChainedDataset
     handler: python
     options:
         show_source: true
 
-::: esp_data.chain.ChainException
+::: alp_data.chain.ChainException
     handler: python
     options:
         show_source: true

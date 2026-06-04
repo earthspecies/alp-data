@@ -6,12 +6,12 @@ import random
 import numpy as np
 import pytest
 
-from esp_data import DatasetConfig
-from esp_data.datasets import Watkins
+from alp_data import DatasetConfig
+from alp_data.datasets import Watkins
 
 # --- Dataset snapshot ---
 # To regenerate:
-#   from esp_data.datasets import Watkins
+#   from alp_data.datasets import Watkins
 #   import hashlib
 #   ds = Watkins(split="train", sample_rate=16000, backend="polars")
 #   print("len:", len(ds))
