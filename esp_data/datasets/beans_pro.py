@@ -116,6 +116,7 @@ class BeansPro(Dataset):
             "weldy-call-or-song-sp": "gs://esp-data-ingestion/beans-pro/v0.1.0/raw/weldy_call_or_song_sp/test.jsonl",
             "weldy-call-or-song-sp-6s": "gs://esp-data-ingestion/beans-pro/v0.1.0/raw/weldy_call_or_song_sp_6s/test.jsonl",
             "weldy-call-or-song-sp-10s": "gs://esp-data-ingestion/beans-pro/v0.1.0/raw/weldy_call_or_song_sp_10s/test.jsonl",
+            "weldy-multi-call-type": "gs://esp-data-ingestion/beans-pro/v0.1.0/raw/weldy_multi_call_type/test.jsonl",
         },
         version="0.1.0",
         description=(
@@ -155,6 +156,7 @@ class BeansPro(Dataset):
         "weldy-call-or-song-sp": "gs://esp-data-ingestion/beans-pro/v0.1.0/raw/weldy_call_or_song/",
         "weldy-call-or-song-sp-6s": "gs://esp-data-ingestion/beans-pro/v0.1.0/raw/weldy_call_or_song_6s/",
         "weldy-call-or-song-sp-10s": "gs://esp-data-ingestion/beans-pro/v0.1.0/raw/weldy_call_or_song_sp_10s/",
+        "weldy-multi-call-type": "gs://esp-data-ingestion/beans-pro/v0.1.0/raw/weldy_multi_call_type/",
     }
 
     _originals_path_column = "audio_path_original_sample_rate"
