@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from esp_data.backends.webdataset_utils import (
+from alp_data.backends.webdataset_utils import (
     _parquet_bytes_to_dataframe,
     _tabular_to_parquet_bytes,
     audio_decoder,
