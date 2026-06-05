@@ -8,7 +8,7 @@ from alp_data.backends.webdataset_utils import audio_decoder
 from alp_data.io import AnyPathT, anypath, filesystem_from_path
 from alp_data.io.paths import PureCloudPath
 
-from .protocol import StreamingBackend
+from .protocol import StreamingDataBackend
 
 
 def _load_webdataset(
@@ -91,8 +91,8 @@ def _load_webdataset(
     return webds
 
 
-class WebDatasetBackend(StreamingBackend):
-    """WebDataset implementation of the StreamingBackend protocol.
+class WebDatasetBackend(StreamingDataBackend):
+    """WebDataset implementation of the StreamingDataBackend protocol.
 
     This backend wraps a WebDataset and provides a streaming interface
     for iterating over samples. It does not support random access or
