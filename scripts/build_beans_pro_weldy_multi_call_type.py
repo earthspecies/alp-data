@@ -87,8 +87,9 @@ LICENSE_STR = "CC-BY-4.0"
 SOURCE_DATASET = "weldy_dawn_chorus"
 DATASET_NAME = "weldy-multi-call-type"
 TASK = "multi_call_type_classification"
-PROMPT_PREAMBLE = "Which description best matches the vocalization in this clip?"
-PROMPT_SUFFIX = "Answer with the letter only."
+PROMPT_PREAMBLE = "Which acoustic description best matches this sound?"
+# Suffix is rendered per-clip with the actual letter set (e.g. "(A, B, C)").
+PROMPT_SUFFIX_TEMPLATE = "Answer with the letter of the correct choice ({letters})."
 LETTERS = "ABCDEFGHIJ"  # supports up to 10 call variants per species
 
 # Selection-table Sonotype column is the basic class ("call"/"song"/"drum"); the
@@ -301,9 +302,10 @@ def _render_multichoice_instruction(
     correct_letter = LETTERS[new_correct]
     lines = [PROMPT_PREAMBLE, ""]
     for i, desc in enumerate(ordered):
-        lines.append(f"{LETTERS[i]}) {desc}")
+        lines.append(f"{LETTERS[i]}: {desc}")
     lines.append("")
-    lines.append(PROMPT_SUFFIX)
+    used_letters = ", ".join(LETTERS[i] for i in range(n))
+    lines.append(PROMPT_SUFFIX_TEMPLATE.format(letters=used_letters))
     return "\n".join(lines), correct_letter, ordered
 
 
