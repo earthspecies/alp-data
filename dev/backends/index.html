@@ -948,6 +948,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#alp_data.backends.protocol.DataBackend.from_path" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;from_path
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#alp_data.backends.protocol.DataBackend.__init__" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2782,6 +2793,138 @@ By default False.</p>
             <td>
               <div class="doc-md-description">
                 <p>Backend instance wrapping the loaded data object</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="alp_data.backends.protocol.DataBackend.from_path" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <code class="highlight language-python"><span class="n">from_path</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">streaming</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-classmethod"><code>classmethod</code></small>
+  </span>
+
+</h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Load a tabular file, dispatching on extension.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>path</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Path to a <code>.parquet</code>, <code>.csv</code>, <code>.json</code>, <code>.jsonl</code>,
+or <code>.ndjson</code> file.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>streaming</code>
+            </td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Whether to use streaming mode, by default False.</p>
+              </div>
+            </td>
+            <td>
+                  <code>False</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>**kwargs</code>
+            </td>
+            <td>
+                  <code><span title="typing.Any">Any</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Additional backend-specific arguments.</p>
+              </div>
+            </td>
+            <td>
+                  <code>{}</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><a class="autorefs autorefs-internal" title="            alp_data.backends.protocol.DataBackend" href="#alp_data.backends.protocol.DataBackend">DataBackend</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Backend instance wrapping the loaded data.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+<p><span class="doc-section-title">Raises:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="ValueError">ValueError</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If the file extension is not supported.</p>
               </div>
             </td>
           </tr>
@@ -10072,7 +10215,7 @@ Special key "other" applies to all unlisted values (pooled together).</p>
       <tbody>
           <tr class="doc-section-item">
             <td>
-                  <code><span title="typing.Type">Type</span>[<a class="autorefs autorefs-internal" title="            alp_data.backends.protocol.DataBackend" href="#alp_data.backends.protocol.DataBackend">DataBackend</a>]</code>
+                  <code><span title="typing.Type">Type</span>[<a class="autorefs autorefs-internal" title="            alp_data.backends.protocol.DataBackend" href="#alp_data.backends.protocol.DataBackend">DataBackend</a> | <a class="autorefs autorefs-internal" title="            StreamingDataBackend (alp_data.backends.protocol.StreamingDataBackend)" href="../reference/#alp_data.backends.StreamingDataBackend">StreamingDataBackend</a>]</code>
             </td>
             <td>
               <div class="doc-md-description">
@@ -10146,7 +10289,7 @@ Special key "other" applies to all unlisted values (pooled together).</p>
 <span class="normal"><a href="#__codelineno-0-48">48</a></span>
 <span class="normal"><a href="#__codelineno-0-49">49</a></span>
 <span class="normal"><a href="#__codelineno-0-50">50</a></span>
-<span class="normal"><a href="#__codelineno-0-51">51</a></span></pre></div></td><td class="code"><div><pre><span></span><code><span id="__span-0-22"><a id="__codelineno-0-22" name="__codelineno-0-22"></a><span class="k">def</span><span class="w"> </span><span class="nf">get_backend</span><span class="p">(</span><span class="n">backend</span><span class="p">:</span> <span class="n">BackendType</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Type</span><span class="p">[</span><span class="n">DataBackend</span><span class="p">]:</span>
+<span class="normal"><a href="#__codelineno-0-51">51</a></span></pre></div></td><td class="code"><div><pre><span></span><code><span id="__span-0-22"><a id="__codelineno-0-22" name="__codelineno-0-22"></a><span class="k">def</span><span class="w"> </span><span class="nf">get_backend</span><span class="p">(</span><span class="n">backend</span><span class="p">:</span> <span class="n">BackendType</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Type</span><span class="p">[</span><span class="n">DataBackend</span> <span class="o">|</span> <span class="n">StreamingDataBackend</span><span class="p">]:</span>
 </span><span id="__span-0-23"><a id="__codelineno-0-23" name="__codelineno-0-23"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Get the backend class for the specified backend type.</span>
 </span><span id="__span-0-24"><a id="__codelineno-0-24" name="__codelineno-0-24"></a>
 </span><span id="__span-0-25"><a id="__codelineno-0-25" name="__codelineno-0-25"></a><span class="sd">    Parameters</span>
@@ -10156,7 +10299,7 @@ Special key "other" applies to all unlisted values (pooled together).</p>
 </span><span id="__span-0-29"><a id="__codelineno-0-29" name="__codelineno-0-29"></a>
 </span><span id="__span-0-30"><a id="__codelineno-0-30" name="__codelineno-0-30"></a><span class="sd">    Returns</span>
 </span><span id="__span-0-31"><a id="__codelineno-0-31" name="__codelineno-0-31"></a><span class="sd">    -------</span>
-</span><span id="__span-0-32"><a id="__codelineno-0-32" name="__codelineno-0-32"></a><span class="sd">    Type[DataBackend]</span>
+</span><span id="__span-0-32"><a id="__codelineno-0-32" name="__codelineno-0-32"></a><span class="sd">    Type[DataBackend | StreamingDataBackend]</span>
 </span><span id="__span-0-33"><a id="__codelineno-0-33" name="__codelineno-0-33"></a><span class="sd">        The backend class (not an instance)</span>
 </span><span id="__span-0-34"><a id="__codelineno-0-34" name="__codelineno-0-34"></a>
 </span><span id="__span-0-35"><a id="__codelineno-0-35" name="__codelineno-0-35"></a><span class="sd">    Raises</span>
