@@ -4,6 +4,7 @@ from typing import Any, Dict, Iterator
 
 import librosa
 import numpy as np
+import polars as pl
 
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from esp_data.backends import BackendType
@@ -221,8 +222,18 @@ class INaturalist(Dataset):
             )
 
         location = self.info.split_paths[self.split]
-        # Read CSV directly from GCS path to avoid memory issues
-        self._data = self._backend_class.from_csv(location, streaming=self._streaming)
+        # Read CSV directly from GCS path to avoid memory issues. Some older
+        # rows carry the literal sentinel "Not found" in sound_id; keep the
+        # join key textual so Polars does not infer int64 and fail mid-file.
+        self._data = self._backend_class.from_csv(
+            location,
+            streaming=self._streaming,
+            schema_overrides={"sound_id": pl.Utf8},
+            dtype={"sound_id": "string"},
+            null_values=["", "Not found"],
+            na_values=["", "Not found"],
+            keep_default_na=False,
+        )
 
     @classmethod
     def from_config(cls, dataset_config: DatasetConfig) -> tuple["INaturalist", dict[str, Any]]:

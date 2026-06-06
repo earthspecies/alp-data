@@ -25,6 +25,11 @@ Available splits
   ``zebra-description`` split in `BeansPro`.
 - ``unseen-species-4way``: 1227 examples, 4-way species classification
   for 172 held-out species (genus seen), random confusers.
+- ``weldy-multi-call-type-fewshot``: Within-species call-type
+  discrimination from the Weldy NW Dawn Chorus dataset, presented as a
+  variable-N-way (2-4) few-shot multi-audio MCQ. One exemplar clip per
+  call variant of the species + 1 query. Aligned 1:1 with the text-only
+  ``weldy-multi-call-type`` split in `BeansPro`.
 - ``raincoast-2025-pulsed-whistle-fewshot``: Raincoast 2025 killer whale
   pulsed-call vs whistle classification with fixed labeled support clips.
 - ``ford-catalogue-pulsed-discrete-4way``: Ford catalogue Northern Resident
@@ -64,6 +69,20 @@ _SPLITS: dict[str, str] = {
     "crow-4way": f"{_GCS_BASE}/crow_4way/test.jsonl",
     "zebra-4way": f"{_GCS_BASE}/zebra_4way/test.jsonl",
     "unseen-species-4way": f"{_GCS_BASE}/unseen_species_4way/test.jsonl",
+    # Weldy NW Dawn Chorus within-species call-type discrimination as a
+    # few-shot multi-audio MCQ (K exemplar clips per call variant + 1 query).
+    # Aligned 1:1 with the text-only ``weldy-multi-call-type`` split in
+    # `BeansPro`, but presents audio exemplars instead of text descriptions.
+    "weldy-multi-call-type-fewshot": (f"{_GCS_BASE}/weldy_multi_call_type_fewshot/test.jsonl"),
+    "weldy-multi-call-type-fewshot-1shot": (
+        f"{_GCS_BASE}/weldy_multi_call_type_fewshot_1shot/test.jsonl"
+    ),
+    "weldy-multi-call-type-fewshot-2shot": (
+        f"{_GCS_BASE}/weldy_multi_call_type_fewshot_2shot/test.jsonl"
+    ),
+    "weldy-multi-call-type-fewshot-3shot": (
+        f"{_GCS_BASE}/weldy_multi_call_type_fewshot_3shot/test.jsonl"
+    ),
     "raincoast-2025-pulsed-whistle-fewshot": (
         f"{_GCS_BASE}/raincoast_2025_pulsed_whistle_fewshot/test.jsonl"
     ),
@@ -128,6 +147,10 @@ _AUDIO_ROOT_OVERRIDES: dict[str, str] = {
     "crow-4way": f"{_GCS_BASE}/carrion_crow_descriptions/",
     "zebra-4way": f"{_GCS_BASE}/zebra_descriptions/",
     "unseen-species-4way": "gs://esp-data-ingestion/",
+    "weldy-multi-call-type-fewshot": (f"{_GCS_BASE}/weldy_multi_call_type_fewshot/"),
+    "weldy-multi-call-type-fewshot-1shot": (f"{_GCS_BASE}/weldy_multi_call_type_fewshot_1shot/"),
+    "weldy-multi-call-type-fewshot-2shot": (f"{_GCS_BASE}/weldy_multi_call_type_fewshot_2shot/"),
+    "weldy-multi-call-type-fewshot-3shot": (f"{_GCS_BASE}/weldy_multi_call_type_fewshot_3shot/"),
     "raincoast-2025-pulsed-whistle-fewshot": (
         f"{_GCS_BASE}/raincoast_2025_pulsed_whistle_fewshot/"
     ),

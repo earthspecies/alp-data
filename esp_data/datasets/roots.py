@@ -20,6 +20,16 @@ _INAT_AUDIO_ROOT = "gs://esp-ml-datasets/inaturalist/v0.1.0/raw"
 _XC_AUDIO_ROOT = "gs://esp-ml-datasets/xeno-canto/v0.1.0/raw/audio"
 _CROP_RE = re.compile(r"__crop_(\d+)_(\d+)")
 
+
+def _with_wav_extension(audio_path: str) -> str:
+    """Normalize the final extension of ``audio_path`` to ``.wav``.
+
+    Returns:
+        The path with its trailing extension replaced by ``.wav``.
+    """
+    return re.sub(r"\.[^./]+$", ".wav", audio_path)
+
+
 # Pre-resampled 32 kHz mirrors of audio sources that the synthetic ROOTS splits
 # otherwise hit at 16 kHz / 22.05 kHz / 44.1 kHz. When the consumer requests
 # sample_rate=32000 we redirect to these mirrors to avoid live resampling.
@@ -63,7 +73,11 @@ _PRESAMPLED_32K_MAP: tuple[tuple[str, str], ...] = (
 
 
 def _t3_spec(filename: str, task: str) -> dict[str, str | None]:
-    split = filename.removesuffix("_clean.jsonl").removesuffix(".jsonl")
+    # Split key is stable across the `_clean` -> `_balanced` debiasing rename so
+    # config references (e.g. `tier3_voc_loc_mcq_sed_v2`) keep resolving.
+    split = (
+        filename.removesuffix("_clean.jsonl").removesuffix("_balanced.jsonl").removesuffix(".jsonl")
+    )
     return {
         "jsonl_path": f"{_T3_ROOT}/{filename}",
         "audio_root": None,
@@ -102,14 +116,14 @@ _T3_FILES: tuple[tuple[str, str], ...] = (
     ("tier1_structural_caption_sed_v1_clean.jsonl", "roots_tier3_structural_caption"),
     ("tier1_structural_caption_wabad_v1_clean.jsonl", "roots_tier3_structural_caption"),
     (
-        "voc_cooccurrence_binary_sed_diarization_v2_clean.jsonl",
+        "voc_cooccurrence_binary_sed_diarization_v2_balanced.jsonl",
         "roots_tier3_vocal_cooccurrence_binary",
     ),
-    ("voc_cooccurrence_binary_sed_v2_clean.jsonl", "roots_tier3_vocal_cooccurrence_binary"),
-    ("voc_cooccurrence_binary_wabad_v1_clean.jsonl", "roots_tier3_vocal_cooccurrence_binary"),
-    ("voc_loc_mcq_sed_diarization_v2_clean.jsonl", "roots_tier3_vocal_location_mcq"),
-    ("voc_loc_mcq_sed_v2_clean.jsonl", "roots_tier3_vocal_location_mcq"),
-    ("voc_loc_mcq_wabad_v1_clean.jsonl", "roots_tier3_vocal_location_mcq"),
+    ("voc_cooccurrence_binary_sed_v2_balanced.jsonl", "roots_tier3_vocal_cooccurrence_binary"),
+    ("voc_cooccurrence_binary_wabad_v1_balanced.jsonl", "roots_tier3_vocal_cooccurrence_binary"),
+    ("voc_loc_mcq_sed_diarization_v2_balanced.jsonl", "roots_tier3_vocal_location_mcq"),
+    ("voc_loc_mcq_sed_v2_balanced.jsonl", "roots_tier3_vocal_location_mcq"),
+    ("voc_loc_mcq_wabad_v1_balanced.jsonl", "roots_tier3_vocal_location_mcq"),
     ("vocal_dominance_mcq_sed_diarization_v2_clean.jsonl", "roots_tier3_vocal_dominance_mcq"),
     ("vocal_dominance_mcq_sed_v2_clean.jsonl", "roots_tier3_vocal_dominance_mcq"),
     ("vocal_dominance_mcq_wabad_v1_clean.jsonl", "roots_tier3_vocal_dominance_mcq"),
@@ -163,7 +177,7 @@ _SPLIT_SPECS: dict[str, dict[str, str | None]] = {
         "task": "roots_tier1_f0_summary",
     },
     "tier1_v2_snr_binary_xc": {
-        "jsonl_path": f"{_T1_V2_ROOT}/snr_binary_xc_train_unseen_v1_clean.jsonl",
+        "jsonl_path": f"{_T1_V2_ROOT}/snr_binary_xc_train_unseen_v1_balanced.jsonl",
         "audio_root": _XC_AUDIO_ROOT,
         "task": "roots_tier1_snr_binary",
     },
@@ -173,22 +187,22 @@ _SPLIT_SPECS: dict[str, dict[str, str | None]] = {
         "task": "roots_tier1_snr_open",
     },
     "tier1_v2_voc_desc_f0_mcq_f0bioacoustic": {
-        "jsonl_path": f"{_T1_V2_ROOT}/voc_desc_f0_mcq_f0bioacoustic_train_unseen_v2_clean.jsonl",
+        "jsonl_path": f"{_T1_V2_ROOT}/voc_desc_f0_mcq_f0bioacoustic_train_unseen_v2_balanced.jsonl",
         "audio_root": _F0_AUDIO_ROOT,
         "task": "roots_tier1_vocal_description_mcq",
     },
     "tier1_v2_voc_desc_mcq_field_notes_inat": {
-        "jsonl_path": f"{_T1_V2_ROOT}/voc_desc_mcq_field_notes_inat_train_unseen_v1_clean.jsonl",
+        "jsonl_path": f"{_T1_V2_ROOT}/voc_desc_mcq_field_notes_inat_train_unseen_v1_balanced.jsonl",
         "audio_root": _INAT_AUDIO_ROOT,
         "task": "roots_tier1_vocal_description_mcq",
     },
     "tier1_v2_voc_desc_mcq_field_notes_xc": {
-        "jsonl_path": f"{_T1_V2_ROOT}/voc_desc_mcq_field_notes_xc_train_unseen_v1_clean.jsonl",
+        "jsonl_path": f"{_T1_V2_ROOT}/voc_desc_mcq_field_notes_xc_train_unseen_v1_balanced.jsonl",
         "audio_root": _XC_AUDIO_ROOT,
         "task": "roots_tier1_vocal_description_mcq",
     },
     "tier1_v2_voc_desc_mcq_pseudovox": {
-        "jsonl_path": f"{_T1_V2_ROOT}/voc_desc_mcq_pseudovox_train_unseen_v1_clean.jsonl",
+        "jsonl_path": f"{_T1_V2_ROOT}/voc_desc_mcq_pseudovox_train_unseen_v1_balanced.jsonl",
         "audio_root": None,
         "task": "roots_tier1_vocal_description_mcq",
     },
@@ -371,12 +385,14 @@ class ROOTS(Dataset):
         """
         if self.sample_rate != 32000:
             return audio_path
+        if audio_path.startswith(_F0_AUDIO_ROOT + "/"):
+            return _with_wav_extension(audio_path)
         for src_prefix, dst_prefix in _PRESAMPLED_32K_MAP:
             if audio_path.startswith(dst_prefix):
-                return audio_path
+                return _with_wav_extension(audio_path)
             if audio_path.startswith(src_prefix):
                 rewritten = dst_prefix + audio_path[len(src_prefix) :]
-                return re.sub(r"\.[^./]+$", ".wav", rewritten)
+                return _with_wav_extension(rewritten)
         return audio_path
 
     def _process(self, row: dict[str, Any]) -> dict[str, Any]:

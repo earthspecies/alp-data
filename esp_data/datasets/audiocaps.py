@@ -6,6 +6,7 @@ from typing import Any, Iterator
 
 import librosa
 import numpy as np
+import polars as pl
 
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from esp_data.backends import BackendType
@@ -161,8 +162,11 @@ class AudioCaps(Dataset):
         self._data = self._backend_class.from_csv(
             location,
             streaming=self._streaming,
+            schema_overrides={"sound_id": pl.Utf8},
+            dtype={"sound_id": "string"},
+            null_values=["", "Not found"],
             keep_default_na=False,
-            na_values=[""],
+            na_values=["", "Not found"],
         )
 
     def __len__(self) -> int:

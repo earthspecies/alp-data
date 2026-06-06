@@ -14,6 +14,10 @@ from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
 _SPLIT_ROOTS: dict[str, str] = {
     "train_v2": "gs://foundation-model-data/synthetic/synth_v2_32k_noisy_v2",
     "train_v4_wbio": "gs://foundation-model-data/synthetic/synth_v2_32k_noisy_v4_wbio",
+    # MixIT-rendered synthetic SED soundscapes (10s, 1-3 species, 1-9 individuals).
+    # v2: 1M scenes / 5.4M conversation rows. v3: 200k scenes / 1.4M rows.
+    "train_sed_v2": "gs://foundation-model-data/synthetic/synthetic_sed_mixit_32k_v2",
+    "train_sed_v3": "gs://foundation-model-data/synthetic/synthetic_sed_mixit_32k_v3",
 }
 _SOURCE_SAMPLE_RATE = 32000
 
@@ -25,6 +29,12 @@ _TASK_BY_TEMPLATE_PATH: dict[str, str] = {
     "audio_synth/json": "synthetic_structured_annotation",
     "audio_synth/tags": "synthetic_audio_tags",
     "audio_synth/f0_contour": "synthetic_f0_contour",
+    # Synthetic SED MixIT (train_sed_v2 / train_sed_v3) tasks.
+    "audio_synth/species_multilabel": "synthetic_sed_species_multilabel",
+    "audio_synth/individual_count_total": "synthetic_sed_count_total",
+    "audio_synth/individual_count_by_species": "synthetic_sed_count_by_species",
+    "audio_synth/call_type_by_species": "synthetic_sed_call_type",
+    "audio_synth/lifestage_by_species": "synthetic_sed_lifestage",
 }
 
 
@@ -85,13 +95,17 @@ class SyntheticAudioConversations(Dataset):
     def _resolve_audio_path(self, row: dict[str, Any]) -> AnyPathT:
         audio_ids = row.get("audio_ids")
         if not isinstance(audio_ids, list) or not audio_ids or not isinstance(audio_ids[0], str):
-            raise ValueError(f"Expected non-empty 'audio_ids' list in row '{row.get('id', '<unknown>')}'")
+            raise ValueError(
+                f"Expected non-empty 'audio_ids' list in row '{row.get('id', '<unknown>')}'"
+            )
         return self.data_root / "audio" / f"{audio_ids[0]}.wav"
 
     def _resolve_task(self, row: dict[str, Any]) -> str:
         template_path = row.get("template_path")
         if not isinstance(template_path, str):
-            raise ValueError(f"Expected string 'template_path' in row '{row.get('id', '<unknown>')}'")
+            raise ValueError(
+                f"Expected string 'template_path' in row '{row.get('id', '<unknown>')}'"
+            )
         try:
             return _TASK_BY_TEMPLATE_PATH[template_path]
         except KeyError as exc:
@@ -137,7 +151,9 @@ class SyntheticAudioConversations(Dataset):
             yield self._process(row)
 
     @classmethod
-    def from_config(cls, dataset_config: DatasetConfig) -> tuple["SyntheticAudioConversations", dict[str, Any]]:
+    def from_config(
+        cls, dataset_config: DatasetConfig
+    ) -> tuple["SyntheticAudioConversations", dict[str, Any]]:
         cfg = dataset_config.model_dump(exclude={"dataset_name", "transformations"})
         ds = cls(
             split=cfg["split"],

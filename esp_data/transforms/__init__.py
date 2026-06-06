@@ -1,6 +1,10 @@
 # Has to be first because individual transform modules import register_transform
 from .registry import register_transform, transform_from_config  # isort:skip
 
+from .add_precomputed_selection_tables import (
+    AddPrecomputedSelectionTables,
+    AddPrecomputedSelectionTablesConfig,
+)
 from .balanced_sample import BalancedSample, BalancedSampleConfig
 from .deduplicate import Deduplicate, DeduplicateConfig
 from .downsample import Downsample, DownsampleConfig
@@ -18,6 +22,8 @@ from .upsample import Upsample, UpsampleConfig
 __all__ = [
     "BalancedSample",
     "BalancedSampleConfig",
+    "AddPrecomputedSelectionTables",
+    "AddPrecomputedSelectionTablesConfig",
     "Deduplicate",
     "DeduplicateConfig",
     "Downsample",
