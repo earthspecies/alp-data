@@ -2,14 +2,63 @@
 
 from __future__ import annotations
 
+import ast
+import json
 from typing import Any, Dict, Iterator
 
 import librosa
 import numpy as np
 
-from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
+from esp_data import Dataset, DatasetConfig, DatasetInfo, register_config, register_dataset
 from esp_data.backends import BackendType
 from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
+
+
+@register_config
+class SpanishCarrionCrowsVoxConfig(DatasetConfig):
+    """Configuration for the SpanishCarrionCrowsVox dataset.
+
+    Parameters
+    ----------
+    dataset_name : str
+        The name of the dataset. Must be "spanish-carrion-crows-vox".
+    split : str | int
+        The split to load: "all" or one of SpanishCarrionCrowsVox.available_splits.
+    output_take_and_give : dict[str, str] | None
+        A dictionary mapping the original column names to the new column names.
+        It acts as a filter as well.
+    sample_rate : int | None
+        The sample rate to which audio files should be resampled.
+    data_root : str | AnyPathT | None
+        The root directory for the dataset. This is optionally appended to the
+        path item of a sample in the dataset.
+    backend : BackendType
+        The backend to use ("pandas" or "polars"), by default "polars"
+    streaming : bool
+        Whether to use streaming mode, by default False
+    denoised : bool
+        If True, load the denoised (MixIT) audio instead of the noisy focal
+        recording. Defaults to False.
+    fallback_to_noisy : bool
+        Only used when denoised=True. If True, fall back to the noisy audio
+        when denoising failed rather than raising ValueError; the returned
+        item will have denoised_success=False. Defaults to False.
+    padding_sec : float
+        Seconds of context to include before the vocalization start and after
+        its end. Clamped to file boundaries. Defaults to 0.0.
+    """
+
+    dataset_name: str = "spanish-carrion-crows-vox"
+    split: str | int = "all"
+    version: str | None = None
+    output_take_and_give: dict[str, str] | None = None
+    sample_rate: int | None = 16000
+    data_root: str | AnyPathT | None = None
+    backend: BackendType = "polars"
+    streaming: bool = False
+    denoised: bool = False
+    fallback_to_noisy: bool = False
+    padding_sec: float = 0.0
 
 
 @register_dataset
@@ -36,7 +85,63 @@ class SpanishCarrionCrowsVox(Dataset):
     - focal_individual: individual wearing the biologger
     - timestamp_start: UTC timestamp of vocalization start
     - timestamp_end: UTC timestamp of vocalization end
+    - concurrent_behavior_category: dict[str, str]
+      - each key is an individual, value gives behavior of that individual at timestamp_start
+      - possible values:
+        - visit_{unknown, repeated, alternated}:
+          - Video: whether the bird is at the nest or not
+          - Audio/Accelerometer: not incorporated
+          - repeated: visit before this one was the same individual
+          - alternated: visit before this one was a different individual
+          - unknown: we do not know who made the previous visit
+        - flying_arriving_{short: < 10 s, long: > 10 s}
+        - flying_leaving_{short, long}
+        - flying_other_{short,long}
+          - Video: whether the activity after/before this flight was a nest visit
+          - Audio: bird is flying
+          - Accelerometer: not incorporated
+          - arriving/leaving: bird is flying to/from the nest, respectively
+          - other: bird is flying, but not to or from the nest
+        - flying_unknown
+          - Video: unavailable, so we do not know if flight is to/from the nest
+          - Audio: bird is flying
+          - Accelerometer: not incorporated
+          - bird is flying, but we do not know where
+        - high_activity / low_activity:
+          - Video: bird is not at the nest
+          - Audio: bird is not flying
+          - Accelerometer: high ODBA / low ODBA
+          - interpretation: individual is in high / low activity state,
+                            away from nest and not flying
+        - not_flying:
+          - Video: unavailable, so we do not know whether bird is at nest or not
+          - Audio: bird is not flying
+          - Accelerometer: not incorporated
+          - interpretation: bird is not flying, but we do not know where they
+                            are nor whether they are in high/low activity state
+        - unknown: nothing is known about this bird's behavior
+    - concurrent_is_visit: dict[str, bool | None]
+      - each key is an individual
+      - value gives whether the individual is at the nest or not, at the time of the vocalization
+      - if None, the value is unknown (e.g., we didn't have annotated
+        nest camera video, at that timepoint)
+    - concurrent_is_flying: dict[str, bool | None]
+      - each key is an individual
+      - value gives whether the individual is flying or not, at the time of the vocalization
+      - if None, the value is unknown (e.g., we didn't have biologger
+        for that individual, at that timepoint)
+    - has_matching_vox_on_logger: dict[str, bool]
+      - each key is an individual
+      - True if this vocalization was detected on individual's biologger
+      - always True if key == focal_individual
+      - may be True or False, if key != focal_individual. if True, means this vocalization
+        was non-focal on individual's biologger
+    - sec_until_next_E4: dict[str, (float, float) | None]
+      - each key is an individual
+      - first value gives time to next focal vocalization labeled E4, where caller = individual
+      - second value gives number of unobserved seconds between current vocalization and next E4
     - overlap_window_id: split index
+    - overlap_individuals: individuals which have biologgers defined in this split index
 
     When denoised=True, also contains:
     - denoised_success: whether MixIT denoising succeeded for this row
@@ -57,7 +162,7 @@ class SpanishCarrionCrowsVox(Dataset):
         owner="maddie",
         split_paths={
             # TODO: update path once finalized in GCS
-            "all": "gs://esp-ml-datasets/spanish-carrion-crows-vox/conversational_preprocessed.csv",
+            "all": "gs://esp-ml-datasets/spanish-carrion-crows-vox/conversational_preprocessed_with_behavior.csv",
         },
         version="0.1.0",
         description="Spanish carrion crow adult focal vocalizations with call type and timestamps",
@@ -119,7 +224,7 @@ class SpanishCarrionCrowsVox(Dataset):
 
     @property
     def columns(self) -> list[str]:
-        return list(self._data.columns)
+        return self._data.columns
 
     @property
     def available_splits(self) -> list[str]:
@@ -219,6 +324,9 @@ class SpanishCarrionCrowsVox(Dataset):
         self._data = self._backend_class.from_csv(
             location,
             streaming=self._streaming,
+            sep="\t",
+            separator="\t",
+            # TODO I don't know if we want this?
             keep_default_na=False,
             na_values=[""],
         )
@@ -245,8 +353,9 @@ class SpanishCarrionCrowsVox(Dataset):
 
         if self.denoised:
             denoised_success = row["derived.denoised_focal.success"]
-            if isinstance(denoised_success, str):
-                denoised_success = denoised_success == "True"
+            # if isinstance(denoised_success, str):
+            #     # TODO check underlying dataframe
+            #     denoised_success = denoised_success == "True"
             fp = row.get("derived.denoised_focal.fp") or ""
             if denoised_success and fp:
                 audio_path = self.data_root / fp
@@ -282,7 +391,13 @@ class SpanishCarrionCrowsVox(Dataset):
             "focal_individual": row["focal_individual"],
             "timestamp_start": row["start_timestamp_flex"],
             "timestamp_end": row["end_timestamp_flex"],
+            "concurrent_behavior_category": json.loads(row["concurrent_behavior_summary"]),
+            "concurrent_is_visit": json.loads(row["concurrent_is_visit"]),
+            "concurrent_is_flying": json.loads(row["concurrent_is_flying"]),
+            "has_matching_vox_on_logger": json.loads(row["matching_loggers"]),
+            "sec_until_next_E4": json.loads(row["time_until_next_E4"]),
             "overlap_window_id": int(row["overlap_window_id"]),
+            "overlap_individuals": ast.literal_eval(row["overlap_window_individuals"]),
         }
 
         if self.denoised:
