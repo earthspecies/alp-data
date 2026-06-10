@@ -1,6 +1,6 @@
 [project]
 name = "alp-data"
-version = "1.9.0"
+version = "1.10.0"
 description = "Data tools for ESP projects"
 readme = "README.md"
 requires-python = ">=3.11"
