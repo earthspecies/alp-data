@@ -12,7 +12,7 @@ from mkdocs.config.defaults import MkDocsConfig
 from mkdocs.structure.files import Files
 from mkdocs.structure.pages import Page
 
-from esp_data.dataset import DatasetInfo
+from alp_data.dataset import DatasetInfo
 
 log = logging.getLogger("mkdocs.plugins.dataset_info_hook")
 
@@ -106,8 +106,8 @@ def on_page_content(html: str, page: "Page", config: "MkDocsConfig", files: "Fil
 
     try:
         # Import here to avoid issues during mkdocs build
-        import esp_data.datasets  # noqa: F401 - ensure all datasets are registered
-        from esp_data.dataset import _dataset_registry
+        import alp_data.datasets  # noqa: F401 - ensure all datasets are registered
+        from alp_data.dataset import _dataset_registry
 
         # Build a mapping of class names to their info HTML
         dataset_info_map = {}
@@ -117,10 +117,10 @@ def on_page_content(html: str, page: "Page", config: "MkDocsConfig", files: "Fil
             dataset_info_map[class_name] = info_html
 
         # Pattern to find dataset class sections
-        # Looking for <h3 id="esp_data.datasets.ClassName">
+        # Looking for <h3 id="alp_data.datasets.ClassName">
         def inject_after_heading(match: re.Match[str]) -> str:
             full_match = match.group(0)
-            class_id = match.group(1)  # e.g., "esp_data.datasets.AnimalSpeak"
+            class_id = match.group(1)  # e.g., "alp_data.datasets.AnimalSpeak"
 
             # Extract class name from the ID
             if "." in class_id:
