@@ -88,33 +88,52 @@ ds, transform_metadata = dataset_from_config("config.yaml")
 ```
 
 ## Installation
+
 ```sh
-git clone https://github.com/earthspecies/alp-data.git
-cd alp-data
-pip install -e .  # or uv sync
+uv add alp-data
+```
+
+or with pip:
+
+```sh
+pip install alp-data
+```
+
+## Documentation
+
+Full documentation: https://projects.earthspecies.org/alp-data/latest/
+
+Build documentation locally with:
+
+```sh
+make serve-local-docs
+# Hosts docs at http://localhost:8000
 ```
 
 ## Development
 
 This repository uses [uv](https://docs.astral.sh/uv/) for dependency management.
 
-```sh
-# Install all dependencies including dev tools
-uv sync --dev
+To install locally for development or running tests:
 
+```sh
+git clone https://github.com/earthspecies/alp-data.git
+cd alp-data
+uv sync --dev  # installs all dependencies including dev tools
+```
+
+or with pip:
+
+```sh
+pip install -e .
+```
+
+```sh
 # Set up pre-commit hooks (uses prek; pass --overwrite to replace existing pre-commit lib hooks)
 uv run prek install
 
 # Run tests (Note: some tests require authentication via google or cloudflare; see test files for details)
 uv run pytest
-```
-
-## Documentation
-Build documentation locally with:
-
-```sh
-make serve-local-docs
-# Hosts docs at http://localhost:8000
 ```
 
 ## Highlights

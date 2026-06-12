@@ -55,108 +55,15 @@ for sample in beans_streaming:
 Check out the datasets documentation for more details [here](./datasets.md).
 
 ## Installation
-```sh
-git clone https://github.com/earthspecies/alp-data.git
-cd alp-data
-pip install -e .  # or uv sync
-```
 
-### EarthSpeciesProject Internal: Installation via pip / uv
-
-`alp-data` is currently a private package, hosted on ESP's internal Python package repository. Because it isn't available on the public PyPI index, you'll need to configure your project to use ESP's private package index in order to install and update `alp-data`:
-
-### 1. Install `keyring` (one-time setup)
-
-To authenticate and interact with Python repositories hosted on Artifact Registry, you'll need to install the `keyring` library system-wide (not inside a virtual environment), along with the Google Artifact Registry backend. This step is required only once per system, typically when setting up your VM or laptop (not needed on Slurm compute nodes):
-
-```sh
-uv tool install keyring --with keyrings.google-artifactregistry-auth
-```
-
-!!! success "Slurm"
-    This step is **NOT** required for Slurm jobs. All nodes on the cluster already have this package installed.
-
-!!! info
-    You only need to do this step once on your system.
-
-!!! tip
-    `uv tool` allows you to install Python packages that provide command-line interfaces for system-wide use. The dependencies are installed in an isolated virtual environment, separate from your current project.
-
-### 2. Set up Google Cloud to access `alp-data` package
-
-This step is required if you haven't set up Google Cloud on your device yet. If Google Cloud isn't properly set up the following steps will fail.
-
-- Install the Google Cloud SDK by following the steps on https://cloud.google.com/sdk/docs/install
-
-- Initialize Google Cloud :
-    ```sh
-    gcloud init
-    ```
-
-    You will be prompted to sign in. Type `Y` to open a browser window for authentication and log in with your account.
-
-    Select the project to use; follow the instructions to choose project `okapi-274503`.
-
-    Configure a default Compute region and zone. It is recommended to use the same region and zone as your VM.
-
-    Then run :
-    ```sh
-    gcloud auth application-default login
-    ```
-    This will open a browser for authentication again.
-
-- Verify your active account :
-    ```sh
-    gcloud auth list
-    ```
-
-    Example output :
-    ```sh
-            Credentialed Accounts
-    ACTIVE  ACCOUNT
-    *       youremailaddress@example.com
-    ```
-
-- Confirm your active project :
-    ```sh
-    gcloud config list
-    ```
-    Example output :
-    ```sh
-        [core]
-    account = youremailaddress@example.com
-    disable_usage_reporting = True
-    project = okapi274503
-    ```
-
-
-### 3. Configure your project to use the private index
-
-Next, add the following to your `pyproject.toml` to configure your project to use the private package index:
-
-```toml
-[[tool.uv.index]]
-name = "esp-pypi"
-url = "https://oauth2accesstoken@us-central1-python.pkg.dev/okapi-274503/esp-pypi/simple/"
-explicit = true
-
-[tool.uv.sources]
-alp-data = { index = "esp-pypi" }
-
-[tool.uv]
-keyring-provider = "subprocess"
-```
-
-### 4. Add `alp-data` as a dependency
-
-You can now add `alp-data` to your project by running:
+`alp-data` is available on [PyPI](https://pypi.org/project/alp-data/).
 
 ```sh
 uv add alp-data
 ```
 
-Alternatively, you can manually update the `dependencies` section of your `pyproject.toml` and then run:
+or with pip:
 
 ```sh
-uv sync
+pip install alp-data
 ```
