@@ -61,6 +61,11 @@ PROVENANCE_COLUMNS = [
     "provider",
 ]
 
+_DCLDE_DATA_ROOT = (
+    f"{DATA_HOME}/dclde2026/v0.1.0/raw/2026/dclde_2026_killer_whales"
+)
+_FOUNDATION_MODEL_DATA_ROOT = "gs://foundation-model-data/data"
+
 
 @register_dataset
 class DCLDE2026(Dataset):
@@ -93,6 +98,8 @@ class DCLDE2026(Dataset):
     Splits
     ---------
     - "all": All data (default)
+    - "vfpa_srkw_standard": VFPA SRKW standard S-call segments used for
+      vocal repertoire classification
 
     Available tasks
     ---------------
@@ -158,7 +165,10 @@ class DCLDE2026(Dataset):
         name="dclde2026",
         owner="david",
         split_paths={
-            "all": f"{DATA_HOME}/dclde2026/v0.1.0/raw/2026/dclde_2026_killer_whales/processed_enriched_v2.csv",  # noqa: E501
+            "all": f"{_DCLDE_DATA_ROOT}/processed_enriched_v2.csv",
+            "vfpa_srkw_standard": (
+                f"{_FOUNDATION_MODEL_DATA_ROOT}/dclde2026/splits/vfpa_srkw_standard.csv"
+            ),
         },
         version="0.1.0",
         description="DCLDE 2026 killer whale dataset with species, ecotype, call type, "
@@ -200,7 +210,7 @@ class DCLDE2026(Dataset):
             CSV; otherwise audio is resampled on-the-fly.
         data_root : str | AnyPathT | None
             Root directory containing provider audio subdirectories.
-            If None, defaults to the parent directory of the split CSV path.
+            If None, defaults to the DCLDE 2026 data root.
         backend : BackendType
             The backend to use ("pandas" or "polars"), by default "polars".
         streaming : bool
@@ -223,7 +233,7 @@ class DCLDE2026(Dataset):
         self._load()
 
         if self.data_root is None:
-            self.data_root = anypath(self.info.split_paths[self.split]).parent
+            self.data_root = anypath(_DCLDE_DATA_ROOT)
 
     @property
     def columns(self) -> list[str]:
