@@ -58,6 +58,41 @@ class Subsegmentation(Dataset):
             "train": "gs://subsegmentation/xeno_canto_annotations/train.csv",
             "val": "gs://subsegmentation/xeno_canto_annotations/val.csv",
             "test": "gs://subsegmentation/xeno_canto_annotations/test.csv",
+            # Synthetic call-syllable subsegmentation (foundation-model-data,
+            # ``soundgen_call`` synthesis recipes). 20 k rows; same inline
+            # ``selection_table`` shape as the real splits. Per-row
+            # ``Species`` carries the synthesis-recipe name
+            # (``synthetic_disc_call_step``, ``synthetic_disc_call_flip``,
+            # ``synthetic_silence_call``) and ``Genus``/``Order``/``Family``
+            # are the literal string ``"Synthetic"``. Use the
+            # species-agnostic ``call_subsegmentation`` prompt template, not
+            # the species-conditioned ``syllable_subsegmentation`` one, so
+            # the synthesis-recipe label isn't leaked at train time. See
+            # ``configs/datasets/stage3_train_subsegmentation_synthetic.yml``
+            # in NatureLM-audio-v1.5.
+            "synthetic_sg_call": "gs://foundation-model-data/synthetic/subsegmentation/sg_call/manifest.csv",
+            # Synthetic song-syllable subsegmentation (soundgen_song recipes).
+            # 10 k rows, mean ~7.2 syllables/file (longer/richer than
+            # sg_call). Per-row ``Species`` is a sound-primitive label
+            # (``synthetic_whistle``, ``synthetic_chirp_up``,
+            # ``synthetic_chirp_down``, ``synthetic_trill``,
+            # ``synthetic_buzz``). Use the species-agnostic
+            # ``song_subsegmentation`` prompt template (parallel to
+            # ``call_subsegmentation`` but worded for songs). The sibling
+            # ``sg_song/f0/`` directory holds per-file F0 contour parquets
+            # — those drive a future F0 task, not this subsegmentation one.
+            "synthetic_sg_song": "gs://foundation-model-data/synthetic/subsegmentation/sg_song/manifest.csv",
+            # Synthetic pvox song-syllable subsegmentation (parametric-
+            # vocoder resynthesis of real xeno-canto songs). 8,360 (V4)
+            # and 8,497 (V6) rows. **Per-row Species carries the real
+            # GBIF species name** (e.g. ``Adelomyia melanogenys``,
+            # ``Cistothorus platensis``) because pvox preserves source-bird
+            # identity through synthesis. Use the species-CONDITIONED
+            # ``syllable_subsegmentation`` template (same as the real
+            # train split) — gives the strongest match to the real
+            # ``test`` prompt distribution.
+            "synthetic_pvox_song": "gs://foundation-model-data/synthetic/subsegmentation/pvox_song/manifest.csv",
+            "synthetic_pvox_song_v6": "gs://foundation-model-data/synthetic/subsegmentation/pvox_song_v6/manifest.csv",
         },
         version="0.1.0",
         description="[MISSING]",
