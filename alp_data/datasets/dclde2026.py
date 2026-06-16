@@ -61,9 +61,7 @@ PROVENANCE_COLUMNS = [
     "provider",
 ]
 
-_DCLDE_DATA_ROOT = (
-    f"{DATA_HOME}/dclde2026/v0.1.0/raw/2026/dclde_2026_killer_whales"
-)
+_DCLDE_DATA_ROOT = f"{DATA_HOME}/dclde2026/v0.1.0/raw/2026/dclde_2026_killer_whales"
 _VFPA_CSV_ROOT = "gs://foundation-model-data/data/dclde2026/splits"
 
 
