@@ -93,6 +93,7 @@ class Subsegmentation(Dataset):
             # ``test`` prompt distribution.
             "synthetic_pvox_song": "gs://foundation-model-data/synthetic/subsegmentation/pvox_song/manifest.csv",
             "synthetic_pvox_song_v6": "gs://foundation-model-data/synthetic/subsegmentation/pvox_song_v6/manifest.csv",
+            "synthetic_pvox_song_v7": "gs://foundation-model-data/synthetic/subsegmentation/pvox_song_v7/manifest.csv",
         },
         version="0.1.0",
         description="[MISSING]",
