@@ -1,3 +1,4 @@
+from .backends import DataBackend
 from .chain import ChainedDataset
 from .concat import ConcatenatedDataset
 from .dataset import (
@@ -53,6 +54,7 @@ from .datasets import (
 )
 
 __all__ = [
+    "DataBackend",
     "dataset_from_config",
     "Dataset",
     "DatasetInfo",
