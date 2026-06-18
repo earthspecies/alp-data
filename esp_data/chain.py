@@ -4,6 +4,7 @@ import hashlib
 import json
 import logging
 import os
+import random
 import shutil
 import tempfile
 from pathlib import Path
@@ -214,6 +215,47 @@ class ChainedDataset(Dataset):
                 f"Index {idx} out of bounds for concatenated dataset of length {self._total_length}"
             )
 
+        # Per-sample fault tolerance: a single unreadable/corrupt example (e.g. a
+        # missing GCS object or a decode error) must not crash a long distributed
+        # run. On failure we log and retry with a different random index so the
+        # returned batch size stays identical across ranks (keeping DDP
+        # collectives in sync). We re-raise only after every attempt fails, which
+        # signals a systemic problem rather than a sporadic bad file.
+        max_retries = int(os.environ.get("ESP_DATA_GETITEM_MAX_RETRIES", "10"))
+        current_idx = idx
+        last_exc: Exception | None = None
+        for attempt in range(max_retries + 1):
+            try:
+                return self._load_item(current_idx)
+            except Exception as exc:  # noqa: BLE001 - tolerate sporadic data read failures
+                last_exc = exc
+                logger.warning(
+                    "ChainedDataset.__getitem__ failed for index %d (attempt %d/%d): %s",
+                    current_idx,
+                    attempt + 1,
+                    max_retries + 1,
+                    exc,
+                )
+                current_idx = random.randint(0, self._total_length - 1)
+
+        raise RuntimeError(
+            f"ChainedDataset.__getitem__ failed after {max_retries + 1} attempts; "
+            f"last error: {last_exc}"
+        ) from last_exc
+
+    def _load_item(self, idx: int) -> dict[str, Any]:
+        """Load and process a single item by global index (without retry).
+
+        Parameters
+        ----------
+        idx : int
+            Global index across all chained datasets. Assumed to be in-bounds.
+
+        Returns
+        -------
+        dict[str, Any]
+            The processed item at the specified global index.
+        """
         if self._data is not None:
             row = self._data[idx]
             chain_idx = int(row.pop("_chain_idx"))
