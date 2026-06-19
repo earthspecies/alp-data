@@ -62,7 +62,6 @@ PROVENANCE_COLUMNS = [
 ]
 
 _DCLDE_DATA_ROOT = f"{DATA_HOME}/dclde2026/v0.1.0/raw/2026/dclde_2026_killer_whales"
-_VFPA_CSV_ROOT = "gs://foundation-model-data/data/dclde2026/splits"
 
 
 @register_dataset
@@ -164,7 +163,7 @@ class DCLDE2026(Dataset):
         owner="david",
         split_paths={
             "all": f"{_DCLDE_DATA_ROOT}/processed_enriched_v2.csv",
-            "vfpa_srkw_standard": f"{_VFPA_CSV_ROOT}/vfpa_srkw_standard.csv",
+            "vfpa_srkw_standard": f"{_DCLDE_DATA_ROOT}/vfpa_srkw_standard.csv",
         },
         version="0.1.0",
         description="DCLDE 2026 killer whale dataset with species, ecotype, call type, "
