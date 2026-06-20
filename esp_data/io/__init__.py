@@ -5,8 +5,10 @@ from esp_data.io.read_utils import (
     audio_stereo_to_mono,
     get_audio_info,
     read_audio,
+    read_image,
     read_json,
     read_text,
+    read_video,
     read_yaml,
 )
 
@@ -17,6 +19,8 @@ __all__ = [
     "PureR2Path",
     "PureS3Path",
     "read_audio",
+    "read_image",
+    "read_video",
     "read_text",
     "audio_stereo_to_mono",
     "get_audio_info",

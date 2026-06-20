@@ -20,6 +20,14 @@ dependencies = [
     "soundfile>=0.13.1",
 ]
 
+[project.optional-dependencies]
+# Video decoding (PyAV / ffmpeg binding) for multimodal datasets such as
+# SSW60. Audio-only installs do not need this; `read_video` imports `av`
+# lazily and raises a clear error if the extra is not installed.
+video = [
+    "av>=12.0.0",
+]
+
 [dependency-groups]
 benchmark = [
     "matplotlib>=3.10.7",

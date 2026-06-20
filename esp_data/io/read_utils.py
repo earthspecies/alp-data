@@ -16,6 +16,8 @@ from esp_data.io.paths import AnyPathT, anypath
 logger = logging.getLogger("esp_data")
 
 _AUDIO_FORMATS = (".wav", ".flac", ".ogg", ".mp3")
+_IMAGE_FORMATS = (".jpg", ".jpeg", ".png", ".bmp", ".gif", ".webp", ".tif", ".tiff")
+_VIDEO_FORMATS = (".mp4", ".mov", ".avi", ".mkv", ".webm", ".m4v")
 
 
 def _read_audio_from_tmpfile(
@@ -486,3 +488,220 @@ def read_audio_by_time(
     except Exception as e:
         logger.error(f"Error reading audio file {e}")
         raise e
+
+
+def read_image(file_path: str | AnyPathT, mode: str | None = "RGB") -> np.ndarray:
+    """Read an image file into a NumPy array.
+
+    Handles various path types (local, GCS, R2) via the `filesystem_from_path`
+    utility, mirroring `read_audio`. Decoding is done with Pillow.
+
+    Parameters
+    ----------
+    file_path : str or AnyPathT
+        The path string or path object pointing to the image file.
+    mode : str or None, optional
+        Pillow image mode to convert to before returning (e.g., `"RGB"`,
+        `"L"`). If None, the image is returned in its native mode. Defaults
+        to `"RGB"`.
+
+    Returns
+    -------
+    np.ndarray
+        The image as a uint8 NumPy array in HWC layout. Shape is
+        ``(height, width, channels)`` for multi-channel images or
+        ``(height, width)`` for single-channel images.
+
+    Raises
+    ------
+    ValueError
+        If the file extension is not in the supported `_IMAGE_FORMATS`.
+    """
+    from PIL import Image
+
+    file_path = anypath(file_path)
+    extension = file_path.suffix
+
+    if extension.lower() not in _IMAGE_FORMATS:
+        raise ValueError(f"Unsupported image format: {extension}")
+
+    try:
+        fs = filesystem_from_path(file_path)
+        with fs.open(str(file_path), "rb") as f:
+            img = Image.open(f)
+            if mode is not None:
+                img = img.convert(mode)
+            return np.asarray(img)
+    except Exception as e:
+        logger.error(f"Error reading image file {e}")
+        raise e
+
+
+def read_video(
+    file_path: str | AnyPathT,
+    max_frames: int | None = None,
+    target_fps: float | None = None,
+    with_audio: bool = True,
+) -> dict[str, Any]:
+    """Read a video file into frames plus its aligned audio track.
+
+    Handles various path types (local, GCS, R2) via the `filesystem_from_path`
+    utility, mirroring `read_audio`. Decoding uses PyAV (`av`), which is an
+    optional dependency installed via the ``video`` extra. The import is
+    performed lazily so audio-only installs are unaffected.
+
+    PyAV demuxes the video frames and the embedded audio track in a single
+    pass, so the returned frames and audio originate from the same file and
+    are time-aligned.
+
+    Parameters
+    ----------
+    file_path : str or AnyPathT
+        The path string or path object pointing to the video file.
+    max_frames : int or None, optional
+        Maximum number of video frames to decode. If None, all frames are
+        decoded. Defaults to None.
+    target_fps : float or None, optional
+        If provided, video frames are subsampled to approximately this frame
+        rate (the audio track is never subsampled). If None, every frame is
+        returned. Defaults to None.
+    with_audio : bool, optional
+        Whether to decode and return the aligned audio track. Defaults to True.
+
+    Returns
+    -------
+    dict[str, Any]
+        A dictionary with keys:
+        - ``frames`` (np.ndarray): Video frames as a uint8 array in TToHWC
+          layout with shape ``(num_frames, height, width, 3)``.
+        - ``audio`` (np.ndarray or None): The aligned audio as a float32
+          array of shape ``(num_samples,)`` (mono) or
+          ``(num_samples, channels)``, or None when ``with_audio`` is False
+          or the video has no audio track.
+        - ``fps`` (float): The (effective) video frame rate.
+        - ``sample_rate`` (int or None): The audio sample rate in Hz, or None
+          when no audio was decoded.
+
+    Raises
+    ------
+    ImportError
+        If PyAV (`av`) is not installed. Install the ``video`` extra.
+    ValueError
+        If the file extension is not in the supported `_VIDEO_FORMATS`.
+    """
+    try:
+        import av
+    except ImportError as e:
+        raise ImportError(
+            "read_video requires PyAV. Install the optional 'video' extra, "
+            "e.g. `uv sync --extra video` or `pip install av`."
+        ) from e
+
+    file_path = anypath(file_path)
+    extension = file_path.suffix
+
+    if extension.lower() not in _VIDEO_FORMATS:
+        raise ValueError(f"Unsupported video format: {extension}")
+
+    try:
+        fs = filesystem_from_path(file_path)
+        with fs.open(str(file_path), "rb") as f:
+            with av.open(f) as container:
+                frames, fps = _decode_video_frames(container, max_frames, target_fps)
+                audio, sample_rate = (None, None)
+                if with_audio and container.streams.audio:
+                    audio, sample_rate = _decode_video_audio(container)
+        return {
+            "frames": frames,
+            "audio": audio,
+            "fps": fps,
+            "sample_rate": sample_rate,
+        }
+    except Exception as e:
+        logger.error(f"Error reading video file {e}")
+        raise e
+
+
+def _decode_video_frames(
+    container: object,
+    max_frames: int | None,
+    target_fps: float | None,
+) -> tuple[np.ndarray, float]:
+    """Decode (optionally subsampled) video frames from an open PyAV container.
+
+    Parameters
+    ----------
+    container : av.container.InputContainer
+        An open PyAV container positioned at the start of the video.
+    max_frames : int or None
+        Maximum number of frames to return, or None for all frames.
+    target_fps : float or None
+        Approximate target frame rate for subsampling, or None to keep all
+        frames.
+
+    Returns
+    -------
+    tuple[np.ndarray, float]
+        The decoded frames as a uint8 array of shape
+        ``(num_frames, height, width, 3)`` and the effective frame rate.
+    """
+    stream = container.streams.video[0]
+    src_fps = float(stream.average_rate) if stream.average_rate else 0.0
+    step = 1
+    if target_fps is not None and src_fps > target_fps > 0:
+        step = max(1, int(round(src_fps / target_fps)))
+
+    frames: list[np.ndarray] = []
+    for i, frame in enumerate(container.decode(video=0)):
+        if i % step != 0:
+            continue
+        frames.append(frame.to_ndarray(format="rgb24"))
+        if max_frames is not None and len(frames) >= max_frames:
+            break
+
+    effective_fps = src_fps / step if src_fps else 0.0
+    if frames:
+        return np.stack(frames, axis=0), effective_fps
+    return np.empty((0, 0, 0, 3), dtype=np.uint8), effective_fps
+
+
+def _decode_video_audio(
+    container: object,
+) -> tuple[np.ndarray | None, int | None]:
+    """Decode the embedded audio track from an open PyAV container.
+
+    Decoding through PyAV (rather than soundfile) is necessary because
+    libsndfile does not read the AAC/MP4 audio commonly muxed into video
+    containers. Multi-channel audio is returned interleaved as
+    ``(num_samples, channels)``; mono is flattened to ``(num_samples,)``.
+
+    Parameters
+    ----------
+    container : av.container.InputContainer
+        An open PyAV container with at least one audio stream.
+
+    Returns
+    -------
+    tuple[np.ndarray or None, int or None]
+        The float32 audio samples and sample rate, or ``(None, None)`` if the
+        audio track could not be decoded.
+    """
+    try:
+        stream = container.streams.audio[0]
+        sample_rate = stream.rate
+        # Frame decoding has advanced (or exhausted) the demuxer; rewind so the
+        # full audio track is read from the start of the container.
+        container.seek(0)
+        chunks: list[np.ndarray] = []
+        for frame in container.decode(audio=0):
+            # PyAV returns (channels, samples); transpose to (samples, channels).
+            chunks.append(frame.to_ndarray().T)
+        if not chunks:
+            return None, sample_rate
+        audio = np.concatenate(chunks, axis=0).astype(np.float32)
+        if audio.ndim == 2 and audio.shape[1] == 1:
+            audio = audio[:, 0]
+        return audio, sample_rate
+    except Exception as e:  # noqa: BLE001  audio is best-effort for video
+        logger.warning(f"Could not decode aligned video audio: {e}")
+        return None, None

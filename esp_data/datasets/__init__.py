@@ -44,6 +44,7 @@ from .powdermill import Powdermill
 from .pteroset import PteroSet
 from .roots import ROOTS
 from .spanish_carrion_crows_flight_clips import SpanishCarrionCrowsFlightClips
+from .ssw60 import SSW60
 from .subsegmentation import Subsegmentation
 from .superb_starling import SuperbStarling
 from .superwhales_detection import SuperWhaleDetection
@@ -102,6 +103,7 @@ __all__ = [
     "AnuraSetStrong",
     "Powdermill",
     "PIFSCPipan",
+    "SSW60",
     "PteroSet",
     "ROOTS",
     "SpanishCarrionCrowsFlightClips",
