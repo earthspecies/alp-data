@@ -31,10 +31,14 @@ from .gibbon_solos import GibbonSolos
 from .hawaiian_birds import HawaiianBirds
 from .inaturalist import INaturalist
 from .infant_marmosets_vox import InfantMarmosetsVox
+from .insect_sound import InsectSound
 from .insectset_459 import InsectSet459
 from .littleowl_id import LittleOwlId
 from .macaques_coo_calls import MacaquesCooCalls
+from .mosquito_sound import MosquitoSound
 from .nocturnal_bird_migration import NocturnalBirdMigration
+from .observation_org import ObservationOrg
+from .pifsc_pipan import PIFSCPipan
 from .pipit_id import PipitId
 from .powdermill import Powdermill
 from .pteroset import PteroSet
@@ -52,6 +56,7 @@ from .weldy_dawn_chorus import WeldyDawnChorus
 from .whales import Whales
 from .xeno_canto import XenoCanto
 from .xeno_canto_annotated_jeantet_23 import XenoCantoAnnotatedJeantet23
+from .xeno_canto_strong import XenoCantoStrong
 from .zebra_finch_julie_elie import ZebraFinchJulieElie
 
 __all__ = [
@@ -64,6 +69,8 @@ __all__ = [
     "GiantOtters",
     "INaturalist",
     "InsectSet459",
+    "InsectSound",
+    "MosquitoSound",
     "Beans",
     "BeansPro",
     "BeansZeroCallVariants",
@@ -90,14 +97,17 @@ __all__ = [
     "WABAD",
     "XenoCanto",
     "XenoCantoAnnotatedJeantet23",
+    "XenoCantoStrong",
     "HawaiianBirds",
     "AnuraSetStrong",
     "Powdermill",
+    "PIFSCPipan",
     "PteroSet",
     "ROOTS",
     "SpanishCarrionCrowsFlightClips",
     "ArcticBirdSounds",
     "NocturnalBirdMigration",
+    "ObservationOrg",
     "Birdeep",
     "Geladas",
     "DinardoDolphinWhistles",
