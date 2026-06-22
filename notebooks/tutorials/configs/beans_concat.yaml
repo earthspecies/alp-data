@@ -1,0 +1,12 @@
+concat:
+  datasets:
+    - dataset_name: beans
+      split: dogs_test
+    - dataset_name: beans
+      split: esc50_validation
+  merge_level: soft
+  transformations:
+    - type: label_from_feature
+      feature: label
+      output_feature: label
+      override: true
