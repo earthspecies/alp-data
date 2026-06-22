@@ -126,7 +126,7 @@ allow-star-arg-any = true # suppress ANN401 for *args and **kwargs arguments
 skip = "*.csv, *.ipynb"
 
 [tool.deptry]
-exclude = ["conftest.py", ".venv", "tests", "scripts", "docs/hooks/.*"]
+exclude = ["conftest.py", ".venv", "tests", "scripts", "notebooks", "docs/hooks/.*"]
 ignore = ["DEP003"]
 
 [tool.deptry.per_rule_ignores]
