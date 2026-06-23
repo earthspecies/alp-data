@@ -8,6 +8,7 @@ Run with:
 from __future__ import annotations
 
 import random
+from io import StringIO
 from typing import List
 
 import numpy as np
@@ -20,15 +21,20 @@ from alp_data.datasets.dclde2026 import (
     PROVENANCE_COLUMNS,
     SPECIES_LABELS,
 )
+from alp_data.io.filesystem import filesystem_from_path
 from alp_data.utils import create_hash
 
-
 EXPECTED_LEN_ALL = 9883
+EXPECTED_LEN_VFPA_SRKW_STANDARD = 1336
 EXPECTED_FIRST_ITEM_AUDIO_SHA256 = (
     "87cbf23a8a86233ca55c6263bed7c25bdf4cd61ec69c91b602bc90f8b74fad92"
 )
 ANNOTATIONS_SHA256 = "715975d12bf739e576239c06f267251f6936b1a2c3b08165d23efbd9fbc7b1ec"
+VFPA_SRKW_STANDARD_SHA256 = (
+    "97de2b0b18a661b08261fc758c5f12265c82dbbc120e76844732e21657166317"
+)
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture(scope="module")
 def ds_pandas() -> DCLDE2026:
@@ -40,6 +46,18 @@ def ds_pandas() -> DCLDE2026:
         Dataset instance with pandas backend.
     """
     return DCLDE2026(split="all", sample_rate=16000, backend="pandas")
+
+
+@pytest.fixture(scope="module")
+def ds_vfpa_srkw_standard() -> DCLDE2026:
+    """Load DCLDE2026 VFPA SRKW standard split with pandas backend.
+
+    Returns
+    -------
+    DCLDE2026
+        Dataset instance for the VFPA SRKW standard call-type split.
+    """
+    return DCLDE2026(split="vfpa_srkw_standard", sample_rate=16000, backend="pandas")
 
 
 @pytest.fixture(scope="module")
@@ -81,8 +99,36 @@ def test_dataset_length_matches_expected(ds_pandas: DCLDE2026) -> None:
 
 def test_available_splits(ds_pandas: DCLDE2026) -> None:
     """Test if available_splits returns correct split names."""
-    expected_splits = ["all"]
+    expected_splits = ["all", "vfpa_srkw_standard"]
     assert all(split in ds_pandas.available_splits for split in expected_splits)
+
+
+def test_vfpa_srkw_standard_split(ds_vfpa_srkw_standard: DCLDE2026) -> None:
+    """VFPA SRKW standard split should match the traced custom dataset."""
+    assert len(ds_vfpa_srkw_standard) == EXPECTED_LEN_VFPA_SRKW_STANDARD
+
+    split_path = ds_vfpa_srkw_standard.info.split_paths["vfpa_srkw_standard"]
+    h = create_hash(filesystem_from_path(split_path).cat(split_path))
+    assert h == VFPA_SRKW_STANDARD_SHA256
+
+    df = ds_vfpa_srkw_standard._data.unwrap
+    assert set(df["provider"]) == {"JASCO_VFPA", "JASCO_VFPA_ONC"}
+    assert {"window_start_sec", "window_end_sec"}.issubset(df.columns)
+
+    selection_tables = [
+        pd.read_csv(StringIO(selection_table), sep="\t", keep_default_na=False)
+        for selection_table in df["selection_table"]
+    ]
+    call_types = pd.concat(selection_tables, ignore_index=True)["call_type"]
+    assert call_types.nunique() == 27
+    assert len(call_types) == EXPECTED_LEN_VFPA_SRKW_STANDARD
+
+    first_selection = selection_tables[0]
+    assert len(first_selection) == 1
+    assert first_selection["Begin Time (s)"].iloc[0] == 0
+    assert first_selection["End Time (s)"].iloc[0] == pytest.approx(
+        df["window_end_sec"].iloc[0] - df["window_start_sec"].iloc[0]
+    )
 
 
 def test_check_audio(ds_pandas: DCLDE2026, sample_indices: List[int]) -> None:
