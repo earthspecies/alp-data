@@ -11,15 +11,15 @@ repo_url: https://github.com/earthspecies/alp-data
 
 nav:
   - Guides:
-    - Getting Started: index.md
-    - Datasets: datasets.md
-    - IO: io.md
-    - Transforms: transforms.md
-    - Concatenate Datasets: concatenate.md
-    - Chain Datasets: chain.md
-    - Backends: backends.md
+      - Getting Started: index.md
+      - Datasets: datasets.md
+      - IO: io.md
+      - Transforms: transforms.md
+      - Concatenate Datasets: concatenate.md
+      - Chain Datasets: chain.md
+      - Backends: backends.md
   - Reference:
-    - API Reference: reference.md
+      - API Reference: reference.md
 
 theme:
   name: material
