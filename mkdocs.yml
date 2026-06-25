@@ -10,45 +10,46 @@ repo_name: earthspecies/alp-data
 repo_url: https://github.com/earthspecies/alp-data
 
 nav:
-  - Getting Started: index.md
-  - Datasets: datasets.md
-  - io: io.md
-  - Transforms: transforms.md
-  - Concatenate datasets: concatenate.md
-  - Chain datasets: chain.md
-  - Data Backends: backends.md
-  - API Reference: reference.md
+  - Guides:
+      - Getting Started: index.md
+      - Datasets: datasets.md
+      - IO: io.md
+      - Transforms: transforms.md
+      - Concatenate Datasets: concatenate.md
+      - Chain Datasets: chain.md
+      - Backends: backends.md
+  - Reference:
+      - API Reference: reference.md
 
 theme:
   name: material
+  favicon: assets/favicon.png
+  logo: assets/esp-logotype-only-white.png
+  font: false
   features:
     - navigation.instant
     - navigation.instant.prefetch
     - navigation.instant.progress
-    - navigation.tabs
-    - navigation.tabs.sticky
-    - navigation.path
-    - toc.integrate
-  favicon: assets/favicon.png
-  logo: assets/favicon.png
-
+    - navigation.sections
+    - navigation.top
   palette:
-    - media: "(prefers-color-scheme: dark)"
-      scheme: slate
-      toggle:
-        icon: material/brightness-4
-        name: Switch to system preference
-      primary: teal
-      accent: pink
     - media: "(prefers-color-scheme: light)"
       scheme: default
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/brightness-4
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: custom
+      accent: custom
       toggle:
         icon: material/brightness-7
-        name: Switch to dark mode
-      primary: teal
-      accent: pink
+        name: Switch to system preference
 
 plugins:
+  - search
   - mkdocstrings:
       default_handler: python
       handlers:
@@ -66,6 +67,8 @@ hooks:
   - docs/hooks/dataset_info_hook.py
 
 markdown_extensions:
+  - toc:
+      title: On this page
   - admonition
   - pymdownx.details
   - pymdownx.highlight:
