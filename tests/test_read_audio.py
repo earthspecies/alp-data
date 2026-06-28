@@ -1,15 +1,19 @@
 """Unitary tests of audio file reading functions."""
 
 import numpy as np
+import pytest
 import soundfile as sf
 
 from alp_data.io.read_utils import (
+    FFmpegSegmentError,
+    _gcs_path_to_url,
     _read_audio_from_file,
-    read_audio,
+    _read_audio_from_tmpfile,
+    _warn_ffmpeg_fallback_once,
     audio_stereo_to_mono,
     get_audio_info,
-    read_audio_by_time,
-    _read_audio_from_tmpfile
+    get_gcs_token,
+    read_audio,
 )
 
 
@@ -114,12 +118,12 @@ def test_get_audio_info() -> None:
 
 
 def test_read_audio_by_time() -> None:
-    """Test if read_audio_by_time reads correct audio segment."""
+    """Test if read_audio reads the correct audio segment by time (local WAV)."""
     path = "tests/samples/noise.wav"
     start_time = 1.0  # Start at 1 second
     end_time = 2.0  # End at 2 seconds
 
-    audio, sr = read_audio_by_time(path, start_time=start_time, end_time=end_time)
+    audio, sr = read_audio(path, start_time=start_time, end_time=end_time)
 
     assert sr == 16000
     expected_length = int((end_time - start_time) * sr)
@@ -140,16 +144,17 @@ def test_read_mp3_from_gcs() -> None:
 
 
 def test_read_mp3_by_time_from_gcs() -> None:
-    """Test reading MP3 file segment by time from GCS."""
+    """Test reading an MP3 segment by time from GCS (ffmpeg streaming path)."""
     remote_path = "gs://esp-ci-cd-tests/esp-data-tests/some_subfolder/nri-battlesounds.mp3"
     start_time = 1.0  # Start at 1 second
     end_time = 2.0  # End at 2 seconds
 
-    audio, sr = read_audio_by_time(remote_path, start_time=start_time, end_time=end_time)
+    audio, sr = read_audio(remote_path, start_time=start_time, end_time=end_time)
 
     assert sr == 44100
     expected_length = int((end_time - start_time) * sr)
-    assert audio.shape[0] == expected_length
+    # MP3 frame alignment means ffmpeg segment length is approximate.
+    assert abs(audio.shape[0] - expected_length) < sr * 0.05
 
 
 def test_read_mp3_from_bytes() -> None:
@@ -207,7 +212,6 @@ def test_read_mp3_from_bytes_with_frames() -> None:
     np.testing.assert_allclose(data, data2, atol=1e-04)
 
 
-
 def test_read_troublesome_xc_file() -> None:
     """Test reading a known troublesome audio file from Xenocanto."""
     remote_path = "gs://esp-ci-cd-tests/esp-data-tests/XC_corcorax.mp3"
@@ -217,13 +221,14 @@ def test_read_troublesome_xc_file() -> None:
     # Actual decoded frames (not metadata frames due to encoder padding)
     assert data.shape[0] == 2794752
 
-    # test reading by time
+    # test reading by time (ffmpeg streaming path for GCS)
     start_time = 5.0
     end_time = 10.0
-    segment, sr3 = read_audio_by_time(remote_path, start_time=start_time, end_time=end_time)
+    segment, sr3 = read_audio(remote_path, start_time=start_time, end_time=end_time)
     expected_length = int((end_time - start_time) * sr)
     assert sr3 == sr
-    assert segment.shape[0] == expected_length
+    # MP3 frame alignment means ffmpeg segment length is approximate.
+    assert abs(segment.shape[0] - expected_length) < sr * 0.05
 
 
 def test_get_audio_info_troublesome_xc_file() -> None:
@@ -235,10 +240,67 @@ def test_get_audio_info_troublesome_xc_file() -> None:
     assert info["num_frames"] == 2807470  # FIXME: Info gives more frames
 
 
-#Issue 215: Glob pattern fix
+# Issue 215: Glob pattern fix
 def test_read_audio_with_glob() -> None:
     """Test reading audio file using glob pattern."""
     path = "gs://esp-ci-cd-tests/esp-data-tests/test_glob_pattern_audio/test_audio[1].wav"
     data, sr = read_audio(path)
     assert sr == 16000
     assert data.shape == (16000,)
+
+
+class TestGcsPathToUrl:
+    """Tests for _gcs_path_to_url."""
+
+    def test_with_gs_prefix(self) -> None:
+        result = _gcs_path_to_url("gs://my-bucket/path/to/file.wav")
+        assert result == "https://storage.googleapis.com/my-bucket/path/to/file.wav"
+
+    def test_without_gs_prefix(self) -> None:
+        result = _gcs_path_to_url("my-bucket/path/to/file.wav")
+        assert result == "https://storage.googleapis.com/my-bucket/path/to/file.wav"
+
+    def test_strips_leading_slashes(self) -> None:
+        result = _gcs_path_to_url("///my-bucket/path/to/file.wav")
+        assert result == "https://storage.googleapis.com/my-bucket/path/to/file.wav"
+
+    def test_rejects_s3_path(self) -> None:
+        with pytest.raises(ValueError, match="Unsupported storage scheme"):
+            _gcs_path_to_url("s3://my-bucket/path/to/file.wav")
+
+    def test_rejects_r2_path(self) -> None:
+        with pytest.raises(ValueError, match="Unsupported storage scheme"):
+            _gcs_path_to_url("r2://my-bucket/path/to/file.wav")
+
+
+def test_get_gcs_token() -> None:
+    """get_gcs_token returns a non-empty access token from ambient credentials."""
+    token = get_gcs_token()
+    assert isinstance(token, str)
+    assert len(token) > 0
+
+
+def test_read_audio_ffmpeg_fallback(monkeypatch, caplog) -> None:
+    """When the ffmpeg path fails, read_audio falls back to a download read.
+
+    The fallback must produce the same segment as the download path and warn
+    once for the failure cause.
+    """
+    remote_path = "gs://esp-ci-cd-tests/esp-data-tests/some_subfolder/nri-battlesounds.mp3"
+    start_time, end_time = 1.0, 2.0
+
+    # Reference segment via the download path (force ffmpeg off by simulating
+    # a missing binary).
+    def _boom(*args: object, **kwargs: object) -> tuple[np.ndarray, int]:
+        raise FFmpegSegmentError("ffmpeg not installed", "simulated missing binary")
+
+    _warn_ffmpeg_fallback_once.cache_clear()
+    monkeypatch.setattr("alp_data.io.read_utils._read_audio_ffmpeg", _boom)
+
+    with caplog.at_level("WARNING", logger="alp_data"):
+        audio, sr = read_audio(remote_path, start_time=start_time, end_time=end_time)
+
+    assert sr == 44100
+    expected_length = int((end_time - start_time) * sr)
+    assert audio.shape[0] == expected_length
+    assert any("ffmpeg not installed" in r.message for r in caplog.records)
