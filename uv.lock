@@ -17,7 +17,7 @@ resolution-markers = [
 ]
 
 [options]
-exclude-newer = "2026-06-03T08:44:04.309222Z"
+exclude-newer = "2026-06-19T21:04:04.742729Z"
 exclude-newer-span = "P7D"
 
 [options.exclude-newer-package]
@@ -180,6 +180,7 @@ version = "1.10.0"
 source = { editable = "." }
 dependencies = [
     { name = "gcsfs" },
+    { name = "google-auth" },
     { name = "google-cloud-secret-manager" },
     { name = "google-cloud-storage" },
     { name = "intervaltree" },
@@ -216,6 +217,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "gcsfs", specifier = ">=2024.9.0.post1" },
+    { name = "google-auth", specifier = ">=2.0.0" },
     { name = "google-cloud-secret-manager", specifier = ">=2.23.1" },
     { name = "google-cloud-storage", specifier = ">=2.19.0" },
     { name = "intervaltree", specifier = ">=3.1.0" },
