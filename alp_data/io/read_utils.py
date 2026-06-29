@@ -24,6 +24,11 @@ logger = logging.getLogger("alp_data")
 # only refreshed once per session (and again whenever it expires).
 _gcs_credentials = None
 
+# Sticky verdict for the credential-auto path: once an Application Default
+# Credentials lookup fails, we stop re-attempting it (it is relatively expensive)
+# and treat the environment as credential-less for the rest of the session.
+_gcs_credentials_unavailable = False
+
 
 class GCSAuthError(Exception):
     """Raised when Google Cloud credentials cannot be obtained or refreshed."""
@@ -102,6 +107,31 @@ def get_gcs_token() -> str:
         ) from e
 
 
+def _maybe_get_gcs_token() -> str | None:
+    """Return a GCS access token if ambient credentials exist, otherwise None.
+
+    Used by the credential-auto path of `read_audio`: a valid token works for
+    both public and private buckets, so we send one whenever credentials are
+    available and fall back to anonymous access only when they are not. The
+    "no credentials" verdict is cached at module level so a credential-less
+    environment does not re-run the Application Default Credentials lookup on
+    every read.
+
+    Returns
+    -------
+    str or None
+        A valid access token, or None if no ambient credentials are available.
+    """
+    global _gcs_credentials_unavailable
+    if _gcs_credentials_unavailable:
+        return None
+    try:
+        return get_gcs_token()
+    except GCSAuthError:
+        _gcs_credentials_unavailable = True
+        return None
+
+
 def _gcs_path_to_url(file_path: str | AnyPathT) -> str:
     """Convert a GCS path to an HTTPS REST API URL.
 
@@ -139,7 +169,7 @@ def _read_audio_ffmpeg(
     file_path: str | AnyPathT,
     start_time: float = 0.0,
     end_time: float | None = None,
-    anonymous: bool = False,
+    anonymous: bool | None = None,
 ) -> tuple[np.ndarray, int]:
     """Read an audio segment from GCS using ffmpeg HTTP range requests.
 
@@ -156,9 +186,14 @@ def _read_audio_ffmpeg(
         Start time in seconds. Defaults to 0.0.
     end_time : float or None, optional
         End time in seconds. If None, reads to the end of the file.
-    anonymous : bool, optional
-        If True, skip credential lookup and access the object without an
-        ``Authorization`` header (for public objects). Defaults to False.
+    anonymous : bool or None, optional
+        Controls how the GCS object is accessed:
+        - None (default): auto. Send an ``Authorization`` header when ambient
+          credentials are available (works for public and private buckets), and
+          access the object anonymously when they are not.
+        - True: always access anonymously, sending no ``Authorization`` header
+          (for public objects, e.g. to avoid sending a token).
+        - False: always authenticate, raising if credentials are unavailable.
 
     Returns
     -------
@@ -171,18 +206,25 @@ def _read_audio_ffmpeg(
     Raises
     ------
     FFmpegSegmentError
-        If credentials are unavailable, the ffmpeg/ffprobe binaries are not
-        installed, or ffprobe/ffmpeg fail to process the audio.
+        If ``anonymous`` is False and credentials are unavailable, the
+        ffmpeg/ffprobe binaries are not installed, or ffprobe/ffmpeg fail to
+        process the audio.
     """
     gcs_url = _gcs_path_to_url(file_path)
 
     headers_args: list[str] = []
-    if not anonymous:
+    if anonymous is True:
+        pass  # Explicit anonymous access: send no Authorization header.
+    elif anonymous is False:
         try:
             token = get_gcs_token()
         except GCSAuthError as e:
             raise FFmpegSegmentError("missing GCS credentials", str(e)) from e
         headers_args = ["-headers", f"Authorization: Bearer {token}\r\n"]
+    else:  # anonymous is None: authenticate if possible, else go anonymous.
+        token = _maybe_get_gcs_token()
+        if token is not None:
+            headers_args = ["-headers", f"Authorization: Bearer {token}\r\n"]
 
     # Probe native sample rate and channel count.
     probe_cmd = [
@@ -549,7 +591,7 @@ def read_audio(
     start_time: float | None = None,
     end_time: float | None = None,
     input_sr: int | None = None,
-    anonymous: bool = False,
+    anonymous: bool | None = None,
 ) -> tuple[np.ndarray, int]:
     """Reads audio data from a file path.
 
@@ -574,9 +616,12 @@ def read_audio(
         End time in seconds. If None, reads to end of file.
     input_sr : int or None, optional
         Expected sample rate. If provided, used for validation.
-    anonymous : bool, optional
-        For the ffmpeg GCS segment path only: if True, access the object
-        without credentials (for public objects). Defaults to False.
+    anonymous : bool or None, optional
+        For the ffmpeg GCS segment path only. None (default) auto-detects:
+        authenticate when ambient credentials are available (works for public
+        and private buckets) and access anonymously otherwise. True forces
+        anonymous access; False forces authentication. Has no effect on local
+        or non-segment reads.
 
     Returns
     -------

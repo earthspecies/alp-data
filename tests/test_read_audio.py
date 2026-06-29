@@ -4,9 +4,12 @@ import numpy as np
 import pytest
 import soundfile as sf
 
+import alp_data.io.read_utils as read_utils
 from alp_data.io.read_utils import (
     FFmpegSegmentError,
+    GCSAuthError,
     _gcs_path_to_url,
+    _maybe_get_gcs_token,
     _read_audio_from_file,
     _read_audio_from_tmpfile,
     _warn_ffmpeg_fallback_once,
@@ -278,6 +281,23 @@ def test_get_gcs_token() -> None:
     token = get_gcs_token()
     assert isinstance(token, str)
     assert len(token) > 0
+
+
+def test_maybe_get_gcs_token_no_credentials(monkeypatch) -> None:
+    """Auto path returns None and caches the verdict when no credentials exist."""
+    calls = {"n": 0}
+
+    def _no_creds() -> str:
+        calls["n"] += 1
+        raise GCSAuthError("no ambient credentials")
+
+    monkeypatch.setattr(read_utils, "_gcs_credentials_unavailable", False)
+    monkeypatch.setattr(read_utils, "get_gcs_token", _no_creds)
+
+    assert _maybe_get_gcs_token() is None
+    # Sticky verdict: the second call must not re-attempt the ADC lookup.
+    assert _maybe_get_gcs_token() is None
+    assert calls["n"] == 1
 
 
 def test_read_audio_ffmpeg_fallback(monkeypatch, caplog) -> None:
