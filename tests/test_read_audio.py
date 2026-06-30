@@ -10,6 +10,7 @@ from alp_data.io.read_utils import (
     GCSAuthError,
     _gcs_path_to_url,
     _maybe_get_gcs_token,
+    _read_audio_ffmpeg,
     _read_audio_from_file,
     _read_audio_from_tmpfile,
     _warn_ffmpeg_fallback_once,
@@ -232,6 +233,29 @@ def test_read_troublesome_xc_file() -> None:
     assert sr3 == sr
     # MP3 frame alignment means ffmpeg segment length is approximate.
     assert abs(segment.shape[0] - expected_length) < sr * 0.05
+
+
+def test_read_audio_ffmpeg_segment_from_gcs() -> None:
+    """ffmpeg streams a sample-accurate segment from a long GCS WAV file.
+
+    The source is a deterministic 10-minute 220 Hz tone (FLOAT WAV, so decoding
+    is lossless). Reading a mid-file segment via ffmpeg HTTP range requests must
+    return exactly the corresponding source frames without downloading the whole
+    file.
+    """
+    remote_path = "gs://esp-ci-cd-tests/esp-data-tests/long_tone_600s_16k_float.wav"
+    sr = 16000
+    start_time, end_time = 123.0, 128.0
+
+    segment, file_sr = _read_audio_ffmpeg(remote_path, start_time, end_time)
+
+    assert file_sr == sr
+    assert segment.shape == (int((end_time - start_time) * sr),)
+
+    # Reconstruct the exact source samples for the requested window.
+    frame_idx = np.arange(int(start_time * sr), int(end_time * sr))
+    expected = (0.5 * np.sin(2 * np.pi * 220.0 * frame_idx / sr)).astype(np.float32)
+    np.testing.assert_allclose(segment, expected, atol=1e-06)
 
 
 def test_get_audio_info_troublesome_xc_file() -> None:
