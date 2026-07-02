@@ -119,18 +119,18 @@ class XenoCanto(Dataset):
         name="xeno-canto",
         owner="david; gagan",
         split_paths={
-            "train": f"{DATA_HOME}/xeno-canto/v0.1.0/raw/train_20260203_v2.csv",
-            "validation": f"{DATA_HOME}/xeno-canto/v0.1.0/raw/val_20260203_v2.csv",
-            "all": f"{DATA_HOME}/xeno-canto/v0.1.0/raw/all_20260203_v2.csv",
-            "train_unseen": f"{DATA_HOME}/xeno-canto/v0.1.0/raw/train_unseen_20260203_v2.csv",
-            "validation_unseen": f"{DATA_HOME}/xeno-canto/v0.1.0/raw/val_unseen_20260203_v2.csv",
-            "all_unseen": f"{DATA_HOME}/xeno-canto/v0.1.0/raw/all_unseen_20260203_v2.csv",
+            "train": f"{DATA_HOME}/xeno-canto/v0.1.0/raw/train_20260622_v1.csv",
+            "validation": f"{DATA_HOME}/xeno-canto/v0.1.0/raw/val_20260622_v1.csv",
+            "all": f"{DATA_HOME}/xeno-canto/v0.1.0/raw/all_20260622_v1.csv",
+            "train_unseen": f"{DATA_HOME}/xeno-canto/v0.1.0/raw/train_unseen_20260622_v1.csv",
+            "validation_unseen": f"{DATA_HOME}/xeno-canto/v0.1.0/raw/val_unseen_20260622_v1.csv",
+            "all_unseen": f"{DATA_HOME}/xeno-canto/v0.1.0/raw/all_unseen_20260622_v1.csv",
         },
         version="0.1.0",
         description="Xeno-canto audio dataset with taxonomic metadata. "
         "Available at original (variable) sample rates and 32kHz (pre-resampled). "
         "Pre-resampled audio uses librosa's kaiser_best resampling method. "
-        "Xeno-canto dump as of Oct 2025. "
+        "Xeno-canto dump as of Jun 2026 (20260622). "
         "Train/val split is 90%/10% with random seed 42.",
         sources=["Xeno-canto"],
         license="CC BY-NC-SA 4.0, CC BY-NC 4.0, CC BY-SA, CC0",

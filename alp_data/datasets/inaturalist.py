@@ -23,7 +23,7 @@ class INaturalist(Dataset):
     following ESP's taxonomy app (GBIF backbone),
     including species scientific and common names, family, genus, order.
     There is additional metadata including location, date, and recordist information.
-    The current version 0.1.0 includes iNaturalist data up to July 2025.
+    The current version 0.1.0 includes iNaturalist data up to Jun 2026 (20260616 dump).
 
     Available Metadata Fields
     -------------------------
@@ -118,12 +118,12 @@ class INaturalist(Dataset):
         name="inaturalist",
         owner="gagan; david",
         split_paths={
-            "train": f"{DATA_HOME}/inaturalist/v0.1.0/raw/train_20260201_v3.csv",
-            "train_unseen": f"{DATA_HOME}/inaturalist/v0.1.0/raw/train_unseen_20260201_v3.csv",
-            "val": f"{DATA_HOME}/inaturalist/v0.1.0/raw/val_20260201_v3.csv",
-            "val_unseen": f"{DATA_HOME}/inaturalist/v0.1.0/raw/val_unseen_20260201_v3.csv",
-            "all": f"{DATA_HOME}/inaturalist/v0.1.0/raw/all_20260201_v3.csv",
-            "all_unseen": f"{DATA_HOME}/inaturalist/v0.1.0/raw/all_unseen_20260201_v3.csv",
+            "train": f"{DATA_HOME}/inaturalist/v0.1.0/raw/train_20260616_v1.csv",
+            "train_unseen": f"{DATA_HOME}/inaturalist/v0.1.0/raw/train_unseen_20260616_v1.csv",
+            "val": f"{DATA_HOME}/inaturalist/v0.1.0/raw/val_20260616_v1.csv",
+            "val_unseen": f"{DATA_HOME}/inaturalist/v0.1.0/raw/val_unseen_20260616_v1.csv",
+            "all": f"{DATA_HOME}/inaturalist/v0.1.0/raw/all_20260616_v1.csv",
+            "all_unseen": f"{DATA_HOME}/inaturalist/v0.1.0/raw/all_unseen_20260616_v1.csv",
         },
         version="0.1.0",
         description="iNaturalist audio dataset with taxonomic metadata. "
