@@ -7,7 +7,49 @@ import numpy as np
 
 from alp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from alp_data.backends import BackendType
+from alp_data.dataset import register_config
 from alp_data.io import DATA_HOME, AnyPathT, anypath, audio_stereo_to_mono, read_audio
+
+# Both versions keep their metadata under the v0.1.0 path, so data_root is shared
+# across versions (only the split CSVs differ).
+_RAW_ROOT = f"{DATA_HOME}/xeno-canto/v0.1.0/raw"
+
+
+@register_config
+class XenoCantoConfig(DatasetConfig):
+    """Configuration for the Xeno-canto dataset.
+
+    Parameters
+    ----------
+    dataset_name : str
+        The name of the dataset. Must be "xeno-canto".
+    split : str
+        The split to load. One of XenoCanto.info.split_paths keys.
+    version : str | None
+        The version of the dataset to use. If None, uses DEFAULT_VERSION.
+        Available versions: "0.1.0", "0.2.0".
+    output_take_and_give : dict[str, str] | None
+        A dictionary mapping the original column names to the new column names.
+        It acts as a filter as well.
+    sample_rate : int | None
+        The sample rate to which audio files should be resampled.
+    data_root : str | AnyPathT | None
+        The root directory for the dataset. If None, uses the default for the
+        selected version.
+    backend : BackendType
+        The backend to use ("pandas" or "polars"), by default "polars".
+    streaming : bool
+        Whether to use streaming mode, by default False.
+    """
+
+    dataset_name: str = "xeno-canto"
+    split: str = "train"
+    version: str | None = None
+    output_take_and_give: dict[str, str] | None = None
+    sample_rate: int | None = None
+    data_root: str | AnyPathT | None = None
+    backend: BackendType = "polars"
+    streaming: bool = False
 
 
 @register_dataset
@@ -115,22 +157,45 @@ class XenoCanto(Dataset):
     >>> dataset_16k = XenoCanto(split="train", sample_rate=16000, streaming=True)
     """
 
+    # Version registry with version-specific configurations. Both versions live
+    # under the v0.1.0 path, so only the split CSVs differ (data_root is shared).
+    VERSIONS = {
+        "0.1.0": {
+            "split_paths": {
+                "train": f"{_RAW_ROOT}/train_20260203_v2.csv",
+                "validation": f"{_RAW_ROOT}/val_20260203_v2.csv",
+                "all": f"{_RAW_ROOT}/all_20260203_v2.csv",
+                "train_unseen": f"{_RAW_ROOT}/train_unseen_20260203_v2.csv",
+                "validation_unseen": f"{_RAW_ROOT}/val_unseen_20260203_v2.csv",
+                "all_unseen": f"{_RAW_ROOT}/all_unseen_20260203_v2.csv",
+            },
+            "data_root": f"{_RAW_ROOT}/",
+        },
+        "0.2.0": {
+            "split_paths": {
+                "train": f"{_RAW_ROOT}/train_20260622_v1.csv",
+                "validation": f"{_RAW_ROOT}/val_20260622_v1.csv",
+                "all": f"{_RAW_ROOT}/all_20260622_v1.csv",
+                "train_unseen": f"{_RAW_ROOT}/train_unseen_20260622_v1.csv",
+                "validation_unseen": f"{_RAW_ROOT}/val_unseen_20260622_v1.csv",
+                "all_unseen": f"{_RAW_ROOT}/all_unseen_20260622_v1.csv",
+            },
+            "data_root": f"{_RAW_ROOT}/",
+        },
+    }
+
+    # Default version (0.1.0 for backward compatibility).
+    DEFAULT_VERSION = "0.1.0"
+
     info = DatasetInfo(
         name="xeno-canto",
         owner="david; gagan",
-        split_paths={
-            "train": f"{DATA_HOME}/xeno-canto/v0.1.0/raw/train_20260622_v1.csv",
-            "validation": f"{DATA_HOME}/xeno-canto/v0.1.0/raw/val_20260622_v1.csv",
-            "all": f"{DATA_HOME}/xeno-canto/v0.1.0/raw/all_20260622_v1.csv",
-            "train_unseen": f"{DATA_HOME}/xeno-canto/v0.1.0/raw/train_unseen_20260622_v1.csv",
-            "validation_unseen": f"{DATA_HOME}/xeno-canto/v0.1.0/raw/val_unseen_20260622_v1.csv",
-            "all_unseen": f"{DATA_HOME}/xeno-canto/v0.1.0/raw/all_unseen_20260622_v1.csv",
-        },
+        split_paths={},  # Populated per version in __init__.
         version="0.1.0",
         description="Xeno-canto audio dataset with taxonomic metadata. "
         "Available at original (variable) sample rates and 32kHz (pre-resampled). "
         "Pre-resampled audio uses librosa's kaiser_best resampling method. "
-        "Xeno-canto dump as of Jun 2026 (20260622). "
+        "v0.1.0 uses the 20260203 split; v0.2.0 uses the Jun 2026 (20260622) dump. "
         "Train/val split is 90%/10% with random seed 42.",
         sources=["Xeno-canto"],
         license="CC BY-NC-SA 4.0, CC BY-NC 4.0, CC BY-SA, CC0",
@@ -148,6 +213,7 @@ class XenoCanto(Dataset):
     def __init__(
         self,
         split: str = "train",
+        version: str | None = None,
         output_take_and_give: dict[str, str] = None,
         sample_rate: int | None = None,
         data_root: str | AnyPathT | None = None,
@@ -160,6 +226,9 @@ class XenoCanto(Dataset):
         ----------
         split : str, default="train"
             The split to load. One of info.split_paths keys.
+        version : str, optional
+            The version of the dataset to use. If None, uses DEFAULT_VERSION.
+            Available versions: "0.1.0" (20260203 split), "0.2.0" (20260622 dump).
         output_take_and_give : dict[str, str], optional
             A dictionary mapping the original column names to the new column names.
         sample_rate : int, optional
@@ -177,17 +246,38 @@ class XenoCanto(Dataset):
             The backend to use ("pandas" or "polars"), by default "polars"
         streaming : bool, optional
             Whether to use streaming mode, by default False
+
+        Raises
+        ------
+        ValueError
+            If the specified version is not available.
         """
         super().__init__(output_take_and_give, backend=backend, streaming=streaming)
+        # Copy class-level DatasetInfo to avoid cross-instance mutation (versions/splits).
+        self.info = self.info.model_copy(deep=True)
+
+        # Handle version selection.
+        if version is None:
+            version = self.DEFAULT_VERSION
+        if version not in self.VERSIONS:
+            raise ValueError(
+                f"Version '{version}' is not available. "
+                f"Available versions: {list(self.VERSIONS.keys())}"
+            )
+        self.version = version
+        self.version_config = self.VERSIONS[version]
+        self.info.split_paths = self.version_config["split_paths"]
+        self.info.version = version
+
         self.split = split
         self._data = None
         self._load()
         self.sample_rate = sample_rate
 
         if data_root is None:
-            self.data_root = anypath(f"{DATA_HOME}/xeno-canto/v0.1.0/raw/")
-            self._data_root_32k = anypath(f"{DATA_HOME}/xeno-canto/v0.1.0/raw/audio_32k/")
-            self._data_root_16k = anypath(f"{DATA_HOME}/xeno-canto/v0.1.0/raw/audio_16k/")
+            self.data_root = anypath(self.version_config["data_root"])
+            self._data_root_32k = anypath(f"{_RAW_ROOT}/audio_32k/")
+            self._data_root_16k = anypath(f"{_RAW_ROOT}/audio_16k/")
         else:
             self.data_root = anypath(data_root)
             self._data_root_32k = anypath(data_root)
@@ -240,12 +330,12 @@ class XenoCanto(Dataset):
         self._data = self._backend_class.from_csv(location, streaming=self._streaming)
 
     @classmethod
-    def from_config(cls, dataset_config: DatasetConfig) -> tuple["XenoCanto", dict[str, Any]]:
+    def from_config(cls, dataset_config: XenoCantoConfig) -> tuple["XenoCanto", dict[str, Any]]:
         """Create a Dataset instance from a configuration dictionary.
 
         Parameters
         ----------
-        dataset_config : DatasetConfig
+        dataset_config : XenoCantoConfig
             Configuration dictionary containing dataset parameters.
 
         Returns
@@ -259,6 +349,7 @@ class XenoCanto(Dataset):
 
         ds = cls(
             split=cfg["split"],
+            version=cfg.get("version"),
             output_take_and_give=cfg["output_take_and_give"],
             data_root=cfg["data_root"],
             sample_rate=cfg["sample_rate"],
@@ -396,12 +487,13 @@ class XenoCanto(Dataset):
             A string representation of the dataset including its name, version,
             and basic statistics if data is loaded.
         """
-        base_info = f"{self.info.name} (v{self.info.version})"
+        base_info = f"{self.info.name} (v{self.version})"
 
         return (
             f"{base_info}\n"
             f"Description: {self.info.description}\n"
             f"Sources: {', '.join(self.info.sources)}\n"
             f"License: {self.info.license}\n"
+            f"Available versions: {', '.join(self.VERSIONS.keys())}\n"
             f"Available splits: {', '.join(self.info.split_paths.keys())}"
         )
