@@ -92,6 +92,8 @@ class XenoCanto(Dataset):
         - ``behavior``: Behavior being recorded (e.g., "calling song")
         - ``sex``: Sex of the recorded animal(s)
         - ``lifeStage``: Life stage (e.g., "adult")
+        - ``quality``: Xeno-canto recording quality rating from ``A`` (highest) to
+          ``E`` (lowest), or ``"no score"`` when the recording is unrated
         - ``recordedBy``: Name of the recordist
 
     **Location:**
