@@ -332,6 +332,60 @@ details {
   color: var(--md-default-fg-color--light);
 }
 
+/* ── Sidebar nested nav spacing ─────────────────────────────────────── */
+
+.md-nav__item--nested > .md-nav > .md-nav__title {
+  display: none;
+}
+
+.md-nav__item--nested > .md-nav > .md-nav__list {
+  padding-top: 0;
+}
+
+/* ── TOC sticky title background ────────────────────────────────────── */
+
+.md-nav--secondary .md-nav__title {
+  background-color: var(--md-default-bg-color);
+}
+
+/* ── Jupyter notebook heading sizes ─────────────────────────────────── */
+
+.jp-MarkdownCell h2 { font-size: 1.2rem; }
+.jp-MarkdownCell h3 { font-size: 1.05rem; }
+
+/* ── Ext button / arrow link ─────────────────────────────────────────── */
+
+.ext-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-family: 'Euclid Circular B', sans-serif;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #1a1a1a !important;
+  background: #C3E409;
+  text-decoration: none !important;
+  padding: 0.5em 1.25em;
+  border-radius: 999px;
+  margin: 0.5rem 0 1.5rem;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.ext-btn::after {
+  content: '→';
+  margin-left: 0.2rem;
+  transition: transform 0.15s ease;
+}
+
+.ext-btn:hover {
+  background: linear-gradient(90deg, #129c7b 0%, #04d78a 50%, #c3e409 100%);
+  color: #1a1a1a !important;
+}
+
+.ext-btn:hover::after {
+  transform: translateX(3px);
+}
+
 /* ── Overview image ──────────────────────────────────────────────────── */
 
 .md-typeset img[alt="alp-data dataset overview"] {

@@ -1,18 +1,19 @@
 # Getting Started
 
-## What is alp-data?
+## Installation
 
-`alp-data` is a Python package that helps with all data-related tasks at ESP. It aims to make working with datasets easier, regardless of where they are stored and in which format.
+`alp-data` is available on [PyPI](https://pypi.org/project/alp-data/).
 
-Key features:
-- Unified dataset interface: Access datasets stored locally, on cloud storage (e.g., Google Cloud Storage), or in various formats (e.g., CSV, JSON, Parquet) through a consistent API.
-- Iterate or random access: Easily iterate over dataset samples or access them randomly using indexing.
-- Streaming support: Work with large datasets that don't fit into memory by streaming data on-the-fly.
-- On-the-fly data transformations: Apply transformations such as filtering rows / columns, create label
-- (beta) Concatenation and merging of multiple datasets: Combine datasets into a single unified dataset for training or evaluation.
+```sh
+uv add alp-data
+```
 
+or with pip:
 
-## Getting started
+```sh
+pip install alp-data
+```
+
 ```python
 from alp_data import Beans
 
@@ -54,16 +55,3 @@ for sample in beans_streaming:
 
 Check out the datasets documentation for more details [here](./datasets.md).
 
-## Installation
-
-`alp-data` is available on [PyPI](https://pypi.org/project/alp-data/).
-
-```sh
-uv add alp-data
-```
-
-or with pip:
-
-```sh
-pip install alp-data
-```

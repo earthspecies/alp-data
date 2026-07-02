@@ -2,7 +2,7 @@
 
 ## What is Dataset chaining?
 
-The `chain` module provides a lightweight way to **iterate over multiple ESP datasets** as if they were a single dataset. Unlike `ConcatenatedDataset`, chaining does not merge DataFrames or support transformations on the combined data—it simply yields items from each source dataset in sequence.
+The `chain` module provides a lightweight way to **iterate over multiple ALP datasets** as if they were a single dataset. Unlike `ConcatenatedDataset`, chaining does not merge DataFrames or support transformations on the combined data—it simply yields items from each source dataset in sequence.
 
 Use `ChainedDataset` when you:
 
@@ -10,7 +10,7 @@ Use `ChainedDataset` when you:
 - Want to support streaming mode across multiple datasets
 - Prefer a lightweight approach that doesn't create a merged DataFrame
 
-For combining datasets with transformation support, see [concatenate.md](concatenate.md).
+For combining datasets with transformation support, see [Concatenate Datasets](concatenate.md).
 
 ## How can I chain datasets?
 

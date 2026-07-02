@@ -10,14 +10,26 @@ repo_name: earthspecies/alp-data
 repo_url: https://github.com/earthspecies/alp-data
 
 nav:
+  - Home: home.md
   - Guides:
       - Getting Started: index.md
-      - Datasets: datasets.md
+      - Datasets:
+          - Overview: datasets.md
+          - Available Datasets: datasets-available.md
+          - Using Your Own Dataset: datasets-custom.md
       - IO: io.md
       - Transforms: transforms.md
       - Concatenate Datasets: concatenate.md
       - Chain Datasets: chain.md
       - Backends: backends.md
+      - Tutorials:
+          - 1. Basics: tutorials/01_basics.ipynb
+          - 2. IO: tutorials/02_io.ipynb
+          - 3. PyTorch DataLoader: tutorials/03_pytorch_dataloader.ipynb
+          - 4. YAML Config: tutorials/04_yaml_config.ipynb
+          - 5. Transforms: tutorials/05_transforms.ipynb
+          - 6. Concatenate & Chain: tutorials/06_concat_and_chain.ipynb
+          - 7. User Datasets & Transforms: tutorials/07_user_datasets_and_transforms.ipynb
   - Reference:
       - API Reference: reference.md
 
@@ -50,6 +62,9 @@ theme:
 
 plugins:
   - search
+  - mkdocs-jupyter:
+      execute: false
+      include_source: true
   - mkdocstrings:
       default_handler: python
       handlers:
@@ -65,6 +80,7 @@ plugins:
 
 hooks:
   - docs/hooks/dataset_info_hook.py
+  - docs/hooks/hide_toc_hook.py
 
 markdown_extensions:
   - toc:
