@@ -20,14 +20,19 @@ from alp_data.io.paths import AnyPathT, PureGSPath, anypath
 
 logger = logging.getLogger("alp_data")
 
-# Module-level cache of Google credentials. Reused across calls so the token is
+# For ffmpeg range reads:
+# Module-level cache of Google credentials.
+# Reused across calls so the token is
 # only refreshed once per session (and again whenever it expires).
 _gcs_credentials = None
 
-# Sticky verdict for the credential-auto path: once an Application Default
+# A way to tell if a client is authenticated: Application Default
 # Credentials lookup fails, we stop re-attempting it (it is relatively expensive)
 # and treat the environment as credential-less for the rest of the session.
 _gcs_credentials_unavailable = False
+
+
+# ---- FFMPEG READ UTILS -----
 
 
 class GCSAuthError(Exception):
@@ -78,9 +83,8 @@ def get_gcs_token() -> str:
     """Fetch a valid access token using Google Application Default Credentials.
 
     Relies on the caller having authenticated with GCP, e.g. via
-    `gcloud auth application-default login` or an ambient service account. The
-    credentials are cached at module level and only refreshed when the current
-    token is missing or expired.
+    `gcloud auth application-default login` or a service account. The
+    credentials are cached in _gcs_credentials.
 
     Returns
     -------
@@ -110,12 +114,9 @@ def get_gcs_token() -> str:
 def _maybe_get_gcs_token() -> str | None:
     """Return a GCS access token if ambient credentials exist, otherwise None.
 
-    Used by the credential-auto path of `read_audio`: a valid token works for
-    both public and private buckets, so we send one whenever credentials are
-    available and fall back to anonymous access only when they are not. The
-    "no credentials" verdict is cached at module level so a credential-less
-    environment does not re-run the Application Default Credentials lookup on
-    every read.
+    A valid token works for both public and private buckets,
+    so we send one whenever credentials are
+    available and fall back to anonymous access only when they are not.
 
     Returns
     -------
