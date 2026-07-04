@@ -206,6 +206,28 @@ _SPLIT_SPECS: dict[str, dict[str, str | None]] = {
         "audio_root": None,
         "task": "roots_tier1_vocal_description_mcq",
     },
+    # Iconic call-description MCQ built from Xeno-canto + iNaturalist focal
+    # recordings, BirdCODE-isolated single-species crops, and a curated list
+    # of famous call descriptions. Audio paths are absolute gs:// URIs (mixed
+    # XC + iNat), so no audio_root is needed; the crop window is encoded in
+    # audio_ids and 32 kHz redirect applies when sample_rate=32000.
+    "tier1_v2_call_description_mcq_iconic": {
+        "jsonl_path": f"{_T1_V2_ROOT}/call_description_mcq_iconic_xc_inat_v1.jsonl",
+        "audio_root": None,
+        "task": "roots_tier1_vocal_description_mcq",
+    },
+    # Within-species call-type description MCQ: the audio is one call type of a
+    # species; the correct option describes that call type and the distractors
+    # describe other call types of the *same* species. Built from Xeno-canto
+    # `behavior` metadata associated with BirdCODE-isolated focal crops, with
+    # (species, call-type) pairs validated by spectrogram inspection. Audio
+    # paths are absolute gs:// URIs; crop windows live in audio_ids.
+    # Disabled for now (kept here for easy re-enable).
+    # "tier1_v2_calltype_mcq_within_species": {
+    #     "jsonl_path": f"{_T1_V2_ROOT}/calltype_mcq_within_species_xc_v1.jsonl",
+    #     "audio_root": None,
+    #     "task": "roots_tier1_vocal_description_mcq",
+    # },
 }
 _SPLIT_SPECS.update({spec["split"]: spec for spec in (_t3_spec(*entry) for entry in _T3_FILES)})
 

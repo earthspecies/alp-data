@@ -7,7 +7,7 @@ from typing import Any, Dict, Iterator, List
 
 import librosa
 import numpy as np
-import polars as pl
+import pandas as pd
 
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from esp_data.backends import BackendType
@@ -175,14 +175,14 @@ class AudioSetStrong(Dataset):
         return len(self._data)
 
     @staticmethod
-    def _empty_selection_table() -> pl.DataFrame:
+    def _empty_selection_table() -> pd.DataFrame:
         # Default Raven-style selection table columns we expect for strong labels.
-        return pl.DataFrame(
-            schema={
-                "Selection": pl.Int64,
-                "Begin Time (s)": pl.Float64,
-                "End Time (s)": pl.Float64,
-                "Label": pl.Utf8,
+        return pd.DataFrame(
+            {
+                "Selection": pd.Series(dtype="int64"),
+                "Begin Time (s)": pd.Series(dtype="float64"),
+                "End Time (s)": pd.Series(dtype="float64"),
+                "Label": pd.Series(dtype="object"),
             }
         )
 
@@ -230,24 +230,25 @@ class AudioSetStrong(Dataset):
                 )
                 sample_rate = self.sample_rate
 
-        # Selection table (using polars for ~5x faster parsing)
+        # Selection table. Parsed with pandas, NOT polars: this runs inside forked
+        # DataLoader workers, and polars' rayon thread pool deadlocks after fork().
         selection_table_blob = row.get("selection_table", "")
         if selection_table_blob is None or selection_table_blob == "":
             st = self._empty_selection_table()
         else:
-            st = pl.read_csv(StringIO(selection_table_blob), separator="\t")
+            st = pd.read_csv(
+                StringIO(selection_table_blob), sep="\t", keep_default_na=False, na_values=[""]
+            )
 
         # Clip events outside audio (keep only events that begin before audio end)
         audio_dur = len(audio) / float(sample_rate)
         if "Begin Time (s)" in st.columns:
-            st = st.filter(pl.col("Begin Time (s)") < audio_dur)
+            st = st[st["Begin Time (s)"] < audio_dur].reset_index(drop=True)
 
         # Build output
         row["audio"] = audio
         row["sample_rate"] = sample_rate
-        row["selection_table"] = (
-            st.to_pandas()
-        )  # to adhere to the rest of the selection_table datasets
+        row["selection_table"] = st
 
         if self.output_take_and_give:
             item: dict[str, Any] = {}
@@ -298,9 +299,11 @@ class AudioSetStrong(Dataset):
             selection_table_blob = row.get("selection_table", "")
             if selection_table_blob is None or selection_table_blob == "":
                 continue
-            st = pl.read_csv(StringIO(selection_table_blob), separator="\t")
+            st = pd.read_csv(
+                StringIO(selection_table_blob), sep="\t", keep_default_na=False, na_values=[""]
+            )
             if "Label" in st.columns:
-                labels.update(st["Label"].cast(pl.Utf8).to_list())
+                labels.update(st["Label"].astype(str).to_list())
 
         return sorted(labels)
 

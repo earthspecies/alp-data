@@ -4,9 +4,11 @@ from typing import Any, Dict, Iterator
 
 import librosa
 import numpy as np
+import polars as pl
 
 from esp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from esp_data.backends import BackendType
+from esp_data.backends.polars_backend import PolarsBackend
 from esp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
 
 
@@ -40,7 +42,10 @@ class XenoCanto(Dataset):
 
     **Audio File Paths:**
         - ``relative_path``: Path to original audio relative to data_root (variable sample rate)
-        - ``gcs_path``: Full GCS path to original audio
+        - ``gcs_path``: Full GCS path to original audio. Audio spans two buckets
+          (``esp-ml-datasets`` for older recordings, ``esp-data-ingestion`` for
+          recordings added in the 20260613+ dumps); this column encodes each
+          row's bucket and is used to resolve absolute audio paths at load time.
         - ``32khz_path``: Path to pre-resampled 32kHz audio (if available)
         - ``16khz_path``: Path to pre-resampled 16kHz audio (if available)
 
@@ -50,6 +55,8 @@ class XenoCanto(Dataset):
         - ``behavior``: Behavior being recorded (e.g., "calling song")
         - ``sex``: Sex of the recorded animal(s)
         - ``lifeStage``: Life stage (e.g., "adult")
+        - ``quality``: Xeno-canto recording quality rating, one of ``A`` (highest)
+          to ``E`` (lowest). May be null ("no score") for a small fraction of rows.
         - ``recordedBy``: Name of the recordist
 
     **Location:**
@@ -83,6 +90,7 @@ class XenoCanto(Dataset):
     - ``train_unseen``: Training set excluding unseen taxa evaluated in BEANS-Zero benchmark
     - ``validation_unseen``: Validation set excluding unseen taxa evaluated in BEANS-Zero benchmark
     - ``all_unseen``: Complete dataset excluding BEANS-Zero unseen taxa
+    - ``unseen_holdout``: Held-out unseen-taxa evaluation set from the 20260622 dump
     - ``train_strong``: Training set with selection tables derived from
       EfficientNet model predictions. Each row includes a ``selection_table``
       TSV and ``audio_duration`` column for use with the ``window_annotations``
@@ -135,12 +143,13 @@ class XenoCanto(Dataset):
         name="xeno-canto",
         owner="david; gagan",
         split_paths={
-            "train": "gs://esp-ml-datasets/xeno-canto/v0.1.0/raw/train_20260203.csv",
-            "validation": "gs://esp-ml-datasets/xeno-canto/v0.1.0/raw/val_20260203.csv",
-            "all": "gs://esp-ml-datasets/xeno-canto/v0.1.0/raw/all_20260203.csv",
-            "train_unseen": "gs://esp-ml-datasets/xeno-canto/v0.1.0/raw/train_unseen_20260203.csv",
-            "validation_unseen": "gs://esp-ml-datasets/xeno-canto/v0.1.0/raw/val_unseen_20260203.csv",
-            "all_unseen": "gs://esp-ml-datasets/xeno-canto/v0.1.0/raw/all_unseen_20260203.csv",
+            "train": "gs://esp-data-ingestion/xeno-canto/v0.1.0/raw/train_20260622.csv",
+            "validation": "gs://esp-data-ingestion/xeno-canto/v0.1.0/raw/val_20260622.csv",
+            "all": "gs://esp-data-ingestion/xeno-canto/v0.1.0/raw/all_20260622.csv",
+            "train_unseen": "gs://esp-data-ingestion/xeno-canto/v0.1.0/raw/train_unseen_20260622.csv",
+            "validation_unseen": "gs://esp-data-ingestion/xeno-canto/v0.1.0/raw/val_unseen_20260622.csv",
+            "all_unseen": "gs://esp-data-ingestion/xeno-canto/v0.1.0/raw/all_unseen_20260622.csv",
+            "unseen_holdout": "gs://esp-data-ingestion/xeno-canto/v0.1.0/raw/unseen_holdout_20260622.csv",
             "train_strong": "gs://esp-data-ingestion/xeno-canto/v0.1.0/raw/train_strong_labels.csv",
             "train_strong_unseen_thr02_bgdet": "gs://esp-data-ingestion/xeno-canto/v0.1.0/raw/train_strong_unseen_thr02_bgdet.csv",
             "train_strong_unseen_top100_bgdet": "gs://esp-data-ingestion/xeno-canto/v0.1.0/raw/train_strong_unseen_top100_bgdet.csv",
@@ -150,7 +159,8 @@ class XenoCanto(Dataset):
         description="Xeno-canto audio dataset with taxonomic metadata. "
         "Available at original (variable) sample rates and 32kHz (pre-resampled). "
         "Pre-resampled audio uses librosa's kaiser_best resampling method. "
-        "Xeno-canto dump as of Oct 2025. "
+        "All splits use the 20260622 dump; audio spans the esp-ml-datasets "
+        "and esp-data-ingestion buckets, resolved per row from gcs_path. "
         "Train/val split is 90%/10% with random seed 42.",
         sources=["Xeno-canto"],
         license="CC BY-NC-SA 4.0, CC BY-NC 4.0, CC BY-SA, CC0",
@@ -210,10 +220,63 @@ class XenoCanto(Dataset):
             self.data_root = anypath("gs://esp-ml-datasets/xeno-canto/v0.1.0/raw/")
             self._data_root_32k = anypath("gs://esp-ml-datasets/xeno-canto/v0.1.0/raw/audio_32k/")
             self._data_root_16k = anypath("gs://esp-ml-datasets/xeno-canto/v0.1.0/raw/audio_16k/")
+            # Resolve audio to absolute, per-row bucket URIs from ``gcs_path``.
+            # Without a ``data_root`` override the audio can live in either
+            # ``esp-ml-datasets`` (older recordings) or ``esp-data-ingestion``
+            # (recordings added in the 20260613+ dumps), so a single hardcoded
+            # root cannot locate every file.
+            self._resolve_remote_audio_paths()
         else:
             self.data_root = anypath(data_root)
             self._data_root_32k = anypath(data_root)
             self._data_root_16k = anypath(data_root)
+
+    def _resolve_remote_audio_paths(self) -> None:
+        """Rewrite pre-resampled path columns to absolute, per-row GCS URIs.
+
+        The 20260622 Xeno-canto dump stores newly added recordings in the
+        ``esp-data-ingestion`` bucket while older recordings remain in
+        ``esp-ml-datasets``. Each row's correct bucket and dataset root are
+        encoded in the absolute ``gcs_path`` column
+        (``gs://<bucket>/xeno-canto/<version>/raw/audio/<...>``), whereas
+        ``32khz_path`` / ``16khz_path`` are bucket-agnostic relative paths.
+
+        Manifest ``select_columns`` transforms drop ``gcs_path`` before
+        :meth:`_process` runs, so the resampled columns are rewritten here, at
+        load time, into absolute URIs that survive downstream transforms. Rows
+        without a ``gcs_path``, empty resampled paths, and already-absolute
+        values are left untouched.
+        """
+        if not isinstance(self._data, PolarsBackend):
+            # Vectorized rewrite is implemented for the polars backend only;
+            # other backends fall back to the relative-path join in _process.
+            return
+        if "gcs_path" not in self._data.columns:
+            return
+
+        df = self._data._df
+        # Per-row dataset raw root, e.g. ``gs://<bucket>/xeno-canto/v0.1.0/raw/``
+        raw_root = pl.col("gcs_path").str.split("/raw/").list.first() + pl.lit("/raw/")
+
+        exprs = []
+        for column, subdir in (("32khz_path", "audio_32k/"), ("16khz_path", "audio_16k/")):
+            if column not in self._data.columns:
+                continue
+            value = pl.col(column).cast(pl.Utf8)
+            exprs.append(
+                pl.when(
+                    pl.col("gcs_path").cast(pl.Utf8).str.starts_with("gs://")
+                    & value.is_not_null()
+                    & (value != "")
+                    & ~value.str.starts_with("gs://")
+                )
+                .then(raw_root + pl.lit(subdir) + value)
+                .otherwise(pl.col(column))
+                .alias(column)
+            )
+
+        if exprs:
+            self._data = PolarsBackend(df.with_columns(exprs), streaming=self._streaming)
 
     @property
     def columns(self) -> list[str]:
@@ -340,18 +403,27 @@ class XenoCanto(Dataset):
         if self.sample_rate is not None and self.sample_rate in self._sample_rate_paths:
             path_column = self._sample_rate_paths[self.sample_rate]
             if path_column in row and row[path_column] is not None and row[path_column] != "":
-                if self.sample_rate == 16000:
-                    audio_path = self._data_root_16k / row[path_column]
+                presampled_path = row[path_column]
+                if str(presampled_path).startswith("gs://"):
+                    # Resolved to an absolute, per-row bucket URI at load time.
+                    audio_path = anypath(presampled_path)
+                elif self.sample_rate == 16000:
+                    audio_path = self._data_root_16k / presampled_path
                 else:
-                    audio_path = self._data_root_32k / row[path_column]
+                    audio_path = self._data_root_32k / presampled_path
                 use_presampled = True
 
         if not use_presampled:
-            rel_path = row[self._originals_path_column]
-            if not rel_path.startswith("audio/"):
-                audio_path = anypath(self.data_root) / "audio" / rel_path
+            gcs_path = row.get("gcs_path")
+            if gcs_path is not None and str(gcs_path).startswith("gs://"):
+                # gcs_path is the absolute original recording in its own bucket.
+                audio_path = anypath(gcs_path)
             else:
-                audio_path = anypath(self.data_root) / rel_path
+                rel_path = row[self._originals_path_column]
+                if not rel_path.startswith("audio/"):
+                    audio_path = anypath(self.data_root) / "audio" / rel_path
+                else:
+                    audio_path = anypath(self.data_root) / rel_path
 
         window_start = row.get("window_start_sec")
         window_end = row.get("window_end_sec")
@@ -379,6 +451,7 @@ class XenoCanto(Dataset):
         row["audio"] = audio
         row["sample_rate"] = sample_rate
         row["mixup_group"] = self._mixup_group
+        row["dataset_name"] = self.info.name
 
         if self.output_take_and_give:
             item = {}

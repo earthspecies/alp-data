@@ -14,6 +14,22 @@ from esp_data.io import AnyPathT, anypath
 from .protocol import DataBackend
 
 
+def _coerce_bool_filter_values(values: list[Any]) -> list[Any]:
+    """Coerce string boolean filter values for Boolean columns."""
+    coerced: list[Any] = []
+    for value in values:
+        if isinstance(value, str):
+            normalized = value.strip().lower()
+            if normalized == "true":
+                coerced.append(True)
+                continue
+            if normalized == "false":
+                coerced.append(False)
+                continue
+        coerced.append(value)
+    return coerced
+
+
 class PandasBackend(DataBackend):
     """Pandas implementation of the DataFrameBackend protocol.
 
@@ -358,6 +374,8 @@ class PandasBackend(DataBackend):
             New backend with filtered DataFrame
         """
         self._ensure_not_streaming("filter_isin")
+        if pd.api.types.is_bool_dtype(self._df[column].dtype):
+            values = _coerce_bool_filter_values(values)
         mask = self._df[column].isin(values)
         if negate:
             mask = ~mask

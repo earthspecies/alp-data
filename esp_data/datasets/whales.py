@@ -6,6 +6,10 @@ sampled from DCLDE 2026 killer-whale recordings. The dataset is clip-level
 and call-type metadata on positive rows; negative rows are pure DCLDE
 background and carry ``species="None"``.
 
+Event clips are sourced from the Watkins ``train_unseen`` split, which
+excludes the BEANS-Zero Watkins test clips, so this synthetic training
+data does not leak evaluation audio.
+
 Each row is a 2-10 s mono 32 kHz WAV. Build pipeline lives in
 ``scripts/build_whales_synthetic.py``.
 """

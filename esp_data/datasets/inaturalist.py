@@ -36,9 +36,17 @@ class INaturalist(Dataset):
         - ``gbifID``: GBIF (Global Biodiversity Information Facility) identifier
 
     **Audio File Paths:**
-        - ``originals_path``: Path to original audio (variable sample rate)
-        - ``32khz_path``: Path to pre-resampled 32kHz audio
-        - ``16khz_path``: Path to pre-resampled 16kHz audio
+        - ``gcs_path``: Absolute GCS URI of the original recording
+        - ``originals_path``: Relative path to original audio (variable sample rate)
+        - ``32khz_path``: Relative path to pre-resampled 32kHz audio
+        - ``16khz_path``: Relative path to pre-resampled 16kHz audio
+
+    The pre-resampled/original audio for the 20260616 dump is split across two GCS
+    buckets (``esp-ml-datasets`` and ``esp-data-ingestion``). The path columns store
+    absolute, existence-verified ``gs://`` URIs (resolved once offline by
+    ``scripts/resolve_inaturalist_buckets.py``), so the loader reads them directly with
+    no read-time bucket guessing. Rows whose audio was missing from both buckets are
+    dropped during that resolution step.
 
     **Recording Metadata:**
         - ``eventDate``, ``eventTime``: When the recording was made
@@ -74,6 +82,7 @@ class INaturalist(Dataset):
     - ``train_unseen``: Training set excluding unseen taxa evaluated in BEANS-Zero benchmark
     - ``val_unseen``: Validation set excluding unseen taxa evaluated in BEANS-Zero benchmark
     - ``all_unseen``: Complete dataset excluding BEANS-Zero unseen taxa
+    - ``unseen_holdout``: Held-out unseen taxa (the taxa excluded from the ``_unseen`` splits)
 
     The ``_unseen`` splits are designed for training models that will be evaluated
     on BEANS-Zero's unseen taxa benchmark, ensuring no test taxa leak into the training data.
@@ -109,17 +118,22 @@ class INaturalist(Dataset):
         name="inaturalist",
         owner="gagan; david",
         split_paths={
-            "train": "gs://esp-ml-datasets/inaturalist/v0.1.0/raw/train_20260201.csv",
-            "train_unseen": "gs://esp-ml-datasets/inaturalist/v0.1.0/raw/train_unseen_20260201.csv",
-            "val": "gs://esp-ml-datasets/inaturalist/v0.1.0/raw/val_20260201.csv",
-            "val_unseen": "gs://esp-ml-datasets/inaturalist/v0.1.0/raw/val_unseen_20260201.csv",
-            "all": "gs://esp-ml-datasets/inaturalist/v0.1.0/raw/all_20260201.csv",
-            "all_unseen": "gs://esp-ml-datasets/inaturalist/v0.1.0/raw/all_unseen_20260201.csv",
+            "train": "gs://esp-data-ingestion/inaturalist/v0.1.0/raw/train_20260616.csv",
+            "train_unseen": "gs://esp-data-ingestion/inaturalist/v0.1.0/raw/train_unseen_20260616.csv",
+            "val": "gs://esp-data-ingestion/inaturalist/v0.1.0/raw/val_20260616.csv",
+            "val_unseen": "gs://esp-data-ingestion/inaturalist/v0.1.0/raw/val_unseen_20260616.csv",
+            "all": "gs://esp-data-ingestion/inaturalist/v0.1.0/raw/all_20260616.csv",
+            "all_unseen": "gs://esp-data-ingestion/inaturalist/v0.1.0/raw/all_unseen_20260616.csv",
+            "unseen_holdout": "gs://esp-data-ingestion/inaturalist/v0.1.0/raw/unseen_holdout_20260616.csv",
         },
         version="0.1.0",
         description="iNaturalist audio dataset with taxonomic metadata. "
         "Available at original (variable) sample rates and 32kHz (pre-resampled). "
-        "Pre-resampled audio uses librosa's kaiser_best resampling method.",
+        "Pre-resampled audio uses librosa's kaiser_best resampling method. "
+        "The Jun 2026 (20260616) dump splits audio across two GCS buckets "
+        "(esp-ml-datasets and esp-data-ingestion); the path columns store absolute, "
+        "existence-verified gs:// URIs resolved offline, and rows with no audio in "
+        "either bucket are dropped.",
         sources=["iNaturalist"],
         license="CC BY-NC 4.0, CC BY 4.0, CC0 1.0",
     )
@@ -177,7 +191,7 @@ class INaturalist(Dataset):
         if data_root is None:
             self.data_root = anypath("gs://esp-ml-datasets/inaturalist/v0.1.0/raw/")
         else:
-            self.data_root = data_root
+            self.data_root = anypath(data_root)
 
     @property
     def columns(self) -> list[str]:
@@ -289,6 +303,19 @@ class INaturalist(Dataset):
             )
         return len(self._data)
 
+    def _resolve_audio_path(self, value: str) -> AnyPathT:
+        """Resolve a path-column value to a concrete audio path.
+
+        The 20260616 dump stores ``32khz_path`` / ``16khz_path`` / ``gcs_path`` as
+        absolute ``gs://`` URIs (already existence-resolved to the correct bucket by
+        ``scripts/resolve_inaturalist_buckets.py``), so those are used as-is. A
+        relative value (e.g. when ``data_root`` is overridden, or for older dumps) is
+        joined onto ``data_root``.
+        """
+        if str(value).startswith("gs://"):
+            return anypath(value)
+        return anypath(self.data_root) / value
+
     def _process(self, row: dict[str, Any]) -> dict[str, Any]:
         """Process a single row of the dataset.
 
@@ -303,15 +330,17 @@ class INaturalist(Dataset):
             The processed row.
         """
 
-        # Determine which path column to use based on requested sample rate
-        # If a pre-resampled version is available, use it; otherwise resample on-the-fly
+        # Determine which path column to use based on requested sample rate. The
+        # pre-resampled path columns hold absolute, existence-verified ``gs://`` URIs
+        # for the 20260616 dump (see ``_resolve_audio_path``); if a pre-resampled
+        # version is available it is used directly, otherwise we resample on the fly
+        # from the original recording.
         use_presampled = False
         if self.sample_rate is not None and self.sample_rate in self._sample_rate_paths:
             path_column = self._sample_rate_paths[self.sample_rate]
-            # Check if the pre-resampled path column exists in the data
-            if path_column in row and row[path_column] is not None and row[path_column] != "":
-                # Use pre-resampled audio
-                audio_path = anypath(self.data_root) / row[path_column]
+            value = row.get(path_column)
+            if value is not None and value != "":
+                audio_path = self._resolve_audio_path(value)
                 use_presampled = True
 
         if use_presampled:
@@ -320,8 +349,15 @@ class INaturalist(Dataset):
             audio = audio_stereo_to_mono(audio, mono_method="average")
             # Audio is already at the correct sample rate, no resampling needed
         else:
-            # Use original variable-rate files and resample on-the-fly if needed
-            audio_path = anypath(self.data_root) / row[self._originals_path_column]
+            # Use the original variable-rate recording and resample on the fly. The
+            # absolute ``gcs_path`` is preferred; otherwise fall back to the relative
+            # ``originals_path`` joined onto ``data_root``.
+            gcs_path = row.get("gcs_path")
+            if gcs_path is not None and str(gcs_path).startswith("gs://"):
+                audio_path = anypath(gcs_path)
+            else:
+                audio_path = anypath(self.data_root) / row[self._originals_path_column]
+
             audio, sample_rate = read_audio(audio_path)
             audio = audio.astype(np.float32)
             audio = audio_stereo_to_mono(audio, mono_method="average")
@@ -339,6 +375,7 @@ class INaturalist(Dataset):
         row["audio"] = audio
         row["sample_rate"] = sample_rate
         row["mixup_group"] = self._mixup_group
+        row["dataset_name"] = self.info.name
 
         if self.output_take_and_give:
             item = {}

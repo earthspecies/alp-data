@@ -665,7 +665,16 @@ def _setup_logging(verbose: bool) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--watkins-split", default="train")
+    parser.add_argument(
+        "--watkins-split",
+        default="train_unseen",
+        help=(
+            "Watkins split to source event clips from. Defaults to "
+            "`train_unseen`, which excludes the BEANS-Zero Watkins test clips "
+            "to avoid leaking evaluation audio into training. Use `train` only "
+            "for non-evaluated experiments."
+        ),
+    )
     parser.add_argument(
         "--dclde-split",
         default="all",

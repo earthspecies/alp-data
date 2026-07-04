@@ -31,6 +31,22 @@ def _open_remote_binary(path: str | Path) -> BinaryIO:
     return fs.open(str(path), "rb")
 
 
+def _coerce_bool_filter_values(values: list[Any]) -> list[Any]:
+    """Coerce string boolean filter values for Boolean columns."""
+    coerced: list[Any] = []
+    for value in values:
+        if isinstance(value, str):
+            normalized = value.strip().lower()
+            if normalized == "true":
+                coerced.append(True)
+                continue
+            if normalized == "false":
+                coerced.append(False)
+                continue
+        coerced.append(value)
+    return coerced
+
+
 class PolarsBackend(DataBackend):
     """Polars implementation of the DataFrameBackend protocol.
 
@@ -401,6 +417,8 @@ class PolarsBackend(DataBackend):
         In streaming mode (LazyFrame), this operation preserves the lazy computation.
         Call `.collect()` to materialize the filtered result into an eager backend.
         """
+        if self._df.schema.get(column) == pl.Boolean:
+            values = _coerce_bool_filter_values(values)
         expr = pl.col(column).is_in(values)
         if negate:
             expr = ~expr

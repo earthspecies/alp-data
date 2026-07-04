@@ -74,6 +74,14 @@ class BeansPro(Dataset):
       arises in dawn-chorus windows containing multiple species'
       vocalisations (~30 % of 2-s windows have a co-occurring different
       species with a different sonotype).
+    - ``dclde2013-multilabel-species``: held-out multilabel baleen-whale
+      species classification. Fixed 10 s clips windowed from the DCLDE 2013
+      NEFSC Stellwagen Bank all-baleen recordings (``superwhale_detection``
+      component ``dclde_2013_nefsc_sbnms_allbaleen``, not in NatureLM
+      training). ``output`` is the comma-separated set of scientific names
+      vocalizing in the clip (fin, humpback, North Atlantic right, and the
+      underpowered blue whale) or ``None`` for true-negative clips (~30 %).
+      Source: scripts/build_beans_pro_dclde2013_multilabel_species.py.
 
     Schema
     ------
@@ -117,6 +125,7 @@ class BeansPro(Dataset):
             "weldy-call-or-song-sp-6s": "gs://esp-data-ingestion/beans-pro/v0.1.0/raw/weldy_call_or_song_sp_6s/test.jsonl",
             "weldy-call-or-song-sp-10s": "gs://esp-data-ingestion/beans-pro/v0.1.0/raw/weldy_call_or_song_sp_10s/test.jsonl",
             "weldy-multi-call-type": "gs://esp-data-ingestion/beans-pro/v0.1.0/raw/weldy_multi_call_type/test.jsonl",
+            "dclde2013-multilabel-species": "gs://esp-data-ingestion/beans-pro/v0.1.0/raw/dclde2013_multilabel_species/test.jsonl",
         },
         version="0.1.0",
         description=(
@@ -157,6 +166,7 @@ class BeansPro(Dataset):
         "weldy-call-or-song-sp-6s": "gs://esp-data-ingestion/beans-pro/v0.1.0/raw/weldy_call_or_song_6s/",
         "weldy-call-or-song-sp-10s": "gs://esp-data-ingestion/beans-pro/v0.1.0/raw/weldy_call_or_song_sp_10s/",
         "weldy-multi-call-type": "gs://esp-data-ingestion/beans-pro/v0.1.0/raw/weldy_multi_call_type/",
+        "dclde2013-multilabel-species": "gs://esp-data-ingestion/beans-pro/v0.1.0/raw/dclde2013_multilabel_species/",
     }
 
     _originals_path_column = "audio_path_original_sample_rate"
@@ -253,6 +263,7 @@ class BeansPro(Dataset):
             )
 
         row["audio"] = audio
+        row["sample_rate"] = self.sample_rate if self.sample_rate is not None else sr
 
         if self.output_take_and_give:
             item = {}

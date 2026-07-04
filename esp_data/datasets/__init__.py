@@ -3,6 +3,7 @@ from .animalspeak import AnimalSpeak
 from .anuraset import AnuraSetStrong
 from .arctic_bird_sounds import ArcticBirdSounds
 from .audio_skills_xl import AudioSkillsXL
+from .audio_unshuffle import AudioUnshuffle
 from .audiocaps import AudioCaps
 from .audioset import AudioSet
 from .audioset_strong import AudioSetStrong
@@ -34,6 +35,7 @@ from .infant_marmosets_vox import InfantMarmosetsVox
 from .insect_sound import InsectSound
 from .insectset_459 import InsectSet459
 from .littleowl_id import LittleOwlId
+from .llm_text_distill import LLMTextDistill
 from .macaques_coo_calls import MacaquesCooCalls
 from .mosquito_sound import MosquitoSound
 from .nocturnal_bird_migration import NocturnalBirdMigration
@@ -65,6 +67,7 @@ __all__ = [
     "AnimalSpeak",
     "AudioCaps",
     "AudioSkillsXL",
+    "AudioUnshuffle",
     "BarkleyCanyon",
     "BarkleyCanyonDetection",
     "GiantOtters",
@@ -82,6 +85,7 @@ __all__ = [
     "BengaleseFinchCalls",
     "ChiffchaffId",
     "LittleOwlId",
+    "LLMTextDistill",
     "PipitId",
     "AudioSet",
     "AudioSetStrong",

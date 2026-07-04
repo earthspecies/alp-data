@@ -16,8 +16,10 @@ _SPLIT_ROOTS: dict[str, str] = {
     "train_v4_wbio": "gs://foundation-model-data/synthetic/synth_v2_32k_noisy_v4_wbio",
     # MixIT-rendered synthetic SED soundscapes (10s, 1-3 species, 1-9 individuals).
     # v2: 1M scenes / 5.4M conversation rows. v3: 200k scenes / 1.4M rows.
+    # v4: 0.2M scenes / 1.41M rows (refreshed corpus that supersedes v2/v3).
     "train_sed_v2": "gs://foundation-model-data/synthetic/synthetic_sed_mixit_32k_v2",
     "train_sed_v3": "gs://foundation-model-data/synthetic/synthetic_sed_mixit_32k_v3",
+    "train_sed_v4": "gs://foundation-model-data/synthetic/synthetic_sed_mixit_32k_v4",
 }
 _SOURCE_SAMPLE_RATE = 32000
 

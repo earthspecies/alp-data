@@ -230,10 +230,12 @@ class ChainedDataset(Dataset):
             except Exception as exc:  # noqa: BLE001 - tolerate sporadic data read failures
                 last_exc = exc
                 logger.warning(
-                    "ChainedDataset.__getitem__ failed for index %d (attempt %d/%d): %s",
+                    "ChainedDataset.__getitem__ failed for index %d [%s] (attempt %d/%d): %s: %s",
                     current_idx,
+                    self._dataset_label_for_index(current_idx),
                     attempt + 1,
                     max_retries + 1,
+                    type(exc).__name__,
                     exc,
                 )
                 current_idx = random.randint(0, self._total_length - 1)
@@ -242,6 +244,35 @@ class ChainedDataset(Dataset):
             f"ChainedDataset.__getitem__ failed after {max_retries + 1} attempts; "
             f"last error: {last_exc}"
         ) from last_exc
+
+    def _dataset_label_for_index(self, idx: int) -> str:
+        """Best-effort source-dataset label for an index, used in error logs.
+
+        Failures in ``__getitem__`` only report the raised exception, which is
+        not enough to attribute a bad row to its source dataset in a large
+        chained mixture. This resolves the index back to its source dataset
+        name (falling back to the class name) and must never raise.
+        """
+        try:
+            if self._data is not None:
+                chain_idx = int(self._data[idx]["_chain_idx"])
+                dataset = self._source_datasets[chain_idx]
+            else:
+                cumulative_length = 0
+                dataset = None
+                for candidate, length in zip(
+                    self._source_datasets, self._lengths, strict=True
+                ):
+                    if idx < cumulative_length + length:
+                        dataset = candidate
+                        break
+                    cumulative_length += length
+                if dataset is None:
+                    return "unknown"
+            info = getattr(dataset, "info", None)
+            return getattr(info, "name", None) or type(dataset).__name__
+        except Exception:  # noqa: BLE001 - labeling must never break the data path
+            return "unknown"
 
     def _load_item(self, idx: int) -> dict[str, Any]:
         """Load and process a single item by global index (without retry).

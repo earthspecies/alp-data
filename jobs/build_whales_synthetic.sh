@@ -14,7 +14,7 @@
 # ───────────────────────────────────────────────────────────────────
 # Build the synthetic `whales` dataset.
 #
-# Watkins (train) + DCLDE 2026 (all) → 32 kHz mono WAV clips written to
+# Watkins (train_unseen, leakage-safe) + DCLDE 2026 (all) → 32 kHz mono WAV clips written to
 # gs://foundation-model-data/synthetic/whales/v0.1.0/ plus a manifest
 # CSV consumed by `esp_data.datasets.Whales`.
 #
