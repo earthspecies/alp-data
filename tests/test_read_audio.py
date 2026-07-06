@@ -1,5 +1,7 @@
 """Unitary tests of audio file reading functions."""
 
+from types import SimpleNamespace
+
 import numpy as np
 import pytest
 import soundfile as sf
@@ -7,16 +9,13 @@ import soundfile as sf
 import alp_data.io.read_utils as read_utils
 from alp_data.io.read_utils import (
     FFmpegSegmentError,
-    GCSAuthError,
     _gcs_path_to_url,
-    _maybe_get_gcs_token,
     _read_audio_ffmpeg,
     _read_audio_from_file,
     _read_audio_from_tmpfile,
     _warn_ffmpeg_fallback_once,
     audio_stereo_to_mono,
     get_audio_info,
-    get_gcs_token,
     read_audio,
 )
 
@@ -300,30 +299,6 @@ class TestGcsPathToUrl:
             _gcs_path_to_url("r2://my-bucket/path/to/file.wav")
 
 
-def test_get_gcs_token() -> None:
-    """get_gcs_token returns a non-empty access token from ambient credentials."""
-    token = get_gcs_token()
-    assert isinstance(token, str)
-    assert len(token) > 0
-
-
-def test_maybe_get_gcs_token_no_credentials(monkeypatch) -> None:
-    """Auto path returns None and caches the verdict when no credentials exist."""
-    calls = {"n": 0}
-
-    def _no_creds() -> str:
-        calls["n"] += 1
-        raise GCSAuthError("no ambient credentials")
-
-    monkeypatch.setattr(read_utils, "_gcs_credentials_unavailable", False)
-    monkeypatch.setattr(read_utils, "get_gcs_token", _no_creds)
-
-    assert _maybe_get_gcs_token() is None
-    # Sticky verdict: the second call must not re-attempt the ADC lookup.
-    assert _maybe_get_gcs_token() is None
-    assert calls["n"] == 1
-
-
 def test_read_audio_ffmpeg_fallback(monkeypatch, caplog) -> None:
     """When the ffmpeg path fails, read_audio falls back to a download read.
 
@@ -348,3 +323,35 @@ def test_read_audio_ffmpeg_fallback(monkeypatch, caplog) -> None:
     expected_length = int((end_time - start_time) * sr)
     assert audio.shape[0] == expected_length
     assert any("ffmpeg not installed" in r.message for r in caplog.records)
+
+
+def test_read_audio_ffmpeg_unparseable_probe_raises(monkeypatch) -> None:
+    """Malformed ffprobe output surfaces as FFmpegSegmentError, not a raw ValueError.
+
+    This lets `read_audio` catch it and fall back to the download path instead
+    of crashing the caller.
+    """
+
+    # ffprobe exited 0 but produced no stream line.
+    monkeypatch.setattr(
+        read_utils.subprocess, "run", lambda *a, **k: SimpleNamespace(stdout="")
+    )
+
+    with pytest.raises(FFmpegSegmentError) as excinfo:
+        _read_audio_ffmpeg("gs://bucket/file.wav", 0.0, 1.0, anonymous=True)
+    assert excinfo.value.cause == "ffprobe output unparsable"
+
+
+def test_read_audio_ffmpeg_input_sr_mismatch_warns(monkeypatch, caplog) -> None:
+    """The ffmpeg path warns when `input_sr` disagrees with the native rate."""
+
+    def _fake_run(cmd: list[str], *args: object, **kwargs: object) -> SimpleNamespace:
+        if cmd[0] == "ffprobe":
+            return SimpleNamespace(stdout="16000,1")
+        return SimpleNamespace(stdout=np.zeros(16000, dtype=np.float32).tobytes())
+
+    monkeypatch.setattr(read_utils.subprocess, "run", _fake_run)
+
+    with caplog.at_level("WARNING", logger="alp_data"):
+        _read_audio_ffmpeg("gs://bucket/file.wav", 0.0, 1.0, input_sr=44100, anonymous=True)
+    assert any("doesn't match" in r.message for r in caplog.records)
