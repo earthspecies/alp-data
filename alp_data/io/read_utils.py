@@ -7,36 +7,20 @@ import tempfile
 from functools import lru_cache
 from typing import Any, BinaryIO, Literal
 
-import google.auth
 import librosa
 import numpy as np
 import soundfile as sf
 import yaml
-from google.auth.transport.requests import Request
 from soundfile import LibsndfileError
 
+from alp_data.io.auth import GCSAuthError, get_gcs_token, get_gcs_token_if_available
 from alp_data.io.filesystem import filesystem_from_path
 from alp_data.io.paths import AnyPathT, PureGSPath, anypath
 
 logger = logging.getLogger("alp_data")
 
-# For ffmpeg range reads:
-# Module-level cache of Google credentials.
-# Reused across calls so the token is
-# only refreshed once per session (and again whenever it expires).
-_gcs_credentials = None
-
-# A way to tell if a client is authenticated: Application Default
-# Credentials lookup fails, we stop re-attempting it (it is relatively expensive)
-# and treat the environment as credential-less for the rest of the session.
-_gcs_credentials_unavailable = False
-
 
 # ---- FFMPEG READ UTILS -----
-
-
-class GCSAuthError(Exception):
-    """Raised when Google Cloud credentials cannot be obtained or refreshed."""
 
 
 class FFmpegSegmentError(Exception):
@@ -79,60 +63,6 @@ def _warn_ffmpeg_fallback_once(cause: str) -> None:
     )
 
 
-def get_gcs_token() -> str:
-    """Fetch a valid access token using Google Application Default Credentials.
-
-    Relies on the caller having authenticated with GCP, e.g. via
-    `gcloud auth application-default login` or a service account. The
-    credentials are cached in _gcs_credentials.
-
-    Returns
-    -------
-    str
-        A valid access token for authenticating requests to Google Cloud.
-
-    Raises
-    ------
-    GCSAuthError
-        If credentials cannot be obtained or refreshed.
-    """
-    global _gcs_credentials
-    try:
-        if _gcs_credentials is None:
-            _gcs_credentials, _ = google.auth.default()
-        if not _gcs_credentials.valid:
-            _gcs_credentials.refresh(Request())
-        return _gcs_credentials.token
-    except Exception as e:
-        raise GCSAuthError(
-            f"Error authenticating with Google Cloud: {e}.\n"
-            "Ensure you have run 'gcloud auth application-default login' "
-            "and have permission to access the GCS bucket."
-        ) from e
-
-
-def _maybe_get_gcs_token() -> str | None:
-    """Return a GCS access token if ambient credentials exist, otherwise None.
-
-    A valid token works for both public and private buckets,
-    so we send one whenever credentials are
-    available and fall back to anonymous access only when they are not.
-
-    Returns
-    -------
-    str or None
-        A valid access token, or None if no ambient credentials are available.
-    """
-    global _gcs_credentials_unavailable
-    if _gcs_credentials_unavailable:
-        return None
-    try:
-        return get_gcs_token()
-    except GCSAuthError:
-        _gcs_credentials_unavailable = True
-        return None
-
-
 def _gcs_path_to_url(file_path: str | AnyPathT) -> str:
     """Convert a GCS path to an HTTPS REST API URL.
 
@@ -170,6 +100,7 @@ def _read_audio_ffmpeg(
     file_path: str | AnyPathT,
     start_time: float = 0.0,
     end_time: float | None = None,
+    input_sr: int | None = None,
     anonymous: bool | None = None,
 ) -> tuple[np.ndarray, int]:
     """Read an audio segment from GCS using ffmpeg HTTP range requests.
@@ -187,6 +118,9 @@ def _read_audio_ffmpeg(
         Start time in seconds. Defaults to 0.0.
     end_time : float or None, optional
         End time in seconds. If None, reads to the end of the file.
+    input_sr : int or None, optional
+        Expected sample rate. If provided, used for validation (a warning is
+        logged on mismatch with the file's native sample rate).
     anonymous : bool or None, optional
         Controls how the GCS object is accessed:
         - None (default): auto. Send an ``Authorization`` header when ambient
@@ -208,8 +142,8 @@ def _read_audio_ffmpeg(
     ------
     FFmpegSegmentError
         If ``anonymous`` is False and credentials are unavailable, the
-        ffmpeg/ffprobe binaries are not installed, or ffprobe/ffmpeg fail to
-        process the audio.
+        ffmpeg/ffprobe binaries are not installed, ffprobe/ffmpeg fail to
+        process the audio, or their output cannot be parsed/decoded.
     """
     gcs_url = _gcs_path_to_url(file_path)
 
@@ -223,7 +157,7 @@ def _read_audio_ffmpeg(
             raise FFmpegSegmentError("missing GCS credentials", str(e)) from e
         headers_args = ["-headers", f"Authorization: Bearer {token}\r\n"]
     else:  # anonymous is None: authenticate if possible, else go anonymous.
-        token = _maybe_get_gcs_token()
+        token = get_gcs_token_if_available()
         if token is not None:
             headers_args = ["-headers", f"Authorization: Bearer {token}\r\n"]
 
@@ -251,8 +185,19 @@ def _read_audio_ffmpeg(
         ) from e
 
     probe_parts = probe_result.stdout.strip().split(",")
-    sample_rate = int(probe_parts[0])
-    channels = int(probe_parts[1])
+    try:
+        sample_rate = int(probe_parts[0])
+        channels = int(probe_parts[1])
+    except (IndexError, ValueError) as e:
+        raise FFmpegSegmentError(
+            "ffprobe output unparsable",
+            f"could not parse sample rate/channels from ffprobe output "
+            f"{probe_result.stdout!r}: {e}",
+        ) from e
+
+    # Validate input sample rate if provided
+    if input_sr is not None and input_sr != sample_rate:
+        logger.warning(f"Input sample rate {input_sr} doesn't match file sample rate {sample_rate}")
 
     command = ["ffmpeg", *headers_args, "-ss", str(start_time), "-i", gcs_url]
     if end_time is not None:
@@ -270,10 +215,16 @@ def _read_audio_ffmpeg(
             f"ffmpeg failed with return code {e.returncode}:\n{e.stderr.decode()}",
         ) from e
 
-    audio = np.frombuffer(result.stdout, dtype=np.float32)
-    if channels > 1:
-        # Interleaved samples -> (frames, channels), matching soundfile.
-        audio = audio.reshape(-1, channels)
+    try:
+        audio = np.frombuffer(result.stdout, dtype=np.float32)
+        if channels > 1:
+            # Interleaved samples -> (frames, channels), matching soundfile.
+            audio = audio.reshape(-1, channels)
+    except ValueError as e:
+        raise FFmpegSegmentError(
+            "ffmpeg output unparsable",
+            f"could not interpret ffmpeg PCM output as float32 with {channels} channel(s): {e}",
+        ) from e
     # Copy so the returned array is writable (np.frombuffer is read-only).
     return audio.copy(), sample_rate
 
@@ -529,56 +480,59 @@ def _read_audio_by_time(
 
     try:
         fs = filesystem_from_path(file_path)
-        fp = fs.open(str(file_path), "rb")
-
-        try:
-            info = sf.info(fp)
-            file_sr = info.samplerate
-            total_frames = info.frames
-        except LibsndfileError:
-            # Use temporary file for MP3/OGG
-            with tempfile.NamedTemporaryFile(suffix=extension, delete=True) as tmp_file:
-                tmp_file.write(fp.read())
-                tmp_file.flush()
-                info = sf.info(tmp_file.name)
+        with fs.open(str(file_path), "rb") as fp:
+            try:
+                info = sf.info(fp)
                 file_sr = info.samplerate
                 total_frames = info.frames
+            except LibsndfileError:
+                # Use temporary file for MP3/OGG
+                with tempfile.NamedTemporaryFile(suffix=extension, delete=True) as tmp_file:
+                    tmp_file.write(fp.read())
+                    tmp_file.flush()
+                    info = sf.info(tmp_file.name)
+                    file_sr = info.samplerate
+                    total_frames = info.frames
 
-        # Validate input sample rate if provided
-        if input_sr is not None and input_sr != file_sr:
-            logger.warning(f"Input sample rate {input_sr} doesn't match file sample rate {file_sr}")
+            # Validate input sample rate if provided
+            if input_sr is not None and input_sr != file_sr:
+                logger.warning(
+                    f"Input sample rate {input_sr} doesn't match file sample rate {file_sr}"
+                )
 
-        # Convert time to frame indices
-        start_frame = int(start_time * file_sr)
+            # Convert time to frame indices
+            start_frame = int(start_time * file_sr)
 
-        if end_time is not None:
-            end_frame = int(end_time * file_sr)
-            frames_to_read = end_frame - start_frame
-        else:
-            frames_to_read = -1  # Read to end
+            if end_time is not None:
+                end_frame = int(end_time * file_sr)
+                frames_to_read = end_frame - start_frame
+            else:
+                frames_to_read = -1  # Read to end
 
-        # Ensure we don't exceed file bounds
-        start_frame = max(0, min(start_frame, total_frames))
-        if frames_to_read > 0:
-            frames_to_read = min(frames_to_read, total_frames - start_frame)
+            # Ensure we don't exceed file bounds
+            start_frame = max(0, min(start_frame, total_frames))
+            if frames_to_read > 0:
+                frames_to_read = min(frames_to_read, total_frames - start_frame)
 
-        # Read the actual audio data
-        fp.seek(0)
-        try:
-            data, samplerate = sf.read(fp, frames=frames_to_read, start=start_frame, format=None)
-        except LibsndfileError:
+            # Read the actual audio data
+            fp.seek(0)
             try:
-                data, samplerate = _read_audio_with_librosa(
-                    fp, frames=frames_to_read, start=start_frame
+                data, samplerate = sf.read(
+                    fp, frames=frames_to_read, start=start_frame, format=None
                 )
-            except Exception:
-                fp.seek(0)
-                data, samplerate = _read_audio_from_tmpfile(
-                    fp.read(),
-                    format=format,
-                    frames=frames_to_read,
-                    start=start_frame,
-                )
+            except LibsndfileError:
+                try:
+                    data, samplerate = _read_audio_with_librosa(
+                        fp, frames=frames_to_read, start=start_frame
+                    )
+                except Exception:
+                    fp.seek(0)
+                    data, samplerate = _read_audio_from_tmpfile(
+                        fp.read(),
+                        format=format,
+                        frames=frames_to_read,
+                        start=start_frame,
+                    )
 
         return data, samplerate
 
@@ -645,7 +599,9 @@ def read_audio(
     if start_time is not None:
         if isinstance(file_path, PureGSPath):
             try:
-                return _read_audio_ffmpeg(file_path, start_time, end_time, anonymous=anonymous)
+                return _read_audio_ffmpeg(
+                    file_path, start_time, end_time, input_sr=input_sr, anonymous=anonymous
+                )
             except FFmpegSegmentError as e:
                 _warn_ffmpeg_fallback_once(e.cause)
                 logger.debug("ffmpeg segment read failed (%s): %s", e.cause, e)
