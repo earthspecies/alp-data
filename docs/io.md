@@ -16,7 +16,7 @@ You can use this module to:
 4. [Delete files](#delete-files) with filesystem operations
 5. [Move files](#move-files-from-one-cloud-location-to-another-cloud-location) from one cloud location to another cloud location
 6. [Copy files](#copy-from-one-cloud-location-to-another-cloud-location) from one cloud location to another cloud location
-7. [Read audio](#read-audio-from-a-remote-file) from a remote file directly into memory as a numpy array. This is **NOT** the same as *streaming*, it loads the whole file into memory, so be careful with large files.
+7. [Read audio](#read-audio-from-a-remote-file) from a remote file directly into memory as a numpy array. A full-file read loads the whole file into memory (**NOT** streaming), so be careful with large files. You can also read just a [time range](#read-only-a-time-range).
 8. [Get audio info](#get-info-about-an-audio-file-before-reading) about an audio file before reading it, such as sample rate, duration, number of channels, etc.
 
 There are two interfaces available:
@@ -412,6 +412,30 @@ audio, sample_rate = read_audio("gs://esp-ci-cd-tests/esp-data-tests/some_subfol
 print(audio.shape, sample_rate)
 # (235008,) 44100
 ```
+
+### Read only a time range
+
+Pass `start_time` (and optionally `end_time`), both in seconds, to read only a segment:
+
+```python
+audio, sample_rate = read_audio(
+    "gs://esp-ci-cd-tests/esp-data-tests/some_subfolder/nri-battlesounds.mp3",
+    start_time=1.0,
+    end_time=2.0,
+)
+```
+
+!!! tip
+    For GCS paths, a time-range read streams just the requested segment via `ffmpeg` instead of downloading the whole file — much faster for large files. Having the `ffmpeg` and `ffprobe` binaries installed is therefore recommended. Without them, `read_audio` falls back to downloading the full file and still works.
+
+    Install ffmpeg:
+
+    - **macOS**: `brew install ffmpeg`
+    - **Linux (Debian/Ubuntu)**: `sudo apt install ffmpeg`
+    - **Windows**: `winget install ffmpeg` (or `choco install ffmpeg`)
+    - Or download from [ffmpeg.org/download.html](https://ffmpeg.org/download.html).
+
+[Back to Top](#alp_dataio-module)
 
 ## Get info about an audio file before reading
 
