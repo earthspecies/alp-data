@@ -2,7 +2,7 @@
 
 ## What are ALP Datasets?
 
-The datasets module provides a collection of **datasets validated by the engineering team** for ESP projects. In short, this is the module to use to download, load and manipulate *official* ALP datasets. Each dataset is implemented as a class that inherits from the base `Dataset` class, providing a consistent interface for data loading and access.
+The datasets module provides a collection of **datasets validated by the engineering team** and almost entirely sourced from public sources with permissive licenses (for provenance refer to dataset descriptions in [Available Datasets](datasets-available.md)). In short, this is the module to use to download, load and manipulate *official* ALP datasets.
 
 More technically an ALP Dataset is defined as such:
 - Inherits from the base `Dataset` class
