@@ -275,6 +275,19 @@ def test_read_audio_with_glob() -> None:
     assert data.shape == (16000,)
 
 
+def test_read_audio_ffmpeg_segment_glob_char_object() -> None:
+    """ffmpeg time-range read handles GCS object names with glob characters.
+
+    The object name contains ``[`` and ``]``; ``_gcs_path_to_url`` must
+    percent-encode these so ffmpeg requests the correct object rather than a
+    malformed URL that 404s and falls back to a full download.
+    """
+    path = "gs://esp-ci-cd-tests/esp-data-tests/test_glob_pattern_audio/test_audio[1].wav"
+    data, sr = _read_audio_ffmpeg(path, start_time=0.0, end_time=0.5)
+    assert sr == 16000
+    assert data.shape == (8000,)
+
+
 class TestGcsPathToUrl:
     """Tests for _gcs_path_to_url."""
 
@@ -297,6 +310,30 @@ class TestGcsPathToUrl:
     def test_rejects_r2_path(self) -> None:
         with pytest.raises(ValueError, match="Unsupported storage scheme"):
             _gcs_path_to_url("r2://my-bucket/path/to/file.wav")
+
+    def test_encodes_spaces(self) -> None:
+        result = _gcs_path_to_url("gs://my-bucket/path/my file.wav")
+        assert result == "https://storage.googleapis.com/my-bucket/path/my%20file.wav"
+
+    def test_encodes_hash(self) -> None:
+        result = _gcs_path_to_url("gs://my-bucket/path/file#1.wav")
+        assert result == "https://storage.googleapis.com/my-bucket/path/file%231.wav"
+
+    def test_encodes_question_mark(self) -> None:
+        result = _gcs_path_to_url("gs://my-bucket/path/file?.wav")
+        assert result == "https://storage.googleapis.com/my-bucket/path/file%3F.wav"
+
+    def test_encodes_percent(self) -> None:
+        result = _gcs_path_to_url("gs://my-bucket/path/50%off.wav")
+        assert result == "https://storage.googleapis.com/my-bucket/path/50%25off.wav"
+
+    def test_encodes_glob_characters(self) -> None:
+        result = _gcs_path_to_url("gs://my-bucket/path/file[0].wav")
+        assert result == "https://storage.googleapis.com/my-bucket/path/file%5B0%5D.wav"
+
+    def test_preserves_path_separators(self) -> None:
+        result = _gcs_path_to_url("gs://my-bucket/a b/c d/e.wav")
+        assert result == "https://storage.googleapis.com/my-bucket/a%20b/c%20d/e.wav"
 
 
 def test_read_audio_ffmpeg_fallback(monkeypatch, caplog) -> None:

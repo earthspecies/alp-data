@@ -4,6 +4,7 @@ import json
 import logging
 import subprocess
 import tempfile
+import urllib.parse
 from functools import lru_cache
 from typing import Any, BinaryIO, Literal
 
@@ -68,6 +69,9 @@ def _gcs_path_to_url(file_path: str | AnyPathT) -> str:
 
     Accepts paths with or without the ``gs://`` prefix. E.g. ``gs://bucket/blob``
     and ``bucket/blob`` both become ``https://storage.googleapis.com/bucket/blob``.
+    The object name is percent-encoded (bucket/blob ``/`` separators preserved)
+    so characters like spaces, ``#``, ``%``, and ``?`` are treated as literal
+    parts of the object name rather than URL syntax.
 
     Parameters
     ----------
@@ -93,6 +97,11 @@ def _gcs_path_to_url(file_path: str | AnyPathT) -> str:
     if path_str.startswith("gs://"):
         path_str = path_str[len("gs://") :]
     path_str = path_str.lstrip("/")
+    # Percent-encode the object name so characters like spaces, ``#``, ``%``,
+    # and ``?`` survive as literal path bytes instead of being interpreted as
+    # URL syntax (e.g. ``#``/``?`` truncating the path into a request for a
+    # different object). ``safe="/"`` preserves the bucket/blob separators.
+    path_str = urllib.parse.quote(path_str, safe="/")
     return f"https://storage.googleapis.com/{path_str}"
 
 
