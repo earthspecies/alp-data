@@ -214,19 +214,22 @@ def _read_audio_ffmpeg(
     if input_sr is not None and input_sr != sample_rate:
         logger.warning(f"Input sample rate {input_sr} doesn't match file sample rate {sample_rate}")
 
-    command = ["ffmpeg", *headers_args, "-ss", str(start_time), "-i", gcs_url]
+    # -rw_timeout must precede -i to apply to the HTTP input; ffmpeg silently
+    # ignores options placed after the output ("Trailing option(s) found").
+    command = [
+        "ffmpeg",
+        *headers_args,
+        "-rw_timeout",
+        "30000000",  # 30s timeout for GCS requests
+        "-ss",
+        str(start_time),
+        "-i",
+        gcs_url,
+    ]
     if end_time is not None:
         command += ["-t", str(end_time - start_time)]
     # Output raw PCM float32 to stdout, preserving native channel layout.
-    command += [
-        "-f",
-        "f32le",
-        "-acodec",
-        "pcm_f32le",
-        "pipe:1",
-        "-rw_timeout",
-        "30000000",  # 30s timeout for GCS requests
-    ]
+    command += ["-f", "f32le", "-acodec", "pcm_f32le", "pipe:1"]
 
     try:
         result = subprocess.run(command, check=True, capture_output=True)
