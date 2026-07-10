@@ -19,6 +19,7 @@ only when they expire.
 """
 
 import logging
+import time
 
 import google.auth
 from google.auth import downscoped
@@ -39,6 +40,12 @@ _downscoped_credentials_by_bucket: dict[str, downscoped.Credentials] = {}
 # Credentials lookup fails, we stop re-attempting it (it is relatively expensive)
 # and treat the environment as credential-less for the rest of the session.
 _gcs_credentials_unavailable = False
+
+# Backoff for failures with otherwise-present credentials (e.g. a network blip
+# or blocked STS endpoint during refresh/exchange): skip re-attempts until this
+# monotonic deadline, so hot read loops don't pay a failed network call per read.
+_AUTH_RETRY_BACKOFF_SECONDS = 60.0
+_auth_failure_backoff_until = 0.0
 
 
 class GCSAuthError(Exception):
@@ -129,17 +136,31 @@ def get_gcs_token_if_available(bucket: str) -> str | None:
     bucket : str
         Name of the GCS bucket the token must grant read access to.
 
+    The credential-less verdict is only cached (sticky for the session) when
+    Application Default Credentials discovery itself fails — i.e. the
+    environment has no ambient credentials. A failure while refreshing or
+    downscoping an otherwise-working credential (e.g. a network blip or a
+    blocked STS endpoint) returns None and pauses re-attempts for
+    `_AUTH_RETRY_BACKOFF_SECONDS`, so transient errors recover quickly while
+    persistent ones cost one failed network call per backoff window instead
+    of one per read.
+
     Returns
     -------
     str or None
         A valid access token restricted to read-only access on `bucket`, or
         None if no ambient credentials are available.
     """
-    global _gcs_credentials_unavailable
+    global _gcs_credentials_unavailable, _auth_failure_backoff_until
     if _gcs_credentials_unavailable:
+        return None
+    if time.monotonic() < _auth_failure_backoff_until:
         return None
     try:
         return get_gcs_token(bucket)
     except GCSAuthError:
-        _gcs_credentials_unavailable = True
+        if _source_credentials is None:  # no ambient credentials at all
+            _gcs_credentials_unavailable = True
+        else:
+            _auth_failure_backoff_until = time.monotonic() + _AUTH_RETRY_BACKOFF_SECONDS
         return None

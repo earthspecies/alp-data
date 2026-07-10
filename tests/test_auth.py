@@ -102,10 +102,49 @@ def test_maybe_get_gcs_token_no_credentials(monkeypatch: pytest.MonkeyPatch) -> 
         calls["n"] += 1
         raise GCSAuthError("no ambient credentials")
 
+    monkeypatch.setattr(auth, "_source_credentials", None)
     monkeypatch.setattr(auth, "_gcs_credentials_unavailable", False)
+    monkeypatch.setattr(auth, "_auth_failure_backoff_until", 0.0)
     monkeypatch.setattr(auth, "get_gcs_token", _no_creds)
 
     assert get_gcs_token_if_available(TEST_BUCKET) is None
     # Sticky verdict: the second call must not re-attempt the ADC lookup.
     assert get_gcs_token_if_available(TEST_BUCKET) is None
     assert calls["n"] == 1
+
+
+def test_maybe_get_gcs_token_transient_failure_backs_off(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A refresh/exchange failure backs off instead of disabling auth for the session.
+
+    When source credentials exist but a token refresh or STS exchange fails
+    (e.g. a network blip or blocked STS endpoint), the auto path must not
+    cache a credential-less verdict, must not re-attempt on every call (hot
+    read loops would pay a failed network call per read), and must re-attempt
+    once the backoff window has passed.
+    """
+    calls = {"n": 0}
+
+    def _failing_exchange(bucket: str) -> str:
+        calls["n"] += 1
+        raise GCSAuthError("STS exchange failure")
+
+    # Source credentials were obtained earlier in the session.
+    monkeypatch.setattr(auth, "_source_credentials", object())
+    monkeypatch.setattr(auth, "_gcs_credentials_unavailable", False)
+    monkeypatch.setattr(auth, "_auth_failure_backoff_until", 0.0)
+    monkeypatch.setattr(auth, "get_gcs_token", _failing_exchange)
+
+    assert get_gcs_token_if_available(TEST_BUCKET) is None
+    assert calls["n"] == 1
+    assert auth._gcs_credentials_unavailable is False
+
+    # Within the backoff window: no re-attempt, still None.
+    assert get_gcs_token_if_available(TEST_BUCKET) is None
+    assert calls["n"] == 1
+
+    # After the backoff window passes, the next call re-attempts.
+    monkeypatch.setattr(auth, "_auth_failure_backoff_until", 0.0)
+    assert get_gcs_token_if_available(TEST_BUCKET) is None
+    assert calls["n"] == 2
