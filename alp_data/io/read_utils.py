@@ -173,6 +173,8 @@ def _read_audio_ffmpeg(
         "stream=sample_rate,channels",
         "-of",
         "csv=p=0",
+        "-rw_timeout",
+        "30000000",  # 30s timeout for GCS requests
         gcs_url,
     ]
     try:
@@ -203,7 +205,15 @@ def _read_audio_ffmpeg(
     if end_time is not None:
         command += ["-t", str(end_time - start_time)]
     # Output raw PCM float32 to stdout, preserving native channel layout.
-    command += ["-f", "f32le", "-acodec", "pcm_f32le", "pipe:1"]
+    command += [
+        "-f",
+        "f32le",
+        "-acodec",
+        "pcm_f32le",
+        "pipe:1",
+        "-rw_timeout",
+        "30000000",  # 30s timeout for GCS requests
+    ]
 
     try:
         result = subprocess.run(command, check=True, capture_output=True)
