@@ -596,6 +596,11 @@ def read_audio(
           be (frames,) for mono or (frames, channels) for multi-channel audio.
         - samplerate (int): The sample rate of the audio in Hz.
 
+    Raises
+    ------
+    ValueError
+        If `end_time` is less than `start_time`.
+
     Examples
     --------
     >>> audio, sr = read_audio("tests/samples/noise.wav")
@@ -607,6 +612,9 @@ def read_audio(
     file_path = anypath(file_path)
 
     if start_time is not None:
+        if end_time is not None and end_time <= start_time:
+            raise ValueError("end_time must be greater than start_time")
+
         if isinstance(file_path, PureGSPath):
             try:
                 return _read_audio_ffmpeg(
