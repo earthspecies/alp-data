@@ -105,6 +105,28 @@ def _gcs_path_to_url(file_path: str | AnyPathT) -> str:
     return f"https://storage.googleapis.com/{path_str}"
 
 
+def _gcs_bucket_name(file_path: str | AnyPathT) -> str:
+    """Extract the bucket name from a GCS path.
+
+    Accepts paths with or without the ``gs://`` prefix, mirroring
+    `_gcs_path_to_url`.
+
+    Parameters
+    ----------
+    file_path : str or AnyPathT
+        The GCS path to extract the bucket name from.
+
+    Returns
+    -------
+    str
+        The bucket name (the first path component).
+    """
+    path_str = str(file_path)
+    if path_str.startswith("gs://"):
+        path_str = path_str[len("gs://") :]
+    return path_str.lstrip("/").split("/", 1)[0]
+
+
 def _read_audio_ffmpeg(
     file_path: str | AnyPathT,
     start_time: float = 0.0,
@@ -138,6 +160,8 @@ def _read_audio_ffmpeg(
         - True: always access anonymously, sending no ``Authorization`` header
           (for public objects, e.g. to avoid sending a token).
         - False: always authenticate, raising if credentials are unavailable.
+        Tokens are downscoped to read-only access on the file's bucket before
+        being passed to ffmpeg (see `alp_data.io.auth`).
 
     Returns
     -------
@@ -155,22 +179,25 @@ def _read_audio_ffmpeg(
         process the audio, or their output cannot be parsed/decoded.
     """
     gcs_url = _gcs_path_to_url(file_path)
+    bucket = _gcs_bucket_name(file_path)
 
-    # SECURITY RISK (FIXME)
+    # SECURITY NOTE
     # When authenticated, the bearer token is passed on the ffprobe/ffmpeg command
     # line, which is visible to co-tenants via ``ps``/``/proc`` on shared hosts.
-    # This is an accepted risk (tokens are short-lived); Anonymous reads send no token.
+    # To limit the blast radius, the token is downscoped (see `alp_data.io.auth`)
+    # to short-lived read-only access on this one bucket — it grants nothing else.
+    # Anonymous reads send no token at all.
     headers_args: list[str] = []
     if anonymous is True:
         pass  # Explicit anonymous access: send no Authorization header.
     elif anonymous is False:
         try:
-            token = get_gcs_token()
+            token = get_gcs_token(bucket)
         except GCSAuthError as e:
             raise FFmpegSegmentError("missing GCS credentials", str(e)) from e
         headers_args = ["-headers", f"Authorization: Bearer {token}\r\n"]
     else:  # anonymous is None: authenticate if possible, else go anonymous.
-        token = get_gcs_token_if_available()
+        token = get_gcs_token_if_available(bucket)
         if token is not None:
             headers_args = ["-headers", f"Authorization: Bearer {token}\r\n"]
 
