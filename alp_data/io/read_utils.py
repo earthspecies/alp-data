@@ -156,6 +156,10 @@ def _read_audio_ffmpeg(
     """
     gcs_url = _gcs_path_to_url(file_path)
 
+    # SECURITY RISK (FIXME)
+    # When authenticated, the bearer token is passed on the ffprobe/ffmpeg command
+    # line, which is visible to co-tenants via ``ps``/``/proc`` on shared hosts.
+    # This is an accepted risk (tokens are short-lived); Anonymous reads send no token.
     headers_args: list[str] = []
     if anonymous is True:
         pass  # Explicit anonymous access: send no Authorization header.
