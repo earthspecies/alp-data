@@ -163,6 +163,8 @@ class SpanishCarrionCrowsVox(Dataset):
         split_paths={
             # TODO: update path once finalized in GCS
             "all": "gs://esp-ml-datasets/spanish-carrion-crows-vox/conversational_preprocessed_with_behavior.csv",
+            # ** Change for single biologger -->
+            # "all": "gs://esp-ml-datasets/spanish-carrion-crows-vox/single_preprocessed_with_behavior.csv"
         },
         version="0.1.0",
         description="Spanish carrion crow adult focal vocalizations with call type and timestamps",
@@ -228,6 +230,8 @@ class SpanishCarrionCrowsVox(Dataset):
 
     @property
     def available_splits(self) -> list[str]:
+        # ** Change for single biologger (should match overlap_window_id values in new csv) -->
+        # return ["all"] + list(range(1, 433))
         return [
             "all",
             1,
@@ -396,6 +400,10 @@ class SpanishCarrionCrowsVox(Dataset):
             "concurrent_is_flying": json.loads(row["concurrent_is_flying"]),
             "has_matching_vox_on_logger": json.loads(row["matching_loggers"]),
             "sec_until_next_E4": json.loads(row["time_until_next_E4"]),
+            # TODO have not added to tests
+            "feat.dominant_frequency": float(row["derived.dominant_frequency"]),
+            "feat.spectral_entropy": float(row["derived.spectral_entropy"]),
+            "feat.duration": float(row["derived.duration"]),
             "overlap_window_id": int(row["overlap_window_id"]),
             "overlap_individuals": ast.literal_eval(row["overlap_window_individuals"]),
         }
