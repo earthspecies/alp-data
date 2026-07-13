@@ -105,28 +105,6 @@ def _gcs_path_to_url(file_path: str | AnyPathT) -> str:
     return f"https://storage.googleapis.com/{path_str}"
 
 
-def _gcs_bucket_name(file_path: str | AnyPathT) -> str:
-    """Extract the bucket name from a GCS path.
-
-    Accepts paths with or without the ``gs://`` prefix, mirroring
-    `_gcs_path_to_url`.
-
-    Parameters
-    ----------
-    file_path : str or AnyPathT
-        The GCS path to extract the bucket name from.
-
-    Returns
-    -------
-    str
-        The bucket name (the first path component).
-    """
-    path_str = str(file_path)
-    if path_str.startswith("gs://"):
-        path_str = path_str[len("gs://") :]
-    return path_str.lstrip("/").split("/", 1)[0]
-
-
 def _read_audio_ffmpeg(
     file_path: str | AnyPathT,
     start_time: float = 0.0,
@@ -179,7 +157,7 @@ def _read_audio_ffmpeg(
         process the audio, or their output cannot be parsed/decoded.
     """
     gcs_url = _gcs_path_to_url(file_path)
-    bucket = _gcs_bucket_name(file_path)
+    bucket = anypath(file_path).bucket
 
     # SECURITY NOTE
     # When authenticated, the bearer token is passed on the ffprobe/ffmpeg command

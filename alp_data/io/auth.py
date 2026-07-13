@@ -3,19 +3,19 @@
 Provides access-token retrieval for authenticating GCS REST/HTTP requests
 (e.g. the ffmpeg range-read path in `alp_data.io.read_utils`).
 
-Tokens handed out by this module are *downscoped* via a GCP Credential Access
-Boundary: each token is only valid for read-only access
-(`roles/storage.objectViewer`) to the single bucket it was requested for, and
-is rejected by every other GCP service and bucket. This limits the blast
-radius when a token leaves the process (e.g. on the ffmpeg command line,
-where it is visible to co-tenants via `ps` on shared hosts): a leaked token
-grants at most short-lived read access to the one bucket that was already
-being read.
+Tokens are *downscoped* through a GCP Credential Access Boundary: each token
+only grants read-only access (`roles/storage.objectViewer`) to the single
+bucket it was requested for. This limits the blast radius when a token leaves
+the process (e.g. on the ffmpeg command line, visible via `ps` on shared
+hosts): a leaked token gives at most short-lived read access to the one
+bucket that was already being read. The full-identity source credentials
+never leave the process.
 
-Source credentials are cached at module level so the Application Default
-Credentials lookup happens once per session; downscoped credentials are
-cached per bucket and refreshed (a token exchange with the GCP STS endpoint)
-only when they expire.
+Caching: the source credentials are resolved once per session; downscoped
+credentials are cached per bucket and re-exchanged (one STS call) only on
+expiry. A session with no ambient credentials at all is remembered as
+credential-less; other auth failures back off for
+`_AUTH_RETRY_BACKOFF_SECONDS` before re-attempting.
 """
 
 import logging
@@ -27,23 +27,18 @@ from google.auth.transport.requests import Request
 
 logger = logging.getLogger("alp_data")
 
-# Module-level cache of the source (full-identity) Google credentials.
-# Reused across calls so the ADC lookup only happens once per session. The
-# source credentials never leave the process; only downscoped tokens do.
+# Full-identity source credentials, resolved once per session.
 _source_credentials = None
 
-# Per-bucket cache of downscoped credentials. Each entry is refreshed
-# independently when its token expires.
+# Downscoped credentials, cached per bucket.
 _downscoped_credentials_by_bucket: dict[str, downscoped.Credentials] = {}
 
-# A way to tell if a client is authenticated: Application Default
-# Credentials lookup fails, we stop re-attempting it (it is relatively expensive)
-# and treat the environment as credential-less for the rest of the session.
+# Sticky verdict for a session with no ambient credentials at all (the ADC
+# lookup is relatively expensive, so it is not re-attempted).
 _gcs_credentials_unavailable = False
 
-# Backoff for failures with otherwise-present credentials (e.g. a network blip
-# or blocked STS endpoint during refresh/exchange): skip re-attempts until this
-# monotonic deadline, so hot read loops don't pay a failed network call per read.
+# Deadline (monotonic) before which failed refresh/exchange attempts are not
+# retried, so hot read loops don't pay a failed network call per read.
 _AUTH_RETRY_BACKOFF_SECONDS = 60.0
 _auth_failure_backoff_until = 0.0
 
@@ -53,7 +48,7 @@ class GCSAuthError(Exception):
 
 
 def _bucket_access_boundary(bucket: str) -> downscoped.CredentialAccessBoundary:
-    """Build a read-only Credential Access Boundary for a single bucket.
+    """Build a boundary granting `roles/storage.objectViewer` on `bucket` only.
 
     Parameters
     ----------
@@ -63,7 +58,7 @@ def _bucket_access_boundary(bucket: str) -> downscoped.CredentialAccessBoundary:
     Returns
     -------
     downscoped.CredentialAccessBoundary
-        A boundary granting `roles/storage.objectViewer` on `bucket` only.
+        The single-bucket, read-only access boundary.
     """
     return downscoped.CredentialAccessBoundary(
         rules=[
@@ -79,11 +74,7 @@ def get_gcs_token(bucket: str) -> str:
     """Fetch a valid access token downscoped to read-only access on `bucket`.
 
     Relies on the caller having authenticated with GCP, e.g. via
-    `gcloud auth application-default login` or a service account. The ambient
-    credentials are exchanged (via the GCP STS endpoint) for a token that is
-    only valid for `roles/storage.objectViewer` on the given bucket, so the
-    returned token can safely be passed to subprocesses. Source credentials
-    and per-bucket downscoped credentials are cached at module level.
+    `gcloud auth application-default login` or a service account.
 
     Parameters
     ----------
@@ -112,8 +103,6 @@ def get_gcs_token(bucket: str) -> str:
             )
             _downscoped_credentials_by_bucket[bucket] = credentials
         if not credentials.valid:
-            # Refreshes the source credentials if needed, then re-runs the
-            # STS token exchange for this bucket's boundary.
             credentials.refresh(Request())
         return credentials.token
     except Exception as e:
@@ -127,23 +116,16 @@ def get_gcs_token(bucket: str) -> str:
 def get_gcs_token_if_available(bucket: str) -> str | None:
     """Return a bucket-scoped GCS token if ambient credentials exist, else None.
 
-    A valid token works for both public and private buckets,
-    so we send one whenever credentials are
-    available and fall back to anonymous access only when they are not.
+    A valid token works for both public and private buckets, so we send one
+    whenever credentials are available and fall back to anonymous access only
+    when they are not. Only a failed ADC lookup (no ambient credentials at
+    all) is remembered for the session; other failures back off for
+    `_AUTH_RETRY_BACKOFF_SECONDS` and are then re-attempted.
 
     Parameters
     ----------
     bucket : str
         Name of the GCS bucket the token must grant read access to.
-
-    The credential-less verdict is only cached (sticky for the session) when
-    Application Default Credentials discovery itself fails — i.e. the
-    environment has no ambient credentials. A failure while refreshing or
-    downscoping an otherwise-working credential (e.g. a network blip or a
-    blocked STS endpoint) returns None and pauses re-attempts for
-    `_AUTH_RETRY_BACKOFF_SECONDS`, so transient errors recover quickly while
-    persistent ones cost one failed network call per backoff window instead
-    of one per read.
 
     Returns
     -------
