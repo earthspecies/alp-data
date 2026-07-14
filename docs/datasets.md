@@ -5,6 +5,7 @@
 The datasets module provides a collection of **datasets validated by the engineering team** and almost entirely sourced from public sources with permissive licenses (for provenance refer to dataset descriptions in [Available Datasets](datasets-available.md)). In short, this is the module to use to download, load and manipulate *official* ALP datasets.
 
 More technically an ALP Dataset is defined as such:
+
 - Inherits from the base `Dataset` class
 - Has a defined `DatasetInfo` containing metadata
 - Provides methods for loading and accessing data and splits

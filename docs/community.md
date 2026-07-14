@@ -2,12 +2,12 @@
 
 ## Contribute a Dataset
 
-Have a bioacoustic dataset you'd like to see in `alp-data`? Fill out the interest form and the engineering team will follow up.
+If you're working with a bioacoustic dataset you'd like to see in `alp-data`, submit the form below and the engineering team will follow up.
 
 <a href="https://forms.gle/qjq2HQiTDkbkLq7K7" class="ext-btn" target="_blank">Dataset Contributor Form</a>
 
 ## Ask a Question or Report an Issue
 
-Questions about usage, bugs, or feature requests — post on the alp-data Discourse forum.
+Have a question, an interesting use case to share, or want to discuss your work? Join the conversation on the `alp-data` Discourse forum. For bugs or something not working as expected, feel free to open an issue on <a href="https://github.com/earthspecies/alp-data/issues" target="_blank">Github</a>.
 
 <a href="https://earthspeciesproject.discourse.group/" class="ext-btn" target="_blank">Go to Discourse</a>

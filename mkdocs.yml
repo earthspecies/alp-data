@@ -11,7 +11,6 @@ repo_url: https://github.com/earthspecies/alp-data
 
 nav:
   - Home: home.md
-  - Interactive Explorer: explorer.md
   - Guides:
       - Getting Started: index.md
       - Datasets:
@@ -31,9 +30,10 @@ nav:
           - 5. Transforms: tutorials/05_transforms.ipynb
           - 6. Concatenate & Chain: tutorials/06_concat_and_chain.ipynb
           - 7. User Datasets & Transforms: tutorials/07_user_datasets_and_transforms.ipynb
-  - Reference:
+  - Resources:
       - API Reference: reference.md
-  - Get Involved: community.md
+      - Interactive Explorer: explorer.md
+      - Get Involved: community.md
 
 theme:
   name: material
