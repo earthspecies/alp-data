@@ -24,6 +24,9 @@ jobs:
               with:
                   python-version-file: ".python-version"
 
+            - name: "Install ffmpeg"
+              run: sudo apt-get update && sudo apt-get install -y ffmpeg
+
             - name: Install the project
               run: uv sync --all-extras --dev
 

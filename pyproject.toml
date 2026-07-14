@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "gcsfs>=2024.9.0.post1",
+    "google-auth>=2.0.0",
     "google-cloud-secret-manager>=2.23.1",
     "google-cloud-storage>=2.19.0",
     "intervaltree>=3.1.0",
