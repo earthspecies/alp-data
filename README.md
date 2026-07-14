@@ -154,6 +154,6 @@ The datasets accessed through alp-data are governed by their own licenses, set b
 
 ## Contributing
 
-If you're working with a bioacoustic dataset you'd like to see in alp-data, <a href="https://forms.gle/qjq2HQiTDkbkLq7K7" target="_blank" rel="noopener">submit this form</a> and the engineering team will follow up. 
+If you're working with a bioacoustic dataset you'd like to see in alp-data, <a href="https://forms.gle/qjq2HQiTDkbkLq7K7" target="_blank" rel="noopener">submit this form</a> and the engineering team will follow up.
 
-For questions and further discussion, join our <a href="https://earthspeciesproject.discourse.group/" target="_blank" rel="noopener">Discourse forum</a>. To report a bug, open an issue on <a href="https://github.com/earthspecies/alp-data/issues" target="_blank" rel="noopener">Github</a>. 
+For questions and further discussion, join our <a href="https://earthspeciesproject.discourse.group/" target="_blank" rel="noopener">Discourse forum</a>. To report a bug, open an issue on <a href="https://github.com/earthspecies/alp-data/issues" target="_blank" rel="noopener">Github</a>.
