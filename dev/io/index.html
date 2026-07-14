@@ -684,6 +684,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Read audio from a remote file">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#read-only-a-time-range" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Read only a time range
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -1193,6 +1210,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Read audio from a remote file">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#read-only-a-time-range" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Read only a time range
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -1241,7 +1275,7 @@
 <li><a href="#delete-files">Delete files</a> with filesystem operations</li>
 <li><a href="#move-files-from-one-cloud-location-to-another-cloud-location">Move files</a> from one cloud location to another cloud location</li>
 <li><a href="#copy-from-one-cloud-location-to-another-cloud-location">Copy files</a> from one cloud location to another cloud location</li>
-<li><a href="#read-audio-from-a-remote-file">Read audio</a> from a remote file directly into memory as a numpy array. This is <strong>NOT</strong> the same as <em>streaming</em>, it loads the whole file into memory, so be careful with large files.</li>
+<li><a href="#read-audio-from-a-remote-file">Read audio</a> from a remote file directly into memory as a numpy array. A full-file read loads the whole file into memory (<strong>NOT</strong> streaming), so be careful with large files. You can also read just a <a href="#read-only-a-time-range">time range</a>.</li>
 <li><a href="#get-info-about-an-audio-file-before-reading">Get audio info</a> about an audio file before reading it, such as sample rate, duration, number of channels, etc.</li>
 </ol>
 <p>There are two interfaces available:</p>
@@ -1569,12 +1603,32 @@ The same API works for local filesystem as <code>filesystem("local")</code></p>
 </span><span id="__span-26-4"><a id="__codelineno-26-4" name="__codelineno-26-4" href="#__codelineno-26-4"></a><span class="nb">print</span><span class="p">(</span><span class="n">audio</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">sample_rate</span><span class="p">)</span>
 </span><span id="__span-26-5"><a id="__codelineno-26-5" name="__codelineno-26-5" href="#__codelineno-26-5"></a><span class="c1"># (235008,) 44100</span>
 </span></code></pre></div>
+<h3 id="read-only-a-time-range">Read only a time range</h3>
+<p>Pass <code>start_time</code> (and optionally <code>end_time</code>), both in seconds, to read only a segment:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-27-1"><a id="__codelineno-27-1" name="__codelineno-27-1" href="#__codelineno-27-1"></a><span class="n">audio</span><span class="p">,</span> <span class="n">sample_rate</span> <span class="o">=</span> <span class="n">read_audio</span><span class="p">(</span>
+</span><span id="__span-27-2"><a id="__codelineno-27-2" name="__codelineno-27-2" href="#__codelineno-27-2"></a>    <span class="s2">&quot;gs://esp-ci-cd-tests/esp-data-tests/some_subfolder/nri-battlesounds.mp3&quot;</span><span class="p">,</span>
+</span><span id="__span-27-3"><a id="__codelineno-27-3" name="__codelineno-27-3" href="#__codelineno-27-3"></a>    <span class="n">start_time</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span>
+</span><span id="__span-27-4"><a id="__codelineno-27-4" name="__codelineno-27-4" href="#__codelineno-27-4"></a>    <span class="n">end_time</span><span class="o">=</span><span class="mf">2.0</span><span class="p">,</span>
+</span><span id="__span-27-5"><a id="__codelineno-27-5" name="__codelineno-27-5" href="#__codelineno-27-5"></a><span class="p">)</span>
+</span></code></pre></div>
+<div class="admonition tip">
+<p class="admonition-title">Tip</p>
+<p>For GCS paths, a time-range read streams just the requested segment via <code>ffmpeg</code> instead of downloading the whole file — much faster for large files. Having the <code>ffmpeg</code> and <code>ffprobe</code> binaries installed is therefore recommended. Without them, <code>read_audio</code> falls back to downloading the full file and still works.</p>
+<p>Install ffmpeg:</p>
+<ul>
+<li><strong>macOS</strong>: <code>brew install ffmpeg</code></li>
+<li><strong>Linux (Debian/Ubuntu)</strong>: <code>sudo apt install ffmpeg</code></li>
+<li><strong>Windows</strong>: <code>winget install ffmpeg</code> (or <code>choco install ffmpeg</code>)</li>
+<li>Or download from <a href="https://ffmpeg.org/download.html">ffmpeg.org/download.html</a>.</li>
+</ul>
+</div>
+<p><a href="#alp_dataio-module">Back to Top</a></p>
 <h2 id="get-info-about-an-audio-file-before-reading">Get info about an audio file before reading</h2>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-27-1"><a id="__codelineno-27-1" name="__codelineno-27-1" href="#__codelineno-27-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">alp_data.io</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_audio_info</span>
-</span><span id="__span-27-2"><a id="__codelineno-27-2" name="__codelineno-27-2" href="#__codelineno-27-2"></a>
-</span><span id="__span-27-3"><a id="__codelineno-27-3" name="__codelineno-27-3" href="#__codelineno-27-3"></a><span class="n">info</span> <span class="o">=</span> <span class="n">get_audio_info</span><span class="p">(</span><span class="s2">&quot;gs://esp-ci-cd-tests/esp-data-tests/some_subfolder/nri-battlesounds.mp3&quot;</span><span class="p">)</span>
-</span><span id="__span-27-4"><a id="__codelineno-27-4" name="__codelineno-27-4" href="#__codelineno-27-4"></a><span class="nb">print</span><span class="p">(</span><span class="n">info</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
-</span><span id="__span-27-5"><a id="__codelineno-27-5" name="__codelineno-27-5" href="#__codelineno-27-5"></a><span class="c1"># dict_keys([&#39;sr&#39;, &#39;duration&#39;, &#39;num_frames&#39;, &#39;num_channels&#39;, &#39;format&#39;, &#39;subtype&#39;])</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-28-1"><a id="__codelineno-28-1" name="__codelineno-28-1" href="#__codelineno-28-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">alp_data.io</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_audio_info</span>
+</span><span id="__span-28-2"><a id="__codelineno-28-2" name="__codelineno-28-2" href="#__codelineno-28-2"></a>
+</span><span id="__span-28-3"><a id="__codelineno-28-3" name="__codelineno-28-3" href="#__codelineno-28-3"></a><span class="n">info</span> <span class="o">=</span> <span class="n">get_audio_info</span><span class="p">(</span><span class="s2">&quot;gs://esp-ci-cd-tests/esp-data-tests/some_subfolder/nri-battlesounds.mp3&quot;</span><span class="p">)</span>
+</span><span id="__span-28-4"><a id="__codelineno-28-4" name="__codelineno-28-4" href="#__codelineno-28-4"></a><span class="nb">print</span><span class="p">(</span><span class="n">info</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+</span><span id="__span-28-5"><a id="__codelineno-28-5" name="__codelineno-28-5" href="#__codelineno-28-5"></a><span class="c1"># dict_keys([&#39;sr&#39;, &#39;duration&#39;, &#39;num_frames&#39;, &#39;num_channels&#39;, &#39;format&#39;, &#39;subtype&#39;])</span>
 </span></code></pre></div>
 <p><a href="#alp_dataio-module">Back to Top</a></p>
 
