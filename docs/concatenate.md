@@ -2,7 +2,7 @@
 
 ## Combining Datasets: Concatenation vs Chaining
 
-ESP Data provides two ways to combine multiple datasets: **ConcatenatedDataset** and **ChainedDataset**. Choose based on whether you need to transform the combined data:
+`alp-data` provides two ways to combine multiple datasets: **ConcatenatedDataset** and **ChainedDataset**. Choose based on whether you need to transform the combined data:
 
 | Feature | ConcatenatedDataset | ChainedDataset |
 |---------|---------------------|----------------|
@@ -15,13 +15,13 @@ ESP Data provides two ways to combine multiple datasets: **ConcatenatedDataset**
 
 Use `ConcatenatedDataset` when you need to apply transforms (filter, deduplicate, etc.) to the combined dataset. Use `ChainedDataset` when you simply want to iterate over multiple datasets sequentially without any joint transformations.
 
-For `ChainedDataset` documentation, see [chain.md](chain.md).
+For `ChainedDataset` documentation, see [Chain Datasets](chain.md).
 
 ---
 
 ## What is Dataset concatenation?
 
-The `concat` module provides utilities for **combining multiple ESP datasets** into a single unified dataset. This is particularly useful when you want to train models on data from multiple sources or combine different splits of related datasets while maintaining proper data handling and metadata.
+The `concat` module provides utilities for **combining multiple ALP datasets** into a single unified dataset. This is particularly useful when you want to train models on data from multiple sources or combine different splits of related datasets while maintaining proper data handling and metadata.
 
 More technically, dataset concatenation:
 
