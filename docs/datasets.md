@@ -2,7 +2,7 @@
 
 ## What are ALP Datasets?
 
-The datasets module provides a collection of **datasets validated by the engineering team** and almost entirely sourced from public sources with permissive licenses (for provenance refer to dataset descriptions in [Available Datasets](datasets-available.md)). In short, this is the module to use to download, load and manipulate *official* ALP datasets.
+The datasets module provides a collection of **datasets validated by ESP's engineering team** and almost entirely sourced from public sources with permissive licenses (for provenance refer to dataset descriptions in [Available Datasets](datasets-available.md)). This is the module to use to download, load and manipulate *official* ALP datasets.
 
 More technically an ALP Dataset is defined as such:
 
@@ -11,7 +11,7 @@ More technically an ALP Dataset is defined as such:
 - Provides methods for loading and accessing data and splits
 - Can be configured through a `DatasetConfig`
 
-## How to Load Datasets?
+## How to Load Datasets
 
 Datasets can be loaded following two different approaches:
 
@@ -79,30 +79,30 @@ print(len(ds))
 
 ### Dataset Configuration
 
-Deeper levels of configurations can be achieved by using specific parameters which are either common to all datasets or sometimes specific.
+Deeper levels of configurations can be achieved by using specific parameters which are either common to all datasets or specific to a single dataset.
 Common arguments are:
 
--   `split`: The data split to use (e.g., "train", "validation")
+-   `split`: The data split to use (e.g., "train", "validation").
 -   `output_take_and_give`: Column picker and name mappings. This is used to:
 
     -   Pick the columns you want in the output dictionary returned when `__getitem__` is called via `x = sample[0]`.
     -   Rename the columns in the output dictionary. For example, if you want to rename the "audio" column to "raw_wav", you can specify `{"audio": "raw_wav"}`.
 
 -   `sample_rate`: Target audio sample rate (for audio datasets, it will resample to this rate).
--   `data_root`: Custom root directory for data files. If not specified, the data_root is set as the parent directory of the path to the split. The idea here is that the data maybe copied from its original location (usually a bucket) to a local
+-   `data_root`: Custom root directory for data files. If not specified, the data_root is set as the parent directory of the path to the split. The idea is that the data may be copied from its original location (usually a bucket) to a local
 disk or a folder on the shared nfs.
 
 
 ## Using Transforms with Datasets
 
-Datasets can be combined with [Transforms](transforms.md) to modify or enhance the data during loading. Transforms are modifying the data inplace, so the returned dataset will be effectively a different version of the original data.
+Datasets can be combined with [Transforms](transforms.md) to modify or enhance the data during loading. Transforms modify the data in place, so the returned dataset will effectively be a different version of the original data.
 
 ### Basic Usage with Transforms
 
-Transforms can be used in a sequential way, as in first get the original dataset, then apply a transform:
+Transforms can be used in a sequential way, as in:  first, get the original dataset, then apply a transform:
 
 !!! remark
-    The order of the transforms is important. If you have multiple transforms, they will be applied in the order they are defined in the configuration. So, for e.g., if you change the name of a column with LabelFromFeatureTransform, it will effect the Filter Transform
+    The order of the transforms is important. If you have multiple transforms, they will be applied in the order they are defined in the configuration. For example, if you change the name of a column with LabelFromFeatureTransform, it will effect the Filter Transform
 
 ```python
 from alp_data.datasets import AnimalSpeak
