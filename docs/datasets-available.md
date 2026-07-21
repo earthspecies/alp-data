@@ -11,3 +11,5 @@ The list of available datasets will grow over time. Please refer to [Using Your 
             - "!^[a-z_]"  # Exclude attributes and methods (start with lowercase or underscore)
             - "!^__"      # Exclude private methods (start with double underscore)
             - "!^ESPRaincoast"
+            - "!^CorvidWascher"
+            - "!^Subsegmentation"

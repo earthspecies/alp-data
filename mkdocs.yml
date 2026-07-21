@@ -1,5 +1,5 @@
 site_name: alp-data
-site_description: TODO
+site_description: Unified access to 35+ bioacoustic datasets behind one Python interface.
 strict: true
 site_url: http://go/python/docs
 
