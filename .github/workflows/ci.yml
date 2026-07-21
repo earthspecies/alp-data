@@ -9,6 +9,15 @@ on:    # yamllint disable-line rule:truthy
 jobs:
     tests:
         name: Run pytests tests
+        # SECURITY: secondary gate — keep fork-PR code off self-hosted infra.
+        # The primary gate is the repo's fork-PR approval policy ("require
+        # approval for all external contributors"): every fork-PR run needs a
+        # maintainer click. This condition backstops that human step: an
+        # approved fork PR with an unmodified workflow still skips this job.
+        # It cannot be the only gate — fork PRs execute their own copy of this
+        # file, so a PR that edits this workflow can strip this line. Before
+        # approving a fork-PR run, always check the diff for workflow changes.
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
         runs-on: self-hosted
 
         steps:
@@ -44,6 +53,15 @@ jobs:
 
     test-py-versions-self-hosted:
         name: Run tests on multiple Python versions
+        # SECURITY: secondary gate — keep fork-PR code off self-hosted infra.
+        # The primary gate is the repo's fork-PR approval policy ("require
+        # approval for all external contributors"): every fork-PR run needs a
+        # maintainer click. This condition backstops that human step: an
+        # approved fork PR with an unmodified workflow still skips this job.
+        # It cannot be the only gate — fork PRs execute their own copy of this
+        # file, so a PR that edits this workflow can strip this line. Before
+        # approving a fork-PR run, always check the diff for workflow changes.
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
         runs-on: self-hosted
         strategy:
             matrix:
