@@ -1,6 +1,6 @@
 # alp-data
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/earthspecies/alp-data/blob/main/LICENSE)
 
 **alp-data** (<a href="https://earthspecies.org/2026/04/02/animal-language-processing-an-ai-convergence-in-animal-communication/" target="_blank" rel="noopener">Animal Language Processing</a> data) gives you unified access to dozens of bioacoustic datasets, including recordings from birds, marine mammals, primates, insects, anurans, and multi-taxon benchmarks. Every built-in dataset shares a common `Dataset` interface, with streaming, configurable transforms, and consistent loading regardless of source format.
 
@@ -148,7 +148,7 @@ uv run pytest
 
 ## License
 
-alp-data is released under the MIT License. See [LICENSE](LICENSE) for the full text.
+alp-data is released under the MIT License. See [LICENSE](https://github.com/earthspecies/alp-data/blob/main/LICENSE) for the full text.
 
 The datasets accessed through alp-data are governed by their own licenses, set by their original creators — independent of alp-data's code license. Most are openly licensed (CC-BY, CC-BY-NC, CC0, public domain), but terms vary per dataset and may include attribution, share-alike, or non-commercial restrictions. Per-dataset license and source metadata are available via `Dataset.info`.
 
