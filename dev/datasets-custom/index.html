@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="TODO">
+        <meta name="description" content="Unified access to 35+ bioacoustic datasets behind one Python interface.">
       
       
       
@@ -1234,7 +1234,7 @@
 
 
 <h1 id="using-your-own-dataset">Using Your Own Dataset</h1>
-<p>First of all, you must answer an important question: is this new dataset relatively stable and time and potentially useful to others? If yes, then you <strong>should talk to the engineering team</strong> to add it as an official ALP Dataset. If not, you can just follow the next steps!</p>
+<p>If you’d like to contribute your own dataset, please consider: is this new dataset relatively stable and potentially useful to others? If yes, you <strong>should <a href="https://docs.google.com/forms/d/e/1FAIpQLScfkafLGUY-4s8nP2U39oueCAZxkMLKl5spnhqU66CCBGKOgQ/viewform">submit this form</a> to ESP's engineering team</strong> to add it as an official ALP Dataset. If not, just follow the next steps!</p>
 <p>To create a new dataset, you need to subclass the base <code>Dataset</code> class and implement several key components. Here's a step-by-step guide:</p>
 <h2 id="1-basic-structure">1. Basic Structure</h2>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">alp_data</span><span class="w"> </span><span class="kn">import</span> <span class="n">Dataset</span><span class="p">,</span> <span class="n">DatasetInfo</span><span class="p">,</span> <span class="n">register_dataset</span>

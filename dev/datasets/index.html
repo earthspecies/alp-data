@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="TODO">
+        <meta name="description" content="Unified access to 35+ bioacoustic datasets behind one Python interface.">
       
       
       
@@ -496,12 +496,12 @@
   <a href="#how-to-load-datasets" class="md-nav__link">
     <span class="md-ellipsis">
       
-        How to Load Datasets?
+        How to Load Datasets
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="How to Load Datasets?">
+    <nav class="md-nav" aria-label="How to Load Datasets">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -1218,12 +1218,12 @@
   <a href="#how-to-load-datasets" class="md-nav__link">
     <span class="md-ellipsis">
       
-        How to Load Datasets?
+        How to Load Datasets
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="How to Load Datasets?">
+    <nav class="md-nav" aria-label="How to Load Datasets">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -1303,7 +1303,7 @@
 
 <h1 id="alp_datadatasets-module"><code>alp_data.datasets</code> module</h1>
 <h2 id="what-are-alp-datasets">What are ALP Datasets?</h2>
-<p>The datasets module provides a collection of <strong>datasets validated by the engineering team</strong> and almost entirely sourced from public sources with permissive licenses (for provenance refer to dataset descriptions in <a href="../datasets-available/">Available Datasets</a>). In short, this is the module to use to download, load and manipulate <em>official</em> ALP datasets.</p>
+<p>The datasets module provides a collection of <strong>datasets validated by ESP's engineering team</strong> and almost entirely sourced from public sources with permissive licenses (for provenance refer to dataset descriptions in <a href="../datasets-available/">Available Datasets</a>). This is the module to use to download, load and manipulate <em>official</em> ALP datasets.</p>
 <p>More technically an ALP Dataset is defined as such:</p>
 <ul>
 <li>Inherits from the base <code>Dataset</code> class</li>
@@ -1311,7 +1311,7 @@
 <li>Provides methods for loading and accessing data and splits</li>
 <li>Can be configured through a <code>DatasetConfig</code></li>
 </ul>
-<h2 id="how-to-load-datasets">How to Load Datasets?</h2>
+<h2 id="how-to-load-datasets">How to Load Datasets</h2>
 <p>Datasets can be loaded following two different approaches:</p>
 <ol>
 <li>
@@ -1374,10 +1374,10 @@ Note the <code>dataset</code> key at the top level is <strong>required</strong>.
 </span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="nb">print</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">ds</span><span class="p">))</span>
 </span></code></pre></div>
 <h3 id="dataset-configuration">Dataset Configuration</h3>
-<p>Deeper levels of configurations can be achieved by using specific parameters which are either common to all datasets or sometimes specific.
+<p>Deeper levels of configurations can be achieved by using specific parameters which are either common to all datasets or specific to a single dataset.
 Common arguments are:</p>
 <ul>
-<li><code>split</code>: The data split to use (e.g., "train", "validation")</li>
+<li><code>split</code>: The data split to use (e.g., "train", "validation").</li>
 <li>
 <p><code>output_take_and_give</code>: Column picker and name mappings. This is used to:</p>
 <ul>
@@ -1388,16 +1388,16 @@ Common arguments are:</p>
 <li>
 <p><code>sample_rate</code>: Target audio sample rate (for audio datasets, it will resample to this rate).</p>
 </li>
-<li><code>data_root</code>: Custom root directory for data files. If not specified, the data_root is set as the parent directory of the path to the split. The idea here is that the data maybe copied from its original location (usually a bucket) to a local
+<li><code>data_root</code>: Custom root directory for data files. If not specified, the data_root is set as the parent directory of the path to the split. The idea is that the data may be copied from its original location (usually a bucket) to a local
 disk or a folder on the shared nfs.</li>
 </ul>
 <h2 id="using-transforms-with-datasets">Using Transforms with Datasets</h2>
-<p>Datasets can be combined with <a href="../transforms/">Transforms</a> to modify or enhance the data during loading. Transforms are modifying the data inplace, so the returned dataset will be effectively a different version of the original data.</p>
+<p>Datasets can be combined with <a href="../transforms/">Transforms</a> to modify or enhance the data during loading. Transforms modify the data in place, so the returned dataset will effectively be a different version of the original data.</p>
 <h3 id="basic-usage-with-transforms">Basic Usage with Transforms</h3>
-<p>Transforms can be used in a sequential way, as in first get the original dataset, then apply a transform:</p>
+<p>Transforms can be used in a sequential way, as in:  first, get the original dataset, then apply a transform:</p>
 <div class="admonition remark">
 <p class="admonition-title">Remark</p>
-<p>The order of the transforms is important. If you have multiple transforms, they will be applied in the order they are defined in the configuration. So, for e.g., if you change the name of a column with LabelFromFeatureTransform, it will effect the Filter Transform</p>
+<p>The order of the transforms is important. If you have multiple transforms, they will be applied in the order they are defined in the configuration. For example, if you change the name of a column with LabelFromFeatureTransform, it will effect the Filter Transform</p>
 </div>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">alp_data.datasets</span><span class="w"> </span><span class="kn">import</span> <span class="n">AnimalSpeak</span>
 </span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">alp_data.transforms</span><span class="w"> </span><span class="kn">import</span> <span class="n">FilterConfig</span><span class="p">,</span> <span class="n">LabelFromFeatureConfig</span>
