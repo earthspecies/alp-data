@@ -16,7 +16,7 @@ from alp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
 
 @register_dataset
 class CorvidWascher(Dataset):
-    """Corvid Dataset from Clausia Wascher
+    """Corvid Dataset from Claudia Wascher
 
     Description
     -----------
