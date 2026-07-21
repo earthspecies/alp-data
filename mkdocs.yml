@@ -10,9 +10,9 @@ repo_name: earthspecies/alp-data
 repo_url: https://github.com/earthspecies/alp-data
 
 nav:
-  - Home: home.md
+  - Home: index.md
   - Guides:
-      - Getting Started: index.md
+      - Getting Started: getting-started.md
       - Datasets:
           - Overview: datasets.md
           - Available Datasets: datasets-available.md
