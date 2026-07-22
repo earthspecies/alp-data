@@ -13,10 +13,8 @@
         <link rel="canonical" href="http://go/python/docs/dev/">
       
       
-        <link rel="prev" href="home/">
       
-      
-        <link rel="next" href="datasets/">
+        <link rel="next" href="getting-started/">
       
       
         
@@ -27,7 +25,7 @@
     
     
       
-        <title>Getting Started - alp-data</title>
+        <title>alp-data</title>
       
     
     
@@ -76,7 +74,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#getting-started" class="md-skip">
+        <a href="#alp-data" class="md-skip">
           Skip to content
         </a>
       
@@ -115,7 +113,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Getting Started
+              Home
             
           </span>
         </div>
@@ -257,87 +255,6 @@
       
   
   
-  
-  
-    <li class="md-nav__item">
-      <a href="home/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Home
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-    
-      
-      
-  
-  
-    
-  
-  
-  
-    
-    
-    
-    
-      
-        
-        
-      
-    
-    
-    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
-      
-        
-        
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
-        
-          
-          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
-            
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Guides
-  
-
-    
-  </span>
-  
-  
-
-            <span class="md-nav__icon md-icon"></span>
-          </label>
-        
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
-          <label class="md-nav__title" for="__nav_2">
-            <span class="md-nav__icon md-icon"></span>
-            
-  
-    Guides
-  
-
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
-              
-                
-  
-  
     
   
   
@@ -357,7 +274,7 @@
   <span class="md-ellipsis">
     
   
-    Getting Started
+    Home
   
 
     
@@ -375,7 +292,7 @@
   <span class="md-ellipsis">
     
   
-    Getting Started
+    Home
   
 
     
@@ -403,10 +320,21 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#installation" class="md-nav__link">
+  <a href="#what-is-alp-data" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Installation
+        What is alp-data?
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#why-alp-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why alp-data?
       
     </span>
   </a>
@@ -417,6 +345,85 @@
   
 </nav>
       
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guides
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
     </li>
   
 
@@ -1135,10 +1142,21 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#installation" class="md-nav__link">
+  <a href="#what-is-alp-data" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Installation
+        What is alp-data?
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#why-alp-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why alp-data?
       
     </span>
   </a>
@@ -1165,53 +1183,19 @@
   
 
 
-<h1 id="getting-started">Getting Started</h1>
-<h2 id="installation">Installation</h2>
-<p><code>alp-data</code> is available on <a href="https://pypi.org/project/alp-data/">PyPI</a>.</p>
-<div class="language-sh highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>uv<span class="w"> </span>add<span class="w"> </span>alp-data
-</span></code></pre></div>
-<p>or with pip:</p>
-<div class="language-sh highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>pip<span class="w"> </span>install<span class="w"> </span>alp-data
-</span></code></pre></div>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">alp_data</span><span class="w"> </span><span class="kn">import</span> <span class="n">Beans</span>
-</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>
-</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="c1"># Load &#39;train&#39; split of BEANS dataset at 16kHz sample rate</span>
-</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="c1"># Resampling is done on the fly with librosa.resample</span>
-</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="n">beans</span> <span class="o">=</span> <span class="n">Beans</span><span class="p">(</span><span class="n">split</span><span class="o">=</span><span class="s2">&quot;train&quot;</span><span class="p">,</span> <span class="n">sample_rate</span><span class="o">=</span><span class="mi">16000</span><span class="p">)</span>
-</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>
-</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="nb">print</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">beans</span><span class="p">))</span>
-</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>
-</span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="c1"># Iterate over all samples</span>
-</span><span id="__span-2-10"><a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="k">for</span> <span class="n">sample</span> <span class="ow">in</span> <span class="n">beans</span><span class="p">:</span>
-</span><span id="__span-2-11"><a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a>    <span class="nb">print</span><span class="p">(</span><span class="n">sample</span><span class="p">[</span><span class="s2">&quot;audio&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
-</span><span id="__span-2-12"><a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a>    <span class="k">break</span>
-</span><span id="__span-2-13"><a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a>
-</span><span id="__span-2-14"><a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a><span class="c1"># Fetch a single sample</span>
-</span><span id="__span-2-15"><a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a><span class="n">sample</span> <span class="o">=</span> <span class="n">beans</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-</span><span id="__span-2-16"><a id="__codelineno-2-16" name="__codelineno-2-16" href="#__codelineno-2-16"></a><span class="nb">print</span><span class="p">(</span><span class="n">sample</span><span class="p">[</span><span class="s2">&quot;audio&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
-</span><span id="__span-2-17"><a id="__codelineno-2-17" name="__codelineno-2-17" href="#__codelineno-2-17"></a>
-</span><span id="__span-2-18"><a id="__codelineno-2-18" name="__codelineno-2-18" href="#__codelineno-2-18"></a><span class="c1"># Streaming only</span>
-</span><span id="__span-2-19"><a id="__codelineno-2-19" name="__codelineno-2-19" href="#__codelineno-2-19"></a><span class="n">beans_streaming</span> <span class="o">=</span> <span class="n">Beans</span><span class="p">(</span><span class="n">split</span><span class="o">=</span><span class="s2">&quot;train&quot;</span><span class="p">,</span> <span class="n">streaming</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>  <span class="c1"># loads faster</span>
-</span><span id="__span-2-20"><a id="__codelineno-2-20" name="__codelineno-2-20" href="#__codelineno-2-20"></a><span class="nb">print</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">beans_streaming</span><span class="p">))</span>  <span class="c1"># Throws an error since length is unknown in streaming mode</span>
-</span><span id="__span-2-21"><a id="__codelineno-2-21" name="__codelineno-2-21" href="#__codelineno-2-21"></a>
-</span><span id="__span-2-22"><a id="__codelineno-2-22" name="__codelineno-2-22" href="#__codelineno-2-22"></a><span class="c1"># Iterate over all samples in streaming mode</span>
-</span><span id="__span-2-23"><a id="__codelineno-2-23" name="__codelineno-2-23" href="#__codelineno-2-23"></a><span class="k">for</span> <span class="n">sample</span> <span class="ow">in</span> <span class="n">beans_streaming</span><span class="p">:</span>
-</span><span id="__span-2-24"><a id="__codelineno-2-24" name="__codelineno-2-24" href="#__codelineno-2-24"></a>    <span class="nb">print</span><span class="p">(</span><span class="n">sample</span><span class="p">[</span><span class="s2">&quot;audio&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
-</span><span id="__span-2-25"><a id="__codelineno-2-25" name="__codelineno-2-25" href="#__codelineno-2-25"></a>    <span class="k">break</span>
-</span></code></pre></div>
-<div class="admonition warning">
-<p class="admonition-title">PyTorch DataLoader with <code>num_workers &gt; 0</code> requires <code>spawn</code></p>
-<p>When wrapping an alp-data <code>Dataset</code> in a PyTorch <code>DataLoader</code> with
-<code>num_workers &gt; 0</code>, you must use the <code>"spawn"</code> multiprocessing start
-method instead of the default <code>"fork"</code> on Linux. alp-data datasets hold
-fsspec / <code>gcsfs</code> / <code>s3fs</code> handles that are not
-safe to inherit across a <code>fork</code> — workers may deadlock or return
-corrupted audio. Either call
-<code>torch.multiprocessing.set_start_method("spawn", force=True)</code> once at
-program start, or pass <code>multiprocessing_context=mp.get_context("spawn")</code>
-to the <code>DataLoader</code>.</p>
-</div>
-<p>Check out the datasets documentation for more details <a href="datasets/">here</a>.</p>
+<h1 id="alp-data">alp-data</h1>
+<h3 id="what-is-alp-data">What is alp-data?</h3>
+<p><code>alp-data</code> (<a href="https://earthspecies.org/2026/04/02/animal-language-processing-an-ai-convergence-in-animal-communication/" target="_blank" rel="noopener">Animal Language Processing</a> data) is a <a href="https://pypi.org/project/alp-data/" target="_blank" rel="noopener">Python package</a> that provides access to 35+ bioacoustic datasets behind one unified interface. Designed to support machine learning across species, the current datasets cover birds, marine mammals, primates, insects, anurans, and multi-taxon benchmarks.</p>
+<p>This is the first piece of shared infrastructure for Animal Language Processing (ALP), an AI-powered, data-driven, and species-agnostic approach to studying animal communication introduced in <a href="https://earthspecies.org/2026/04/02/animal-language-processing-an-ai-convergence-in-animal-communication/" target="_blank" rel="noopener">April 2026</a>. ALP's promise of working across taxa depends on being able to access ML-friendly data across taxa through a single interface. That access layer is what <code>alp-data</code> provides.</p>
+<h3 id="why-alp-data">Why alp-data?</h3>
+<p>Today, bioacoustic datasets are distributed across many repositories — Zenodo, OSF, GBIF, and institutional archives — and each arrives with its own conventions for format, structure, sampling rate, and licensing. As a result, researchers working across multiple datasets must typically invest considerable effort in preprocessing: writing a custom loader for each dataset, then a separate step to combine them, before any of the data can be used together.</p>
+<p><code>alp-data</code> handles this overhead, letting you combine datasets and work through a single consistent interface from the start:</p>
+<ul>
+<li><strong>Unified dataset interface</strong>: access datasets stored locally, on cloud storage, or in various formats (CSV, JSON, Parquet) through a consistent API, with iteration and random-access indexing.</li>
+<li><strong>Streaming support</strong>: work with large datasets that don't fit into memory by streaming samples as you go.</li>
+<li><strong>Transformations</strong>: apply transforms such as row/column filtering and label creation per sample.</li>
+<li><strong>Combinations</strong>: concatenate or chain multiple datasets into a single unified dataset for training or evaluation.</li>
+</ul>
 
 
 
