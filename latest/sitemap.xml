@@ -2,34 +2,90 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
          <loc>http://go/python/docs/latest/</loc>
-         <lastmod>2026-06-10</lastmod>
+         <lastmod>2026-07-22</lastmod>
     </url>
     <url>
          <loc>http://go/python/docs/latest/backends/</loc>
-         <lastmod>2026-06-10</lastmod>
+         <lastmod>2026-07-22</lastmod>
     </url>
     <url>
          <loc>http://go/python/docs/latest/chain/</loc>
-         <lastmod>2026-06-10</lastmod>
+         <lastmod>2026-07-22</lastmod>
+    </url>
+    <url>
+         <loc>http://go/python/docs/latest/community/</loc>
+         <lastmod>2026-07-22</lastmod>
     </url>
     <url>
          <loc>http://go/python/docs/latest/concatenate/</loc>
-         <lastmod>2026-06-10</lastmod>
+         <lastmod>2026-07-22</lastmod>
+    </url>
+    <url>
+         <loc>http://go/python/docs/latest/datasets-available/</loc>
+         <lastmod>2026-07-22</lastmod>
+    </url>
+    <url>
+         <loc>http://go/python/docs/latest/datasets-custom/</loc>
+         <lastmod>2026-07-22</lastmod>
     </url>
     <url>
          <loc>http://go/python/docs/latest/datasets/</loc>
-         <lastmod>2026-06-10</lastmod>
+         <lastmod>2026-07-22</lastmod>
+    </url>
+    <url>
+         <loc>http://go/python/docs/latest/explorer/</loc>
+         <lastmod>2026-07-22</lastmod>
+    </url>
+    <url>
+         <loc>http://go/python/docs/latest/getting-started/</loc>
+         <lastmod>2026-07-22</lastmod>
     </url>
     <url>
          <loc>http://go/python/docs/latest/io/</loc>
-         <lastmod>2026-06-10</lastmod>
+         <lastmod>2026-07-22</lastmod>
     </url>
     <url>
          <loc>http://go/python/docs/latest/reference/</loc>
-         <lastmod>2026-06-10</lastmod>
+         <lastmod>2026-07-22</lastmod>
     </url>
     <url>
          <loc>http://go/python/docs/latest/transforms/</loc>
-         <lastmod>2026-06-10</lastmod>
+         <lastmod>2026-07-22</lastmod>
+    </url>
+    <url>
+         <loc>http://go/python/docs/latest/hooks/dataset_info_hook/</loc>
+         <lastmod>2026-07-22</lastmod>
+    </url>
+    <url>
+         <loc>http://go/python/docs/latest/hooks/hide_toc_hook/</loc>
+         <lastmod>2026-07-22</lastmod>
+    </url>
+    <url>
+         <loc>http://go/python/docs/latest/tutorials/01_basics/</loc>
+         <lastmod>2026-07-22</lastmod>
+    </url>
+    <url>
+         <loc>http://go/python/docs/latest/tutorials/02_io/</loc>
+         <lastmod>2026-07-22</lastmod>
+    </url>
+    <url>
+         <loc>http://go/python/docs/latest/tutorials/03_pytorch_dataloader/</loc>
+         <lastmod>2026-07-22</lastmod>
+    </url>
+    <url>
+         <loc>http://go/python/docs/latest/tutorials/04_yaml_config/</loc>
+         <lastmod>2026-07-22</lastmod>
+    </url>
+    <url>
+         <loc>http://go/python/docs/latest/tutorials/05_transforms/</loc>
+         <lastmod>2026-07-22</lastmod>
+    </url>
+    <url>
+         <loc>http://go/python/docs/latest/tutorials/06_concat_and_chain/</loc>
+         <lastmod>2026-07-22</lastmod>
+    </url>
+    <url>
+         <loc>http://go/python/docs/latest/tutorials/07_user_datasets_and_transforms/</loc>
+         <lastmod>2026-07-22</lastmod>
     </url>
 </urlset>
