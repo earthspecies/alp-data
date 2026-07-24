@@ -27,9 +27,9 @@ class InsectSet459(Dataset):
     References
     ----------
     Faiss, Ghani, Stowell 2025.
-    https://arxiv.org/abs/2503.15074
+    [arXiv paper](https://arxiv.org/abs/2503.15074)
     Dataset DOI:
-    https://zenodo.org/records/8252141
+    [Zenodo](https://zenodo.org/records/8252141)
 
     Examples
     --------

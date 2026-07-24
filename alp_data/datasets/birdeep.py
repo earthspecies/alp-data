@@ -59,8 +59,8 @@ class Birdeep(Dataset):
 
     References
     ----------
-    https://huggingface.co/datasets/GrunCrow/BIRDeep_AudioAnnotations
-    https://www.sciencedirect.com/science/article/pii/S1574954125002638?via%3Dihub
+    [Hugging Face dataset](https://huggingface.co/datasets/GrunCrow/BIRDeep_AudioAnnotations)
+    [Publication](https://www.sciencedirect.com/science/article/pii/S1574954125002638?via%3Dihub)
 
     """
 

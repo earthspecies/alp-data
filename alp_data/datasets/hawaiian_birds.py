@@ -50,7 +50,7 @@ class HawaiianBirds(Dataset):
     Sampling and annotation protocol
 
     This collection is a subset of the files recorded over the course of the LOHE
-    lab’s respective studies. The data were subsampled for annotation by aurally
+    lab's respective studies. The data were subsampled for annotation by aurally
     scanning the recordings and visually scanning spectrograms generated using
     Raven Pro software for target species of interest to the individual research
     project for which each recording was collected. Recordings that did not
@@ -73,7 +73,7 @@ class HawaiianBirds(Dataset):
 
     References
     ----------
-    https://zenodo.org/records/7078499
+    Dataset: [Zenodo](https://zenodo.org/records/7078499)
 
     """
 

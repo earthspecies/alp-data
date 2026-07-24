@@ -30,8 +30,8 @@ class Beans(Dataset):
     ----------
     BEANS: The Benchmark of Animal Sounds
     Masato Hagiwara et al 2022
-    https://arxiv.org/abs/2210.12300
-    https://github.com/earthspecies/beans
+    [arXiv paper](https://arxiv.org/abs/2210.12300)
+    [GitHub](https://github.com/earthspecies/beans)
 
     Examples
     --------

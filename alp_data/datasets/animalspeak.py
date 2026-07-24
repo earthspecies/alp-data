@@ -24,7 +24,7 @@ class AnimalSpeak(Dataset):
     ----------
     TRANSFERABLE MODELS FOR BIOACOUSTICS WITH HUMAN LANGUAGE SUPERVISION
     Robinson et al 2023
-    https://arxiv.org/pdf/2308.04978
+    [arXiv paper](https://arxiv.org/pdf/2308.04978)
 
     Examples
     --------

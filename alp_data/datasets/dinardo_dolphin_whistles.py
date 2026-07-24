@@ -39,8 +39,8 @@ class DinardoDolphinWhistles(Dataset):
     References
     ----------
     A WAV file dataset of bottlenose dolphin whistles, clicks, and pulse
-    sounds during trawling interactions
-    https://doi.org/10.1038/s41597-023-02547-8
+    sounds during trawling interactions. Di Nardo et al 2023.
+    [DOI](https://doi.org/10.1038/s41597-023-02547-8)
 
 
     Examples

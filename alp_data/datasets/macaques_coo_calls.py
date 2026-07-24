@@ -22,7 +22,7 @@ class MacaquesCooCalls(Dataset):
     References
     ----------
 
-    https://archive.org/details/macaque_coo_calls
+    [archive.org](https://archive.org/details/macaque_coo_calls)
 
     Examples
     --------

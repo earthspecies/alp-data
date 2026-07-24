@@ -72,7 +72,7 @@ class DCLDE2026(Dataset):
     -----------
     Multi-provider annotated acoustic recordings of killer whales, humpback
     whales, and bowhead whales from Alaska, British Columbia, and Washington
-    (2011–2024). Each entry is an audio file plus an enriched selection table
+    (2011-2024). Each entry is an audio file plus an enriched selection table
     containing detection/call-level annotations with species, ecotype, call
     type, pod, clan, and acoustic behavior labels — all human-annotated.
 
@@ -154,8 +154,7 @@ class DCLDE2026(Dataset):
 
     References
     ----------
-    Palmer et al. (2025) doi:10.1038/s41597-025-05281-5
-    License: CC-BY-4.0
+    Palmer et al. (2025) [Nature scientific data](https://doi.org/10.1038/s41597-025-05281-5)
     """
 
     info = DatasetInfo(

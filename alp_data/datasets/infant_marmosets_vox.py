@@ -68,7 +68,8 @@ class InfantMarmosetsVox(Dataset):
     "Can Self-Supervised Neural Representations Pre-Trained on Human Speech
     distinguish Animal Callers?" Proc. Interspeech 2023, 1189-1193.
     doi: 10.21437/Interspeech.2023-1968
-    https://www.isca-speech.org/archive/interspeech_2023/sarkar23_interspeech.html
+    [ISCA Archive](https://www.isca-speech.org/archive/interspeech_2023/sarkar23_interspeech.html)
+    [Dataset](https://www.idiap.ch/en/scientific-research/data/infantmarmosetsvox)
 
     Examples
     --------

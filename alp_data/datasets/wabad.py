@@ -32,7 +32,7 @@ class WABAD(Dataset):
     detection evaluation dataset.
 
     Description from publication:
-    https://www.researchgate.net/publication/387711208_WABAD_A_World_Annotated_Bird_Acoustic_Dataset_for_Passive_Acoustic_Monitoring
+    [ResearchGate](https://www.researchgate.net/publication/387711208_WABAD_A_World_Annotated_Bird_Acoustic_Dataset_for_Passive_Acoustic_Monitoring)
 
     Under the current global biodiversity crisis, there is a need for automated
     and non-invasive monitoring techniques that can gather large amounts of data
@@ -70,8 +70,8 @@ class WABAD(Dataset):
 
     References
     ----------
-    https://zenodo.org/records/15629388
-    https://www.researchgate.net/publication/387711208_WABAD_A_World_Annotated_Bird_Acoustic_Dataset_for_Passive_Acoustic_Monitoring
+    [Zenodo](https://zenodo.org/records/15629388)
+    [ResearchGate](https://www.researchgate.net/publication/387711208_WABAD_A_World_Annotated_Bird_Acoustic_Dataset_for_Passive_Acoustic_Monitoring)
 
     """
 

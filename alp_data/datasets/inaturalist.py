@@ -135,7 +135,7 @@ class INaturalist(Dataset):
 
     References
     ----------
-    iNaturalist: https://www.inaturalist.org/
+    [iNaturalist](https://www.inaturalist.org/)
 
     Examples
     --------

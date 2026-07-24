@@ -1,48 +1,4 @@
-"""Bengalese Finch Calls dataset
-
-This dataset contains individual calls from Bengalese finches. Each row in the
-metadata CSV corresponds to a *single call* extracted as an audio snippet.
-The dataset is organized by individual birds, with each bird having its own
-split containing its vocal repertoire. Note that the repertoires
-are per-bird, so labels should not be compared across splits.
-
-The data is hosted in the `esp-ml-datasets` GCS bucket in folder bengalese_finch with:
-- Individual CSV files per bird, plus bird-level splits (Bird0.csv, Bird1.csv, etc.)
-- Extracted call audio snippets in `wav/BirdX/` subdirectories
-
-The CSVs have the following columns:
-* ``local_path``     - relative path to the extracted call audio snippet
-* ``call_type``      - call-type ID (string)
-* ``individual_id``  - identifier of the individual bird
-* ``local_path``     - relative path to the extracted call audio snippet
-* ``call_type``      - call-type ID (string)
-* ``individual_id``  - identifier of the individual bird
-
-**Available Split Types:**
-- ``{BirdX}_train``: Full training set (~70% of data)
-- ``{BirdX}_train_small``: Limited training set (max 80 samples per call type)
-- ``{BirdX}_valid``: Validation set (~15% of data)
-- ``{BirdX}_test``: Test set (~15% of data)
-
-Examples
---------
-# Individual bird
->>> from alp_data.datasets import BengaleseFinchCalls
->>> ds = BengaleseFinchCalls(split="Bird0", sample_rate=16000)
->>> first = ds[0]
->>> first.keys()
-dict_keys(['local_path', 'call_type', 'individual_id', 'audio', 'sample_rate'])
-
-# Bird2 training split
->>> train_ds = BengaleseFinchCalls(split="Bird2_train", sample_rate=16000)
->>> print(f"Training samples: {len(train_ds)}")
-Training samples: 18303
-
-# Learning with limited data
->>> small_train_ds = BengaleseFinchCalls(split="Bird2_train_small", sample_rate=16000)
->>> print(f"Small training samples: {len(small_train_ds)}")
-Small training samples: 1360
-"""
+"""Bengalese Finch Calls dataset"""
 
 from typing import Any, Dict, Iterator
 
@@ -56,7 +12,63 @@ from alp_data.io import DATA_HOME, AnyPathT, anypath, audio_stereo_to_mono, read
 
 @register_dataset
 class BengaleseFinchCalls(Dataset):
-    """Bengalese Finch call-type dataset with individual bird splits."""
+    """Bengalese Finch call-type dataset with individual bird splits.
+
+    Description
+    -----------
+    This dataset contains individual calls from Bengalese finches. Each row in the
+    metadata CSV corresponds to a *single call* extracted as an audio snippet.
+    The dataset is organized by individual birds, with each bird having its own
+    split containing its vocal repertoire. Note that the repertoires
+    are per-bird, so labels should not be compared across splits.
+
+    The data contains:
+    - Individual CSV files per bird, plus bird-level splits (Bird0.csv, Bird1.csv, etc.)
+    - Extracted call audio snippets in `wav/BirdX/` subdirectories
+
+    The CSVs have the following columns:
+    * ``local_path``     - relative path to the extracted call audio snippet
+    * ``call_type``      - call-type ID (string)
+    * ``individual_id``  - identifier of the individual bird
+    * ``local_path``     - relative path to the extracted call audio snippet
+    * ``call_type``      - call-type ID (string)
+    * ``individual_id``  - identifier of the individual bird
+
+    **Available Split Types:**
+    - ``{BirdX}_train``: Full training set (~70% of data)
+    - ``{BirdX}_train_small``: Limited training set (max 80 samples per call type)
+    - ``{BirdX}_valid``: Validation set (~15% of data)
+    - ``{BirdX}_test``: Test set (~15% of data)
+
+    References
+    ----------
+    NA
+
+    Examples
+    --------
+    # Individual bird
+    ```pycon
+    >>> from alp_data.datasets import BengaleseFinchCalls
+    >>> ds = BengaleseFinchCalls(split="Bird0", sample_rate=16000)
+    >>> first = ds[0]
+    >>> first.keys()
+    dict_keys(['local_path', 'call_type', 'individual_id', 'audio', 'sample_rate'])
+    ```
+
+    # Bird2 training split
+    ```pycon
+    >>> train_ds = BengaleseFinchCalls(split="Bird2_train", sample_rate=16000)
+    >>> print(f"Training samples: {len(train_ds)}")
+    Training samples: 18303
+    ```
+
+    # Learning with limited data
+    ```pycon
+    >>> small_train_ds = BengaleseFinchCalls(split="Bird2_train_small", sample_rate=16000)
+    >>> print(f"Small training samples: {len(small_train_ds)}")
+    Small training samples: 1360
+    ```
+    """
 
     info = DatasetInfo(
         name="Bengalese Finch Calls",

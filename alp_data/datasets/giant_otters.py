@@ -24,7 +24,7 @@ class GiantOtters(Dataset):
     References
     ----------
     The Vocal Repertoire of Adult and Neonate Giant Otters (Pteronura brasiliensis)
-    https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0112562#s5
+    [Publication](https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0112562#s5)
 
     Examples
     --------

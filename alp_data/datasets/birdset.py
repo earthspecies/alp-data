@@ -70,9 +70,18 @@ class BirdSet(Dataset):
     References
     ----------
     Rauch, Lukas, et al. "BirdSet: A multi-task benchmark for classification
-    in avian bioacoustics." https://arxiv.org/abs/2403.10380
+    in avian bioacoustics." [arXiv](https://arxiv.org/abs/2403.10380)
 
-    https://github.com/DBD-research-group/BirdSet
+    HSN: [Zenodo](https://zenodo.org/records/7525805),
+    NBP: [Figshare](https://figshare.com/articles/dataset/Transcriptions_of_NIPS4B_2013_Bird_Challenge_Training_Dataset/6798548),
+    NES: [Zenodo](https://zenodo.org/records/7525349),
+    PER: [Zenodo](https://zenodo.org/records/7079124),
+    POW: [Zenodo](https://zenodo.org/records/4656848),
+    SSW: [Zenodo](https://zenodo.org/records/7079380),
+    SNE: [Zenodo](https://zenodo.org/records/7050014),
+    UHH: [Zenodo](https://zenodo.org/records/7078499)
+
+    [BirdSet GitHub](https://github.com/DBD-research-group/BirdSet)
 
     Examples
     --------

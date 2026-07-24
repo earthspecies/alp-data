@@ -184,7 +184,7 @@ class Voxaboxen(Dataset):
     Robust detection of overlapping bioacoustic sound events
     Louis Mahon, Benjamin Hoffman, Logan S James, Maddie Cusimano,
     Masato Hagiwara, Sarah C Woolley, Olivier Pietquin
-    https://arxiv.org/abs/2503.02389
+    [arXiv](https://arxiv.org/abs/2503.02389)
 
     Examples
     --------
@@ -565,7 +565,7 @@ class VoxaboxenEvents(Dataset):
     Robust detection of overlapping bioacoustic sound events
     Louis Mahon, Benjamin Hoffman, Logan S James, Maddie Cusimano,
     Masato Hagiwara, Sarah C Woolley, Olivier Pietquin
-    https://arxiv.org/abs/2503.02389
+    [arXiv](https://arxiv.org/abs/2503.02389)
 
     Examples
     --------

@@ -66,8 +66,8 @@ class AnuraSetStrong(Dataset):
 
     References
     ----------
-    https://arxiv.org/pdf/2307.06860
-
+    Canas et al 2023 [Nature scientific data](https://www.nature.com/articles/s41597-023-02666-2)
+    [Project website](https://soundclim.github.io/anuraweb/)
     """
 
     info = DatasetInfo(

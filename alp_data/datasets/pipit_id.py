@@ -31,8 +31,8 @@ class PipitId(Dataset):
 
     References
     ----------
-    https://royalsocietypublishing.org/doi/10.1098/rsif.2018.0940
-    Zenodo: https://zenodo.org/records/1413495
+    [Paper](https://royalsocietypublishing.org/doi/10.1098/rsif.2018.0940)
+    [Zenodo](https://zenodo.org/records/1413495)
 
     Examples
     --------

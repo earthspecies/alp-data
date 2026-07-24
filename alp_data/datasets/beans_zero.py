@@ -34,10 +34,14 @@ class BeansZero(Dataset):
     ----------
     NatureLM-audio: an Audio-Language Foundation Model for Bioacoustics
     David Robinson, Marius Miron, Masato Hagiwara, Olivier Pietquin
-    https://openreview.net/forum?id=hJVdwBpWjt
+    [OpenReview](https://openreview.net/forum?id=hJVdwBpWjt)
 
-    Huggingface Dataset:
-    https://huggingface.co/datasets/EarthSpeciesProject/BEANS-Zero
+    Hugging Face Dataset:
+    [🤗 dataset](https://huggingface.co/datasets/EarthSpeciesProject/BEANS-Zero)
+    Note: the hf dataset contains the original variable-rate audio files
+    in the "audio" column and does NOT contain pre-resampled audio
+    which is available in this implementation. Prefer using this
+    implementation for audio loading and resampling.
 
 
     Examples
