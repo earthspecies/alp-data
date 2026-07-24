@@ -100,7 +100,7 @@ class AudioSet(Dataset):
     ```
 
     Load with on-the-fly resampling to 16kHz
-    ```
+    ```pycon
     >>> dataset_16k = AudioSet(split="validation", version="0.2.0", sample_rate=16000,
     ... streaming=True)
     ```

@@ -42,7 +42,7 @@ class GibbonSolos(Dataset):
 
     References
     ----------
-    Gelada vocal sequences follow Menzerath's linguistic law (PNAS, 2016)
+    Clink et al 2020
     [Paper (DOI)](https://doi.org/10.1098/rsos.200151)
     [Dataset (DOI)](https://doi.org/10.5061/dryad.wstqjq2h8)
 
