@@ -1,6 +1,6 @@
 site_name: alp-data
 site_description: Unified access to 35+ bioacoustic datasets behind one Python interface.
-strict: true
+strict: true  # with strict=True, make sure all links are valid, otherwise mkdocs build will fail
 site_url: https://projects.earthspecies.org/alp-data/
 
 # Check out https://mkdocstrings.github.io/recipes/
@@ -101,7 +101,6 @@ markdown_extensions:
 exclude_docs: |
   __pycache__/
   *.pyc
-  hooks/
 
 extra_css:
   - stylesheets/extra.css
