@@ -126,6 +126,17 @@ class BeansPro(Dataset):
             "weldy-call-or-song-sp-10s": "gs://esp-data-ingestion/beans-pro/v0.1.0/raw/weldy_call_or_song_sp_10s/test.jsonl",
             "weldy-multi-call-type": "gs://esp-data-ingestion/beans-pro/v0.1.0/raw/weldy_multi_call_type/test.jsonl",
             "dclde2013-multilabel-species": "gs://esp-data-ingestion/beans-pro/v0.1.0/raw/dclde2013_multilabel_species/test.jsonl",
+            # v2 presence/call-type splits regenerated from leakage-free 20260707
+            # holdout/added-rows sources (see scripts/build_beans_pro_presence_v2.py).
+            # Audio paths are relative to gs://esp-data-ingestion/ (per-source prefix).
+            "bird-presence-v2": "gs://esp-data-ingestion/beans-pro-v2-eval/bird_presence_v2.jsonl",
+            "mammal-presence-v2": "gs://esp-data-ingestion/beans-pro-v2-eval/mammal_presence_v2.jsonl",
+            "insect-presence-v2": "gs://esp-data-ingestion/beans-pro-v2-eval/insect_presence_v2.jsonl",
+            "amphibian-presence-v2": "gs://esp-data-ingestion/beans-pro-v2-eval/amphibian_presence_v2.jsonl",
+            "alarm-call-presence-v2": "gs://esp-data-ingestion/beans-pro-v2-eval/alarm_call_presence_v2.jsonl",
+            "flight-call-presence-v2": "gs://esp-data-ingestion/beans-pro-v2-eval/flight_call_presence_v2.jsonl",
+            "begging-call-presence-v2": "gs://esp-data-ingestion/beans-pro-v2-eval/begging_call_presence_v2.jsonl",
+            "call-type-fixed-vocab-v2": "gs://esp-data-ingestion/beans-pro-v2-eval/call_type_fixed_vocab_v2.jsonl",
         },
         version="0.1.0",
         description=(
@@ -167,6 +178,16 @@ class BeansPro(Dataset):
         "weldy-call-or-song-sp-10s": "gs://esp-data-ingestion/beans-pro/v0.1.0/raw/weldy_call_or_song_sp_10s/",
         "weldy-multi-call-type": "gs://esp-data-ingestion/beans-pro/v0.1.0/raw/weldy_multi_call_type/",
         "dclde2013-multilabel-species": "gs://esp-data-ingestion/beans-pro/v0.1.0/raw/dclde2013_multilabel_species/",
+        # v2 splits: audio_path_original_sample_rate is relative to the ingestion
+        # bucket root (xeno-canto/... or inaturalist/... prefixes).
+        "bird-presence-v2": "gs://esp-data-ingestion/",
+        "mammal-presence-v2": "gs://esp-data-ingestion/",
+        "insect-presence-v2": "gs://esp-data-ingestion/",
+        "amphibian-presence-v2": "gs://esp-data-ingestion/",
+        "alarm-call-presence-v2": "gs://esp-data-ingestion/",
+        "flight-call-presence-v2": "gs://esp-data-ingestion/",
+        "begging-call-presence-v2": "gs://esp-data-ingestion/",
+        "call-type-fixed-vocab-v2": "gs://esp-data-ingestion/",
     }
 
     _originals_path_column = "audio_path_original_sample_rate"

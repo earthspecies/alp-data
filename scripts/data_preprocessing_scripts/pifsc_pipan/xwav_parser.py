@@ -48,9 +48,9 @@ class XWAVSubchunk:
 
     index: int
     start_utc: datetime.datetime
-    byte_loc: int          # offset in ORIGINAL WAV bytes
-    byte_length: int       # length in bytes of the audio data in this subchunk
-    sample_rate: int       # Hz
+    byte_loc: int  # offset in ORIGINAL WAV bytes
+    byte_length: int  # length in bytes of the audio data in this subchunk
+    sample_rate: int  # Hz
     gain_stage: int
 
     @property
@@ -83,8 +83,7 @@ class XWAVIndex:
         """Return absolute decoded-audio offset for ``offset_in_subchunk_s``."""
         if subchunk_index < 0 or subchunk_index >= len(self.subchunks):
             raise IndexError(
-                f"subchunk_index {subchunk_index} out of range "
-                f"[0, {len(self.subchunks)})"
+                f"subchunk_index {subchunk_index} out of range [0, {len(self.subchunks)})"
             )
         return self.cum_offset_s[subchunk_index] + offset_in_subchunk_s
 
@@ -147,7 +146,7 @@ def parse_xwav_from_bytes(head: bytes) -> XWAVIndex:
             continue
         chunk_id = riff[:4]
         chunk_size = struct.unpack("<I", riff[4:8])[0]
-        chunk_data = riff[8:8 + chunk_size]
+        chunk_data = riff[8 : 8 + chunk_size]
         if chunk_id != b"harp":
             continue
         return _parse_harp(chunk_data)
@@ -157,34 +156,54 @@ def parse_xwav_from_bytes(head: bytes) -> XWAVIndex:
 def _parse_harp(data: bytes) -> XWAVIndex:
     """Parse the body of a harp chunk into an XWAVIndex."""
     if len(data) < _HARP_STATIC_HEADER_LEN:
-        raise ValueError(
-            f"harp chunk too short ({len(data)} < {_HARP_STATIC_HEADER_LEN})"
-        )
+        raise ValueError(f"harp chunk too short ({len(data)} < {_HARP_STATIC_HEADER_LEN})")
     fields = struct.unpack(_HARP_STATIC_HEADER_FMT, data[:_HARP_STATIC_HEADER_LEN])
     (
-        _wav_version, _firmware, _instrument, _site, _experiment,
-        _disk_seq, _disk_serial, num_raw_files,
-        _longitude_x1e6, _latitude_x1e6, _depth,
+        _wav_version,
+        _firmware,
+        _instrument,
+        _site,
+        _experiment,
+        _disk_seq,
+        _disk_serial,
+        num_raw_files,
+        _longitude_x1e6,
+        _latitude_x1e6,
+        _depth,
     ) = fields
     offset = _HARP_STATIC_HEADER_LEN
     expected = offset + num_raw_files * _SUBCHUNK_REC_LEN
     if len(data) < expected:
         raise ValueError(
-            f"harp chunk too short for {num_raw_files} subchunks: "
-            f"{len(data)} < {expected}"
+            f"harp chunk too short for {num_raw_files} subchunks: {len(data)} < {expected}"
         )
     subchunks: list[XWAVSubchunk] = []
     for i in range(num_raw_files):
-        record = data[offset:offset + _SUBCHUNK_REC_LEN]
+        record = data[offset : offset + _SUBCHUNK_REC_LEN]
         offset += _SUBCHUNK_REC_LEN
         (
-            yy, mm, dd, hh, mn, ss, ticks, byte_loc, byte_length,
-            _write_length, sample_rate, gain_stage, _reserved,
+            yy,
+            mm,
+            dd,
+            hh,
+            mn,
+            ss,
+            ticks,
+            byte_loc,
+            byte_length,
+            _write_length,
+            sample_rate,
+            gain_stage,
+            _reserved,
         ) = struct.unpack(_SUBCHUNK_REC_FMT, record)
         try:
             ts = datetime.datetime(
                 year=2000 + yy if yy < 70 else 1900 + yy,
-                month=mm, day=dd, hour=hh, minute=mn, second=ss,
+                month=mm,
+                day=dd,
+                hour=hh,
+                minute=mn,
+                second=ss,
                 microsecond=ticks * 1000,
                 tzinfo=datetime.timezone.utc,
             )
@@ -193,11 +212,16 @@ def _parse_harp(data: bytes) -> XWAVIndex:
                 f"Bad timestamp in subchunk {i}: y={yy} m={mm} d={dd} "
                 f"H={hh} M={mn} S={ss} ticks={ticks}: {e}"
             ) from e
-        subchunks.append(XWAVSubchunk(
-            index=i, start_utc=ts, byte_loc=byte_loc,
-            byte_length=byte_length, sample_rate=sample_rate,
-            gain_stage=gain_stage,
-        ))
+        subchunks.append(
+            XWAVSubchunk(
+                index=i,
+                start_utc=ts,
+                byte_loc=byte_loc,
+                byte_length=byte_length,
+                sample_rate=sample_rate,
+                gain_stage=gain_stage,
+            )
+        )
     return XWAVIndex.from_subchunks(subchunks)
 
 
@@ -226,7 +250,9 @@ def parse_xwav_from_gcs(flac_uri: str, head_bytes: int = 262144) -> XWAVIndex:
     if flac_uri.startswith("gs://"):
         proc = subprocess.run(
             ["gsutil", "cat", "-r", f"0-{head_bytes - 1}", flac_uri],
-            check=True, capture_output=True, timeout=60,
+            check=True,
+            capture_output=True,
+            timeout=60,
         )
         head = proc.stdout
     else:
@@ -236,19 +262,24 @@ def parse_xwav_from_gcs(flac_uri: str, head_bytes: int = 262144) -> XWAVIndex:
 
 if __name__ == "__main__":
     import sys
-    uri = sys.argv[1] if len(sys.argv) > 1 else (
-        "gs://esp-data-ingestion/superwhale/v0.1.0/raw/pifsc/audio/pipan_10/"
-        "crosssm/pipan_crosssm_01/audio/audio/"
-        "Cross_A_01_050606_123845.d20.x.flac"
+
+    uri = (
+        sys.argv[1]
+        if len(sys.argv) > 1
+        else (
+            "gs://esp-data-ingestion/superwhale/v0.1.0/raw/pifsc/audio/pipan_10/"
+            "crosssm/pipan_crosssm_01/audio/audio/"
+            "Cross_A_01_050606_123845.d20.x.flac"
+        )
     )
     idx = parse_xwav_from_gcs(uri)
-    print(f"{len(idx.subchunks)} subchunks; total decoded duration "
-          f"{idx.cum_offset_s[-1]:.2f}s")
+    print(f"{len(idx.subchunks)} subchunks; total decoded duration {idx.cum_offset_s[-1]:.2f}s")
     for sc in idx.subchunks[:5]:
-        print(f"  [{sc.index:3d}] start={sc.start_utc.isoformat()} "
-              f"sr={sc.sample_rate} bytes={sc.byte_length} "
-              f"dur={sc.duration_s:.2f}s")
+        print(
+            f"  [{sc.index:3d}] start={sc.start_utc.isoformat()} "
+            f"sr={sc.sample_rate} bytes={sc.byte_length} "
+            f"dur={sc.duration_s:.2f}s"
+        )
     if len(idx.subchunks) > 5:
         last = idx.subchunks[-1]
-        print(f"  ... [{last.index}] start={last.start_utc.isoformat()} "
-              f"dur={last.duration_s:.2f}s")
+        print(f"  ... [{last.index}] start={last.start_utc.isoformat()} dur={last.duration_s:.2f}s")

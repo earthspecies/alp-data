@@ -46,7 +46,10 @@ def _set_from_listing(prefix: str, suffix: str) -> set[str]:
     # full listing in memory at once.
     proc = subprocess.Popen(
         ["gsutil", "ls", f"{prefix}/**"],
-        stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, bufsize=1,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,
+        text=True,
+        bufsize=1,
     )
     assert proc.stdout is not None
     n = 0
@@ -74,7 +77,10 @@ def _manifest_ids() -> tuple[set[str], dict[str, dict[str, str]]]:
     print(f"Streaming manifest {MANIFEST_URI} ...", flush=True)
     out = subprocess.run(
         ["gsutil", "cat", MANIFEST_URI],
-        check=True, capture_output=True, text=True, timeout=300,
+        check=True,
+        capture_output=True,
+        text=True,
+        timeout=300,
     ).stdout
     ids: set[str] = set()
     rows: dict[str, dict[str, str]] = {}
@@ -94,8 +100,7 @@ def _manifest_ids() -> tuple[set[str], dict[str, dict[str, str]]]:
 def main() -> None:
     """Run the existence sweep and write a report."""
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--out-dir", type=Path,
-                        default=Path("/home/david_earthspecies_org/logs"))
+    parser.add_argument("--out-dir", type=Path, default=Path("/home/david_earthspecies_org/logs"))
     args = parser.parse_args()
     args.out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -125,32 +130,34 @@ def main() -> None:
     print("\n=== SUMMARY ===")
     print(json.dumps(summary, indent=2))
 
-    (args.out_dir / "xc_strong_audio_audit.json").write_text(
-        json.dumps(summary, indent=2)
-    )
+    (args.out_dir / "xc_strong_audio_audit.json").write_text(json.dumps(summary, indent=2))
 
     missing_csv = args.out_dir / "xc_strong_missing_audio.csv"
     with missing_csv.open("w") as f:
         w = csv.writer(f)
-        w.writerow(["xc_id", "missing_16k", "missing_32k", "missing_mp3",
-                    "manifest_audio_fp"])
+        w.writerow(["xc_id", "missing_16k", "missing_32k", "missing_mp3", "manifest_audio_fp"])
         for xcid in sorted(missing_any):
-            w.writerow([
-                xcid,
-                int(xcid in missing_16k),
-                int(xcid in missing_32k),
-                int(xcid in missing_mp3),
-                manifest_paths[xcid]["audio_fp"],
-            ])
+            w.writerow(
+                [
+                    xcid,
+                    int(xcid in missing_16k),
+                    int(xcid in missing_32k),
+                    int(xcid in missing_mp3),
+                    manifest_paths[xcid]["audio_fp"],
+                ]
+            )
     print(f"Wrote {len(missing_any):,} missing-row report -> {missing_csv}")
 
     if missing_any:
-        print(f"\nFirst 20 IDs missing in any shard:")
+        print("\nFirst 20 IDs missing in any shard:")
         for xcid in sorted(missing_any)[:20]:
             shards = []
-            if xcid in missing_16k: shards.append("16k")
-            if xcid in missing_32k: shards.append("32k")
-            if xcid in missing_mp3: shards.append("mp3")
+            if xcid in missing_16k:
+                shards.append("16k")
+            if xcid in missing_32k:
+                shards.append("32k")
+            if xcid in missing_mp3:
+                shards.append("mp3")
             print(f"  {xcid}: missing in {','.join(shards)}")
 
     sys.exit(0 if not missing_any else 1)

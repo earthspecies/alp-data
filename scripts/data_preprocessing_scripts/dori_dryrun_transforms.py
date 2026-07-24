@@ -47,23 +47,29 @@ def _counts(ds: DORI, col: str = "species_list") -> Counter:
 
 POSITIVE_TFS = [
     {"type": "drop_null_or_empty_string", "columns": ["species"]},
-    {"type": "filter", "property": "label_source",
-     "values": ["DORI (pseudo-label)"], "mode": "exclude"},
-    {"type": "long_tail_upsample", "property": "species",
-     "sufficient_threshold": 4000, "max_repeats": 5, "seed": 42},
+    {
+        "type": "filter",
+        "property": "label_source",
+        "values": ["DORI (pseudo-label)"],
+        "mode": "exclude",
+    },
+    {
+        "type": "long_tail_upsample",
+        "property": "species",
+        "sufficient_threshold": 4000,
+        "max_repeats": 5,
+        "seed": 42,
+    },
     {"type": "rename_columns", "mapping": {"species": "species_list"}},
-    {"type": "select_columns",
-     "columns": ["16khz_path", "32khz_path", "audio_fp", "species_list"]},
+    {"type": "select_columns", "columns": ["16khz_path", "32khz_path", "audio_fp", "species_list"]},
     {"type": "set_columns", "columns": {"mixup_group": "marine_mammal"}},
 ]
 
 NEGATIVE_TFS = [
-    {"type": "filter", "property": "is_negative",
-     "values": ["True"], "mode": "include"},
+    {"type": "filter", "property": "is_negative", "values": ["True"], "mode": "include"},
     {"type": "downsample", "fraction": 0.10, "seed": 42},
     {"type": "rename_columns", "mapping": {"species": "species_list"}},
-    {"type": "select_columns",
-     "columns": ["16khz_path", "32khz_path", "audio_fp", "species_list"]},
+    {"type": "select_columns", "columns": ["16khz_path", "32khz_path", "audio_fp", "species_list"]},
     {"type": "set_columns", "columns": {"mixup_group": "marine_mammal"}},
 ]
 

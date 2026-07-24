@@ -153,6 +153,19 @@ class XenoCanto(Dataset):
             "train_strong": "gs://esp-data-ingestion/xeno-canto/v0.1.0/raw/train_strong_labels.csv",
             "train_strong_unseen_thr02_bgdet": "gs://esp-data-ingestion/xeno-canto/v0.1.0/raw/train_strong_unseen_thr02_bgdet.csv",
             "train_strong_unseen_top100_bgdet": "gs://esp-data-ingestion/xeno-canto/v0.1.0/raw/train_strong_unseen_top100_bgdet.csv",
+            # Same as train_strong_unseen_top100_bgdet but joined back to the XC
+            # metadata (by xc_id) to recover latitudeDecimal/longitudeDecimal/
+            # locality/country_code/eventDate/eventTime/fieldNotes (95.4% matched,
+            # 190 countries) so ContextBuilder can produce real location context.
+            "train_strong_unseen_top100_bgdet_geo": "gs://esp-data-ingestion/xeno-canto/v0.1.0/raw/train_strong_unseen_top100_bgdet_geo.csv",
+            # Corpus-wide (~508k recs) strong split from BirdCODE APN detections:
+            # per recording, a full-span focal event (human canonical_name) plus
+            # background events (with BirdCODE times) kept by a CEB-validated
+            # hybrid — AT-covered recs keep BirdCODE>=0.40 species that also
+            # appear in the recordist's Associated Taxa (~80% precise); non-AT
+            # recs keep BirdCODE>=0.70 (~82% precise). selection_table carries
+            # Species/Species_Common/Species_Taxonomic for windowed multilabel.
+            "train_strong_unseen_bchybrid": "gs://esp-data-ingestion/xeno-canto/v0.1.0/raw/train_strong_unseen_bchybrid.csv",
             "train_single_clean_unseen_logitneg15_focal95": "gs://esp-data-ingestion/xeno-canto/v0.1.0/raw/train_single_clean_unseen_logitneg15_focal95.csv",
         },
         version="0.1.0",

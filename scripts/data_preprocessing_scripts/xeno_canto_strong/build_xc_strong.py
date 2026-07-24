@@ -100,7 +100,10 @@ def gsutil_cat(uri: str) -> str:
     """Stream a file via gsutil cat; return decoded text."""
     out = subprocess.run(
         ["gsutil", "cat", uri],
-        check=True, capture_output=True, text=True, timeout=600,
+        check=True,
+        capture_output=True,
+        text=True,
+        timeout=600,
     )
     return out.stdout
 
@@ -123,18 +126,17 @@ def build(out_dir: Path, upload: bool) -> Path:
     out_dir.mkdir(parents=True, exist_ok=True)
 
     print(f"Fetching {SEGMENTS_CSV} ...", flush=True)
-    seg = pd.read_csv(io.StringIO(gsutil_cat(SEGMENTS_CSV)),
-                      keep_default_na=False, na_values=[""])
+    seg = pd.read_csv(io.StringIO(gsutil_cat(SEGMENTS_CSV)), keep_default_na=False, na_values=[""])
     print(f"  loaded {len(seg):,} segments")
 
     print(f"Fetching {EXTRAS_CSV} ...", flush=True)
-    extras = pd.read_csv(io.StringIO(gsutil_cat(EXTRAS_CSV)),
-                         keep_default_na=False, na_values=[""])
+    extras = pd.read_csv(io.StringIO(gsutil_cat(EXTRAS_CSV)), keep_default_na=False, na_values=[""])
     print(f"  loaded {len(extras):,} extras")
 
     print(f"Fetching {RECORDINGS_CSV} ...", flush=True)
-    rec = pd.read_csv(io.StringIO(gsutil_cat(RECORDINGS_CSV)),
-                      keep_default_na=False, na_values=[""])
+    rec = pd.read_csv(
+        io.StringIO(gsutil_cat(RECORDINGS_CSV)), keep_default_na=False, na_values=[""]
+    )
     print(f"  loaded {len(rec):,} recordings")
     rec["audio_duration"] = rec["length"].map(parse_duration)
     rec = rec[["xc_id", "audio_duration"]].dropna()
@@ -150,43 +152,78 @@ def build(out_dir: Path, upload: bool) -> Path:
     seg = seg[seg["scientific_name"].astype(str).str.strip().ne("")]
     seg = seg.sort_values(["xc_id", "start_time_s"]).reset_index(drop=True)
 
-    st_columns = ["Begin Time (s)", "End Time (s)", "Low Freq (Hz)",
-                  "High Freq (Hz)", "Species", "sound_type", "sex",
-                  "life_stage", "annotator"]
+    st_columns = [
+        "Begin Time (s)",
+        "End Time (s)",
+        "Low Freq (Hz)",
+        "High Freq (Hz)",
+        "Species",
+        "sound_type",
+        "sex",
+        "life_stage",
+        "annotator",
+    ]
 
     def _to_tsv(group: pd.DataFrame) -> str:
-        df = pd.DataFrame({
-            "Begin Time (s)": group["start_time_s"].round(4),
-            "End Time (s)": group["end_time_s"].round(4),
-            "Low Freq (Hz)": group["frequency_low_hz"].fillna(0).astype(int),
-            "High Freq (Hz)": group["frequency_high_hz"].fillna(0).astype(int),
-            "Species": group["scientific_name"].astype(str),
-            "sound_type": group["sound_type"].fillna("").astype(str),
-            "sex": group["sex"].fillna("").astype(str),
-            "life_stage": group["life_stage"].fillna("").astype(str),
-            "annotator": group["annotator"].fillna("").astype(str),
-        })[st_columns]
+        df = pd.DataFrame(
+            {
+                "Begin Time (s)": group["start_time_s"].round(4),
+                "End Time (s)": group["end_time_s"].round(4),
+                "Low Freq (Hz)": group["frequency_low_hz"].fillna(0).astype(int),
+                "High Freq (Hz)": group["frequency_high_hz"].fillna(0).astype(int),
+                "Species": group["scientific_name"].astype(str),
+                "sound_type": group["sound_type"].fillna("").astype(str),
+                "sex": group["sex"].fillna("").astype(str),
+                "life_stage": group["life_stage"].fillna("").astype(str),
+                "annotator": group["annotator"].fillna("").astype(str),
+            }
+        )[st_columns]
         return df.to_csv(sep="\t", index=False)
 
     pivot = (
         seg.groupby("xc_id", sort=False)
-        .apply(lambda g: pd.Series({
-            "selection_table": _to_tsv(g),
-            "n_events": len(g),
-        }))
+        .apply(
+            lambda g: pd.Series(
+                {
+                    "selection_table": _to_tsv(g),
+                    "n_events": len(g),
+                }
+            )
+        )
         .reset_index()
     )
     print(f"  pivoted to {len(pivot):,} files (mean {seg.shape[0] / len(pivot):.1f} events/file)")
 
     # --- Join with extras for file-level metadata + paths ---
     extras_keep = [
-        "xc_id", "gcs_path", "relative_path", "16khz_path", "32khz_path",
-        "scientific_name_unified", "vernacularName", "species_common",
-        "kingdom", "phylum", "class", "order", "family", "genus",
-        "gbifID", "taxonKey", "speciesKey",
-        "latitudeDecimal", "longitudeDecimal", "country_code", "locality",
-        "continent", "eventDate", "year", "month", "day",
-        "recordedBy", "rightsHolder",
+        "xc_id",
+        "gcs_path",
+        "relative_path",
+        "16khz_path",
+        "32khz_path",
+        "scientific_name_unified",
+        "vernacularName",
+        "species_common",
+        "kingdom",
+        "phylum",
+        "class",
+        "order",
+        "family",
+        "genus",
+        "gbifID",
+        "taxonKey",
+        "speciesKey",
+        "latitudeDecimal",
+        "longitudeDecimal",
+        "country_code",
+        "locality",
+        "continent",
+        "eventDate",
+        "year",
+        "month",
+        "day",
+        "recordedBy",
+        "rightsHolder",
     ]
     # `license` and `media_license` columns vary in the extras file — pull
     # what's present.
@@ -214,10 +251,12 @@ def build(out_dir: Path, upload: bool) -> Path:
 
     # Rename file-level focal columns so they don't shadow the per-event
     # species name embedded in selection_table.
-    df = df.rename(columns={
-        "scientific_name_unified": "recording_scientific_name",
-        "species_common": "recording_species_common",
-    })
+    df = df.rename(
+        columns={
+            "scientific_name_unified": "recording_scientific_name",
+            "species_common": "recording_species_common",
+        }
+    )
 
     df["source_dataset"] = "xeno_canto_strong"
 
@@ -232,8 +271,14 @@ def build(out_dir: Path, upload: bool) -> Path:
 
     # Final column order (small headers first for readability).
     head_cols = [
-        "xc_id", "audio_fp", "16khz_path", "32khz_path", "audio_duration",
-        "n_events", "selection_table", "recording_scientific_name",
+        "xc_id",
+        "audio_fp",
+        "16khz_path",
+        "32khz_path",
+        "audio_duration",
+        "n_events",
+        "selection_table",
+        "recording_scientific_name",
         "recording_species_common",
     ]
     tail_cols = [c for c in df.columns if c not in head_cols]

@@ -26,11 +26,8 @@ from __future__ import annotations
 
 import argparse
 import concurrent.futures as cf
-import io
-import os
 import shutil
 import subprocess
-import sys
 import time
 from pathlib import Path
 
@@ -96,16 +93,96 @@ INSECT_GBIF = {
 # encountered in both datasets. Looked up once; pasted to avoid an
 # online GBIF call per clip.
 GBIF_HIGHER = {
-    "Aedes aegypti":           ("Animalia","Arthropoda","Insecta","Diptera","Culicidae","Aedes",       "Yellow fever mosquito"),
-    "Aedes albopictus":        ("Animalia","Arthropoda","Insecta","Diptera","Culicidae","Aedes",       "Asian tiger mosquito"),
-    "Anopheles arabiensis":    ("Animalia","Arthropoda","Insecta","Diptera","Culicidae","Anopheles",   "Arabian malaria mosquito"),
-    "Anopheles gambiae":       ("Animalia","Arthropoda","Insecta","Diptera","Culicidae","Anopheles",   "African malaria mosquito"),
-    "Culex pipiens":           ("Animalia","Arthropoda","Insecta","Diptera","Culicidae","Culex",       "Northern house mosquito"),
-    "Culex quinquefasciatus":  ("Animalia","Arthropoda","Insecta","Diptera","Culicidae","Culex",       "Southern house mosquito"),
-    "Culex stigmatosoma":      ("Animalia","Arthropoda","Insecta","Diptera","Culicidae","Culex",       "Banded foul-water mosquito"),
-    "Culex tarsalis":          ("Animalia","Arthropoda","Insecta","Diptera","Culicidae","Culex",       "Western encephalitis mosquito"),
-    "Musca domestica":         ("Animalia","Arthropoda","Insecta","Diptera","Muscidae",  "Musca",      "Common housefly"),
-    "Drosophila simulans":     ("Animalia","Arthropoda","Insecta","Diptera","Drosophilidae","Drosophila","Simulans fruit fly"),
+    "Aedes aegypti": (
+        "Animalia",
+        "Arthropoda",
+        "Insecta",
+        "Diptera",
+        "Culicidae",
+        "Aedes",
+        "Yellow fever mosquito",
+    ),
+    "Aedes albopictus": (
+        "Animalia",
+        "Arthropoda",
+        "Insecta",
+        "Diptera",
+        "Culicidae",
+        "Aedes",
+        "Asian tiger mosquito",
+    ),
+    "Anopheles arabiensis": (
+        "Animalia",
+        "Arthropoda",
+        "Insecta",
+        "Diptera",
+        "Culicidae",
+        "Anopheles",
+        "Arabian malaria mosquito",
+    ),
+    "Anopheles gambiae": (
+        "Animalia",
+        "Arthropoda",
+        "Insecta",
+        "Diptera",
+        "Culicidae",
+        "Anopheles",
+        "African malaria mosquito",
+    ),
+    "Culex pipiens": (
+        "Animalia",
+        "Arthropoda",
+        "Insecta",
+        "Diptera",
+        "Culicidae",
+        "Culex",
+        "Northern house mosquito",
+    ),
+    "Culex quinquefasciatus": (
+        "Animalia",
+        "Arthropoda",
+        "Insecta",
+        "Diptera",
+        "Culicidae",
+        "Culex",
+        "Southern house mosquito",
+    ),
+    "Culex stigmatosoma": (
+        "Animalia",
+        "Arthropoda",
+        "Insecta",
+        "Diptera",
+        "Culicidae",
+        "Culex",
+        "Banded foul-water mosquito",
+    ),
+    "Culex tarsalis": (
+        "Animalia",
+        "Arthropoda",
+        "Insecta",
+        "Diptera",
+        "Culicidae",
+        "Culex",
+        "Western encephalitis mosquito",
+    ),
+    "Musca domestica": (
+        "Animalia",
+        "Arthropoda",
+        "Insecta",
+        "Diptera",
+        "Muscidae",
+        "Musca",
+        "Common housefly",
+    ),
+    "Drosophila simulans": (
+        "Animalia",
+        "Arthropoda",
+        "Insecta",
+        "Diptera",
+        "Drosophilidae",
+        "Drosophila",
+        "Simulans fruit fly",
+    ),
 }
 
 
@@ -164,6 +241,7 @@ def _write_clip(args: tuple) -> tuple[int, bool, str]:
     """
     import librosa
     import soundfile as sf
+
     idx, sample, work_dir, name, native_sr = args
     shard = f"{idx // 1000:04d}"
     base = f"clip_{idx:06d}.flac"
@@ -180,19 +258,22 @@ def _write_clip(args: tuple) -> tuple[int, bool, str]:
         if peak > 1.0:
             sample = sample / peak
         sf.write(str(native_dir / base), sample, native_sr, subtype="PCM_16", format="FLAC")
-        a16 = librosa.resample(sample, orig_sr=native_sr, target_sr=16000,
-                               res_type=_resample_quality()).astype(np.float32)
+        a16 = librosa.resample(
+            sample, orig_sr=native_sr, target_sr=16000, res_type=_resample_quality()
+        ).astype(np.float32)
         sf.write(str(sr16_dir / base), a16, 16000, subtype="PCM_16", format="FLAC")
-        a32 = librosa.resample(sample, orig_sr=native_sr, target_sr=32000,
-                               res_type=_resample_quality()).astype(np.float32)
+        a32 = librosa.resample(
+            sample, orig_sr=native_sr, target_sr=32000, res_type=_resample_quality()
+        ).astype(np.float32)
         sf.write(str(sr32_dir / base), a32, 32000, subtype="PCM_16", format="FLAC")
         return idx, True, ""
     except Exception as e:
         return idx, False, f"{type(e).__name__}: {e}"
 
 
-def write_clips(name: str, X: np.ndarray, native_sr: int, work_dir: Path,
-                workers: int) -> dict[int, bool]:
+def write_clips(
+    name: str, X: np.ndarray, native_sr: int, work_dir: Path, workers: int
+) -> dict[int, bool]:
     """Write FLACs for every clip; return ``{idx: success}``."""
     n = X.shape[0]
     print(f"Writing {n:,} clips × 3 sample-rate variants ({workers} workers)...", flush=True)
@@ -201,10 +282,10 @@ def write_clips(name: str, X: np.ndarray, native_sr: int, work_dir: Path,
     errors: list[tuple[int, str]] = []
     # Iterate the memmapped array row-by-row; pass a copy to the worker so
     # the worker isn't dependent on the parent's mmap lifetime.
+
     def _iter():
         for i in range(n):
-            yield (i, np.array(X[i]).astype(np.float32).reshape(-1),
-                   work_dir, name, native_sr)
+            yield (i, np.array(X[i]).astype(np.float32).reshape(-1), work_dir, name, native_sr)
 
     with cf.ProcessPoolExecutor(max_workers=workers) as ex:
         completed = 0
@@ -219,15 +300,24 @@ def write_clips(name: str, X: np.ndarray, native_sr: int, work_dir: Path,
                 elapsed = time.time() - t0
                 rate = completed / max(elapsed, 1e-3)
                 eta = (n - completed) / max(rate, 1e-3) / 60.0
-                print(f"  {completed:,}/{n:,}  rate={rate:.0f}/s  eta={eta:.1f} min  "
-                      f"err={len(errors)}", flush=True)
+                print(
+                    f"  {completed:,}/{n:,}  rate={rate:.0f}/s  eta={eta:.1f} min  "
+                    f"err={len(errors)}",
+                    flush=True,
+                )
     print(f"Done. {sum(ok.values()):,} ok, {n - sum(ok.values())} errors", flush=True)
     return ok
 
 
-def build_manifest(name: str, y: np.ndarray, n_native_samples: int, native_sr: int,
-                   folds: dict[int, set[int]], ok: dict[int, bool],
-                   out_csv_dir: Path) -> dict[str, int]:
+def build_manifest(
+    name: str,
+    y: np.ndarray,
+    n_native_samples: int,
+    native_sr: int,
+    folds: dict[int, set[int]],
+    ok: dict[int, bool],
+    out_csv_dir: Path,
+) -> dict[str, int]:
     """Build per-clip rows + write `<name>_all/train/val.csv`."""
     if name == "MosquitoSound":
         species_labels = MOSQUITO_SPECIES
@@ -256,35 +346,37 @@ def build_manifest(name: str, y: np.ndarray, n_native_samples: int, native_sr: i
         family, genus = GBIF_HIGHER[species][4], GBIF_HIGHER[species][5]
         kingdom, phylum, cls, order = GBIF_HIGHER[species][:4]
         sp_common = common_lookup.get(species, GBIF_HIGHER[species][-1])
-        rows.append({
-            "clip_id": f"{name.lower()}_{i:06d}",
-            "audio_path": f"audio/{shard}/{base}",
-            "16khz_path": f"audio_16k/{shard}/{base}",
-            "32khz_path": f"audio_32k/{shard}/{base}",
-            "audio_duration": round(duration_s, 4),
-            "native_sample_rate": native_sr,
-            "class_id": cid,
-            "species": species,
-            "canonical_name": species,
-            "scientific_name_unified": species,
-            "species_common": sp_common,
-            "sex": sex_per_class[cid],
-            "gbifID": gbif_lookup.get(species, ""),
-            "kingdom": kingdom,
-            "phylum": phylum,
-            "class": cls,
-            "order": order,
-            "family": family,
-            "genus": genus,
-            "fold_0_test": int(i in folds[0]),
-            "fold_1_test": int(i in folds[1]),
-            "fold_2_test": int(i in folds[2]),
-            "fold_3_test": int(i in folds[3]),
-            "fold_4_test": int(i in folds[4]),
-            "split": "val" if i in val_set else "train",
-            "license": "Public Domain",
-            "source_dataset": f"monster-monash/{name}",
-        })
+        rows.append(
+            {
+                "clip_id": f"{name.lower()}_{i:06d}",
+                "audio_path": f"audio/{shard}/{base}",
+                "16khz_path": f"audio_16k/{shard}/{base}",
+                "32khz_path": f"audio_32k/{shard}/{base}",
+                "audio_duration": round(duration_s, 4),
+                "native_sample_rate": native_sr,
+                "class_id": cid,
+                "species": species,
+                "canonical_name": species,
+                "scientific_name_unified": species,
+                "species_common": sp_common,
+                "sex": sex_per_class[cid],
+                "gbifID": gbif_lookup.get(species, ""),
+                "kingdom": kingdom,
+                "phylum": phylum,
+                "class": cls,
+                "order": order,
+                "family": family,
+                "genus": genus,
+                "fold_0_test": int(i in folds[0]),
+                "fold_1_test": int(i in folds[1]),
+                "fold_2_test": int(i in folds[2]),
+                "fold_3_test": int(i in folds[3]),
+                "fold_4_test": int(i in folds[4]),
+                "split": "val" if i in val_set else "train",
+                "license": "Public Domain",
+                "source_dataset": f"monster-monash/{name}",
+            }
+        )
     df = pd.DataFrame(rows)
     out_csv_dir.mkdir(parents=True, exist_ok=True)
     snake = "mosquito_sound" if name == "MosquitoSound" else "insect_sound"
@@ -328,13 +420,15 @@ def upload_gcs(name: str, work_dir: Path) -> None:
 def main() -> None:
     """Run the full ingest for a single dataset."""
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("--dataset", required=True,
-                   choices=["MosquitoSound", "InsectSound"])
+    p.add_argument("--dataset", required=True, choices=["MosquitoSound", "InsectSound"])
     p.add_argument("--work-dir", default="/mnt/home/esp-data-dev/monster_monash_staging")
     p.add_argument("--workers", type=int, default=8)
     p.add_argument("--upload", action="store_true")
-    p.add_argument("--skip-write", action="store_true",
-                   help="Skip clip writing (just manifest + upload from cached dir).")
+    p.add_argument(
+        "--skip-write",
+        action="store_true",
+        help="Skip clip writing (just manifest + upload from cached dir).",
+    )
     p.add_argument("--clean-audio-after-upload", action="store_true")
     args = p.parse_args()
 

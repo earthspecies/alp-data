@@ -69,6 +69,12 @@ _PRESAMPLED_32K_MAP: tuple[tuple[str, str], ...] = (
         "gs://esp-ml-datasets/xeno-canto/v0.1.0/raw/audio/",
         "gs://esp-ml-datasets/xeno-canto/v0.1.0/raw/audio_32k/",
     ),
+    # XC-strong Tier-3 (xc_strong_tier3) references XC recordings on
+    # esp-data-ingestion by their 16 kHz path; redirect to the 32 kHz mirror.
+    (
+        "gs://esp-data-ingestion/xeno-canto/v0.1.0/raw/audio_16k/",
+        "gs://esp-data-ingestion/xeno-canto/v0.1.0/raw/audio_32k/",
+    ),
 )
 
 
@@ -230,6 +236,58 @@ _SPLIT_SPECS: dict[str, dict[str, str | None]] = {
     # },
 }
 _SPLIT_SPECS.update({spec["split"]: spec for spec in (_t3_spec(*entry) for entry in _T3_FILES)})
+
+
+# XC-strong Tier-3: analytical tasks rebuilt from Xeno-canto *human strong*
+# annotations (the real-audio replacement for the WABAD-sourced tier-3 splits).
+# The rewritten JSONLs (absolute XC audio_paths + `__crop_<start>_<end>` windows,
+# see scripts/data_preprocessing_scripts/roots_xc_strong_tier3/) live under a
+# dedicated root; audio is read as windows of the on-GCS XC recordings (no
+# materialization). Audio paths are absolute, so `audio_root` is None.
+_XCS_T3_ROOT = "gs://foundation-model-data/synthetic/xc_strong_tier3_20260709/roots_native"
+_XCS_T3_FILES: tuple[tuple[str, str], ...] = (
+    ("highest_pitch_species_mcq_xcstrong_v1_clean", "roots_tier3_highest_pitch_species_mcq"),
+    ("highest_pitch_species_oe_xcstrong_v1_clean", "roots_tier3_highest_pitch_species_open"),
+    ("lowest_pitch_species_mcq_xcstrong_v1_clean", "roots_tier3_lowest_pitch_species_mcq"),
+    ("lowest_pitch_species_oe_xcstrong_v1_clean", "roots_tier3_lowest_pitch_species_open"),
+    ("longest_voc_species_mcq_xcstrong_v1_clean", "roots_tier3_longest_vocalization_mcq"),
+    ("longest_voc_species_oe_xcstrong_v1_clean", "roots_tier3_longest_vocalization_open"),
+    ("species_voc_order_mcq_xcstrong_v1_clean", "roots_tier3_vocal_order_mcq"),
+    ("species_voc_order_oe_xcstrong_v1_clean", "roots_tier3_vocal_order_open"),
+    ("tier1_structural_caption_xcstrong_v1_clean", "roots_tier3_structural_caption"),
+    ("voc_cooccurrence_binary_xcstrong_v1_clean", "roots_tier3_vocal_cooccurrence_binary"),
+    ("voc_count_relative_mcq_xcstrong_v1_clean", "roots_tier3_voc_count_relative_mcq"),
+    ("vocal_dominance_mcq_xcstrong_v1_clean", "roots_tier3_vocal_dominance_mcq"),
+    ("vocal_dominance_oe_xcstrong_v1_clean", "roots_tier3_vocal_dominance_open"),
+)
+
+
+def _xcs_t3_spec(name: str, task: str) -> dict[str, str | None]:
+    """Build a split spec for a rewritten XC-strong Tier-3 task JSONL.
+
+    Parameters
+    ----------
+    name : str
+        JSONL basename (without extension) under ``_XCS_T3_ROOT``.
+    task : str
+        ROOTS task label recorded on each row.
+
+    Returns
+    -------
+    dict[str, str | None]
+        Split spec with ``jsonl_path`` / ``audio_root`` (None) / ``task`` / ``split``.
+    """
+    return {
+        "jsonl_path": f"{_XCS_T3_ROOT}/{name}.jsonl",
+        "audio_root": None,
+        "task": task,
+        "split": f"tier3_{name.removesuffix('_clean')}",
+    }
+
+
+_SPLIT_SPECS.update(
+    {spec["split"]: spec for spec in (_xcs_t3_spec(*entry) for entry in _XCS_T3_FILES)}
+)
 
 
 @register_dataset

@@ -81,6 +81,11 @@ class AudioSetStrong(Dataset):
         split_paths={
             "train": "gs://esp-ml-datasets/audioset/v0.2.0/raw/csv-data/audioset_train_strong_32khz_only.csv",
             "train-environmental": "gs://esp-ml-datasets/audioset/v0.2.0/raw/csv-data/audioset_train_strong_32khz_environmental.csv",
+            # Held-out eval: OFFICIAL audioset_eval_strong.tsv (16,996 segments /
+            # 139,538 events) mapped onto the 32 kHz eval_segments audio; 16,440
+            # clips have audio. Self-contained under esp-data-ingestion (we lack
+            # write access to esp-ml-datasets). See scripts/build_audioset_eval_strong.py.
+            "eval": "gs://esp-data-ingestion/audioset-strong/v0.1.0/raw/csv-data/audioset_eval_strong_32khz_only.csv",
         },
         version="0.1.0",
         description="AudioSet Strong: Strongly-labeled subset with temporal annotations",

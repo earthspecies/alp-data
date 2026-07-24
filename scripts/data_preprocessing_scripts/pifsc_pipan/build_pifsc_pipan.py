@@ -71,7 +71,10 @@ def _bulk_list_noaa(cache_path: Path) -> dict[str, str]:
         with cache_path.open("w") as f:
             subprocess.run(
                 ["gsutil", "ls", "-r", f"{NOAA_FLAC_PREFIX}/**"],
-                stdout=f, stderr=subprocess.DEVNULL, check=False, timeout=600,
+                stdout=f,
+                stderr=subprocess.DEVNULL,
+                check=False,
+                timeout=600,
             )
     flacs: dict[str, str] = {}
     for line in cache_path.read_text().splitlines():
@@ -151,15 +154,14 @@ def _resampled_paths(noaa_uri: str) -> tuple[str, str]:
     src_prefix = f"{NOAA_FLAC_PREFIX}/"
     if not noaa_uri.startswith(src_prefix):
         raise ValueError(f"Unexpected source URI prefix: {noaa_uri}")
-    rel = noaa_uri[len(src_prefix):]  # <deploy>/<site>/audio/<file>.flac
+    rel = noaa_uri[len(src_prefix) :]  # <deploy>/<site>/audio/<file>.flac
     parts = rel.split("/")
     if len(parts) < 4 or parts[-2] != "audio":
         raise ValueError(f"Unexpected source URI shape: {noaa_uri}")
     deploy, site, _audio, fname = parts[0], parts[1], parts[2], "/".join(parts[3:])
     wname = fname[:-5] + ".wav" if fname.endswith(".flac") else fname
     rel_mirror = f"{deploy}/{site}/audio/audio/{wname}"
-    return (f"{MIRROR_16K_PREFIX}/{rel_mirror}",
-            f"{MIRROR_32K_PREFIX}/{rel_mirror}")
+    return (f"{MIRROR_16K_PREFIX}/{rel_mirror}", f"{MIRROR_32K_PREFIX}/{rel_mirror}")
 
 
 def _bulk_list(gcs_prefix: str) -> set[str]:
@@ -167,14 +169,17 @@ def _bulk_list(gcs_prefix: str) -> set[str]:
     print(f"Listing {gcs_prefix}/ ...", flush=True)
     proc = subprocess.run(
         ["gsutil", "ls", "-r", f"{gcs_prefix}/**"],
-        check=False, capture_output=True, text=True, timeout=600,
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=600,
     )
     return {line.strip() for line in proc.stdout.splitlines() if line.strip().endswith(".wav")}
 
 
 def _deployment_of(src_uri: str) -> str:
     """Extract deployment slug (e.g. ``saipan``) from a NOAA FLAC URI."""
-    rel = src_uri[len(NOAA_FLAC_PREFIX) + 1:]
+    rel = src_uri[len(NOAA_FLAC_PREFIX) + 1 :]
     return rel.split("/", 1)[0]
 
 
@@ -227,7 +232,8 @@ def _parse_one(args: tuple[str, str, set[int]]) -> tuple[str, dict | None, str |
 
 def build_xwav_summaries(
     needed_by_src: dict[str, tuple[str, set[int]]],
-    workers: int, cache_path: Path,
+    workers: int,
+    cache_path: Path,
 ) -> dict[str, dict]:
     """Parse XWAV headers for every unique FLAC; cache per-file summaries.
 
@@ -250,6 +256,7 @@ def build_xwav_summaries(
         df = pd.read_csv(cache_path)
         # ``cum_offsets`` was serialised as a JSON string per row.
         import json
+
         result: dict[str, dict] = {}
         for r in df.itertuples(index=False):
             cum_str = r.cum_offsets_json
@@ -267,8 +274,10 @@ def build_xwav_summaries(
             }
         return result
 
-    print(f"Parsing XWAV headers for {len(needed_by_src)} FLAC files "
-          f"with {workers} workers ...", flush=True)
+    print(
+        f"Parsing XWAV headers for {len(needed_by_src)} FLAC files with {workers} workers ...",
+        flush=True,
+    )
     args_iter = [(src, mu, idxs) for src, (mu, idxs) in needed_by_src.items()]
 
     summaries: dict[str, dict] = {}
@@ -282,18 +291,19 @@ def build_xwav_summaries(
             if err is not None:
                 errors.append((src_uri, err))
                 if len(errors) <= 10:
-                    print(f"  ERR [{completed}/{len(needed_by_src)}] "
-                          f"{src_uri}: {err}", flush=True)
+                    print(f"  ERR [{completed}/{len(needed_by_src)}] {src_uri}: {err}", flush=True)
                 continue
             summaries[src_uri] = summary
             if completed % 100 == 0 or completed == len(needed_by_src):
-                print(f"  parsed {completed}/{len(needed_by_src)} "
-                      f"({len(errors)} errors so far)", flush=True)
-    print(f"Parsed {len(summaries)} / {len(needed_by_src)} FLACs; "
-          f"{len(errors)} errors")
+                print(
+                    f"  parsed {completed}/{len(needed_by_src)} ({len(errors)} errors so far)",
+                    flush=True,
+                )
+    print(f"Parsed {len(summaries)} / {len(needed_by_src)} FLACs; {len(errors)} errors")
 
     # Persist compact cache.
     import json
+
     cache_rows = [
         {
             "src_uri": s["src_uri"],
@@ -319,8 +329,9 @@ def build_xwav_summaries(
     return summaries
 
 
-def split_deployment_stratified(unique_flacs_by_deploy: dict[str, list[str]],
-                                val_frac: float, seed: int) -> tuple[set[str], set[str]]:
+def split_deployment_stratified(
+    unique_flacs_by_deploy: dict[str, list[str]], val_frac: float, seed: int
+) -> tuple[set[str], set[str]]:
     """Deployment-stratified file-level split.
 
     For each deployment, allocate ``ceil(val_frac × n_files)`` files to val
@@ -333,6 +344,7 @@ def split_deployment_stratified(unique_flacs_by_deploy: dict[str, list[str]],
         ``(train_files, val_files)`` — sets of mirror FLAC URIs.
     """
     import random
+
     rng = random.Random(seed)
     train: set[str] = set()
     val: set[str] = set()
@@ -353,12 +365,10 @@ def main() -> None:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--out-dir", default=os.path.expanduser("~/pifsc_pipan_staging"))
     p.add_argument("--out-gcs", default=OUT_GCS_ROOT)
-    p.add_argument("--workers", type=int, default=8,
-                   help="Parallel XWAV header parsers.")
+    p.add_argument("--workers", type=int, default=8, help="Parallel XWAV header parsers.")
     p.add_argument("--val-frac", type=float, default=0.10)
     p.add_argument("--seed", type=int, default=42)
-    p.add_argument("--upload", action="store_true",
-                   help="Upload final CSVs to GCS.")
+    p.add_argument("--upload", action="store_true", help="Upload final CSVs to GCS.")
     args = p.parse_args()
 
     out_dir = Path(args.out_dir)
@@ -367,12 +377,16 @@ def main() -> None:
     # ---- 1. Load annotations.csv ----
     print(f"Fetching {ANNOTATIONS_CSV} ...", flush=True)
     raw = subprocess.run(
-        ["gsutil", "cat", ANNOTATIONS_CSV], check=True,
-        capture_output=True, text=True, timeout=300,
+        ["gsutil", "cat", ANNOTATIONS_CSV],
+        check=True,
+        capture_output=True,
+        text=True,
+        timeout=300,
     ).stdout
     df = pd.read_csv(
         io.StringIO(raw),
-        keep_default_na=False, na_values=[""],
+        keep_default_na=False,
+        na_values=[""],
         dtype={
             "subchunk_index": "int64",
             "label_is_strong": "boolean",
@@ -402,8 +416,10 @@ def main() -> None:
         else:
             resolved.append(canonical)
     if unresolved:
-        print(f"WARN: {unresolved:,}/{len(df):,} annotation rows reference "
-              f"FLACs absent from the NOAA bucket; dropping")
+        print(
+            f"WARN: {unresolved:,}/{len(df):,} annotation rows reference "
+            f"FLACs absent from the NOAA bucket; dropping"
+        )
     df["audio_path"] = resolved
     before = len(df)
     df = df.dropna(subset=["audio_path"]).reset_index(drop=True)
@@ -412,20 +428,19 @@ def main() -> None:
 
     # ---- 3. Build the per-FLAC XWAV summary + cum-offsets only for needed subchunks ----
     needed_by_src: dict[str, tuple[str, set[int]]] = {}
-    for src, sc in df[
-        ["audio_path", "subchunk_index"]
-    ].itertuples(index=False, name=None):
+    for src, sc in df[["audio_path", "subchunk_index"]].itertuples(index=False, name=None):
         if src not in needed_by_src:
             needed_by_src[src] = (src, set())
         needed_by_src[src][1].add(int(sc))
     xwav_cache = out_dir / "pifsc_pipan_xwav_index.csv"
-    summaries = build_xwav_summaries(needed_by_src, workers=args.workers,
-                                     cache_path=xwav_cache)
+    summaries = build_xwav_summaries(needed_by_src, workers=args.workers, cache_path=xwav_cache)
 
     non_uniform = [s["src_uri"] for s in summaries.values() if not s["is_uniform"]]
     if non_uniform:
-        print(f"NOTE: {len(non_uniform)} files have non-uniform subchunk durations "
-              f"(first few: {non_uniform[:3]})")
+        print(
+            f"NOTE: {len(non_uniform)} files have non-uniform subchunk durations "
+            f"(first few: {non_uniform[:3]})"
+        )
 
     # ---- 4. Compute begin_in_file_s / end_in_file_s for every annotation ----
     cum_lookup: dict[tuple[str, int], float] = {}
@@ -446,8 +461,10 @@ def main() -> None:
             cum.append(v)
     df["_cum_offset_before"] = cum
     if missing:
-        print(f"WARN: {missing:,} annotation rows had no XWAV match (likely "
-              "due to FLAC parse errors — see *_errors.csv)")
+        print(
+            f"WARN: {missing:,} annotation rows had no XWAV match (likely "
+            "due to FLAC parse errors — see *_errors.csv)"
+        )
     df["begin_in_file_s"] = (df["_cum_offset_before"] + df["begin_rel_subchunk"]).round(6)
     df["end_in_file_s"] = (df["_cum_offset_before"] + df["end_rel_subchunk"]).round(6)
     df.drop(columns=["_cum_offset_before"], inplace=True)
@@ -481,9 +498,7 @@ def main() -> None:
     df["coarse_call_type"] = df["label"].map(
         lambda lab: LABEL_VOCAB.get(lab, {}).get("coarse_call_type", "")
     )
-    df["species"] = df["label"].map(
-        lambda lab: LABEL_VOCAB.get(lab, {}).get("species", "")
-    )
+    df["species"] = df["label"].map(lambda lab: LABEL_VOCAB.get(lab, {}).get("species", ""))
     for k, v in GBIF_MN.items():
         df[k] = df["label"].map(lambda lab, _v=v: _v if lab == "Mn" else "")
     df["license"] = "CC0-1.0"
@@ -491,7 +506,9 @@ def main() -> None:
 
     # ---- 7. Train/val split (deployment-stratified, file-level) ----
     by_deploy: dict[str, list[str]] = defaultdict(list)
-    for u, d in df[["audio_path", "deployment"]].drop_duplicates().itertuples(index=False, name=None):
+    for u, d in (
+        df[["audio_path", "deployment"]].drop_duplicates().itertuples(index=False, name=None)
+    ):
         by_deploy[d].append(u)
     train_files, val_files = split_deployment_stratified(by_deploy, args.val_frac, args.seed)
     print(f"Split: {len(train_files)} train files, {len(val_files)} val files")
@@ -499,23 +516,42 @@ def main() -> None:
 
     # Final column order.
     cols = [
-        "audio_path", "16khz_path", "32khz_path",
+        "audio_path",
+        "16khz_path",
+        "32khz_path",
         "deployment",
-        "xwav_subchunk_index", "begin_in_subchunk_s", "end_in_subchunk_s",
-        "begin_in_file_s", "end_in_file_s",
-        "begin_utc", "end_utc",
-        "label", "label_is_strong", "implicit_negatives", "audit_name",
+        "xwav_subchunk_index",
+        "begin_in_subchunk_s",
+        "end_in_subchunk_s",
+        "begin_in_file_s",
+        "end_in_file_s",
+        "begin_utc",
+        "end_utc",
+        "label",
+        "label_is_strong",
+        "implicit_negatives",
+        "audit_name",
         "coarse_call_type",
-        "species", "canonical_name", "gbifID",
-        "kingdom", "phylum", "class", "order", "family", "genus",
+        "species",
+        "canonical_name",
+        "gbifID",
+        "kingdom",
+        "phylum",
+        "class",
+        "order",
+        "family",
+        "genus",
         "species_common",
-        "license", "source_dataset",
+        "license",
+        "source_dataset",
     ]
-    out_df = df.rename(columns={
-        "subchunk_index": "xwav_subchunk_index",
-        "begin_rel_subchunk": "begin_in_subchunk_s",
-        "end_rel_subchunk": "end_in_subchunk_s",
-    })[cols + ["split"]]
+    out_df = df.rename(
+        columns={
+            "subchunk_index": "xwav_subchunk_index",
+            "begin_rel_subchunk": "begin_in_subchunk_s",
+            "end_rel_subchunk": "end_in_subchunk_s",
+        }
+    )[cols + ["split"]]
 
     # ---- 8. Write CSVs ----
     def _save(d: pd.DataFrame, name: str) -> None:
@@ -526,35 +562,40 @@ def main() -> None:
         if args.upload:
             subprocess.run(
                 ["gsutil", "-q", "cp", str(local), f"{args.out_gcs}/{name}"],
-                check=True, timeout=300,
+                check=True,
+                timeout=300,
             )
             print(f"    uploaded to {args.out_gcs}/{name}")
 
     _save(out_df, "pifsc_pipan_all.csv")
-    _save(out_df[out_df["split"] == "train"].reset_index(drop=True),
-          "pifsc_pipan_train.csv")
-    _save(out_df[out_df["split"] == "val"].reset_index(drop=True),
-          "pifsc_pipan_val.csv")
+    _save(out_df[out_df["split"] == "train"].reset_index(drop=True), "pifsc_pipan_train.csv")
+    _save(out_df[out_df["split"] == "val"].reset_index(drop=True), "pifsc_pipan_val.csv")
 
-    labels_df = pd.DataFrame([
-        {"label": k, "description": v["description"],
-         "species": v["species"], "coarse_call_type": v["coarse_call_type"],
-         "is_biological": v["is_biological"]}
-        for k, v in LABEL_VOCAB.items()
-    ])
+    labels_df = pd.DataFrame(
+        [
+            {
+                "label": k,
+                "description": v["description"],
+                "species": v["species"],
+                "coarse_call_type": v["coarse_call_type"],
+                "is_biological": v["is_biological"],
+            }
+            for k, v in LABEL_VOCAB.items()
+        ]
+    )
     labels_local = out_dir / "pifsc_pipan_labels.csv"
     labels_df.to_csv(labels_local, index=False)
     print(f"  pifsc_pipan_labels.csv: {len(labels_df)} rows -> {labels_local}")
     if args.upload:
         subprocess.run(
-            ["gsutil", "-q", "cp", str(labels_local),
-             f"{args.out_gcs}/pifsc_pipan_labels.csv"],
-            check=True, timeout=60,
+            ["gsutil", "-q", "cp", str(labels_local), f"{args.out_gcs}/pifsc_pipan_labels.csv"],
+            check=True,
+            timeout=60,
         )
         subprocess.run(
-            ["gsutil", "-q", "cp", str(xwav_cache),
-             f"{args.out_gcs}/pifsc_pipan_xwav_index.csv"],
-            check=True, timeout=120,
+            ["gsutil", "-q", "cp", str(xwav_cache), f"{args.out_gcs}/pifsc_pipan_xwav_index.csv"],
+            check=True,
+            timeout=120,
         )
         print(f"    uploaded labels + xwav_index to {args.out_gcs}/")
 
@@ -562,10 +603,8 @@ def main() -> None:
     print("\n=== SUMMARY ===")
     print(f"Total events: {len(out_df):,}")
     print(f"Unique FLAC files: {out_df['audio_path'].nunique():,}")
-    print(f"Pre-resampled 16 kHz coverage: "
-          f"{(out_df['16khz_path'] != '').mean() * 100:.1f}%")
-    print(f"Pre-resampled 32 kHz coverage: "
-          f"{(out_df['32khz_path'] != '').mean() * 100:.1f}%")
+    print(f"Pre-resampled 16 kHz coverage: {(out_df['16khz_path'] != '').mean() * 100:.1f}%")
+    print(f"Pre-resampled 32 kHz coverage: {(out_df['32khz_path'] != '').mean() * 100:.1f}%")
     print("Label distribution (split=all):")
     print(out_df["label"].value_counts().to_string())
     print("Per-deployment counts:")

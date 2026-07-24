@@ -85,9 +85,7 @@ def build(
     output_dir.mkdir(parents=True, exist_ok=True)
     df = pl.read_csv(SRC_VAL_CSV, infer_schema_length=5000)
 
-    pos = df.filter(
-        (pl.col("label") == POSITIVE_LABEL) & (pl.col("label_is_strong"))
-    )
+    pos = df.filter((pl.col("label") == POSITIVE_LABEL) & (pl.col("label_is_strong")))
     neg = df.filter(pl.col("label") != POSITIVE_LABEL)
 
     pos = _cap_per_file(pos, max_pos_per_file, seed)
@@ -101,9 +99,7 @@ def build(
     pos = pos.with_columns(pl.lit(POSITIVE_TARGET).alias("det_target"))
     neg = neg.with_columns(pl.lit(NEGATIVE_TARGET).alias("det_target"))
 
-    out = pl.concat([pos, neg], how="vertical").sample(
-        fraction=1.0, shuffle=True, seed=seed
-    )
+    out = pl.concat([pos, neg], how="vertical").sample(fraction=1.0, shuffle=True, seed=seed)
     out = _centre_window(out, window_sec)
 
     out_csv = output_dir / "pifsc_pipan_humpback_detection_val.csv"

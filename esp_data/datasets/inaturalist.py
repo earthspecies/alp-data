@@ -125,6 +125,12 @@ class INaturalist(Dataset):
             "all": "gs://esp-data-ingestion/inaturalist/v0.1.0/raw/all_20260616.csv",
             "all_unseen": "gs://esp-data-ingestion/inaturalist/v0.1.0/raw/all_unseen_20260616.csv",
             "unseen_holdout": "gs://esp-data-ingestion/inaturalist/v0.1.0/raw/unseen_holdout_20260616.csv",
+            # Windowed multi-species strong split: full-span focal (human
+            # canonical_name) + BirdCODE background events (>=0.60; iNat has no
+            # Associated Taxa, so all recordings use the threshold branch),
+            # selection_table with Species/Species_Common/Species_Taxonomic.
+            # Mirror of the Xeno-Canto train_strong_unseen_bchybrid split.
+            "train_strong_unseen_bchybrid": "gs://esp-data-ingestion/inaturalist/v0.1.0/raw/train_strong_unseen_bchybrid.csv",
         },
         version="0.1.0",
         description="iNaturalist audio dataset with taxonomic metadata. "

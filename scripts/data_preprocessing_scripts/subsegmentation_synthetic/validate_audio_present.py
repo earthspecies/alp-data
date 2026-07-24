@@ -30,7 +30,10 @@ def _set_from_listing(prefix: str, suffix: str) -> set[str]:
     out: set[str] = set()
     proc = subprocess.Popen(
         ["gsutil", "ls", f"{prefix}/**"],
-        stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, bufsize=1,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,
+        text=True,
+        bufsize=1,
     )
     assert proc.stdout is not None
     n = 0
@@ -58,7 +61,10 @@ def _manifest_stems() -> tuple[set[str], dict[str, int]]:
     print(f"Streaming manifest {MANIFEST_URI} ...", flush=True)
     out = subprocess.run(
         ["gsutil", "cat", MANIFEST_URI],
-        check=True, capture_output=True, text=True, timeout=300,
+        check=True,
+        capture_output=True,
+        text=True,
+        timeout=300,
     ).stdout
     csv.field_size_limit(100 * 1024 * 1024)
     stems: set[str] = set()
@@ -78,7 +84,8 @@ def main() -> None:
     """Run the audit, write a JSON summary + missing-rows CSV."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "--out-dir", type=Path,
+        "--out-dir",
+        type=Path,
         default=Path("/home/david_earthspecies_org/subseg_synthetic_audio_audit"),
     )
     args = parser.parse_args()
@@ -99,9 +106,7 @@ def main() -> None:
     print("\n=== SUMMARY ===")
     print(json.dumps(summary, indent=2))
 
-    (args.out_dir / "subseg_synthetic_audio_audit.json").write_text(
-        json.dumps(summary, indent=2)
-    )
+    (args.out_dir / "subseg_synthetic_audio_audit.json").write_text(json.dumps(summary, indent=2))
     if missing:
         miss_csv = args.out_dir / "subseg_synthetic_missing_audio.csv"
         with miss_csv.open("w") as f:
