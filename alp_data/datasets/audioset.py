@@ -95,12 +95,13 @@ class AudioSet(Dataset):
     ```pycon
     >>> dataset_32k = AudioSet(split="validation", version="0.2.0", sample_rate=32000,
     ... streaming=True)
-    ```
 
-    Load with on-the-fly resampling to 16kHz
+    ```
+    Load with on-the-fly resampling to 16kHz (v0.2.0, resampling needed)
     ```pycon
     >>> dataset_16k = AudioSet(split="validation", version="0.2.0", sample_rate=16000,
     ... streaming=True)
+
     ```
 
     Examples
