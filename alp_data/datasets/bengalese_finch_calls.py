@@ -47,27 +47,22 @@ class BengaleseFinchCalls(Dataset):
     Examples
     --------
     # Individual bird
-    ```pycon
     >>> from alp_data.datasets import BengaleseFinchCalls
     >>> ds = BengaleseFinchCalls(split="Bird0", sample_rate=16000)
     >>> first = ds[0]
     >>> first.keys()
     dict_keys(['local_path', 'call_type', 'individual_id', 'audio', 'sample_rate'])
-    ```
 
     # Bird2 training split
     ```pycon
     >>> train_ds = BengaleseFinchCalls(split="Bird2_train", sample_rate=16000)
     >>> print(f"Training samples: {len(train_ds)}")
     Training samples: 18303
-    ```
 
     # Learning with limited data
-    ```pycon
     >>> small_train_ds = BengaleseFinchCalls(split="Bird2_train_small", sample_rate=16000)
     >>> print(f"Small training samples: {len(small_train_ds)}")
     Small training samples: 1360
-    ```
     """
 
     info = DatasetInfo(

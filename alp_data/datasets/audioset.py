@@ -95,8 +95,6 @@ class AudioSet(Dataset):
     ```pycon
     >>> dataset_32k = AudioSet(split="validation", version="0.2.0", sample_rate=32000,
     ... streaming=True)
-    >>> print(dataset_32k.available_sample_rates)
-    [32000]
     ```
 
     Load with on-the-fly resampling to 16kHz
