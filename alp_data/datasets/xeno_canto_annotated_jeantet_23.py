@@ -63,7 +63,7 @@ class XenoCantoAnnotatedJeantet23(Dataset):
 
     References
     ----------
-    https://www.sciencedirect.com/science/article/pii/S1574954123002856
+    [Publication](https://www.sciencedirect.com/science/article/pii/S1574954123002856)
 
     """
 

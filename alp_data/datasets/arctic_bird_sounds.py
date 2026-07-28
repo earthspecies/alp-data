@@ -60,8 +60,8 @@ class ArcticBirdSounds(Dataset):
 
     References
     ----------
-    https://esajournals.onlinelibrary.wiley.com/doi/full/10.1002/ecy.4047
-    https://osf.io/b9trx/overview
+    Christin et al 2023 [Publication](https://esajournals.onlinelibrary.wiley.com/doi/full/10.1002/ecy.4047),
+    Data: [OSF repository](https://osf.io/b9trx/overview)
 
     """
 

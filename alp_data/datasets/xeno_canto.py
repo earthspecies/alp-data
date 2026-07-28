@@ -140,7 +140,7 @@ class XenoCanto(Dataset):
 
     References
     ----------
-    Xeno-canto: https://www.xeno-canto.org/
+    [Xeno-canto](https://www.xeno-canto.org/)
 
     Examples
     --------

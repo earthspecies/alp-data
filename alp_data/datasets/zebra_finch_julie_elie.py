@@ -30,7 +30,7 @@ class ZebraFinchJulieElie(Dataset):
 
     DOI 10.1007/s10071-015-0933-6
 
-    https://figshare.com/articles/dataset/Vocal_repertoires_from_adult_and_chick_male_and_female_zebra_finches_Taeniopygia_guttata_/11905533/1
+    [Figshare](https://figshare.com/articles/dataset/Vocal_repertoires_from_adult_and_chick_male_and_female_zebra_finches_Taeniopygia_guttata_/11905533/1)
 
     Examples
     --------

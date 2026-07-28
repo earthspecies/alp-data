@@ -43,12 +43,12 @@ class Geladas(Dataset):
     References
     ----------
     Gelada vocal sequences follow Menzerath's linguistic law (PNAS, 2016)
-    https://doi.org/10.1073/pnas.1522072113
+    [DOI](https://doi.org/10.1073/pnas.1522072113)
     Also:
     Morgan L. Gustison, Thore J. Bergman, Divergent acoustic properties of gelada
     and baboon vocalizations and their implications for the evolution of human speech.
     Journal of Language Evolution.
-    https://doi.org/10.1093/jole/lzx015
+    [DOI](https://doi.org/10.1093/jole/lzx015)
 
     Examples
     --------

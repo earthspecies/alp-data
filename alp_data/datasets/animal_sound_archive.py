@@ -79,7 +79,7 @@ class AnimalSoundArchive(Dataset):
 
     References
     ----------
-    Tierstimmenarchiv: https://www.tierstimmenarchiv.de/
+    [Tierstimmenarchiv website](https://www.tierstimmenarchiv.de/)
 
     Examples
     --------

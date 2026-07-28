@@ -65,8 +65,7 @@ class Watkins(Dataset):
 
     References
     ----------
-    Watkins Marine Mammal Sound Database:
-        https://cis.whoi.edu/science/B/whalesounds/index.cfm
+    [Watkins Marine Mammal Sound Database](https://cis.whoi.edu/science/B/whalesounds/index.cfm)
     DOI: 10.1575/1912/7270
 
     Examples

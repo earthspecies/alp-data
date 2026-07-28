@@ -35,7 +35,7 @@ class CorvidWascher(Dataset):
 
     References
     ----------
-    https://www.biorxiv.org/content/biorxiv/early/2024/07/17/2024.07.15.603339.full.pdf
+    [bioRxiv (PDF)](https://www.biorxiv.org/content/biorxiv/early/2024/07/17/2024.07.15.603339.full.pdf)
 
 
     """

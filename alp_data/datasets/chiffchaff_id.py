@@ -19,7 +19,7 @@ class ChiffchaffId(Dataset):
     -----------
     Vocalisations released by Stowell et al. for individual Chiffchaff males
     (Phylloscopus collybita). Provides both *within-year* and *across-year* evaluation schemes.
-    https://royalsocietypublishing.org/doi/10.1098/rsif.2018.0940
+    [Paper](https://royalsocietypublishing.org/doi/10.1098/rsif.2018.0940)
 
     This dataset includes train and test splits within year (train_within_year, test_within_year)
     and across year (train_across_year, test_across_year).
@@ -30,8 +30,8 @@ class ChiffchaffId(Dataset):
 
     References
     ----------
-    https://royalsocietypublishing.org/doi/10.1098/rsif.2018.0940
-    Zenodo: https://zenodo.org/records/1413495
+    [Paper](https://royalsocietypublishing.org/doi/10.1098/rsif.2018.0940)
+    [Zenodo](https://zenodo.org/records/1413495)
 
     Examples
     --------

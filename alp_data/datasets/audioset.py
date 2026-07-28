@@ -68,23 +68,23 @@ class AudioSet(Dataset):
     ----------
     AUDIO SET: AN ONTOLOGY AND HUMAN-LABELED DATASET FOR AUDIO EVENTS
     Gemmeke et al 2017
-    https://static.googleusercontent.com/media/research.google.com/en//pubs/archive/45857.pdf
+    [Paper (PDF)](https://static.googleusercontent.com/media/research.google.com/en//pubs/archive/45857.pdf)
 
     The train and validation splits (balanced and unbalanced)
-    correspond to the official ones in the paper (https://research.google.com/audioset/download.html).
+    correspond to the official ones in the paper ([AudioSet download](https://research.google.com/audioset/download.html)).
     The train-animal, train-noise, validation-animal, and validation-noise splits
     are created for animal and non-animal (noise) classes in the ontology.
 
     The "caption" column contains the caption from AudioSetCaps when available.
-    AudioSetCaps Paper: https://arxiv.org/abs/2411.18953
-    AudioSetCaps Dataset: https://huggingface.co/datasets/baijs/AudioSetCaps
+    AudioSetCaps Paper: [arXiv](https://arxiv.org/abs/2411.18953)
+    AudioSetCaps Dataset: [Hugging Face](https://huggingface.co/datasets/baijs/AudioSetCaps)
     Note these are empty with the exception of the unbalanced_train split of the V1 dataset.
 
     Note that AudioSet contains different files depending on YouTube video availability at
     time of download. Version 0.1.0 contains a dump of AudioSet pulled in 2021 and resampled
-    to 16khz. Version 0.2.0 contains a larger set of audios pulled from this HuggingFace
-    release https://huggingface.co/datasets/agkphysics/AudioSet and maintaining the sample
-    rates of the original files.
+    to 16khz. Version 0.2.0 contains a larger set of audios pulled from this Hugging Face
+    release [🤗 dataset](https://huggingface.co/datasets/agkphysics/AudioSet) and
+    maintaining the sample rates of the original files.
 
     Pre-resampled Audio
     -------------------
@@ -92,14 +92,17 @@ class AudioSet(Dataset):
     without on-the-fly resampling for faster data loading:
 
     Load with pre-resampled 32kHz audio (v0.2.0, no resampling needed)
+    ```pycon
     >>> dataset_32k = AudioSet(split="validation", version="0.2.0", sample_rate=32000,
     ... streaming=True)
-    >>> print(dataset_32k.available_sample_rates)
-    [32000]
 
-    Load with on-the-fly resampling to 16kHz
+    ```
+    Load with on-the-fly resampling to 16kHz (v0.2.0, resampling needed)
+    ```pycon
     >>> dataset_16k = AudioSet(split="validation", version="0.2.0", sample_rate=16000,
     ... streaming=True)
+
+    ```
 
     Examples
     --------

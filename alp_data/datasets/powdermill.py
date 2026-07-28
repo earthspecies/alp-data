@@ -61,7 +61,7 @@ class Powdermill(Dataset):
 
     References
     ----------
-    https://esajournals.onlinelibrary.wiley.com/doi/full/10.1002/ecy.3329
+    [Publication](https://esajournals.onlinelibrary.wiley.com/doi/full/10.1002/ecy.3329)
 
     """
 

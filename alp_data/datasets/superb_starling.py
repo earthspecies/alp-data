@@ -36,7 +36,7 @@ class SuperbStarling(Dataset):
     Keen, S. C., Meliza, C. D., & Rubenstein, D. R. (2013). Flight calls signal group and
     individual identity but not kinship in a cooperatively breeding bird.
     Behavioral Ecology, 24(6), 1279-1285.
-    https://doi.org/10.5061/dryad.p1n88
+    [DOI](https://doi.org/10.5061/dryad.p1n88)
 
     """
 

@@ -40,7 +40,7 @@ class AudioSetStrong(Dataset):
     suitable for sound event detection and temporal localization tasks.
 
     AudioSet recordings include those available in this huggingface dataset:
-    https://huggingface.co/datasets/agkphysics/AudioSet
+    [Hugging Face dataset](https://huggingface.co/datasets/agkphysics/AudioSet)
 
     Available Splits
     ----------------
@@ -52,10 +52,9 @@ class AudioSetStrong(Dataset):
     ----------
     AUDIO SET: AN ONTOLOGY AND HUMAN-LABELED DATASET FOR AUDIO EVENTS
     Gemmeke et al. 2017
-    https://static.googleusercontent.com/media/research.google.com/en//pubs/archive/45857.pdf
+    [Paper (PDF)](https://static.googleusercontent.com/media/research.google.com/en//pubs/archive/45857.pdf)
 
-    AudioSet Homepage:
-    https://research.google.com/audioset/
+    [AudioSet Homepage](https://research.google.com/audioset/)
 
     Examples
     --------

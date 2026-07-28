@@ -72,8 +72,8 @@ class NocturnalBirdMigration(Dataset):
 
     References
     ----------
-    https://zenodo.org/records/17573913
-    https://arxiv.org/pdf/2412.03633
+    [Zenodo](https://zenodo.org/records/17573913)
+    [arXiv (PDF)](https://arxiv.org/pdf/2412.03633)
 
     """
 
