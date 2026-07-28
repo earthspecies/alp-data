@@ -10,6 +10,7 @@ from alp_data.backends import BackendType
 from alp_data.io import DATA_HOME, AnyPathT, anypath, audio_stereo_to_mono, read_audio
 
 _GCS_ROOT = f"{DATA_HOME}/birdset/v0.1.0/raw"
+_BIRDSET_TRAIN_ROOT = "gs://foundation-model-data/data/birdset-train"
 
 
 @register_dataset
@@ -66,6 +67,7 @@ class BirdSet(Dataset):
     Subsets: HSN, NBP, NES, PER, POW, SSW, SNE, UHH.
 
     - ``all``: Combined dataset across all subsets and splits.
+    - ``XCM-train``: Xeno-canto medium training split.
 
     References
     ----------
@@ -94,22 +96,31 @@ class BirdSet(Dataset):
         name="birdset",
         owner="marius; gagan; david",
         split_paths={
+            "HSN-train": f"{_BIRDSET_TRAIN_ROOT}/HSN/HSN_taxonomic.csv",
             "HSN-test": f"{_GCS_ROOT}/HSN_test_v2.csv",
             "HSN-test_5s": f"{_GCS_ROOT}/HSN_test_5s_v2.csv",
+            "NBP-train": f"{_BIRDSET_TRAIN_ROOT}/NBP/NBP_taxonomic.csv",
             "NBP-test": f"{_GCS_ROOT}/NBP_test_v2.csv",
             "NBP-test_5s": f"{_GCS_ROOT}/NBP_test_5s_v2.csv",
+            "NES-train": f"{_BIRDSET_TRAIN_ROOT}/NES/NES_taxonomic.csv",
             "NES-test": f"{_GCS_ROOT}/NES_test_v2.csv",
             "NES-test_5s": f"{_GCS_ROOT}/NES_test_5s_v2.csv",
+            "PER-train": f"{_BIRDSET_TRAIN_ROOT}/PER/PER_taxonomic.csv",
             "PER-test": f"{_GCS_ROOT}/PER_test_v2.csv",
             "PER-test_5s": f"{_GCS_ROOT}/PER_test_5s_v2.csv",
+            "POW-train": f"{_BIRDSET_TRAIN_ROOT}/POW/POW_taxonomic.csv",
             "POW-test": f"{_GCS_ROOT}/POW_test_v2.csv",
             "POW-test_5s": f"{_GCS_ROOT}/POW_test_5s_v2.csv",
+            "SSW-train": f"{_BIRDSET_TRAIN_ROOT}/SSW/SSW_taxonomic.csv",
             "SSW-test": f"{_GCS_ROOT}/SSW_test_v2.csv",
             "SSW-test_5s": f"{_GCS_ROOT}/SSW_test_5s_v2.csv",
+            "SNE-train": f"{_BIRDSET_TRAIN_ROOT}/SNE/SNE_taxonomic.csv",
             "SNE-test": f"{_GCS_ROOT}/SNE_test_v2.csv",
             "SNE-test_5s": f"{_GCS_ROOT}/SNE_test_5s_v2.csv",
+            "UHH-train": f"{_BIRDSET_TRAIN_ROOT}/UHH/UHH_taxonomic.csv",
             "UHH-test": f"{_GCS_ROOT}/UHH_test_v2.csv",
             "UHH-test_5s": f"{_GCS_ROOT}/UHH_test_5s_v2.csv",
+            "XCM": f"{_BIRDSET_TRAIN_ROOT}/XCM/XCM_taxonomic.csv",
             "all": f"{_GCS_ROOT}/birdset_all_v2.csv",
         },
         version="0.1.0",
@@ -118,7 +129,7 @@ class BirdSet(Dataset):
             "Pre-resampled audio available at 16 kHz and 32 kHz (WAV). "
             "Original audio is 32 kHz OGG from the BirdSet HuggingFace repository."
         ),
-        sources=["HSN", "NBP", "NES", "PER", "POW", "SSW", "SNE", "UHH"],
+        sources=["HSN", "NBP", "NES", "PER", "POW", "SSW", "SNE", "UHH", "XCM"],
         license="CC-BY-4.0, CC0",
     )
 
