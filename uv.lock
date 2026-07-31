@@ -17,7 +17,7 @@ resolution-markers = [
 ]
 
 [options]
-exclude-newer = "2026-07-14T18:14:47.101023Z"
+exclude-newer = "2026-07-22T07:42:34.626133Z"
 exclude-newer-span = "P7D"
 
 [options.exclude-newer-package]
@@ -176,7 +176,7 @@ wheels = [
 
 [[package]]
 name = "alp-data"
-version = "1.11.0"
+version = "1.11.1"
 source = { editable = "." }
 dependencies = [
     { name = "gcsfs" },
