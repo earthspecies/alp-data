@@ -2,82 +2,82 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
          <loc>https://projects.earthspecies.org/alp-data/dev/</loc>
-         <lastmod>2026-07-28</lastmod>
+         <lastmod>2026-07-31</lastmod>
     </url>
     <url>
          <loc>https://projects.earthspecies.org/alp-data/dev/backends/</loc>
-         <lastmod>2026-07-28</lastmod>
+         <lastmod>2026-07-31</lastmod>
     </url>
     <url>
          <loc>https://projects.earthspecies.org/alp-data/dev/chain/</loc>
-         <lastmod>2026-07-28</lastmod>
+         <lastmod>2026-07-31</lastmod>
     </url>
     <url>
          <loc>https://projects.earthspecies.org/alp-data/dev/community/</loc>
-         <lastmod>2026-07-28</lastmod>
+         <lastmod>2026-07-31</lastmod>
     </url>
     <url>
          <loc>https://projects.earthspecies.org/alp-data/dev/concatenate/</loc>
-         <lastmod>2026-07-28</lastmod>
+         <lastmod>2026-07-31</lastmod>
     </url>
     <url>
          <loc>https://projects.earthspecies.org/alp-data/dev/datasets-available/</loc>
-         <lastmod>2026-07-28</lastmod>
+         <lastmod>2026-07-31</lastmod>
     </url>
     <url>
          <loc>https://projects.earthspecies.org/alp-data/dev/datasets-custom/</loc>
-         <lastmod>2026-07-28</lastmod>
+         <lastmod>2026-07-31</lastmod>
     </url>
     <url>
          <loc>https://projects.earthspecies.org/alp-data/dev/datasets/</loc>
-         <lastmod>2026-07-28</lastmod>
+         <lastmod>2026-07-31</lastmod>
     </url>
     <url>
          <loc>https://projects.earthspecies.org/alp-data/dev/explorer/</loc>
-         <lastmod>2026-07-28</lastmod>
+         <lastmod>2026-07-31</lastmod>
     </url>
     <url>
          <loc>https://projects.earthspecies.org/alp-data/dev/getting-started/</loc>
-         <lastmod>2026-07-28</lastmod>
+         <lastmod>2026-07-31</lastmod>
     </url>
     <url>
          <loc>https://projects.earthspecies.org/alp-data/dev/io/</loc>
-         <lastmod>2026-07-28</lastmod>
+         <lastmod>2026-07-31</lastmod>
     </url>
     <url>
          <loc>https://projects.earthspecies.org/alp-data/dev/reference/</loc>
-         <lastmod>2026-07-28</lastmod>
+         <lastmod>2026-07-31</lastmod>
     </url>
     <url>
          <loc>https://projects.earthspecies.org/alp-data/dev/transforms/</loc>
-         <lastmod>2026-07-28</lastmod>
+         <lastmod>2026-07-31</lastmod>
     </url>
     <url>
          <loc>https://projects.earthspecies.org/alp-data/dev/tutorials/01_basics/</loc>
-         <lastmod>2026-07-28</lastmod>
+         <lastmod>2026-07-31</lastmod>
     </url>
     <url>
          <loc>https://projects.earthspecies.org/alp-data/dev/tutorials/02_io/</loc>
-         <lastmod>2026-07-28</lastmod>
+         <lastmod>2026-07-31</lastmod>
     </url>
     <url>
          <loc>https://projects.earthspecies.org/alp-data/dev/tutorials/03_pytorch_dataloader/</loc>
-         <lastmod>2026-07-28</lastmod>
+         <lastmod>2026-07-31</lastmod>
     </url>
     <url>
          <loc>https://projects.earthspecies.org/alp-data/dev/tutorials/04_yaml_config/</loc>
-         <lastmod>2026-07-28</lastmod>
+         <lastmod>2026-07-31</lastmod>
     </url>
     <url>
          <loc>https://projects.earthspecies.org/alp-data/dev/tutorials/05_transforms/</loc>
-         <lastmod>2026-07-28</lastmod>
+         <lastmod>2026-07-31</lastmod>
     </url>
     <url>
          <loc>https://projects.earthspecies.org/alp-data/dev/tutorials/06_concat_and_chain/</loc>
-         <lastmod>2026-07-28</lastmod>
+         <lastmod>2026-07-31</lastmod>
     </url>
     <url>
          <loc>https://projects.earthspecies.org/alp-data/dev/tutorials/07_user_datasets_and_transforms/</loc>
-         <lastmod>2026-07-28</lastmod>
+         <lastmod>2026-07-31</lastmod>
     </url>
 </urlset>
