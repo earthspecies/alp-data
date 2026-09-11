@@ -8,6 +8,7 @@ aiohappyeyeballs==2.6.1
 aiohttp==3.13.3
     # via
     #   aiobotocore
+    #   fsspec
     #   gcsfs
     #   s3fs
 aioitertools==0.13.0
@@ -46,6 +47,7 @@ frozenlist==1.8.0
     #   aiosignal
 fsspec==2026.2.0
     # via
+    #   alp-data
     #   gcsfs
     #   s3fs
 gcsfs==2026.2.0

@@ -2,7 +2,7 @@
 
 ## What does it do?
 
-The `io` module provides a set of functions for reading and writing data to and from various file formats and storage systems. It supports local files, Google Cloud Storage (GCS), and Cloudflare R2 buckets.
+The `io` module provides a set of functions for reading and writing data to and from various file formats and storage systems. It supports local files, Google Cloud Storage (GCS), Cloudflare R2 buckets, and public HTTP(S) URLs, which need no credentials.
 
 !!! warning
     We have dropped support for `cloudpathlib` which was the basis for `anypath` until version 1.2.1. We now have our own implementation of a "cloud path" (e.g. "gs://my-bucket/file.txt"). This implementation `PureGSPath` or `PureS3Path` is more lightweight and provides **path manipulation features only**. For file operations on cloud paths (reading, writing, copying, listing files), you must use the `filesystem` interface.
@@ -299,6 +299,35 @@ You can also create the appropriate filesystem object from a path using `filesys
 fs = filesystem_from_path("gs://esp-ci-cd-tests")
 ```
 
+### HTTP(S) endpoints
+
+Some datasets live behind a plain URL rather than a bucket you hold keys for: a public Cloudflare R2 bucket (`https://pub-xxxxxxxx.r2.dev/...`), a lab web server, an archive download. Hand such a URL to `filesystem_from_path()` (or `"http"`/`"https"` to `filesystem()`) and you get a filesystem you can read from, with no credentials and no setup.
+
+```python
+url = "https://pub-xxxxxxxx.r2.dev/test/split.jsonl"
+
+fs = filesystem_from_path(url)
+with fs.open(url, "rb") as f:
+    content = f.read()
+```
+
+Reading is the part that works well, and it only fetches what you ask for: `seek()` jumps to an offset without pulling the whole file down first, and a time-range `read_audio` downloads just that segment of a recording (see [Read only a time range](#read-only-a-time-range)). Credentials are never sent to a URL, so the `anonymous` argument does not apply here.
+
+!!! warning "A URL is not a bucket"
+    A web server can hand you a file, but it cannot do the other things a bucket does:
+
+    - **You can read, but not write or delete.** `alp_data.io.rm()` refuses `http(s)://` paths, and writing is not supported.
+    - **You cannot browse or search.** A public R2 bucket publishes no index of its contents, so `fs.ls()` raises `FileNotFoundError` and — the one to watch out for — `fs.glob()` quietly returns an empty list instead of complaining:
+
+        ```python
+        fs.ls("https://pub-xxxxxxxx.r2.dev/test/")           # FileNotFoundError
+        fs.glob("https://pub-xxxxxxxx.r2.dev/test/*.jsonl")  # [] - no error!
+        ```
+
+        Work from a list of the URLs you need — a manifest file, say — rather than discovering files with a glob pattern.
+    - **`alp_data.io.exists()` asks the server every time.** It requests the file's metadata rather than the file itself, so it is quick, but it is still a round trip: avoid it in a loop over thousands of URLs. A file that is not there gives you `False`, while a server that refuses the request or cannot be reached raises an error — so a typo in the hostname or an outage never quietly reads as "the file is missing".
+    - **Prefer `https://` to `http://`.** Plain HTTP gives no guarantee that what arrives is what was sent. Redirects are also followed wherever they lead, so even an `https://` URL can end up served over plain HTTP.
+
 ### File operations with filesystem
 
 #### Check if files exist
@@ -426,7 +455,7 @@ audio, sample_rate = read_audio(
 ```
 
 !!! tip
-    For GCS paths, a time-range read streams just the requested segment via `ffmpeg` instead of downloading the whole file — much faster for large files. Having the `ffmpeg` and `ffprobe` binaries installed is therefore recommended. Without them, `read_audio` falls back to downloading the full file and still works.
+    For GCS paths and `http(s)://` URLs, a time-range read fetches just the requested segment with `ffmpeg` instead of downloading the whole file — much faster for large recordings. Having the `ffmpeg` and `ffprobe` binaries installed is therefore recommended. Without them, `read_audio` falls back to downloading the full file and still works.
 
     Install ffmpeg:
 

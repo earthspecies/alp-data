@@ -751,9 +751,53 @@ class PureR2Path(PureCloudPath):
     __slots__ = ()
 
 
+class PureHTTPSPath(PureCloudPath):
+    """HTTPS path, e.g. an object in a Cloudflare R2 public bucket.
+
+    Path manipulation only; use `alp_data.io.filesystem_from_path` to read the
+    object. HTTP(S) endpoints are read-only.
+
+    Notes
+    -----
+    A URL is treated as a plain path, so a `?query` or `#fragment` counts as part
+    of the final component: `.../train.jsonl?X-Amz-Signature=abc` has `name`
+    `train.jsonl?X-Amz-Signature=abc` and `suffix` `.jsonl?X-Amz-Signature=abc`.
+    Code that branches on `suffix` therefore will not recognise such a URL —
+    several datasets pick a JSONL or CSV reader that way — and a query string
+    containing a literal `/`, as a presigned URL's `X-Amz-Credential` does,
+    splits into extra `parts` and corrupts `parent`. Public bucket URLs carry no
+    query string, so this only affects signed URLs: re-derive those from their
+    source rather than manipulating them as paths.
+    """
+
+    cloud_prefix = "https://"
+    __slots__ = ()
+
+
+class PureHTTPPath(PureCloudPath):
+    """Plain HTTP path.
+
+    Kept separate from `PureHTTPSPath` because `cloud_prefix` holds a single scheme
+    and the scheme must survive round-tripping to `str`: the underlying
+    `HTTPFileSystem` is handed the full URL, so rewriting `http://` as `https://`
+    (or the reverse) would change which endpoint is contacted.
+
+    Prefer `PureHTTPSPath`. Plain HTTP offers no integrity guarantee for the bytes
+    fetched, and `HTTPFileSystem` follows redirects across hosts, so an `https://`
+    URL may in any case be downgraded to `http://` en route.
+
+    Notes
+    -----
+    Shares the query-string handling described on `PureHTTPSPath`.
+    """
+
+    cloud_prefix = "http://"
+    __slots__ = ()
+
+
 # TODO (milad) Python 3.12 introduces `type`. It will probably deprecate TypeAlias at
 # some point. We should use that instead when 3.12 is not too new anymore.
-AnyPathT: TypeAlias = Path | PureGSPath | PureR2Path
+AnyPathT: TypeAlias = Path | PureGSPath | PureR2Path | PureS3Path | PureHTTPSPath | PureHTTPPath
 
 
 def anypath(path: str | AnyPathT) -> AnyPathT:
@@ -774,8 +818,9 @@ def anypath(path: str | AnyPathT) -> AnyPathT:
     -------
     AnyPathT
         An instance of `Path` for local paths, `PureGSPath` for Google Cloud Storage
-        paths, or `PureR2Path` for Cloudflare R2 paths (including those starting with
-        "s3://").
+        paths, `PureR2Path` for Cloudflare R2 paths (including those starting with
+        "s3://"), `PureHTTPSPath` for "https://" paths, and `PureHTTPPath` for
+        "http://" paths.
 
 
     Examples
@@ -802,5 +847,9 @@ def anypath(path: str | AnyPathT) -> AnyPathT:
         # Since we are currently not using AWS we assume that all S3 paths are R2 paths.
         # TODO This must be changed if we start using AWS.
         return PureR2Path(path)
+    elif path.startswith("https://"):
+        return PureHTTPSPath(path)
+    elif path.startswith("http://"):
+        return PureHTTPPath(path)
     else:
         return Path(path)
