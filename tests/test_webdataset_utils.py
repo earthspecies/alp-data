@@ -14,6 +14,7 @@ from alp_data.backends.webdataset_utils import (
     audio_encoder,
     json_decoder,
     json_encoder,
+    open_file_for_wds,
 )
 
 
@@ -241,3 +242,133 @@ class TestParquetBytesToDataframe:
 
         assert list(result["a"]) == [10, 20]
         assert list(result["b"]) == ["foo", "bar"]
+
+
+class TestAudioSampleRate:
+    """Tests that the encoded audio file stays authoritative for the sample rate."""
+
+    def test_stale_metadata_sample_rate_does_not_override(self) -> None:
+        """A stale `sample_rate` in the sample must not survive the round trip."""
+        audio = create_audio_sample()
+        sample = {"audio": audio, "sample_rate": 44100}
+
+        encoded = audio_encoder(sample, sample_rate=16000)
+
+        metadata = json.loads(encoded["metadata.json"].decode("utf-8"))
+        assert "sample_rate" not in metadata
+        assert audio_decoder(encoded)["sample_rate"] == 16000
+
+    def test_decoder_ignores_sample_rate_in_metadata(self) -> None:
+        """A shard written elsewhere with a conflicting rate is decoded from the file."""
+        audio = create_audio_sample()
+        encoded = audio_encoder({"audio": audio}, sample_rate=16000)
+        encoded["metadata.json"] = json.dumps({"sample_rate": 44100}).encode("utf-8")
+
+        assert audio_decoder(encoded)["sample_rate"] == 16000
+
+
+class TestWdsInternalKeys:
+    """Tests that `__key__` / `__url__` survive encoding and decoding."""
+
+    def test_audio_encoder_passes_through_internal_keys(self) -> None:
+        audio = create_audio_sample()
+        sample = {"audio": audio, "__key__": "abc", "label": "test"}
+
+        encoded = audio_encoder(sample)
+
+        assert encoded["__key__"] == "abc"
+        metadata = json.loads(encoded["metadata.json"].decode("utf-8"))
+        assert "__key__" not in metadata
+
+    def test_audio_decoder_passes_through_internal_keys(self) -> None:
+        audio = create_audio_sample()
+        encoded = audio_encoder({"audio": audio, "__key__": "abc"})
+        encoded["__url__"] = "shard-000.tar"
+
+        decoded = audio_decoder(encoded)
+
+        assert decoded["__key__"] == "abc"
+        assert decoded["__url__"] == "shard-000.tar"
+
+    def test_json_encoder_passes_through_internal_keys(self) -> None:
+        encoded = json_encoder({"__key__": "abc", "id": 1})
+
+        assert encoded["__key__"] == "abc"
+        assert json.loads(encoded["sample.json"].decode("utf-8")) == {"id": 1}
+
+    def test_json_decoder_passes_through_internal_keys(self) -> None:
+        encoded = json_encoder({"__key__": "abc", "id": 1})
+
+        decoded = json_decoder(encoded)
+
+        assert decoded == {"id": 1, "__key__": "abc"}
+
+
+class TestAudioEncoderSubtype:
+    """Tests for the `subtype` and `dtype` arguments of `audio_encoder`."""
+
+    def test_float_subtype_preserves_precision(self) -> None:
+        """`subtype="FLOAT"` round-trips more precisely than the PCM_16 default."""
+        audio = create_audio_sample()
+
+        default_err = np.abs(
+            audio_decoder(audio_encoder({"audio": audio}, format="WAV"), format="WAV")["audio"]
+            - audio
+        ).max()
+        float_err = np.abs(
+            audio_decoder(
+                audio_encoder({"audio": audio}, format="WAV", subtype="FLOAT"), format="WAV"
+            )["audio"]
+            - audio
+        ).max()
+
+        assert float_err < default_err
+        assert float_err == 0.0
+
+    def test_dtype_casts_the_in_memory_array(self) -> None:
+        """`dtype` casts the array, so an integer dtype truncates float input."""
+        sample = {"audio": [0.1, 0.2, 0.3, 0.4, 0.5]}
+
+        encoded = audio_encoder(sample, dtype="int16", format="WAV")
+
+        decoded = audio_decoder(encoded, dtype="int16", format="WAV")
+        np.testing.assert_array_equal(decoded["audio"], np.zeros(5, dtype="int16"))
+
+
+class TestAudioDecoderFormatMismatch:
+    """Tests the error raised when `format` does not match the shard."""
+
+    def test_format_mismatch_error_names_expected_extension(self) -> None:
+        audio = create_audio_sample()
+        encoded = audio_encoder({"audio": audio}, format="WAV")
+
+        with pytest.raises(ValueError, match=r"ending with '\.flac'"):
+            audio_decoder(encoded, format="FLAC")
+
+
+class TestOpenFileForWds:
+    """Tests for `open_file_for_wds`."""
+
+    def test_write_mode_creates_parent_dirs(self, tmp_path: Path) -> None:
+        target = tmp_path / "nested" / "dirs" / "shard.tar"
+
+        with open_file_for_wds(target, mode="wb") as f:
+            f.write(b"data")
+
+        assert target.read_bytes() == b"data"
+
+    def test_read_mode_does_not_create_parent_dirs(self, tmp_path: Path) -> None:
+        """A failed read must not leave empty directory trees behind."""
+        target = tmp_path / "nested" / "dirs" / "shard.tar"
+
+        with pytest.raises(FileNotFoundError):
+            open_file_for_wds(target, mode="rb")
+
+        assert not (tmp_path / "nested").exists()
+
+    def test_read_mode_opens_existing_file(self, tmp_path: Path) -> None:
+        target = tmp_path / "shard.tar"
+        target.write_bytes(b"data")
+
+        with open_file_for_wds(target, mode="rb") as f:
+            assert f.read() == b"data"
