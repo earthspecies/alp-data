@@ -14,6 +14,7 @@ from .corvid_wascher import CorvidWascher
 from .dclde2026 import DCLDE2026
 from .dinardo_dolphin_whistles import DinardoDolphinWhistles
 from .esp_raincoast import ESPRaincoast
+from .fasd13 import FASD13
 from .geladas import Geladas
 from .giant_otters import GiantOtters
 from .gibbon_solos import GibbonSolos
@@ -73,4 +74,5 @@ __all__ = [
     "CorvidWascher",
     "DCLDE2026",
     "Watkins",
+    "FASD13",
 ]
