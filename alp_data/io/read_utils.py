@@ -16,7 +16,7 @@ from soundfile import LibsndfileError
 
 from alp_data.io.auth import GCSAuthError, get_gcs_token, get_gcs_token_if_available
 from alp_data.io.filesystem import filesystem_from_path
-from alp_data.io.paths import AnyPathT, PureGSPath, anypath
+from alp_data.io.paths import AnyPathT, PureGSPath, PureHTTPPath, PureHTTPSPath, anypath
 
 logger = logging.getLogger("alp_data")
 
@@ -112,17 +112,19 @@ def _read_audio_ffmpeg(
     input_sr: int | None = None,
     anonymous: bool | None = None,
 ) -> tuple[np.ndarray, int]:
-    """Read an audio segment from GCS using ffmpeg HTTP range requests.
+    """Read an audio segment from a remote URL using ffmpeg HTTP range requests.
 
-    Streams only the requested segment directly from a GCS bucket via ffmpeg,
-    avoiding a full-file download. Output follows the `soundfile.read`
-    convention: ``(frames,)`` for mono or ``(frames, channels)`` for
-    multi-channel audio.
+    Streams only the requested segment directly from a GCS bucket or an
+    HTTP(S) endpoint via ffmpeg, avoiding a full-file download. Output follows
+    the `soundfile.read` convention: ``(frames,)`` for mono or
+    ``(frames, channels)`` for multi-channel audio.
 
     Parameters
     ----------
     file_path : str or AnyPathT
-        GCS path to the audio file, with or without the ``gs://`` prefix.
+        GCS path to the audio file, with or without the ``gs://`` prefix, or an
+        ``http://``/``https://`` URL. An HTTP(S) URL is passed to ffmpeg as
+        given; a GCS path is converted to its REST API URL.
     start_time : float, optional
         Start time in seconds. Defaults to 0.0.
     end_time : float or None, optional
@@ -131,7 +133,8 @@ def _read_audio_ffmpeg(
         Expected sample rate. If provided, used for validation (a warning is
         logged on mismatch with the file's native sample rate).
     anonymous : bool or None, optional
-        Controls how the GCS object is accessed:
+        Controls how the GCS object is accessed. Ignored for HTTP(S) URLs,
+        which are always fetched without an ``Authorization`` header:
         - None (default): auto. Send an ``Authorization`` header when ambient
           credentials are available (works for public and private buckets), and
           access the object anonymously when they are not.
@@ -156,28 +159,36 @@ def _read_audio_ffmpeg(
         ffmpeg/ffprobe binaries are not installed, ffprobe/ffmpeg fail to
         process the audio, or their output cannot be parsed/decoded.
     """
-    gcs_url = _gcs_path_to_url(file_path)
-    bucket = anypath(file_path).bucket
-
-    # SECURITY NOTE
-    # When authenticated, the bearer token is passed on the ffprobe/ffmpeg command
-    # line, which is visible to co-tenants via ``ps``/``/proc`` on shared hosts.
-    # To limit the blast radius, the token is downscoped (see `alp_data.io.auth`)
-    # to short-lived read-only access on this one bucket — it grants nothing else.
-    # Anonymous reads send no token at all.
+    path = anypath(file_path)
     headers_args: list[str] = []
-    if anonymous is True:
-        pass  # Explicit anonymous access: send no Authorization header.
-    elif anonymous is False:
-        try:
-            token = get_gcs_token(bucket)
-        except GCSAuthError as e:
-            raise FFmpegSegmentError("missing GCS credentials", str(e)) from e
-        headers_args = ["-headers", f"Authorization: Bearer {token}\r\n"]
-    else:  # anonymous is None: authenticate if possible, else go anonymous.
-        token = get_gcs_token_if_available(bucket)
-        if token is not None:
+
+    if isinstance(path, (PureHTTPSPath, PureHTTPPath)):
+        # Already a URL, so hand it to ffmpeg as-is. There are no GCS
+        # credentials to attach to an arbitrary endpoint, so no Authorization
+        # header is ever sent and ``anonymous`` does not apply.
+        source_url = str(path)
+    else:
+        source_url = _gcs_path_to_url(file_path)
+        bucket = path.bucket
+
+        # SECURITY NOTE
+        # When authenticated, the bearer token is passed on the ffprobe/ffmpeg command
+        # line, which is visible to co-tenants via ``ps``/``/proc`` on shared hosts.
+        # To limit the blast radius, the token is downscoped (see `alp_data.io.auth`)
+        # to short-lived read-only access on this one bucket — it grants nothing else.
+        # Anonymous reads send no token at all.
+        if anonymous is True:
+            pass  # Explicit anonymous access: send no Authorization header.
+        elif anonymous is False:
+            try:
+                token = get_gcs_token(bucket)
+            except GCSAuthError as e:
+                raise FFmpegSegmentError("missing GCS credentials", str(e)) from e
             headers_args = ["-headers", f"Authorization: Bearer {token}\r\n"]
+        else:  # anonymous is None: authenticate if possible, else go anonymous.
+            token = get_gcs_token_if_available(bucket)
+            if token is not None:
+                headers_args = ["-headers", f"Authorization: Bearer {token}\r\n"]
 
     # Probe native sample rate and channel count.
     probe_cmd = [
@@ -192,8 +203,8 @@ def _read_audio_ffmpeg(
         "-of",
         "csv=p=0",
         "-rw_timeout",
-        "30000000",  # 30s timeout for GCS requests
-        gcs_url,
+        "30000000",  # 30s timeout for remote requests
+        source_url,
     ]
     try:
         probe_result = subprocess.run(probe_cmd, check=True, capture_output=True, text=True)
@@ -225,11 +236,11 @@ def _read_audio_ffmpeg(
         "ffmpeg",
         *headers_args,
         "-rw_timeout",
-        "30000000",  # 30s timeout for GCS requests
+        "30000000",  # 30s timeout for remote requests
         "-ss",
         str(start_time),
         "-i",
-        gcs_url,
+        source_url,
     ]
     if end_time is not None:
         command += ["-t", str(end_time - start_time)]
@@ -585,11 +596,12 @@ def read_audio(
     Reads the entire file by default, or a time range when `start_time` (and
     optionally `end_time`) is given.
 
-    When a time range is requested on a GCS (``gs://``) path, the segment is
-    streamed directly via ffmpeg HTTP range requests, avoiding a full-file
-    download. If ffmpeg is unavailable (binary missing, no credentials, or a
-    decode error), the read falls back to downloading the file and decoding the
-    segment, logging a warning once per distinct cause.
+    When a time range is requested on a GCS (``gs://``) path or an
+    ``http://``/``https://`` URL, the segment is streamed directly via ffmpeg
+    HTTP range requests, avoiding a full-file download. If ffmpeg is unavailable
+    (binary missing, no credentials, or a decode error), the read falls back to
+    downloading the file and decoding the segment, logging a warning once per
+    distinct cause.
 
     Parameters
     ----------
@@ -606,8 +618,8 @@ def read_audio(
         For the ffmpeg GCS segment path only. None (default) auto-detects:
         authenticate when ambient credentials are available (works for public
         and private buckets) and access anonymously otherwise. True forces
-        anonymous access; False forces authentication. Has no effect on local
-        or non-segment reads.
+        anonymous access; False forces authentication. Has no effect on local,
+        HTTP(S), or non-segment reads.
 
     Returns
     -------
@@ -636,7 +648,7 @@ def read_audio(
         if end_time is not None and end_time <= start_time:
             raise ValueError("end_time must be greater than start_time")
 
-        if isinstance(file_path, PureGSPath):
+        if isinstance(file_path, (PureGSPath, PureHTTPSPath, PureHTTPPath)):
             try:
                 return _read_audio_ffmpeg(
                     file_path, start_time, end_time, input_sr=input_sr, anonymous=anonymous

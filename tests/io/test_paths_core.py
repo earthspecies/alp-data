@@ -1,10 +1,11 @@
 """Tests for PureCloudPath base class and all cloud path implementations."""
 
 import os
-import pytest
-from pathlib import Path, PurePosixPath, PureWindowsPath
+from pathlib import Path
 
-from alp_data.io import PureGSPath, PureR2Path, PureS3Path, anypath
+import pytest
+
+from alp_data.io import PureGSPath, PureHTTPPath, PureHTTPSPath, PureR2Path, PureS3Path, anypath
 from alp_data.io.paths import PureCloudPath
 
 
@@ -14,8 +15,10 @@ class TestPureCloudPathBase:
     def test_cloud_prefix_validation(self):
         """Test that subclasses must define cloud_prefix."""
         with pytest.raises(ValueError, match="cloud_prefix must be defined in subclass"):
+
             class InvalidCloudPath(PureCloudPath):
                 pass
+
             InvalidCloudPath("test")
 
     def test_abstract_base_class(self):
@@ -104,19 +107,172 @@ class TestPureR2Path:
         assert str(joined) == "s3://my-bucket/folder/subfolder/file.txt"
 
 
+class TestPureHTTPSPath:
+    """Test PureHTTPSPath functionality."""
+
+    def test_https_path_creation(self):
+        path = PureHTTPSPath("https://example.com/path/to/file.json")
+        assert str(path) == "https://example.com/path/to/file.json"
+        assert path.bucket == "example.com"
+
+    def test_https_bucket_only(self):
+        path = PureHTTPSPath("https://example.com")
+        assert str(path) == "https://example.com"
+        assert path.bucket == "example.com"
+
+    def test_https_invalid_protocol(self):
+        with pytest.raises(ValueError, match="Path must start with 'https://': http://example.com"):
+            PureHTTPSPath("http://example.com")
+
+    def test_https_path_operations(self):
+        path = PureHTTPSPath("https://example.com/datasets/audio/file.wav")
+        assert path.name == "file.wav"
+        assert path.suffix == ".wav"
+        assert path.stem == "file"
+        assert str(path.parent) == "https://example.com/datasets/audio"
+
+    def test_https_path_joining(self):
+        base = PureHTTPSPath("https://example.com/datasets")
+        joined = base / "audio" / "file.wav"
+        assert str(joined) == "https://example.com/datasets/audio/file.wav"
+
+    def test_https_path_parts(self):
+        path = PureHTTPSPath("https://example.com/a/b/c.txt")
+        assert path.parts == ("https://example.com/", "a", "b", "c.txt")
+
+    def test_https_drive_root_anchor(self):
+        path = PureHTTPSPath("https://example.com/path/file.txt")
+        assert path.drive == "https://example.com"
+        assert path.root == "/"
+        assert path.anchor == "https://example.com/"
+
+    def test_https_rejects_incompatible_scheme_join(self):
+        path = PureHTTPSPath("https://example.com/path")
+        with pytest.raises(ValueError, match="incompatible cloud schemes"):
+            path / "gs://bucket/file.txt"
+
+    def test_https_comparison(self):
+        p1 = PureHTTPSPath("https://example.com/a.txt")
+        p2 = PureHTTPSPath("https://example.com/a.txt")
+        p3 = PureHTTPSPath("https://example.com/b.txt")
+        assert p1 == p2
+        assert p1 != p3
+        assert p1 < p3
+
+    def test_https_fspath(self):
+        path = PureHTTPSPath("https://example.com/file.txt")
+        assert os.fspath(path) == "https://example.com/file.txt"
+
+
+class TestPureHTTPPath:
+    """Test PureHTTPPath functionality."""
+
+    def test_http_path_creation(self):
+        path = PureHTTPPath("http://example.com/path/to/file.json")
+        assert str(path) == "http://example.com/path/to/file.json"
+        assert path.bucket == "example.com"
+
+    def test_http_bucket_only(self):
+        path = PureHTTPPath("http://example.com")
+        assert str(path) == "http://example.com"
+        assert path.bucket == "example.com"
+
+    def test_http_invalid_protocol(self):
+        with pytest.raises(ValueError, match="Path must start with 'http://': https://example.com"):
+            PureHTTPPath("https://example.com")
+
+    def test_http_path_operations(self):
+        path = PureHTTPPath("http://example.com/datasets/audio/file.wav")
+        assert path.name == "file.wav"
+        assert path.suffix == ".wav"
+        assert path.stem == "file"
+        assert str(path.parent) == "http://example.com/datasets/audio"
+
+    def test_http_path_joining(self):
+        base = PureHTTPPath("http://example.com/datasets")
+        joined = base / "audio" / "file.wav"
+        assert str(joined) == "http://example.com/datasets/audio/file.wav"
+
+    def test_http_path_parts(self):
+        path = PureHTTPPath("http://example.com/a/b/c.txt")
+        assert path.parts == ("http://example.com/", "a", "b", "c.txt")
+
+    def test_http_drive_root_anchor(self):
+        path = PureHTTPPath("http://example.com/path/file.txt")
+        assert path.drive == "http://example.com"
+        assert path.root == "/"
+        assert path.anchor == "http://example.com/"
+
+    def test_http_rejects_incompatible_scheme_join(self):
+        path = PureHTTPPath("http://example.com/path")
+        with pytest.raises(ValueError, match="incompatible cloud schemes"):
+            path / "gs://bucket/file.txt"
+
+    def test_http_and_https_do_not_join(self):
+        """The two schemes are distinct: neither may be joined into the other."""
+        with pytest.raises(ValueError, match="incompatible cloud schemes"):
+            PureHTTPPath("http://example.com") / "https://example.com/file.txt"
+        with pytest.raises(ValueError, match="incompatible cloud schemes"):
+            PureHTTPSPath("https://example.com") / "http://example.com/file.txt"
+
+    def test_http_comparison(self):
+        p1 = PureHTTPPath("http://example.com/a.txt")
+        p2 = PureHTTPPath("http://example.com/a.txt")
+        p3 = PureHTTPPath("http://example.com/b.txt")
+        assert p1 == p2
+        assert p1 != p3
+        assert p1 < p3
+
+    def test_http_fspath(self):
+        path = PureHTTPPath("http://example.com/file.txt")
+        assert os.fspath(path) == "http://example.com/file.txt"
+
+
+class TestURLQueryStrings:
+    """A query string is part of the final path component, as documented."""
+
+    @pytest.mark.parametrize("cls", [PureHTTPSPath, PureHTTPPath])
+    def test_query_string_counts_as_part_of_the_name(self, cls):
+        """URL paths get no special handling, so `suffix` carries the query too.
+
+        `PureHTTPSPath` documents this: code branching on `suffix` will not
+        recognise a signed URL. Pinned here so the docs and the behaviour do not
+        drift apart.
+        """
+        path = cls(f"{cls.cloud_prefix}h/b/train.jsonl?X-Amz-Signature=abc")
+        assert str(path) == f"{cls.cloud_prefix}h/b/train.jsonl?X-Amz-Signature=abc"
+        assert path.name == "train.jsonl?X-Amz-Signature=abc"
+        assert path.suffix == ".jsonl?X-Amz-Signature=abc"
+
+    @pytest.mark.parametrize("cls", [PureHTTPSPath, PureHTTPPath])
+    def test_host_only_url_has_no_name(self, cls):
+        assert cls(f"{cls.cloud_prefix}example.com").name == ""
+        assert cls(f"{cls.cloud_prefix}example.com/").name == ""
+
+    def test_bucket_paths_keep_query_like_object_names(self):
+        """ "?" is a legal character in a GCS object name, so it is left alone."""
+        path = PureGSPath("gs://bucket/train.jsonl?weird=1")
+        assert path.name == "train.jsonl?weird=1"
+        assert path.suffix == ".jsonl?weird=1"
+
+
 class TestCrossSchemeValidation:
     """Test validation of cross-scheme path operations."""
 
     def test_gs_path_rejects_s3_join(self):
         """Test that GS path rejects joining with S3 URL."""
         gs_path = PureGSPath("gs://my-bucket/folder")
-        with pytest.raises(ValueError, match="Cannot join gs:// path with s3://.*incompatible cloud schemes"):
+        with pytest.raises(
+            ValueError, match="Cannot join gs:// path with s3://.*incompatible cloud schemes"
+        ):
             gs_path / "s3://other-bucket/file.txt"
 
     def test_s3_path_rejects_gs_join(self):
         """Test that S3 path rejects joining with GS URL."""
         s3_path = PureS3Path("s3://my-bucket/folder")
-        with pytest.raises(ValueError, match="Cannot join s3:// path with gs://.*incompatible cloud schemes"):
+        with pytest.raises(
+            ValueError, match="Cannot join s3:// path with gs://.*incompatible cloud schemes"
+        ):
             s3_path / "gs://other-bucket/file.txt"
 
     def test_gs_path_accepts_same_scheme_join(self):
@@ -134,7 +290,9 @@ class TestCrossSchemeValidation:
     def test_r2_path_rejects_gs_join(self):
         """Test that R2 path rejects joining with GS URL."""
         r2_path = PureR2Path("s3://my-bucket/folder")
-        with pytest.raises(ValueError, match="Cannot join s3:// path with gs://.*incompatible cloud schemes"):
+        with pytest.raises(
+            ValueError, match="Cannot join s3:// path with gs://.*incompatible cloud schemes"
+        ):
             r2_path / "gs://other-bucket/file.txt"
 
 
@@ -158,6 +316,7 @@ class TestPathInteractions:
 
     def test_cloud_path_with_os_pathlike(self):
         """Test that cloud paths work with os.PathLike protocol."""
+
         class CustomPathLike:
             def __fspath__(self):
                 return "subfolder/file.txt"
@@ -261,6 +420,23 @@ class TestAnyPathFunction:
         assert isinstance(path, PureR2Path)
         assert str(path) == "s3://bucket/file.txt"  # R2 paths are converted to S3
 
+    def test_anypath_with_https_path(self):
+        """Test anypath with HTTPS paths."""
+        path = anypath("https://example.com/datasets/file.json")
+        assert isinstance(path, PureHTTPSPath)
+        assert str(path) == "https://example.com/datasets/file.json"
+
+    def test_anypath_with_http_path(self):
+        """Test anypath with plain HTTP paths."""
+        path = anypath("http://example.com/datasets/file.json")
+        assert isinstance(path, PureHTTPPath)
+        assert str(path) == "http://example.com/datasets/file.json"
+
+    def test_anypath_does_not_conflate_http_and_https(self):
+        """An "https://" path must not be dispatched to the "http://" class."""
+        assert not isinstance(anypath("https://example.com/f.txt"), PureHTTPPath)
+        assert not isinstance(anypath("http://example.com/f.txt"), PureHTTPSPath)
+
     def test_anypath_with_local_path(self):
         """Test anypath with local paths."""
         path = anypath("local/file.txt")
@@ -348,7 +524,7 @@ class TestPureGSPath:
         """Test parts property for GS paths."""
         path = PureGSPath("gs://my-bucket/folder/file.txt")
         parts = path.parts
-        assert parts == ('gs://my-bucket/', 'folder', 'file.txt')
+        assert parts == ("gs://my-bucket/", "folder", "file.txt")
 
     def test_gs_path_joining_from_bucket(self):
         """Test joining paths from bucket-only path."""
@@ -561,7 +737,6 @@ class TestEdgeCases:
         assert s3_path != r2_path  # Different classes even with same prefix
 
 
-
 class TestOSPathLikeIntegration:
     """Test os.PathLike protocol integration."""
 
@@ -578,5 +753,5 @@ class TestOSPathLikeIntegration:
     def test_cloud_path_has_fspath_method(self):
         """Test cloud paths have __fspath__ method for PathLike protocol."""
         gs_path = PureGSPath("gs://bucket/file.txt")
-        assert hasattr(gs_path, '__fspath__')
+        assert hasattr(gs_path, "__fspath__")
         assert gs_path.__fspath__() == "gs://bucket/file.txt"
