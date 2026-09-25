@@ -1,7 +1,7 @@
 """We want to export the Beans Zero dataset audio files as FLAC format.
 
 Requires: huggingface 'datasets' library
-Usage: `uv run --with datasets[Audio] esp-data/scripts/beans_zero/beans_zero_export_as_flac.py`
+Usage: `uv run --with datasets[Audio] alp-data/scripts/beans_zero/beans_zero_export_as_flac.py`
 """
 
 import argparse
@@ -16,7 +16,7 @@ import soundfile as sf
 from datasets import load_dataset
 from tqdm import tqdm
 
-from esp_data.io import AnyPathT, anypath, exists, filesystem_from_path
+from alp_data.io import AnyPathT, anypath, exists, filesystem_from_path
 
 fs = filesystem_from_path("gs://")
 

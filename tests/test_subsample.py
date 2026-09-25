@@ -2,8 +2,8 @@ import pandas as pd
 import polars as pl
 import pytest
 
-from esp_data.backends import PandasBackend, PolarsBackend
-from esp_data.transforms import Subsample, SubsampleConfig
+from alp_data.backends import PandasBackend, PolarsBackend
+from alp_data.transforms import Subsample, SubsampleConfig
 
 # TODO (milad) add tests for returned metadata
 

@@ -4,8 +4,8 @@ import os
 import pytest
 from pathlib import Path, PurePosixPath, PureWindowsPath
 
-from esp_data.io import PureGSPath, PureR2Path, PureS3Path, anypath
-from esp_data.io.paths import PureCloudPath
+from alp_data.io import PureGSPath, PureR2Path, PureS3Path, anypath
+from alp_data.io.paths import PureCloudPath
 
 
 class TestPureCloudPathBase:

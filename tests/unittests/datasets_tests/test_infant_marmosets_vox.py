@@ -3,10 +3,10 @@
 import numpy as np
 import pytest
 
-from esp_data import DatasetConfig
-from esp_data.datasets import InfantMarmosetsVox
-from esp_data.io import anypath, exists
-from esp_data.utils import create_hash
+from alp_data import DatasetConfig
+from alp_data.datasets import InfantMarmosetsVox
+from alp_data.io import anypath, exists
+from alp_data.utils import create_hash
 
 # Dataset-specific constants
 NUM_CALLTYPES = 11  # Call types 0-10
@@ -311,8 +311,8 @@ def test_string_representation(ds: InfantMarmosetsVox) -> None:
 def test_class_registration() -> None:
     """Test that the dataset class is properly registered."""
     # Test that it's in the __all__ list
-    import esp_data.datasets as datasets
-    from esp_data.datasets import InfantMarmosetsVox
+    import alp_data.datasets as datasets
+    from alp_data.datasets import InfantMarmosetsVox
 
     assert "InfantMarmosetsVox" in datasets.__all__
 

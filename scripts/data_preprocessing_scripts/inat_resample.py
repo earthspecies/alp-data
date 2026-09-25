@@ -9,7 +9,7 @@ import pandas as pd
 import soundfile as sf
 from tqdm import tqdm
 
-from esp_data.io import anypath
+from alp_data.io import anypath
 
 # Suppress warnings from librosa about resampling
 warnings.filterwarnings("ignore", category=FutureWarning, module="librosa")
@@ -36,7 +36,7 @@ def process_single_file(file_path_str: str, target_dir_str: str, target_sr: int)
         and any messages (e.g., error messages, skip reasons).
     """
     # Re-import inside the function to avoid pickling issues
-    from esp_data.io import anypath, audio_stereo_to_mono, read_audio
+    from alp_data.io import anypath, audio_stereo_to_mono, read_audio
 
     file_path = anypath(file_path_str)
     target_dir = anypath(target_dir_str)

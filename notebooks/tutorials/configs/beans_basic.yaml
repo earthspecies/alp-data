@@ -1,0 +1,4 @@
+dataset:
+  dataset_name: beans
+  split: dogs_test
+  sample_rate: 16000

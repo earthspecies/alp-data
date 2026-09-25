@@ -15,9 +15,9 @@ from typing import Any, Dict, List
 import numpy as np
 import pandas as pd
 
-from esp_data.io import AnyPathT, exists, filesystem_from_path
+from alp_data.io import AnyPathT, exists, filesystem_from_path
 
-logger = logging.getLogger("esp_data")
+logger = logging.getLogger("alp_data")
 
 TAXONOMY_RANKS = ["kingdom", "phylum", "class", "order", "family", "genus"]
 VERSION = "0.1.0"

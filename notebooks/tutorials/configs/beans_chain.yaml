@@ -1,0 +1,6 @@
+chain:
+  datasets:
+    - dataset_name: beans
+      split: dogs_test
+    - dataset_name: beans
+      split: cbi_test

@@ -15,13 +15,13 @@ import pandas as pd
 import pytest
 import hashlib
 
-from esp_data.datasets import SpanishCarrionCrows
+from alp_data.datasets import SpanishCarrionCrows
 
 
 # # --- Dataset snapshot ---
 
 # # Code to generate snapshot:
-# from esp_data.datasets import SpanishCarrionCrows
+# from alp_data.datasets import SpanishCarrionCrows
 # import hashlib
 # ds = SpanishCarrionCrows(split="all", sample_rate=16000, backend="polars")
 # print("len(ds) =", len(ds))

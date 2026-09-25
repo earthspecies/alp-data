@@ -40,7 +40,7 @@ import requests
 import scipy.io
 import soundfile as sf
 
-from esp_data.io import anypath, audio_stereo_to_mono, filesystem, read_audio
+from alp_data.io import anypath, audio_stereo_to_mono, filesystem, read_audio
 
 BASE_PATH = "gs://subsegmentation/xeno_canto_annotations"
 AUDIO_PATH_REL_BASE = "segments_all_together"

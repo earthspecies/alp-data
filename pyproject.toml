@@ -1,21 +1,23 @@
 [project]
-name = "esp-data"
-version = "1.8.0"
+name = "alp-data"
+version = "1.11.1"
 description = "Data tools for ESP projects"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 dependencies = [
-    "gcsfs>=2024.9.0.post1",
+    "fsspec[http]>=2025.12.0",
+    "gcsfs>=2025.12.0",
+    "google-auth>=2.0.0",
     "google-cloud-secret-manager>=2.23.1",
     "google-cloud-storage>=2.19.0",
     "intervaltree>=3.1.0",
     "librosa>=0.11.0",
     "pandas",
-    "polars[all]>=1.33.1",
+    "polars[pyarrow]>=1.33.1",
     "pydantic>=2",
     "pyyaml>=6.0.2",
     "resampy",
-    "s3fs>=2024.9.0",
+    "s3fs>=2025.12.0",
     "semver",
     "soundfile>=0.13.1",
 ]
@@ -31,15 +33,22 @@ dev = [
     "mkdocs>=1.6.1",
     "mkdocs-material>=9.6.11",
     "mkdocstrings-python>=1.16.10",
-    "pre-commit>=4.0.1",
+    "prek>=0.2.28",
     "pytest>=7.1.2",
-    "ruff>=0.14.1",
+    "ruff>=0.15.10",
     "deptry>=0.23.0",
+    "mkdocs-jupyter>=0.26.3",
 ]
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.uv]
+exclude-newer = "7 days"
+
+[tool.uv.exclude-newer-package]
+torch = false
 
 [tool.uv.sources]
 torch = [
@@ -62,18 +71,21 @@ url = "https://download.pytorch.org/whl/cu128"
 explicit = true
 
 [tool.hatch.build.targets.wheel]
-packages = ["esp_data"]
+packages = ["alp_data"]
 
 [tool.hatch.metadata]
 allow-direct-references = true
 
 [tool.pytest.ini_options]
 pythonpath = [
-  ".", "esp_data",
+  ".", "alp_data",
 ]
 python_files = [
     "test_*.py",
     "check_*.py",
+]
+markers = [
+    "network: test reads from a live remote endpoint; skipped when unreachable",
 ]
 
 [tool.ruff]
@@ -102,7 +114,6 @@ fixable = ["ALL"]
 unfixable = []
 preview = true
 
-
 [tool.ruff.format]
 quote-style = "double"
 indent-style = "space"
@@ -120,13 +131,8 @@ allow-star-arg-any = true # suppress ANN401 for *args and **kwargs arguments
 [tool.codespell]
 skip = "*.csv, *.ipynb"
 
-[[tool.uv.index]]
-name = "esp-pypi"
-url = "https://oauth2accesstoken@us-central1-python.pkg.dev/okapi-274503/esp-pypi/"
-publish-url = "https://oauth2accesstoken@us-central1-python.pkg.dev/okapi-274503/esp-pypi/"
-
 [tool.deptry]
-exclude = ["conftest.py", ".venv", "tests", "scripts", "docs/hooks/.*"]
+exclude = ["conftest.py", ".venv", "tests", "scripts", "notebooks", "_hooks/.*", "docs/tutorials/.*"]
 ignore = ["DEP003"]
 
 [tool.deptry.per_rule_ignores]

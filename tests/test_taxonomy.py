@@ -8,8 +8,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from esp_data.backends import PandasBackend
-from esp_data.discover import AddTaxonomy, AddTaxonomyConfig, GBIFConverter
+from alp_data.backends import PandasBackend
+from alp_data.discover import AddTaxonomy, AddTaxonomyConfig, GBIFConverter
 
 IN_GITHUB_ACTIONS = os.getenv("GITHUB_ACTIONS") == "true"
 
@@ -81,12 +81,53 @@ def _create_gbif_json_with_taxonomy(tmp_path: Path) -> str:
 
 def test_gbif_converter(tmp_path: Path) -> None:
     gbif_path = _create_gbif_json_with_taxonomy(tmp_path)
-    converter = GBIFConverter(precomputed_fp = gbif_path)
+    converter = GBIFConverter(precomputed_fp=gbif_path, precomputed_cache_path=None)
     info, ok = converter("Puma concolor")
     assert ok
 
     info, ok = converter("Fraudulus animalaticus")
     assert not ok
+
+
+def _create_gbif_json_with_manual_correction_target(tmp_path: Path) -> str:
+    """Create a GBIF json that contains the corrected form of a SCI_NAME_CORRECTION_MANUAL entry."""
+    lookupdict = {
+        # "Eupodotis rueppelii" maps to "Eupodotis rueppellii" in SCI_NAME_CORRECTION_MANUAL
+        "Eupodotis rueppellii": {
+            "taxonID": 10,
+            "canonicalName": "Eupodotis rueppellii",
+            "taxonomicStatus": "accepted",
+            "taxonRank": "species",
+            "parentNameUsageID": np.nan,
+            "acceptedNameUsageID": np.nan,
+            "kingdom": "Animalia",
+            "phylum": "Chordata",
+            "class": "Aves",
+            "order": "Otidiformes",
+            "family": "Otididae",
+            "genus": "Eupodotis",
+        },
+    }
+    fp = tmp_path / "gbif_with_correction_target.json"
+    pd.DataFrame.from_dict(lookupdict, orient="index").to_json(fp, indent=2)
+    return str(fp)
+
+
+def test_gbif_converter_sci_name_correction_manual(tmp_path: Path) -> None:
+    """Test that GBIFConverter applies SCI_NAME_CORRECTION_MANUAL before lookup."""
+    gbif_path = _create_gbif_json_with_manual_correction_target(tmp_path)
+    converter = GBIFConverter(precomputed_fp=gbif_path, precomputed_cache_path=None)
+
+    # The uncorrected name is not in the GBIF data directly
+    info, ok = converter("Eupodotis rueppellii")
+    assert ok, "Sanity check: corrected name should resolve directly"
+
+    # The uncorrected name is in SCI_NAME_CORRECTION_MANUAL and should be
+    # transparently corrected to "Eupodotis rueppellii" before lookup
+    info, ok = converter("Eupodotis rueppelii")
+    assert ok, "Name in SCI_NAME_CORRECTION_MANUAL should resolve via correction"
+    assert info["canonicalName"] == "Eupodotis rueppellii"
+    assert info["family"] == "Otididae"
 
 def test_add_taxonomy_basic(tmp_path: Path) -> None:
     """Test basic AddTaxonomy transform functionality."""
@@ -291,7 +332,7 @@ def test_add_taxonomy_integration_with_beanszero() -> None:
     This test uses the real GBIF taxonomy data from GCS and applies the
     AddTaxonomy transform to a sample from the BEANSZero dataset.
     """
-    from esp_data.datasets import BeansZero
+    from alp_data.datasets import BeansZero
 
     # Load a small subset of iNaturalist (just enough for testing)
     dataset = BeansZero(split="unseen-species-sci", backend="pandas")

@@ -15,8 +15,8 @@ import pandas
 import torch
 import yaml
 
-from esp_data import Dataset, dataset_class_from_name, dataset_from_config
-from esp_data.io.paths import PureGSPath, anypath
+from alp_data import Dataset, dataset_class_from_name, dataset_from_config
+from alp_data.io.paths import PureGSPath, anypath
 
 
 def set_logging_config() -> None:

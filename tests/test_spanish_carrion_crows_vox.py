@@ -14,7 +14,7 @@ from typing import List
 import numpy as np
 import pytest
 
-from esp_data.datasets import SpanishCarrionCrowsVox
+from alp_data.datasets import SpanishCarrionCrowsVox
 
 
 # --- Dataset snapshot ---
@@ -22,7 +22,7 @@ from esp_data.datasets import SpanishCarrionCrowsVox
 # Code to generate snapshot
 #
 # import hashlib
-# from esp_data.datasets import SpanishCarrionCrowsVox
+# from alp_data.datasets import SpanishCarrionCrowsVox
 
 # ds = SpanishCarrionCrowsVox(split="all", sample_rate=16000, backend="pandas")
 

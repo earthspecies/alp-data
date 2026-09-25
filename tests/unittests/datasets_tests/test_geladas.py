@@ -2,9 +2,9 @@
 import numpy as np
 import pytest
 
-from esp_data import DatasetConfig
-from esp_data.datasets import Geladas
-from esp_data.utils import create_hash
+from alp_data import DatasetConfig
+from alp_data.datasets import Geladas
+from alp_data.utils import create_hash
 
 
 EXPECTED_LEN_ALL = 10583

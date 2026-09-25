@@ -3,9 +3,9 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from esp_data import DatasetConfig
-from esp_data.datasets import GibbonSolos
-from esp_data.utils import create_hash
+from alp_data import DatasetConfig
+from alp_data.datasets import GibbonSolos
+from alp_data.utils import create_hash
 
 
 EXPECTED_LEN_ALL = 18
