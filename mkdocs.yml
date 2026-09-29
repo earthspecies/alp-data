@@ -21,6 +21,7 @@ nav:
       - Concatenate Datasets: concatenate.md
       - Chain Datasets: chain.md
       - Backends: backends.md
+      - Packed Datasets: packing.md
       - Tutorials:
           - 1. Basics: tutorials/01_basics.ipynb
           - 2. IO: tutorials/02_io.ipynb
