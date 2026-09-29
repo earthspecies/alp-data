@@ -216,6 +216,7 @@ def _split_of(out: AnyPathT, fs: AbstractFileSystem) -> str:
 
 def _write_readme(fs: AbstractFileSystem, out: AnyPathT, meta: dict[str, Any]) -> None:
     body = (
+        f"---\npretty_name: {meta.get('name')}\n---\n\n"
         f"# {meta.get('name')}\n\n"
         f"Exported from `alp_data` with `alp_data.export.to_hf`. "
         f'Load with `datasets.load_dataset("parquet", data_dir=<this directory>)`.\n\n'
