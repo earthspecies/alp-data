@@ -48,8 +48,12 @@ from .datasets import (
     XenoCantoAnnotatedJeantet23,
     ZebraFinchJulieElie,
 )
+from .packing import PackedDataset, PackedDatasetConfig, pack
 
 __all__ = [
+    "pack",
+    "PackedDataset",
+    "PackedDatasetConfig",
     "dataset_from_config",
     "Dataset",
     "DatasetInfo",
