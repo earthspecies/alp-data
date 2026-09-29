@@ -1,5 +1,14 @@
 # `alp_data.export` Module
 
+`alp_data.export` freezes a configured dataset into files. Two formats share one loop:
+
+| Format | Function | Read back with | Use it for |
+|---|---|---|---|
+| **Pack** | `pack(config, out)` | `PackedDataset` | Moving data between clusters, training from a frozen snapshot |
+| **Hugging Face parquet** | `to_hf(config, out)` | `datasets.load_dataset` | Publishing to the Hub |
+
+Both build the dataset from its config, call `ds[i]` for every row, encode the audio, and write what comes back. They take the same arguments (`samples_per_shard`, `audio_format`, `num_workers`, `on_error`), both resume, and both take a **config**, never a live dataset object. A pack can also be converted to Hugging Face parquet after the fact with `to_hf(pack_path, out)`, which copies blobs without decoding.
+
 ## What is a packed dataset?
 
 A **pack** is a configured dataset frozen into a few large files:
@@ -93,15 +102,22 @@ The store that does the range reads opens one handle per shard, lazily, and pick
 
 ## Hugging Face
 
-The Hub's native audio layout is parquet with the encoded audio embedded as a struct of `bytes` and `path`. `to_hf` streams a pack into that shape:
+The Hub's native audio layout is parquet with the encoded audio embedded as a struct of `bytes` and `path`. `to_hf` writes that shape from any dataset config, through the same loop as `pack`:
 
 ```python
-from alp_data import to_hf
+from alp_data import DatasetConfig, to_hf
 
-to_hf("gs://my-bucket/packs/beans-validation-16k", "./beans-hf", rows_per_file=1000)
+config = DatasetConfig(dataset_name="beans", split="validation", sample_rate=16000)
+to_hf(config, "./beans-hf", samples_per_shard=1000, num_workers=8)
 ```
 
-The result is a directory of `<split>-NNNNN-of-MMMMM.parquet` files whose schema metadata declares the audio column as an `Audio` feature. Upload the files to a dataset repository, or load them with `datasets.load_dataset("parquet", data_dir="./beans-hf")`. This does not add `datasets` as a dependency of `alp-data`.
+or from an existing pack, copying its blobs without decoding:
+
+```python
+to_hf("gs://my-bucket/packs/beans-validation-16k", "./beans-hf")
+```
+
+The result is a directory of `<split>-NNNNN-of-MMMMM.parquet` files whose schema metadata declares the audio column as an `Audio` feature, plus a `README.md` with the source config and provenance. Skipped rows, if any, are listed in `export_errors.jsonl`, a name the Hub's parquet loader ignores. Upload the directory to a dataset repository, or load it with `datasets.load_dataset("parquet", data_dir="./beans-hf")`. This does not add `datasets` as a dependency of `alp-data`.
 
 ## Design notes
 
