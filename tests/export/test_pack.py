@@ -1,4 +1,4 @@
-"""End-to-end tests for `alp_data.packing.pack`."""
+"""End-to-end tests for `alp_data.export.pack`."""
 
 import os
 import pickle
@@ -13,16 +13,16 @@ import yaml
 
 from alp_data.dataset import ChainedDatasetConfig, ConcatConfig, dataset_from_config
 from alp_data.io.packed_media_store import PackedMediaStore
-from alp_data.packing import pack
-from alp_data.packing.columns import (
+from alp_data.export import pack
+from alp_data.export.columns import (
     OFFSET_COL,
     SHA256_COL,
     SHARD_COL,
     SIZE_COL,
     SOURCE_INDEX_COL,
 )
-from alp_data.packing.serializers import decode_audio, decode_value
-from tests.packing.pack_test_dataset import PackTestConfig, make_source
+from alp_data.export.serializers import decode_audio, decode_value
+from tests.export.pack_test_dataset import PackTestConfig, make_source
 
 
 @pytest.fixture

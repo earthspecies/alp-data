@@ -1,4 +1,4 @@
-"""Read a pack written by `alp_data.packing.pack` as a map-style `Dataset`."""
+"""Read a pack written by `alp_data.export.pack` as a map-style `Dataset`."""
 
 from __future__ import annotations
 
@@ -18,15 +18,15 @@ from alp_data.dataset import (
     register_config,
     register_dataset,
 )
-from alp_data.io import AnyPathT, anypath, filesystem_from_path
-from alp_data.io.packed_media_store import PackedMediaStore
-from alp_data.packing.columns import (
+from alp_data.export.columns import (
     BOOKKEEPING_COLS,
     OFFSET_COL,
     SHARD_COL,
     SIZE_COL,
 )
-from alp_data.packing.serializers import decode_audio, decode_value
+from alp_data.export.serializers import decode_audio, decode_value
+from alp_data.io import AnyPathT, anypath, filesystem_from_path
+from alp_data.io.packed_media_store import PackedMediaStore
 
 CONFIG_FILE = "config.yaml"
 TABLE_FILE = "table.parquet"
@@ -104,7 +104,7 @@ class PackedDataset(Dataset):
         owner="alp_data",
         split_paths={"train": "virtual://packed"},
         version="0.0.0",
-        description="A dataset frozen with alp_data.packing.pack",
+        description="A dataset frozen with alp_data.export.pack",
         sources="alp_data",
     )
 

@@ -4,7 +4,7 @@ import pickle
 from pathlib import Path
 
 from alp_data.io.packed_media_store import PackedMediaStore
-from alp_data.packing.shards import ShardWriter
+from alp_data.export.shards import ShardWriter
 
 
 def _write_two_shards(media_dir: Path) -> tuple[list[str], list[tuple[int, int, int]]]:

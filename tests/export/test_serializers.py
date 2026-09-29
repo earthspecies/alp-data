@@ -1,10 +1,10 @@
-"""Tests for the value serializers used by `alp_data.packing`."""
+"""Tests for the value serializers used by `alp_data.export`."""
 
 import numpy as np
 import pandas as pd
 import pytest
 
-from alp_data.packing.serializers import (
+from alp_data.export.serializers import (
     decode_audio,
     decode_value,
     encode_audio,

@@ -1,11 +1,11 @@
-"""Tests for the tar shard writer used by `alp_data.packing`."""
+"""Tests for the tar shard writer used by `alp_data.export`."""
 
 import tarfile
 from pathlib import Path
 
 import pytest
 
-from alp_data.packing.shards import ShardWriter, member_name
+from alp_data.export.shards import ShardWriter, member_name
 
 
 def _read_range(path: Path, offset: int, size: int) -> bytes:

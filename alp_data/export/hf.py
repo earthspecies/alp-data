@@ -14,17 +14,17 @@ import math
 import pyarrow as pa
 import pyarrow.parquet as pq
 
-from alp_data.io import AnyPathT, anypath, filesystem_from_path
-from alp_data.packing.columns import (
+from alp_data.export.columns import (
     BOOKKEEPING_COLS,
     OFFSET_COL,
     SHARD_COL,
     SIZE_COL,
     SOURCE_INDEX_COL,
 )
-from alp_data.packing.packed_dataset import PackedDataset
-from alp_data.packing.serializers import decode_audio
-from alp_data.packing.shards import member_name
+from alp_data.export.packed_dataset import PackedDataset
+from alp_data.export.serializers import decode_audio
+from alp_data.export.shards import member_name
+from alp_data.io import AnyPathT, anypath, filesystem_from_path
 
 
 def to_hf(

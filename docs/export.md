@@ -1,4 +1,4 @@
-# `alp_data.packing` Module
+# `alp_data.export` Module
 
 ## What is a packed dataset?
 
@@ -108,4 +108,4 @@ The result is a directory of `<split>-NNNNN-of-MMMMM.parquet` files whose schema
 - Tar is a container, not a format. The reader seeks to a byte offset and never opens the archive as a tar. Tar is kept so `tar -tvf` and `tar -xf` work when a human needs them.
 - Shards are not compressed. Audio is already compressed, and compressing the archive would break range reads.
 - There is no `unpack`. Blobs are re-encoded outputs, possibly windowed, not the original files.
-- The pack format is described in full in the API reference for `alp_data.packing`.
+- The pack format is described in full in the API reference for `alp_data.export`.

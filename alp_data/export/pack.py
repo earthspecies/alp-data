@@ -35,16 +35,16 @@ from alp_data.dataset import (
     DatasetConfig,
     dataset_from_config,
 )
-from alp_data.io import AnyPathT, anypath, filesystem_from_path
-from alp_data.packing.columns import (
+from alp_data.export.columns import (
     OFFSET_COL,
     SHA256_COL,
     SHARD_COL,
     SIZE_COL,
     SOURCE_INDEX_COL,
 )
-from alp_data.packing.serializers import AudioFormat, encode_audio, encode_value
-from alp_data.packing.shards import ShardWriter
+from alp_data.export.serializers import AudioFormat, encode_audio, encode_value
+from alp_data.export.shards import ShardWriter
+from alp_data.io import AnyPathT, anypath, filesystem_from_path
 
 logger = logging.getLogger("alp_data")
 

@@ -1,4 +1,4 @@
-"""A small registered dataset used by the packing tests.
+"""A small registered dataset used by the export tests.
 
 It lives in its own module, not in a conftest, so that spawned worker
 processes can import it by name and register it.
@@ -36,7 +36,7 @@ class PackTestDataset(Dataset):
         owner="tests",
         split_paths={"train": "virtual://pack_test"},
         version="0.1.0",
-        description="Fixture dataset for packing tests",
+        description="Fixture dataset for export tests",
         sources="tests",
     )
 

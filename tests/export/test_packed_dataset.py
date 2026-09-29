@@ -11,10 +11,10 @@ import pytest
 import yaml
 
 from alp_data.dataset import ChainedDatasetConfig, dataset_from_config
-from alp_data.packing import PackedDataset, PackedDatasetConfig, pack
-from alp_data.packing.columns import BOOKKEEPING_COLS
+from alp_data.export import PackedDataset, PackedDatasetConfig, pack
+from alp_data.export.columns import BOOKKEEPING_COLS
 from alp_data.transforms import FilterConfig
-from tests.packing.pack_test_dataset import PackTestConfig, make_source
+from tests.export.pack_test_dataset import PackTestConfig, make_source
 
 
 @pytest.fixture

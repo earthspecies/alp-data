@@ -9,9 +9,9 @@ import pyarrow.parquet as pq
 import soundfile as sf
 
 from alp_data.dataset import dataset_from_config
-from alp_data.packing import pack, to_hf
-from alp_data.packing.columns import BOOKKEEPING_COLS
-from tests.packing.pack_test_dataset import make_source
+from alp_data.export import pack, to_hf
+from alp_data.export.columns import BOOKKEEPING_COLS
+from tests.export.pack_test_dataset import make_source
 
 
 def test_to_hf_writes_parquet_shards_with_embedded_audio(tmp_path: Path) -> None:
