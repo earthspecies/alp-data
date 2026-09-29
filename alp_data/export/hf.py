@@ -16,6 +16,7 @@ from os import PathLike
 from typing import Any
 
 import pyarrow as pa
+import pyarrow.parquet as pq
 import yaml
 from fsspec import AbstractFileSystem
 
@@ -163,18 +164,39 @@ class HFSink:
 
     def finalise(self, fs: AbstractFileSystem, out: AnyPathT, ctx: FinaliseContext) -> None:
         opaque: dict[str, str] = {}
-        num_rows = 0
         for result in ctx.results:
             opaque.update(result.opaque_columns)
-            num_rows += result.num_rows
         split = _split_name(ctx.config)
-        files = []
+        by_shard = {r.shard: r for r in ctx.results}
+
+        # A shard whose rows were all skipped is a zero-row parquet file, which
+        # the Hub's reader cannot open. Drop such files and renumber the rest.
+        kept: list[str] = []
+        num_rows = 0
         for s in range(ctx.num_shards):
             name = file_name(split, s, ctx.num_shards)
-            files.append({"name": name, "size": fs.size(join(out, name))})
+            rows = by_shard[s].num_rows if s in by_shard else _num_rows(fs, join(out, name))
+            if rows == 0:
+                fs.rm(join(out, name))
+            else:
+                kept.append(name)
+                num_rows += rows
+        if len(kept) < ctx.num_shards:
+            renamed = []
+            for i, name in enumerate(kept):
+                new_name = file_name(split, i, len(kept))
+                fs.mv(join(out, name), join(out, new_name))
+                renamed.append(new_name)
+            kept = renamed
+
         meta = ctx.provenance(opaque, num_rows)
-        meta["files"] = files
+        meta["files"] = [{"name": n, "size": fs.size(join(out, n))} for n in kept]
         _write_readme(fs, out, meta)
+
+
+def _num_rows(fs: AbstractFileSystem, path: str) -> int:
+    with fs.open(path, "rb") as f:
+        return pq.read_metadata(f).num_rows
 
 
 def _split_name(config: ExportConfig) -> str:

@@ -152,3 +152,14 @@ def test_to_hf_rejects_a_live_dataset(tmp_path: Path) -> None:
     ds, _ = dataset_from_config(source)
     with pytest.raises(TypeError, match="config"):
         to_hf(ds, tmp_path / "hf")
+
+
+def test_to_hf_never_leaves_an_empty_parquet_file(tmp_path: Path) -> None:
+    # Row 4 is alone in the last shard; skipping it would leave a zero-row file,
+    # which the Hugging Face parquet reader cannot open.
+    source = make_source(tmp_path / "src", n=5, corrupt={4})
+    hf_dir = to_hf(source, tmp_path / "hf", samples_per_shard=2, on_error="skip")
+    parquet = sorted(p.name for p in hf_dir.iterdir() if p.suffix == ".parquet")
+    assert parquet == ["train-00000-of-00002.parquet", "train-00001-of-00002.parquet"]
+    assert _hf_tables(hf_dir).num_rows == 4
+    assert "train-00001-of-00002.parquet" in (hf_dir / "README.md").read_text()
