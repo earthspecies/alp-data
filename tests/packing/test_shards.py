@@ -64,3 +64,13 @@ def test_failure_inside_context_leaves_nothing_behind(tmp_path: Path) -> None:
             writer.add(0, b"x", "flac")
             raise RuntimeError("boom")
     assert list(tmp_path.iterdir()) == []
+
+
+def test_writer_reports_shard_size_and_digest(tmp_path: Path) -> None:
+    import hashlib
+
+    shard = tmp_path / "shard-00000.tar"
+    with ShardWriter(shard) as writer:
+        writer.add(0, b"x" * 100, "flac")
+    assert writer.size == shard.stat().st_size
+    assert writer.sha256 == hashlib.sha256(shard.read_bytes()).hexdigest()

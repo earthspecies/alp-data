@@ -13,7 +13,7 @@ import io
 import tarfile
 from dataclasses import dataclass
 from types import TracebackType
-from typing import Any
+from typing import IO
 
 from alp_data.io import AnyPathT, anypath, filesystem_from_path
 
@@ -55,6 +55,29 @@ class ShardEntry:
     sha256: str
 
 
+class _HashingWriter:
+    """File-like wrapper that counts and hashes everything written through it."""
+
+    def __init__(self, fileobj: IO[bytes]) -> None:
+        self._fileobj = fileobj
+        self.size = 0
+        self._hasher = hashlib.sha256()
+
+    def write(self, data: bytes) -> int:
+        self._hasher.update(data)
+        self.size += len(data)
+        return self._fileobj.write(data)
+
+    def tell(self) -> int:
+        return self.size
+
+    def close(self) -> None:
+        self._fileobj.close()
+
+    def hexdigest(self) -> str:
+        return self._hasher.hexdigest()
+
+
 class ShardWriter:
     """Write blobs into one tar shard atomically.
 
@@ -67,6 +90,13 @@ class ShardWriter:
     ----------
     path : str | AnyPathT
         Final location of the shard.
+
+    Attributes
+    ----------
+    size : int
+        Total bytes written, available after the context exits.
+    sha256 : str
+        Hex digest of the whole shard file, available after the context exits.
 
     Examples
     --------
@@ -82,13 +112,15 @@ class ShardWriter:
         self.path = anypath(str(path))
         self._fs = filesystem_from_path(self.path)
         self._tmp_path = str(self.path) + ".tmp"
-        self._fileobj: Any = None
+        self._fileobj: _HashingWriter | None = None
         self._tar: tarfile.TarFile | None = None
         self._seen: dict[str, ShardEntry] = {}
+        self.size = 0
+        self.sha256 = ""
 
     def __enter__(self) -> ShardWriter:
         self._fs.makedirs(str(self.path.parent), exist_ok=True)
-        self._fileobj = self._fs.open(self._tmp_path, "wb")
+        self._fileobj = _HashingWriter(self._fs.open(self._tmp_path, "wb"))
         self._tar = tarfile.open(fileobj=self._fileobj, mode="w")
         return self
 
@@ -102,6 +134,8 @@ class ShardWriter:
             self._tar.close()
         if self._fileobj is not None:
             self._fileobj.close()
+            self.size = self._fileobj.size
+            self.sha256 = self._fileobj.hexdigest()
         if exc_type is None:
             self._fs.mv(self._tmp_path, str(self.path))
         else:

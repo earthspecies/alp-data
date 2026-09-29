@@ -1,3 +1,5 @@
 """Freeze a configured dataset into tar shards plus a parquet table."""
 
-__all__: list[str] = []
+from alp_data.packing.pack import pack
+
+__all__ = ["pack"]
