@@ -679,12 +679,45 @@ def dataset_from_config(
 
     KeyError
         If the specified key does not match any dataset configuration in the data.
-    """
+    """  # noqa: DOC502 -- raised by config_from_yaml, which this delegates to
     if isinstance(dataset_config, (DatasetConfig, ConcatConfig, ChainedDatasetConfig)):
         # If a DatasetConfig is passed, we can directly create the dataset
         return _make_dataset_from_config(dataset_config)
 
-    data = read_yaml(dataset_config)
+    return _make_dataset_from_config(config_from_yaml(dataset_config, key=key))
+
+
+def config_from_yaml(
+    path: AnyPathT | str, key: str | None = None
+) -> DatasetConfig | ConcatConfig | ChainedDatasetConfig:
+    """Read a dataset configuration from a YAML file without building the dataset.
+
+    The file holds a dict with exactly one of the keys `dataset`, `concat`, or
+    `chain`. A `dataset` entry is validated with the config class registered
+    for its `dataset_name`, falling back to `DatasetConfig`.
+
+    Parameters
+    ----------
+    path : AnyPathT | str
+        Path to the YAML file.
+    key : str | None, optional
+        If the file holds several configurations under top-level keys, the key
+        to select. Default is None.
+
+    Returns
+    -------
+    DatasetConfig | ConcatConfig | ChainedDatasetConfig
+        The validated configuration.
+
+    Raises
+    ------
+    ValueError
+        If the selected data is not a dict with exactly one of the `dataset`,
+        `concat`, or `chain` keys.
+    KeyError
+        If `key` is given and not present in the file.
+    """
+    data = read_yaml(path)
 
     if key is not None:
         if key not in data:
@@ -699,24 +732,16 @@ def dataset_from_config(
             if "dataset" in data:
                 cfg = data["dataset"]
                 cfg_class = _custom_config_registry.get(cfg["dataset_name"], DatasetConfig)
-                return _make_dataset_from_config(cfg_class.model_validate(cfg))
+                return cfg_class.model_validate(cfg)
 
-            elif "concat" in data:
-                cfg = data["concat"]
-                return _make_dataset_from_config(ConcatConfig.model_validate(cfg))
+            if "concat" in data:
+                return ConcatConfig.model_validate(data["concat"])
 
-            elif "chain" in data:
-                cfg = data["chain"]
-                return _make_dataset_from_config(ChainedDatasetConfig.model_validate(cfg))
+            return ChainedDatasetConfig.model_validate(data["chain"])
 
-            else:
-                raise ValueError(
-                    "Configuration must contain either 'dataset','concat' or 'chain' key."
-                )
-        else:
-            raise ValueError(
-                "Invalid dataset configurations found. Please provide a specific key to select one."
-            )
+        raise ValueError(
+            "Invalid dataset configurations found. Please provide a specific key to select one."
+        )
 
     raise ValueError("""Invalid configuration format.
     Your configuration must either be:

@@ -25,6 +25,7 @@ from alp_data.transforms import register_transform, transform_from_config
 
 def test_register_dataset():
     """Test registering a dataset."""
+
     class DummyDataset(Dataset):
         info = DatasetInfo(
             name="dummy_dataset",
@@ -33,7 +34,7 @@ def test_register_dataset():
             version="0.1.0",
             description="A dummy dataset for testing purposes.",
             sources=["test_source"],
-            license="CC BY"
+            license="CC BY",
         )
 
     register_dataset(DummyDataset)
@@ -244,9 +245,9 @@ def test_my_custom_dataset():
 def test_custom_transform():
     """Test the RenameTransform with a custom configuration."""
     transform_config = RenameConfig(
-    type="rename_transform",
-    input_features=["fn"],
-    output_features=["fn"],
+        type="rename_transform",
+        input_features=["fn"],
+        output_features=["fn"],
     )
 
     transform = RenameTransform.from_config(transform_config)
@@ -298,8 +299,51 @@ def test_wrong_collection_from_config():
     with pytest.raises(ValueError, match="Invalid configuration format."):
         dataset_from_config("tests/samples/test_wrong_config.yml", key="nested_collection1")
 
-    with pytest.raises(ValueError, match="Invalid dataset configurations found. Please provide a specific key to select one."):
+    with pytest.raises(
+        ValueError,
+        match="Invalid dataset configurations found. Please provide a specific key to select one.",
+    ):
         dataset_from_config("tests/samples/test_wrong_config.yml", key="some_collection2")
 
     with pytest.raises(ValueError, match="Invalid configuration format."):
         dataset_from_config("tests/samples/test_wrong_config.yml", key="config3")
+
+
+# --- config_from_yaml -------------------------------------------------------
+
+
+def test_config_from_yaml_returns_a_concat_config() -> None:
+    from alp_data.dataset import ConcatConfig, config_from_yaml
+
+    cfg = config_from_yaml("tests/samples/test_concat_config.yml")
+    assert isinstance(cfg, ConcatConfig)
+    assert cfg.merge_level == "soft"
+    assert [d.split for d in cfg.datasets] == ["dogs_test", "esc50_validation"]
+    assert len(cfg.transformations) == 2
+
+
+def test_config_from_yaml_returns_a_chain_config() -> None:
+    from alp_data.dataset import ChainedDatasetConfig, config_from_yaml
+
+    cfg = config_from_yaml("tests/samples/test_chain_config.yml")
+    assert isinstance(cfg, ChainedDatasetConfig)
+    assert len(cfg.datasets) == 2
+
+
+def test_config_from_yaml_uses_the_registered_custom_config_class() -> None:
+    from alp_data.dataset import config_from_yaml
+
+    cfg = config_from_yaml("tests/samples/my_custom_dataset_cfg.yml")
+    assert isinstance(cfg, MyCustomConfig)
+    assert cfg.output_take_and_give == {"bad_text": "pure_text", "label": "label"}
+
+
+def test_config_from_yaml_rejects_collections_and_unknown_keys() -> None:
+    from alp_data.dataset import config_from_yaml
+
+    with pytest.raises(ValueError):
+        config_from_yaml("tests/samples/test_collection_config.yml")
+    with pytest.raises(ValueError):
+        config_from_yaml("tests/samples/test_collection_config.yml", key="some_collection")
+    with pytest.raises(KeyError):
+        config_from_yaml("tests/samples/test_collection_config.yml", key="nope")
