@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import datetime as dt
 import importlib.metadata
+import json
 import logging
 import math
 import multiprocessing as mp
@@ -28,6 +29,7 @@ import polars as pl
 import pyarrow as pa
 import pyarrow.parquet as pq
 from fsspec import AbstractFileSystem
+from pydantic import BaseModel
 
 from alp_data.dataset import (
     ChainedDatasetConfig,
@@ -46,6 +48,8 @@ ExportConfig = DatasetConfig | ConcatConfig
 OnError = Literal["raise", "skip"]
 
 PARTS_DIR = "parts"
+PART_METADATA_KEY = b"alp_data_export"
+_PACKAGE_ROOT = Path(__file__).resolve().parents[2]
 
 _RETRIES = 3
 _RETRY_BACKOFF_S = 0.5
@@ -136,9 +140,12 @@ class FinaliseContext:
             YAML-safe provenance fields.
         """
         info = getattr(self.ds, "info", None)
-        commit, dirty = _git_state()
+        commit, dirty = git_state(_PACKAGE_ROOT)
         return {
-            "source": self.config.model_dump(mode="json"),
+            # serialize_as_any keeps the fields of registered custom configs
+            # nested inside a ConcatConfig, which pydantic would otherwise
+            # serialise as the base DatasetConfig.
+            "source": self.config.model_dump(mode="json", serialize_as_any=True),
             "name": getattr(info, "name", self.config.dataset_name),
             "version": getattr(info, "version", None),
             "split": getattr(self.config, "split", None),
@@ -163,8 +170,12 @@ class ShardOutput(Protocol):
     def add(self, source_index: int, row: dict[str, Any], audio: bytes) -> None:
         """Write one row whose values are already encoded."""
 
-    def close(self) -> dict[str, Any]:
-        """Finish the shard and return sink-specific info about it."""
+    def close(self, opaque_columns: dict[str, str]) -> dict[str, Any]:
+        """Finish the shard and return sink-specific info about it.
+
+        The sink stores `opaque_columns` with the shard so that a later run
+        that resumes past this shard can recover them without guessing.
+        """
 
     def abort(self) -> None:
         """Discard the shard after a failure."""
@@ -189,10 +200,8 @@ class ExportSink(Protocol):
     def prepare(self, fs: AbstractFileSystem, out: AnyPathT) -> None:
         """Create whatever directories the format needs."""
 
-    def shard_is_finished(
-        self, fs: AbstractFileSystem, out: AnyPathT, shard: int, num_shards: int
-    ) -> bool:
-        """Whether shard `shard` was completed by an earlier run."""
+    def shard_is_finished(self, fs: AbstractFileSystem, out: AnyPathT, job: ExportJob) -> bool:
+        """Whether the shard described by `job` was completed by an earlier run."""
 
     def open_shard(self, fs: AbstractFileSystem, out: AnyPathT, job: ExportJob) -> ShardOutput:
         """Start writing shard `job.shard`."""
@@ -266,7 +275,7 @@ def run_export(
         If the dataset is empty, the audio key cannot be resolved, or no
         sample rate is available for encoding.
     """
-    if isinstance(config, Dataset):
+    if isinstance(config, Dataset) or not isinstance(config, BaseModel):
         raise TypeError(
             "Exports take a dataset config, not a live dataset object, because workers "
             "rebuild the dataset from the config and the config is what gets frozen."
@@ -286,7 +295,7 @@ def run_export(
     if num_rows == 0:
         raise ValueError("Cannot export an empty dataset")
 
-    first = ds[0]
+    first = _first_readable_item(ds, on_error)
     mapping = getattr(config, "output_take_and_give", None) or {}
     audio_key = _resolve_audio_key(first, audio_key or mapping.get("audio"))
     sample_rate_key, fallback_sr = _resolve_sample_rate_key(
@@ -302,26 +311,25 @@ def run_export(
 
     jobs = []
     for shard in range(num_shards):
-        if sink.shard_is_finished(fs, out, shard, num_shards):
+        job = ExportJob(
+            config=config,
+            out=str(out),
+            shard=shard,
+            num_shards=num_shards,
+            start=shard * samples_per_shard,
+            stop=min((shard + 1) * samples_per_shard, num_rows),
+            audio_format=audio_format,
+            audio_key=audio_key,
+            sample_rate_key=sample_rate_key,
+            fallback_sample_rate=fallback_sr,
+            declared_sample_rate=declared_sr,
+            on_error=on_error,
+            sink=sink,
+        )
+        if sink.shard_is_finished(fs, out, job):
             logger.info("Shard %d already finished; skipping.", shard)
             continue
-        jobs.append(
-            ExportJob(
-                config=config,
-                out=str(out),
-                shard=shard,
-                num_shards=num_shards,
-                start=shard * samples_per_shard,
-                stop=min((shard + 1) * samples_per_shard, num_rows),
-                audio_format=audio_format,
-                audio_key=audio_key,
-                sample_rate_key=sample_rate_key,
-                fallback_sample_rate=fallback_sr,
-                declared_sample_rate=declared_sr,
-                on_error=on_error,
-                sink=sink,
-            )
-        )
+        jobs.append(job)
 
     if num_workers > 1 and jobs:
         ctx = mp.get_context("spawn")
@@ -347,7 +355,10 @@ def run_export(
             num_skipped=num_skipped,
         ),
     )
-    fs.rm(join(out, PARTS_DIR), recursive=True)
+    # Object stores have no empty directories: with nothing written under
+    # parts/ the prefix does not exist and rm would raise.
+    if fs.exists(join(out, PARTS_DIR)):
+        fs.rm(join(out, PARTS_DIR), recursive=True)
     logger.info("Exported %d shards to %s", num_shards, out)
     return out
 
@@ -365,6 +376,37 @@ def _normalise_config(config: ExportConfig | ChainedDatasetConfig) -> ExportConf
         )
         return ConcatConfig(datasets=config.datasets)
     return config
+
+
+def _first_readable_item(ds: Dataset, on_error: OnError) -> dict[str, Any]:
+    """Return the first item that loads, so a corrupt row 0 does not abort a skip run.
+
+    Parameters
+    ----------
+    ds : Dataset
+        The dataset being exported.
+    on_error : OnError
+        With `"raise"`, the first failure propagates.
+
+    Returns
+    -------
+    dict[str, Any]
+        The first item that could be loaded.
+
+    Raises
+    ------
+    ValueError
+        If no row loads.
+    """
+    last: Exception | None = None
+    for idx in range(len(ds)):
+        try:
+            return ds[idx]
+        except Exception as exc:
+            if on_error == "raise":
+                raise
+            last = exc
+    raise ValueError("No row of the dataset could be loaded") from last
 
 
 def _resolve_audio_key(item: dict[str, Any], audio_key: str | None) -> str:
@@ -436,7 +478,6 @@ def _export_shard(ds: Dataset, job: ExportJob) -> ShardResult:
         for idx in range(job.start, job.stop):
             try:
                 item = _get_item_with_retries(ds, idx)
-                row = _encode_row(item, job.audio_key, opaque)
                 sr = item[job.sample_rate_key] if job.sample_rate_key else job.fallback_sample_rate
                 audio = encode_audio(item[job.audio_key], int(sr), job.audio_format)
             except Exception as exc:
@@ -451,12 +492,15 @@ def _export_shard(ds: Dataset, job: ExportJob) -> ShardResult:
                     }
                 )
                 continue
+            # A value that cannot be encoded is a schema problem with the
+            # dataset, not a bad row: it is never skipped.
+            row = _encode_row(item, job.audio_key, opaque)
             output.add(idx, row, audio)
             num_rows += 1
     except BaseException:
         output.abort()
         raise
-    info = output.close()
+    info = output.close(opaque)
 
     if errors:
         with fs.open(join(out, PARTS_DIR, _errors_name(job.shard)), "wb") as f:
@@ -540,9 +584,34 @@ def write_parquet(fs: AbstractFileSystem, path: str, table: pa.Table) -> None:
         pq.write_table(table, f)
 
 
-def _git_state() -> tuple[str | None, bool | None]:
-    repo = Path(__file__).resolve().parents[2]
+def git_state(repo: Path) -> tuple[str | None, bool | None]:
+    """Commit and dirty flag of an alp_data source checkout, best effort.
+
+    Parameters
+    ----------
+    repo : Path
+        Directory expected to be the alp_data repository root.
+
+    Returns
+    -------
+    tuple[str | None, bool | None]
+        `(commit, dirty)`, or `(None, None)` when `repo` is not an alp_data
+        checkout (for example a wheel install under `site-packages`, whose
+        enclosing git repository, if any, would be the user's own) or git
+        is unavailable.
+    """
+    if not (repo / "pyproject.toml").is_file() or not (repo / "alp_data").is_dir():
+        return None, None
     try:
+        top = subprocess.run(
+            ["git", "-C", str(repo), "rev-parse", "--show-toplevel"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=True,
+        ).stdout.strip()
+        if Path(top).resolve() != repo.resolve():
+            return None, None
         commit = subprocess.run(
             ["git", "-C", str(repo), "rev-parse", "HEAD"],
             capture_output=True,
@@ -560,3 +629,53 @@ def _git_state() -> tuple[str | None, bool | None]:
         return commit, bool(status.strip())
     except Exception:
         return None, None
+
+
+def shard_metadata(opaque_columns: dict[str, str], info: dict[str, Any]) -> dict[bytes, bytes]:
+    """Schema metadata a sink attaches to a shard's parquet file.
+
+    Parameters
+    ----------
+    opaque_columns : dict[str, str]
+        Column name to opaque kind seen in this shard.
+    info : dict[str, Any]
+        Sink-specific shard info, such as name, size, and digest.
+
+    Returns
+    -------
+    dict[bytes, bytes]
+        A single-entry mapping for `replace_schema_metadata`.
+    """
+    import json
+
+    return {
+        PART_METADATA_KEY: json.dumps({"opaque_columns": opaque_columns, "info": info}).encode()
+    }
+
+
+def read_shard_metadata(fs: AbstractFileSystem, path: str) -> tuple[dict[str, str], dict[str, Any]]:
+    """Inverse of `shard_metadata`, read from a parquet file's footer.
+
+    Parameters
+    ----------
+    fs : AbstractFileSystem
+        Filesystem for `path`.
+    path : str
+        Parquet file written with `shard_metadata` attached.
+
+    Returns
+    -------
+    tuple[dict[str, str], dict[str, Any]]
+        The opaque columns and the shard info.
+
+    Raises
+    ------
+    KeyError
+        If the file carries no export metadata.
+    """
+    with fs.open(path, "rb") as f:
+        meta = pq.read_metadata(f).metadata
+    if not meta or PART_METADATA_KEY not in meta:
+        raise KeyError(f"{path} carries no {PART_METADATA_KEY!r} metadata")
+    payload = json.loads(meta[PART_METADATA_KEY])
+    return payload["opaque_columns"], payload["info"]

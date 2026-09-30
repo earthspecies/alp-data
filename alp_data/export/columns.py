@@ -1,6 +1,11 @@
-"""Names of the bookkeeping columns a pack adds to its table."""
+"""Names of the bookkeeping columns an export adds to its table.
 
-SOURCE_INDEX_COL = "_source_index"
+The export index is called `_export_index`, not `_source_index`, because
+`ConcatenatedDataset` already emits a `_source_index` column (the row within
+the child dataset) that has to survive packing.
+"""
+
+SOURCE_INDEX_COL = "_export_index"
 SHARD_COL = "_shard"
 OFFSET_COL = "_offset"
 SIZE_COL = "_size"

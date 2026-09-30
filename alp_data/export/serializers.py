@@ -12,10 +12,11 @@ from typing import Any, Literal
 
 import numpy as np
 import pandas as pd
+import pyarrow as pa
 import soundfile as sf
 
 AudioFormat = Literal["flac", "wav"]
-OpaqueKind = Literal["dataframe_tsv", "ndarray"]
+OpaqueKind = Literal["dataframe", "ndarray"]
 
 _AUDIO_FORMATS: dict[str, tuple[str, str]] = {
     "flac": ("FLAC", "PCM_16"),
@@ -85,9 +86,9 @@ def encode_value(value: Any) -> tuple[Any, OpaqueKind | None]:  # noqa: ANN401
     -------
     tuple[Any, OpaqueKind | None]
         The value to store and a `kind` tag. The tag is `None` for values
-        stored natively, `"dataframe_tsv"` for a DataFrame written as a TSV
-        string, and `"ndarray"` for an array written as a dict of raw bytes,
-        dtype string, and shape.
+        stored natively, `"dataframe"` for a DataFrame written as arrow IPC
+        bytes (dtypes preserved), and `"ndarray"` for an array written as a
+        dict of raw bytes, dtype string, and shape.
 
     Raises
     ------
@@ -98,12 +99,16 @@ def encode_value(value: Any) -> tuple[Any, OpaqueKind | None]:  # noqa: ANN401
         return value, None
     if isinstance(value, np.generic):
         return value.item(), None
-    if isinstance(value, (list, tuple)) and all(
-        v is None or isinstance(v, (bool, int, float, str)) for v in value
-    ):
-        return list(value), None
+    if isinstance(value, (list, tuple)):
+        items = [v.item() if isinstance(v, np.generic) else v for v in value]
+        if all(v is None or isinstance(v, (bool, int, float, str)) for v in items):
+            return items, None
     if isinstance(value, pd.DataFrame):
-        return value.to_csv(sep="\t", index=False), "dataframe_tsv"
+        table = pa.Table.from_pandas(value, preserve_index=False)
+        sink = pa.BufferOutputStream()
+        with pa.ipc.new_stream(sink, table.schema) as writer:
+            writer.write_table(table)
+        return sink.getvalue().to_pybytes(), "dataframe"
     if isinstance(value, np.ndarray):
         return (
             {"data": value.tobytes(), "dtype": str(value.dtype), "shape": list(value.shape)},
@@ -120,7 +125,8 @@ def decode_value(value: Any, kind: OpaqueKind | None) -> Any:  # noqa: ANN401
     value : Any
         The stored value.
     kind : OpaqueKind | None
-        The tag returned by `encode_value`.
+        The tag returned by `encode_value`. A `None` value passes through
+        unchanged whatever the kind, so nullable opaque columns work.
 
     Returns
     -------
@@ -132,10 +138,10 @@ def decode_value(value: Any, kind: OpaqueKind | None) -> Any:  # noqa: ANN401
     ValueError
         If `kind` is not a known tag.
     """
-    if kind is None:
+    if kind is None or value is None:
         return value
-    if kind == "dataframe_tsv":
-        return pd.read_csv(io.StringIO(value), sep="\t")
+    if kind == "dataframe":
+        return pa.ipc.open_stream(value).read_all().to_pandas()
     if kind == "ndarray":
-        return np.frombuffer(value["data"], dtype=value["dtype"]).reshape(value["shape"])
+        return np.frombuffer(value["data"], dtype=value["dtype"]).reshape(value["shape"]).copy()
     raise ValueError(f"Unknown opaque kind {kind!r}")

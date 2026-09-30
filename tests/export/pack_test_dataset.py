@@ -98,6 +98,10 @@ class PackTestDataset(Dataset):
         row["labels"] = json.loads(row["labels_json"])
         row["selection_table"] = pd.read_csv(StringIO(row["selection_table"]), sep="\t")
         row["targets"] = np.array([len(audio), 1], dtype=np.int64)
+        if row.pop("with_extra", False):
+            row["extra"] = "only on some rows"
+        if row.pop("unpackable", False):
+            row["obj"] = object()
         if self.output_take_and_give:
             return {give: row[take] for take, give in self.output_take_and_give.items()}
         return row
@@ -108,6 +112,9 @@ def make_source(
     n: int = 5,
     duplicate_of: dict[int, int] | None = None,
     corrupt: set[int] | None = None,
+    optional_every: int | None = None,
+    unpackable: bool = False,
+    multiline_notes: bool = False,
 ) -> PackTestConfig:
     """Write `n` tiny wav files and a CSV, and return a config pointing at them.
 
@@ -121,6 +128,12 @@ def make_source(
         Rows whose audio should be byte-identical to another row's.
     corrupt : set[int] | None
         Rows whose audio file is not a valid audio file.
+    optional_every : int | None
+        Every n-th row's `_process` output carries an extra key `extra`.
+    unpackable : bool
+        Every row's `_process` output carries a value that cannot be packed.
+    multiline_notes : bool
+        Add a free-text `notes` column containing tabs and newlines.
 
     Returns
     -------
@@ -151,6 +164,9 @@ def make_source(
                 "labels_json": json.dumps([f"species_{i % 2}", "extra"]),
                 "selection_table": st.to_csv(sep="\t", index=False),
                 "score": float(rng.uniform()),
+                "with_extra": bool(optional_every and i % optional_every == 0),
+                "unpackable": unpackable,
+                **({"notes": f"line one\tcol\nline two {i}"} if multiline_notes else {}),
             }
         )
     csv_path = root / "table.csv"

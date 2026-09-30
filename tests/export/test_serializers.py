@@ -60,12 +60,50 @@ def test_list_of_scalars_passes_through_unchanged() -> None:
     assert kind is None
 
 
-def test_dataframe_round_trips_through_tsv() -> None:
-    df = pd.DataFrame({"Begin Time (s)": [0.5, 1.25], "Annotation": ["a", "b"]})
+def test_dataframe_round_trips_with_dtypes_preserved() -> None:
+    df = pd.DataFrame(
+        {
+            "Begin Time (s)": [0.5, 1.25],
+            "Annotation": ["NA", "01"],  # strings that TSV inference would mangle
+            "Selection": ["1", "2"],
+        }
+    )
     encoded, kind = encode_value(df)
-    assert isinstance(encoded, str)
-    assert kind == "dataframe_tsv"
+    assert isinstance(encoded, bytes)
+    assert kind == "dataframe"
+    decoded = decode_value(encoded, kind)
+    pd.testing.assert_frame_equal(decoded, df)
+    assert decoded["Annotation"].tolist() == ["NA", "01"]
+
+
+def test_empty_dataframe_round_trips() -> None:
+    df = pd.DataFrame(
+        {
+            "Begin Time (s)": pd.Series([], dtype="float64"),
+            "Annotation": pd.Series([], dtype="object"),
+        }
+    )
+    encoded, kind = encode_value(df)
     pd.testing.assert_frame_equal(decode_value(encoded, kind), df)
+
+
+def test_none_passes_through_opaque_kinds() -> None:
+    assert decode_value(None, "dataframe") is None
+    assert decode_value(None, "ndarray") is None
+
+
+def test_list_of_numpy_scalars_becomes_a_plain_list() -> None:
+    encoded, kind = encode_value([np.int64(1), np.float32(2.5), np.str_("x")])
+    assert encoded == [1, 2.5, "x"]
+    assert kind is None
+    assert all(type(v) in (int, float, str) for v in encoded)
+
+
+def test_decoded_ndarray_is_writable() -> None:
+    encoded, kind = encode_value(np.arange(3))
+    decoded = decode_value(encoded, kind)
+    assert decoded.flags.writeable
+    decoded[0] = 99
 
 
 def test_ndarray_round_trips_with_dtype_and_shape() -> None:

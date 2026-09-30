@@ -8,7 +8,7 @@ the loop does and `PackedDataset` for how a pack is read.
 
 from __future__ import annotations
 
-import hashlib
+import logging
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -33,7 +33,9 @@ from alp_data.export.runner import (
     OnError,
     join,
     read_parquet,
+    read_shard_metadata,
     run_export,
+    shard_metadata,
     write_parquet,
 )
 from alp_data.export.serializers import AudioFormat
@@ -46,6 +48,8 @@ ERRORS_FILE = "pack_errors.parquet"
 MEDIA_DIR = "media"
 
 _LARGE_SHARD_BYTES = 4 * 1024**3
+
+logger = logging.getLogger("alp_data")
 
 
 def shard_name(shard: int) -> str:
@@ -141,11 +145,9 @@ class TarSink:
     def prepare(self, fs: AbstractFileSystem, out: AnyPathT) -> None:
         fs.makedirs(join(out, MEDIA_DIR), exist_ok=True)
 
-    def shard_is_finished(
-        self, fs: AbstractFileSystem, out: AnyPathT, shard: int, num_shards: int
-    ) -> bool:
-        return fs.exists(join(out, MEDIA_DIR, shard_name(shard))) and fs.exists(
-            join(out, PARTS_DIR, _part_name(shard))
+    def shard_is_finished(self, fs: AbstractFileSystem, out: AnyPathT, job: ExportJob) -> bool:
+        return fs.exists(join(out, MEDIA_DIR, shard_name(job.shard))) and fs.exists(
+            join(out, PARTS_DIR, _part_name(job.shard))
         )
 
     def open_shard(self, fs: AbstractFileSystem, out: AnyPathT, job: ExportJob) -> _TarShard:
@@ -158,21 +160,18 @@ class TarSink:
             table.write_parquet(f)
 
         opaque: dict[str, str] = {}
-        for result in ctx.results:
-            opaque.update(result.opaque_columns)
         by_shard = {r.shard: r for r in ctx.results}
         shards = []
         for s in range(ctx.num_shards):
             if s in by_shard:
+                opaque.update(by_shard[s].opaque_columns)
                 shards.append(by_shard[s].info)
             else:
-                # Finished by an earlier run; no in-memory result, so measure it.
-                path = join(out, MEDIA_DIR, shard_name(s))
-                shards.append(
-                    {"name": shard_name(s), "size": fs.size(path), "sha256": _sha256_of(fs, path)}
-                )
-        if len(by_shard) < ctx.num_shards:
-            opaque.update(_infer_opaque_columns(table, opaque))
+                # Finished by an earlier run: its part file carries what the
+                # worker reported then.
+                kinds, info = read_shard_metadata(fs, parts[s])
+                opaque.update(kinds)
+                shards.append(info)
 
         meta = ctx.provenance(opaque, table.height)
         meta["shards"] = shards
@@ -200,26 +199,24 @@ class _TarShard:
         row[SHA256_COL] = entry.sha256
         self.rows.append(row)
 
-    def close(self) -> dict[str, Any]:
+    def close(self, opaque_columns: dict[str, str]) -> dict[str, Any]:
         self.writer.__exit__(None, None, None)
         if self.writer.size > _LARGE_SHARD_BYTES:
-            import logging
-
-            logging.getLogger("alp_data").warning(
+            logger.warning(
                 "Shard %d is %.1f GB; consider a smaller samples_per_shard.",
                 self.job.shard,
                 self.writer.size / 1024**3,
             )
-        write_parquet(
-            self.fs,
-            join(self.out, PARTS_DIR, _part_name(self.job.shard)),
-            _rows_to_table(self.rows),
-        )
-        return {
+        info = {
             "name": shard_name(self.job.shard),
             "size": self.writer.size,
             "sha256": self.writer.sha256,
         }
+        part = join(self.out, PARTS_DIR, _part_name(self.job.shard))
+        table = _rows_to_table(self.rows)
+        table = table.replace_schema_metadata(shard_metadata(opaque_columns, info))
+        write_parquet(self.fs, part, table)
+        return info
 
     def abort(self) -> None:
         self.writer.__exit__(RuntimeError, RuntimeError("aborted"), None)
@@ -237,43 +234,3 @@ def _rows_to_table(rows: list[dict[str, Any]]) -> pa.Table:
             SHA256_COL: pa.array([], pa.string()),
         }
     )
-
-
-def _infer_opaque_columns(table: pl.DataFrame, known: dict[str, str]) -> dict[str, str]:
-    """Recover opaque kinds for columns packed by an earlier, interrupted run.
-
-    Parameters
-    ----------
-    table : pl.DataFrame
-        The merged pack table.
-    known : dict[str, str]
-        Kinds already reported by shards packed in this run.
-
-    Returns
-    -------
-    dict[str, str]
-        Column name to opaque kind for columns not in `known`.
-    """
-    inferred: dict[str, str] = {}
-    for name, dtype in table.schema.items():
-        if name in known:
-            continue
-        if isinstance(dtype, pl.Struct) and {f.name for f in dtype.fields} == {
-            "data",
-            "dtype",
-            "shape",
-        }:
-            inferred[name] = "ndarray"
-        elif dtype == pl.Utf8 and table.height:
-            sample = table[name].drop_nulls()
-            if sample.len() and all("\t" in v or "\n" in v for v in sample.head(5).to_list()):
-                inferred[name] = "dataframe_tsv"
-    return inferred
-
-
-def _sha256_of(fs: AbstractFileSystem, path: str) -> str:
-    hasher = hashlib.sha256()
-    with fs.open(path, "rb") as f:
-        for chunk in iter(lambda: f.read(8 * 1024 * 1024), b""):
-            hasher.update(chunk)
-    return hasher.hexdigest()

@@ -13,7 +13,7 @@ import soundfile as sf
 
 from alp_data.dataset import dataset_from_config
 from alp_data.export import pack, to_hf
-from alp_data.export.columns import BOOKKEEPING_COLS
+from alp_data.export.columns import BOOKKEEPING_COLS, SOURCE_INDEX_COL
 from tests.export.pack_test_dataset import make_source
 
 
@@ -122,14 +122,14 @@ def test_to_hf_from_config_skips_and_records_bad_rows(tmp_path: Path) -> None:
     hf_dir = to_hf(source, tmp_path / "hf", on_error="skip")
     assert _hf_tables(hf_dir).num_rows == 3
     errors = pl.read_ndjson(hf_dir / "export_errors.jsonl")
-    assert errors["_source_index"].to_list() == [2]
+    assert errors[SOURCE_INDEX_COL].to_list() == [2]
     assert not (hf_dir / "export_errors.parquet").exists()
 
 
 def test_to_hf_from_config_resumes_after_a_failure(tmp_path: Path) -> None:
     source = make_source(tmp_path / "src", n=5, corrupt={3})
     out = tmp_path / "hf"
-    with pytest.raises(Exception):
+    with pytest.raises(sf.LibsndfileError):
         to_hf(source, out, samples_per_shard=2)
     first = out / "train-00000-of-00003.parquet"
     assert first.exists()
@@ -163,3 +163,31 @@ def test_to_hf_never_leaves_an_empty_parquet_file(tmp_path: Path) -> None:
     assert parquet == ["train-00000-of-00002.parquet", "train-00001-of-00002.parquet"]
     assert _hf_tables(hf_dir).num_rows == 4
     assert "train-00001-of-00002.parquet" in (hf_dir / "README.md").read_text()
+
+
+def test_to_hf_handles_rows_with_different_keys(tmp_path: Path) -> None:
+    source = make_source(tmp_path / "src", n=4, optional_every=2)
+    hf_dir = to_hf(source, tmp_path / "hf")
+    rows = _hf_tables(hf_dir).to_pylist()
+    assert [r["extra"] for r in rows] == ["only on some rows", None, "only on some rows", None]
+
+
+def test_to_hf_resume_keeps_opaque_columns_from_finished_shards(tmp_path: Path) -> None:
+    source = make_source(tmp_path / "src", n=5, corrupt={3})
+    out = tmp_path / "hf"
+    with pytest.raises(sf.LibsndfileError):
+        to_hf(source, out, samples_per_shard=2)
+    make_source(tmp_path / "src", n=5)
+    to_hf(source, out, samples_per_shard=2)
+    readme = (out / "README.md").read_text()
+    assert "selection_table: dataframe" in readme
+    assert "targets: ndarray" in readme
+
+
+def test_to_hf_accepts_a_cloud_style_path_object(tmp_path: Path) -> None:
+    from alp_data.io import anypath
+
+    source = make_source(tmp_path / "src", n=2)
+    out = pack(source, tmp_path / "pack")
+    hf_dir = to_hf(anypath(str(out)), tmp_path / "hf")
+    assert (hf_dir / "train-00000-of-00001.parquet").exists()

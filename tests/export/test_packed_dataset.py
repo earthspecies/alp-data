@@ -180,3 +180,18 @@ def test_spawned_workers_read_the_same_items(packed: tuple[PackTestConfig, Path]
 def test_missing_pack_raises_file_not_found(tmp_path: Path) -> None:
     with pytest.raises(FileNotFoundError):
         PackedDataset(tmp_path / "nope")
+
+
+def test_packed_concat_items_keep_the_concat_source_index(tmp_path: Path) -> None:
+    from alp_data.dataset import ConcatConfig
+
+    a = make_source(tmp_path / "a", n=2)
+    b = make_source(tmp_path / "b", n=3)
+    concat = ConcatConfig(datasets=[a, b])
+    out = pack(concat, tmp_path / "pack")
+    src, _ = dataset_from_config(concat)
+    ds = PackedDataset(out)
+    for i in range(5):
+        _assert_same_item(ds[i], src[i])
+    assert ds[3]["_source_index"] == 1
+    assert ds[3]["_source_dataset"] == 1

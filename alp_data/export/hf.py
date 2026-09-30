@@ -16,7 +16,6 @@ from os import PathLike
 from typing import Any
 
 import pyarrow as pa
-import pyarrow.parquet as pq
 import yaml
 from fsspec import AbstractFileSystem
 
@@ -35,12 +34,15 @@ from alp_data.export.runner import (
     FinaliseContext,
     OnError,
     join,
+    read_shard_metadata,
     run_export,
+    shard_metadata,
     write_parquet,
 )
 from alp_data.export.serializers import AudioFormat, decode_audio
 from alp_data.export.shards import member_name
 from alp_data.io import AnyPathT, anypath, filesystem_from_path
+from alp_data.io.paths import PureCloudPath
 
 README_FILE = "README.md"
 ERRORS_FILE = "export_errors.jsonl"
@@ -94,7 +96,7 @@ def to_hf(
     (TSV strings, array structs) are passed through unchanged. Nothing here
     imports the `datasets` library.
     """
-    if isinstance(source, (str, PathLike)) or type(source).__name__.startswith("Pure"):
+    if isinstance(source, (str, PathLike, PureCloudPath)):
         return _pack_to_hf(source, out_dir, samples_per_shard)
     return run_export(
         source,
@@ -134,12 +136,34 @@ def _audio_metadata(audio_key: str, sample_rate: int | None) -> dict[bytes, byte
     return {b"huggingface": json.dumps({"info": {"features": {audio_key: feature}}}).encode()}
 
 
-def _to_arrow(columns: dict[str, list[Any]], audio_key: str, sample_rate: int | None) -> pa.Table:
-    arrays = {
-        name: pa.array(values, type=AUDIO_TYPE if name == audio_key else None)
-        for name, values in columns.items()
-    }
-    return pa.table(arrays).replace_schema_metadata(_audio_metadata(audio_key, sample_rate))
+def _to_arrow(rows: list[dict[str, Any]], audio_key: str, sample_rate: int | None) -> pa.Table:
+    """Build the parquet table for one file from row dicts.
+
+    Rows may have different key sets; missing keys become nulls. The audio
+    column is cast to the exact `struct<bytes: binary, path: string>` type the
+    Hub's `Audio` feature expects.
+
+    Parameters
+    ----------
+    rows : list[dict[str, Any]]
+        Encoded rows, each holding the audio blob dict under `audio_key`.
+    audio_key : str
+        Name of the audio column.
+    sample_rate : int | None
+        Sample rate to declare in the `Audio` feature, if known.
+
+    Returns
+    -------
+    pa.Table
+        The table with Hub metadata attached.
+    """
+    if rows:
+        table = pa.Table.from_pylist(rows)
+    else:
+        table = pa.table({audio_key: pa.array([], type=AUDIO_TYPE)})
+    idx = table.schema.get_field_index(audio_key)
+    table = table.set_column(idx, audio_key, table.column(idx).cast(AUDIO_TYPE))
+    return table.replace_schema_metadata(_audio_metadata(audio_key, sample_rate))
 
 
 @dataclass
@@ -154,18 +178,14 @@ class HFSink:
     def prepare(self, fs: AbstractFileSystem, out: AnyPathT) -> None:
         fs.makedirs(str(out), exist_ok=True)
 
-    def shard_is_finished(
-        self, fs: AbstractFileSystem, out: AnyPathT, shard: int, num_shards: int
-    ) -> bool:
-        return fs.exists(join(out, file_name(_split_of(out, fs), shard, num_shards)))
+    def shard_is_finished(self, fs: AbstractFileSystem, out: AnyPathT, job: ExportJob) -> bool:
+        return fs.exists(join(out, file_name(_split_name(job.config), job.shard, job.num_shards)))
 
     def open_shard(self, fs: AbstractFileSystem, out: AnyPathT, job: ExportJob) -> _HFShard:
         return _HFShard(fs, out, job)
 
     def finalise(self, fs: AbstractFileSystem, out: AnyPathT, ctx: FinaliseContext) -> None:
         opaque: dict[str, str] = {}
-        for result in ctx.results:
-            opaque.update(result.opaque_columns)
         split = _split_name(ctx.config)
         by_shard = {r.shard: r for r in ctx.results}
 
@@ -175,7 +195,13 @@ class HFSink:
         num_rows = 0
         for s in range(ctx.num_shards):
             name = file_name(split, s, ctx.num_shards)
-            rows = by_shard[s].num_rows if s in by_shard else _num_rows(fs, join(out, name))
+            if s in by_shard:
+                opaque.update(by_shard[s].opaque_columns)
+                rows = by_shard[s].num_rows
+            else:
+                kinds, info = read_shard_metadata(fs, join(out, name))
+                opaque.update(kinds)
+                rows = info["num_rows"]
             if rows == 0:
                 fs.rm(join(out, name))
             else:
@@ -194,24 +220,8 @@ class HFSink:
         _write_readme(fs, out, meta)
 
 
-def _num_rows(fs: AbstractFileSystem, path: str) -> int:
-    with fs.open(path, "rb") as f:
-        return pq.read_metadata(f).num_rows
-
-
 def _split_name(config: ExportConfig) -> str:
     return getattr(config, "split", None) or "train"
-
-
-def _split_of(out: AnyPathT, fs: AbstractFileSystem) -> str:
-    # The split is a property of the config, which the sink does not hold; the
-    # runner asks about finished shards before any file exists in a fresh run,
-    # and on a rerun every file carries the same split prefix.
-    for entry in fs.ls(str(out), detail=False):
-        name = str(entry).rsplit("/", 1)[-1]
-        if name.endswith(".parquet") and "-of-" in name:
-            return name.rsplit("-", 3)[0]
-    return "train"
 
 
 def _write_readme(fs: AbstractFileSystem, out: AnyPathT, meta: dict[str, Any]) -> None:
@@ -231,26 +241,26 @@ class _HFShard:
     fs: AbstractFileSystem
     out: AnyPathT
     job: ExportJob
-    columns: dict[str, list[Any]] = field(default_factory=dict)
+    rows: list[dict[str, Any]] = field(default_factory=list)
 
     def __post_init__(self) -> None:
-        self.columns[self.job.audio_key] = []
         self.name = file_name(_split_name(self.job.config), self.job.shard, self.job.num_shards)
 
     def add(self, source_index: int, row: dict[str, Any], audio: bytes) -> None:
-        self.columns[self.job.audio_key].append(
-            {"bytes": audio, "path": member_name(source_index, self.job.audio_format)}
-        )
-        for key, value in row.items():
-            self.columns.setdefault(key, []).append(value)
+        blob = {"bytes": audio, "path": member_name(source_index, self.job.audio_format)}
+        self.rows.append({self.job.audio_key: blob, **row})
 
-    def close(self) -> dict[str, Any]:
-        table = _to_arrow(self.columns, self.job.audio_key, self.job.declared_sample_rate)
+    def close(self, opaque_columns: dict[str, str]) -> dict[str, Any]:
+        table = _to_arrow(self.rows, self.job.audio_key, self.job.declared_sample_rate)
+        info = {"name": self.name, "num_rows": len(self.rows)}
+        metadata = dict(table.schema.metadata or {})
+        metadata.update(shard_metadata(opaque_columns, info))
+        table = table.replace_schema_metadata(metadata)
         final = join(self.out, self.name)
         tmp = final + ".tmp"
         write_parquet(self.fs, tmp, table)
         self.fs.mv(tmp, final)
-        return {"name": self.name, "size": self.fs.size(final)}
+        return info
 
     def abort(self) -> None:
         pass
@@ -269,18 +279,16 @@ def _pack_to_hf(pack_path: Any, out_dir: str | AnyPathT, rows_per_file: int) -> 
     files = []
     for file_idx in range(num_files):
         start, stop = file_idx * rows_per_file, min((file_idx + 1) * rows_per_file, num_rows)
-        columns: dict[str, list[Any]] = {ds.audio_key: []}
+        rows: list[dict[str, Any]] = []
         for row_idx in range(start, stop):
             row = ds._data[row_idx]
             data = ds._store.read(int(row[SHARD_COL]), int(row[OFFSET_COL]), int(row[SIZE_COL]))
-            columns[ds.audio_key].append(
-                {"bytes": data, "path": member_name(int(row[SOURCE_INDEX_COL]), ext)}
+            blob = {"bytes": data, "path": member_name(int(row[SOURCE_INDEX_COL]), ext)}
+            rows.append(
+                {ds.audio_key: blob, **{k: v for k, v in row.items() if k not in BOOKKEEPING_COLS}}
             )
-            for key, value in row.items():
-                if key not in BOOKKEEPING_COLS:
-                    columns.setdefault(key, []).append(value)
         name = file_name(ds.split, file_idx, num_files)
-        write_parquet(fs, join(out, name), _to_arrow(columns, ds.audio_key, sample_rate))
+        write_parquet(fs, join(out, name), _to_arrow(rows, ds.audio_key, sample_rate))
         files.append({"name": name, "size": fs.size(join(out, name))})
 
     meta = dict(ds.pack_config)

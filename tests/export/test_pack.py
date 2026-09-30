@@ -1,5 +1,6 @@
 """End-to-end tests for `alp_data.export.pack`."""
 
+import hashlib
 import os
 import pickle
 from pathlib import Path
@@ -9,11 +10,11 @@ import numpy as np
 import pandas as pd
 import polars as pl
 import pytest
+import soundfile as sf
 import yaml
 
 from alp_data.dataset import ChainedDatasetConfig, ConcatConfig, dataset_from_config
-from alp_data.io.packed_media_store import PackedMediaStore
-from alp_data.export import pack
+from alp_data.export import pack, to_hf
 from alp_data.export.columns import (
     OFFSET_COL,
     SHA256_COL,
@@ -22,6 +23,7 @@ from alp_data.export.columns import (
     SOURCE_INDEX_COL,
 )
 from alp_data.export.serializers import decode_audio, decode_value
+from alp_data.io.packed_media_store import PackedMediaStore
 from tests.export.pack_test_dataset import PackTestConfig, make_source
 
 
@@ -79,12 +81,12 @@ def test_audio_round_trips_exactly(source: PackTestConfig, tmp_path: Path) -> No
 def test_opaque_columns_round_trip(source: PackTestConfig, tmp_path: Path) -> None:
     pack(source, tmp_path / "pack")
     cfg, table, _ = _load(tmp_path / "pack")
-    assert cfg["opaque_columns"] == {"selection_table": "dataframe_tsv", "targets": "ndarray"}
+    assert cfg["opaque_columns"] == {"selection_table": "dataframe", "targets": "ndarray"}
     ds, _ = dataset_from_config(source)
     row = table.row(3, named=True)
     expected = ds[3]
     pd.testing.assert_frame_equal(
-        decode_value(row["selection_table"], "dataframe_tsv"), expected["selection_table"]
+        decode_value(row["selection_table"], "dataframe"), expected["selection_table"]
     )
     np.testing.assert_array_equal(decode_value(row["targets"], "ndarray"), expected["targets"])
     assert row["labels"] == expected["labels"]
@@ -154,7 +156,7 @@ def test_identical_audio_in_one_shard_shares_a_blob(tmp_path: Path) -> None:
 
 def test_corrupt_row_raises_by_default(tmp_path: Path) -> None:
     source = make_source(tmp_path / "src", n=4, corrupt={1})
-    with pytest.raises(Exception):
+    with pytest.raises(sf.LibsndfileError):
         pack(source, tmp_path / "pack")
     assert not (tmp_path / "pack" / "config.yaml").exists()
 
@@ -176,7 +178,7 @@ def test_rerun_skips_finished_shards(tmp_path: Path) -> None:
     # Row 3 sits in shard 1. The first run finishes shard 0, then fails on it.
     source = make_source(tmp_path / "src", n=5, corrupt={3})
     out = tmp_path / "pack"
-    with pytest.raises(Exception):
+    with pytest.raises(sf.LibsndfileError):
         pack(source, out, samples_per_shard=2)
     shard0 = out / "media" / "shard-00000.tar"
     assert shard0.exists()
@@ -189,7 +191,7 @@ def test_rerun_skips_finished_shards(tmp_path: Path) -> None:
     cfg, table, _ = _load(out)
     assert table.height == 5
     assert len(cfg["shards"]) == 3
-    assert cfg["opaque_columns"] == {"selection_table": "dataframe_tsv", "targets": "ndarray"}
+    assert cfg["opaque_columns"] == {"selection_table": "dataframe", "targets": "ndarray"}
 
 
 def test_rerun_on_a_complete_pack_is_a_no_op(source: PackTestConfig, tmp_path: Path) -> None:
@@ -216,9 +218,67 @@ def test_concat_config_packs_directly(tmp_path: Path) -> None:
     b = make_source(tmp_path / "b", n=3)
     concat = ConcatConfig(datasets=[a, b])
     pack(concat, tmp_path / "pack")
-    _, table, _ = _load(tmp_path / "pack")
+    cfg, table, _ = _load(tmp_path / "pack")
     assert table.height == 5
     assert "_source_dataset" in table.columns
+    # The concat's own per-child row index must survive next to the export index.
+    assert table["_source_index"].to_list() == [0, 1, 0, 1, 2]
+    assert table[SOURCE_INDEX_COL].to_list() == [0, 1, 2, 3, 4]
+    # And the frozen source must keep the children's custom config fields.
+    assert cfg["source"]["datasets"][0]["csv_path"] == a.csv_path
+
+
+def test_encoding_type_errors_are_not_skippable(tmp_path: Path) -> None:
+    source = make_source(tmp_path / "src", n=2, unpackable=True)
+    with pytest.raises(TypeError, match="cannot be packed"):
+        pack(source, tmp_path / "pack", on_error="skip")
+
+
+def test_skip_tolerates_a_corrupt_first_row(tmp_path: Path) -> None:
+    source = make_source(tmp_path / "src", n=3, corrupt={0})
+    out = pack(source, tmp_path / "pack", on_error="skip")
+    cfg, table, _ = _load(out)
+    assert table[SOURCE_INDEX_COL].to_list() == [1, 2]
+    assert cfg["num_skipped"] == 1
+
+
+def test_resume_does_not_mislabel_free_text_columns(tmp_path: Path) -> None:
+    source = make_source(tmp_path / "src", n=5, corrupt={3}, multiline_notes=True)
+    out = tmp_path / "pack"
+    with pytest.raises(sf.LibsndfileError):
+        pack(source, out, samples_per_shard=2)
+    make_source(tmp_path / "src", n=5, multiline_notes=True)
+    pack(source, out, samples_per_shard=2)
+    cfg, table, _ = _load(out)
+    assert cfg["opaque_columns"] == {"selection_table": "dataframe", "targets": "ndarray"}
+    assert table["notes"][0] == "line one\tcol\nline two 0"
+    shard0 = out / "media" / "shard-00000.tar"
+    assert cfg["shards"][0]["size"] == shard0.stat().st_size
+    assert cfg["shards"][0]["sha256"] == hashlib.sha256(shard0.read_bytes()).hexdigest()
+
+
+def test_finalise_tolerates_a_missing_parts_prefix(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Object stores have no empty directories: an export that wrote no parts
+    must not fail when the runner removes the parts prefix."""
+    from fsspec.implementations.local import LocalFileSystem
+
+    import alp_data.export.runner as runner
+
+    class NoEmptyDirsFS(LocalFileSystem):
+        cachable = False  # codespell:ignore cachable
+
+        def makedirs(self, path: str, exist_ok: bool = False) -> None:
+            if str(path).rstrip("/").endswith(runner.PARTS_DIR):
+                return
+            super().makedirs(path, exist_ok=exist_ok)
+
+    monkeypatch.setattr(runner, "filesystem_from_path", lambda _p: NoEmptyDirsFS())
+    source = make_source(tmp_path / "src", n=2)
+    hf_dir = to_hf(source, tmp_path / "hf")
+    assert (hf_dir / "README.md").exists()
+    assert not (hf_dir / runner.PARTS_DIR).exists()
 
 
 def test_pack_rejects_a_live_dataset_object(source: PackTestConfig, tmp_path: Path) -> None:

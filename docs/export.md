@@ -16,7 +16,7 @@ A **pack** is a configured dataset frozen into a few large files:
 ```
 <pack>/
   config.yaml            frozen source config, audio format, provenance, shard list
-  table.parquet          one row per sample: every output key except the audio
+  table.parquet          one row per sample: every output key except the audio, plus bookkeeping
   pack_errors.parquet    only when rows were skipped
   media/
     shard-00000.tar      one encoded audio blob per row
@@ -69,10 +69,10 @@ Shard boundaries are fixed before any work starts and each shard is written atom
 
 Scalars, strings, and lists of scalars are native parquet columns. Two kinds of value are stored opaquely and rebuilt on read; `config.yaml` lists them under `opaque_columns`:
 
-- a `pandas.DataFrame` (selection tables) is written as a TSV string,
+- a `pandas.DataFrame` (selection tables) is written as arrow IPC bytes, so dtypes survive,
 - a `numpy.ndarray` is written as a struct of raw bytes, dtype, and shape.
 
-Five bookkeeping columns are added: `_source_index`, `_shard`, `_offset`, `_size`, `_sha256`. `PackedDataset` strips them from returned items. Identical audio within one shard is stored once and shares an offset.
+Five bookkeeping columns are added: `_export_index`, `_shard`, `_offset`, `_size`, `_sha256`. The index is not called `_source_index` because `ConcatenatedDataset` already uses that name for the row within a child dataset, and that column survives packing. `PackedDataset` strips them from returned items. Identical audio within one shard is stored once and shares an offset.
 
 ## Reading
 
