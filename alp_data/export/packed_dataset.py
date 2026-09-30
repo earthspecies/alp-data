@@ -221,8 +221,11 @@ class PackedDataset(Dataset):
             yield self[i]
 
     def __getitem__(self, idx: int) -> dict[str, Any]:
-        if idx < 0 or idx >= len(self._data):
-            raise IndexError(f"Index {idx} out of bounds for dataset of length {len(self._data)}")
+        n = len(self._data)
+        if idx < 0:
+            idx += n
+        if idx < 0 or idx >= n:
+            raise IndexError(f"Index {idx} out of bounds for dataset of length {n}")
         return self._process(self._data[idx])
 
     def __str__(self) -> str:

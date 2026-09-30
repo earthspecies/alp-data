@@ -241,3 +241,13 @@ def test_default_split_is_not_checked_against_the_pack(tmp_path: Path) -> None:
     # The inherited default is "train"; left unset it must not be mistaken for a request.
     ds, _ = dataset_from_config(PackedDatasetConfig(path=str(out)))
     assert ds.split == "validation"
+
+
+def test_negative_indices_count_from_the_end(packed: tuple[PackTestConfig, Path]) -> None:
+    source, out = packed
+    src, _ = dataset_from_config(source)
+    ds = PackedDataset(out)
+    _assert_same_item(ds[-1], src[4])
+    _assert_same_item(ds[-5], src[0])
+    with pytest.raises(IndexError):
+        ds[-6]
