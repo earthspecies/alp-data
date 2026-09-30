@@ -205,3 +205,39 @@ def test_loud_rows_read_back_exactly(tmp_path: Path) -> None:
     assert np.abs(src[1]["audio"]).max() > 1.0
     for i in range(3):
         _assert_same_item(ds[i], src[i])
+
+
+def test_config_warns_when_pack_fixed_fields_are_set(packed: tuple[PackTestConfig, Path]) -> None:
+    _, out = packed
+    with pytest.warns(UserWarning, match="sample_rate") as record:
+        PackedDatasetConfig(path=str(out), sample_rate=32000, data_root="/x", streaming=True)
+    message = str(record[0].message)
+    assert "data_root" in message and "streaming" in message
+
+
+def test_config_is_quiet_when_pack_fixed_fields_are_left_alone(
+    packed: tuple[PackTestConfig, Path],
+) -> None:
+    import warnings
+
+    _, out = packed
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        PackedDatasetConfig(path=str(out), backend="pandas", split="train")
+
+
+def test_split_must_match_the_pack_when_given(packed: tuple[PackTestConfig, Path]) -> None:
+    _, out = packed
+    ds, _ = dataset_from_config(PackedDatasetConfig(path=str(out), split="train"))
+    assert ds.split == "train"
+    with pytest.raises(ValueError, match="split"):
+        dataset_from_config(PackedDatasetConfig(path=str(out), split="validation"))
+
+
+def test_default_split_is_not_checked_against_the_pack(tmp_path: Path) -> None:
+    source = make_source(tmp_path / "src", n=2)
+    source.split = "validation"
+    out = pack(source, tmp_path / "pack")
+    # The inherited default is "train"; left unset it must not be mistaken for a request.
+    ds, _ = dataset_from_config(PackedDatasetConfig(path=str(out)))
+    assert ds.split == "validation"

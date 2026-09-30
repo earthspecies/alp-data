@@ -84,7 +84,7 @@ item = ds[0]          # same keys the source dataset returned
 len(ds), ds.info.version, ds.split
 ```
 
-`PackedDataset` takes no `sample_rate`: it is frozen in the pack. Transforms, concatenation, and chaining work as on any other dataset, because the table is a normal pandas or polars backend. `output_take_and_give` on a `PackedDataset` applies on top of the one frozen into the pack.
+`PackedDataset` takes no `sample_rate`: it is frozen in the pack. `PackedDatasetConfig` inherits `sample_rate`, `data_root`, and `streaming` from `DatasetConfig` because chains and concats are typed on that class; setting any of them raises a warning and has no effect. A `split` given in the config is checked against the pack and rejected when it disagrees. Transforms, concatenation, and chaining work as on any other dataset, because the table is a normal pandas or polars backend. `output_take_and_give` on a `PackedDataset` applies on top of the one frozen into the pack.
 
 From YAML, a pack sits next to any other dataset:
 

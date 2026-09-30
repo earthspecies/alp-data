@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import warnings
 from typing import Any, Iterator, Sequence
 
 import numpy as np
@@ -9,6 +10,7 @@ import polars as pl
 import pyarrow as pa
 import pyarrow.parquet as pq
 import yaml
+from pydantic import model_validator
 
 from alp_data.backends import BackendType
 from alp_data.dataset import (
@@ -54,8 +56,10 @@ class PackedDatasetConfig(DatasetConfig):
     """Configuration for loading a pack.
 
     Everything that was frozen at pack time (split, version, sample rate,
-    source transforms) is read from the pack's `config.yaml`, so the inherited
-    `split`, `sample_rate`, `data_root`, and `streaming` fields are ignored.
+    source transforms) is read from the pack's `config.yaml`. Of the inherited
+    fields, `sample_rate`, `data_root`, and `streaming` therefore have no
+    effect and setting them raises a warning; `split` may be given and is
+    checked against the pack when the dataset is built.
 
     Attributes
     ----------
@@ -74,6 +78,26 @@ class PackedDatasetConfig(DatasetConfig):
 
     dataset_name: str = "packed_dataset"
     path: str = ""
+
+    @model_validator(mode="after")
+    def _warn_about_fixed_fields(self) -> "PackedDatasetConfig":
+        ignored = [
+            name
+            for name, unset in (
+                ("sample_rate", self.sample_rate is None),
+                ("data_root", self.data_root is None),
+                ("streaming", not self.streaming),
+            )
+            if not unset
+        ]
+        if ignored:
+            warnings.warn(
+                f"PackedDatasetConfig ignores {', '.join(ignored)}: a pack fixes them at "
+                "pack time and reports them through PackedDataset.info and .sample_rate.",
+                UserWarning,
+                stacklevel=2,
+            )
+        return self
 
 
 @register_dataset
@@ -166,8 +190,18 @@ class PackedDataset(Dataset):
         -------
         tuple[PackedDataset, dict[str, Any]]
             The dataset and transform metadata, empty when no transforms ran.
+
+        Raises
+        ------
+        ValueError
+            If the config names a `split` and the pack holds a different one.
         """
         ds = cls(cfg.path, backend=cfg.backend, output_take_and_give=cfg.output_take_and_give)
+        if "split" in cfg.model_fields_set and cfg.split != ds.split:
+            raise ValueError(
+                f"Config asks for split {cfg.split!r} but the pack at {cfg.path} holds "
+                f"{ds.split!r}; a pack is one split, frozen at pack time."
+            )
         meta = ds.apply_transformations(cfg.transformations) if cfg.transformations else {}
         return ds, meta
 
