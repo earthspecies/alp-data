@@ -319,3 +319,34 @@ def test_rows_above_full_scale_fall_back_to_float_wav(tmp_path: Path) -> None:
     for row in table.iter_rows(named=True):
         audio, _ = decode_audio(store.read(row[SHARD_COL], row[OFFSET_COL], row[SIZE_COL]))
         np.testing.assert_array_equal(audio, ds[row[SOURCE_INDEX_COL]]["audio"])
+
+
+def test_small_datasets_are_split_so_every_worker_gets_a_shard(tmp_path: Path) -> None:
+    source = make_source(tmp_path / "src", n=7)
+    out = pack(source, tmp_path / "pack", samples_per_shard=1000, num_workers=3)
+    cfg, table, _ = _load(out)
+    assert len(cfg["shards"]) == 3
+    assert cfg["samples_per_shard"] == 3
+    assert table[SHARD_COL].to_list() == [0, 0, 0, 1, 1, 1, 2]
+
+
+def test_requested_shard_size_is_kept_when_there_are_enough_rows(tmp_path: Path) -> None:
+    source = make_source(tmp_path / "src", n=7)
+    out = pack(source, tmp_path / "pack", samples_per_shard=2, num_workers=2)
+    cfg, _, _ = _load(out)
+    assert cfg["samples_per_shard"] == 2
+    assert len(cfg["shards"]) == 4
+
+
+def test_resume_under_a_different_shard_plan_is_refused(tmp_path: Path) -> None:
+    source = make_source(tmp_path / "src", n=6, corrupt={3})
+    out = tmp_path / "pack"
+    with pytest.raises(sf.LibsndfileError):
+        pack(source, out, samples_per_shard=2)
+    make_source(tmp_path / "src", n=6)
+    with pytest.raises(ValueError, match="shard plan"):
+        pack(source, out, samples_per_shard=3)
+    # Same plan resumes fine and leaves no plan file behind.
+    pack(source, out, samples_per_shard=2)
+    assert _load(out)[1].height == 6
+    assert not any(p.name.startswith(".export_plan") for p in out.iterdir())

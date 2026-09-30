@@ -53,7 +53,7 @@ pack(config, "gs://my-bucket/packs/beans-validation-16k", samples_per_shard=1000
 
 | Argument | Meaning |
 |---|---|
-| `samples_per_shard` | Rows per tar shard. Shard `j` holds source rows `j*N` to `(j+1)*N`. Pick it from your clip length: 1,000 three-second clips is about 50 MB of FLAC, 1,000 twenty-minute recordings is about 20 GB. |
+| `samples_per_shard` | Rows per tar shard. Shard `j` holds source rows `j*N` to `(j+1)*N`. A shard is also the unit of parallelism, so with `num_workers > 1` the value is lowered when needed so every worker gets a shard. Pick it from your clip length: 1,000 three-second clips is about 50 MB of FLAC, 1,000 twenty-minute recordings is about 20 GB. |
 | `audio_format` | `"flac"` (16-bit PCM, default) or `"wav"` (float32, bit-exact, four times larger). A row whose audio exceeds `[-1, 1]`, which 16-bit FLAC would clip, is stored as float32 WAV regardless; `config.yaml` counts such rows under `num_rows_lossless_fallback` and the table records each row's format in `_audio_format`. Datasets that resample on the fly produce such rows (see issue #325). |
 | `num_workers` | Spawned worker processes. Each rebuilds the dataset from the config and packs whole shards. |
 | `on_error` | `"raise"` (default) stops on the first row that fails after retries. `"skip"` drops the row, records it in `pack_errors.parquet`, and counts it in `config.yaml` as `num_skipped`. |
@@ -63,7 +63,7 @@ pack(config, "gs://my-bucket/packs/beans-validation-16k", samples_per_shard=1000
 
 ### Resuming
 
-Shard boundaries are fixed before any work starts and each shard is written atomically. Rerunning `pack` with the same arguments skips finished shards and completes the rest. A pack whose `config.yaml` exists is left untouched.
+Shard boundaries are fixed before any work starts and each shard is written atomically. Rerunning `pack` with the same arguments skips finished shards and completes the rest. The plan (row count, rows per shard) is recorded when an export starts, and a rerun with a different plan is refused rather than reusing shards that hold the wrong rows. A pack whose `config.yaml` exists is left untouched.
 
 ### What ends up in the table
 

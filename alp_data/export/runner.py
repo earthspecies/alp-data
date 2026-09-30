@@ -49,6 +49,7 @@ OnError = Literal["raise", "skip"]
 
 PARTS_DIR = "parts"
 PART_METADATA_KEY = b"alp_data_export"
+PLAN_FILE = ".export_plan.json"
 _PACKAGE_ROOT = Path(__file__).resolve().parents[2]
 
 _RETRIES = 3
@@ -311,9 +312,21 @@ def run_export(
     if declared_sr is None:
         declared_sr = int(first[sample_rate_key]) if sample_rate_key else fallback_sr
 
+    # A shard is the unit of parallelism: make sure every worker gets one.
+    if num_workers > 1:
+        per_worker = max(1, math.ceil(num_rows / num_workers))
+        if per_worker < samples_per_shard:
+            logger.info(
+                "Lowering samples_per_shard from %d to %d so %d workers all get a shard",
+                samples_per_shard,
+                per_worker,
+                num_workers,
+            )
+            samples_per_shard = per_worker
     num_shards = math.ceil(num_rows / samples_per_shard)
     sink.prepare(fs, out)
     fs.makedirs(join(out, PARTS_DIR), exist_ok=True)
+    _check_or_write_plan(fs, out, config, num_rows, samples_per_shard, num_shards)
 
     jobs = []
     for shard in range(num_shards):
@@ -365,8 +378,49 @@ def run_export(
     # parts/ the prefix does not exist and rm would raise.
     if fs.exists(join(out, PARTS_DIR)):
         fs.rm(join(out, PARTS_DIR), recursive=True)
+    fs.rm(join(out, PLAN_FILE))
     logger.info("Exported %d shards to %s", num_shards, out)
     return out
+
+
+def _check_or_write_plan(
+    fs: AbstractFileSystem,
+    out: AnyPathT,
+    config: ExportConfig,
+    num_rows: int,
+    samples_per_shard: int,
+    num_shards: int,
+) -> None:
+    """Record the shard plan of a fresh export, or refuse to resume under a different one.
+
+    Shards are matched to earlier runs by file name only, so resuming with a
+    different `samples_per_shard`, or against a dataset whose row count has
+    changed, would silently reuse shards holding the wrong rows.
+
+    Raises
+    ------
+    ValueError
+        If a plan exists at `out` and does not match the current one.
+    """
+    plan = {
+        "dataset_name": config.dataset_name,
+        "num_rows": num_rows,
+        "samples_per_shard": samples_per_shard,
+        "num_shards": num_shards,
+    }
+    path = join(out, PLAN_FILE)
+    if fs.exists(path):
+        with fs.open(path, "r") as f:
+            previous = json.load(f)
+        if previous != plan:
+            raise ValueError(
+                f"{out} holds an unfinished export with a different shard plan "
+                f"({previous}) than this run ({plan}). Rerun with the same "
+                "samples_per_shard and num_workers, or export to a new path."
+            )
+        return
+    with fs.open(path, "w") as f:
+        json.dump(plan, f)
 
 
 # --- config handling -------------------------------------------------------
