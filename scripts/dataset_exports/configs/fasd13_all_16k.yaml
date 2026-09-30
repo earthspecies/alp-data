@@ -1,0 +1,8 @@
+# FASD13 few-shot detection benchmark, all subsets, frozen at 16 kHz.
+# Exercises selection tables (DataFrame columns), windowed rows with re-based
+# event times, and the presampled 16 kHz path choice.
+dataset:
+  dataset_name: fasd13
+  split: all
+  sample_rate: 16000
+  backend: polars

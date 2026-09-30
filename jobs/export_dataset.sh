@@ -22,6 +22,7 @@ set -euo pipefail
 
 ALP_DATA_DIR=${ALP_DATA_DIR:-$HOME/alp-data}
 CONFIG=${CONFIG:-scripts/dataset_exports/configs/beans_validation_16k.yaml}
+FROM_PACK=${FROM_PACK:-}                     # set to a pack path to convert it (FORMAT=hf) instead of CONFIG
 OUT=${OUT:-gs://esp-ci-cd-tests/esp-data-tests/exports/beans/validation-16k}
 FORMAT=${FORMAT:-pack}                       # pack | hf
 WORKERS=${WORKERS:-${SLURM_CPUS_PER_TASK:-8}}
@@ -37,10 +38,16 @@ cd "$ALP_DATA_DIR"
 uv sync
 
 echo "=== export started $(date) on $(hostname) ==="
-echo "config=$CONFIG out=$OUT format=$FORMAT workers=$WORKERS samples_per_shard=$SAMPLES_PER_SHARD"
+if [ -n "$FROM_PACK" ]; then
+    SOURCE_ARGS=(--from-pack "$FROM_PACK")
+    FORMAT=hf
+else
+    SOURCE_ARGS=(--config "$CONFIG")
+fi
+echo "source=${SOURCE_ARGS[*]} out=$OUT format=$FORMAT workers=$WORKERS samples_per_shard=$SAMPLES_PER_SHARD"
 
 srun uv run python scripts/dataset_exports/export_dataset.py \
-    --config "$CONFIG" \
+    "${SOURCE_ARGS[@]}" \
     --out "$OUT" \
     --format "$FORMAT" \
     --num-workers "$WORKERS" \

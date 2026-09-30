@@ -31,11 +31,13 @@ from typing import Any
 import click
 import numpy as np
 import pandas as pd
+import pyarrow.parquet as pq
 import yaml
 
 from alp_data.dataset import ChainedDatasetConfig, config_from_yaml, dataset_from_config
 from alp_data.export import PackedDataset, pack, to_hf
 from alp_data.export.columns import SOURCE_INDEX_COL
+from alp_data.export.serializers import decode_audio, decode_value
 from alp_data.io import anypath, filesystem_from_path
 
 logging.basicConfig(
@@ -237,12 +239,133 @@ def verify_pack(
     return result
 
 
+def config_from_yaml_dict(source: dict[str, Any]) -> Any:  # noqa: ANN401
+    """Rebuild the config object a pack was made from, out of its frozen `source` dict.
+
+    Parameters
+    ----------
+    source : dict[str, Any]
+        The `source` block of a pack's `config.yaml`.
+
+    Returns
+    -------
+    DatasetConfig | ConcatConfig
+        The validated config, using the registered custom class when there is one.
+    """
+    from alp_data.dataset import ConcatConfig, DatasetConfig, _custom_config_registry
+
+    if source.get("dataset_name") == "concatenated_dataset":
+        return ConcatConfig.model_validate(source)
+    cls = _custom_config_registry.get(source["dataset_name"], DatasetConfig)
+    return cls.model_validate(source)
+
+
+def _hf_opaque_columns(fs: Any, out: str) -> dict[str, str]:  # noqa: ANN401
+    """Read the opaque-column kinds from the export README's provenance block.
+
+    Parameters
+    ----------
+    fs : Any
+        Filesystem for `out`.
+    out : str
+        The export directory.
+
+    Returns
+    -------
+    dict[str, str]
+        Column name to opaque kind, empty when none were recorded.
+    """
+    with fs.open(str(anypath(out) / "README.md"), "r") as f:
+        text = f.read()
+    block = text.split("```yaml", 1)[1].split("```", 1)[0]
+    return yaml.safe_load(block).get("opaque_columns") or {}
+
+
+def verify_hf(config: Any, out: str, n: int, seed: int) -> dict[str, Any]:  # noqa: ANN401
+    """Compare `n` random rows of a Hugging Face export with the live dataset.
+
+    Rows are matched to the live dataset through the audio `path`, which is the
+    zero-padded source index plus the extension.
+
+    Parameters
+    ----------
+    config : DatasetConfig | ConcatConfig
+        The config that was exported.
+    out : str
+        The export directory.
+    n : int
+        Number of rows to compare.
+    seed : int
+        Random seed for the row choice.
+
+    Returns
+    -------
+    dict[str, Any]
+        Counts and mismatches.
+    """
+    root = anypath(out)
+    fs = filesystem_from_path(root)
+    files = sorted(p for p in fs.ls(str(root), detail=False) if str(p).endswith(".parquet"))
+    kinds = _hf_opaque_columns(fs, out)
+    live, _ = dataset_from_config(config)
+
+    counts = []
+    for path in files:
+        with fs.open(path, "rb") as f:
+            counts.append(pq.read_metadata(f).num_rows)
+    total = sum(counts)
+    rng = random.Random(seed)
+    wanted = set(rng.sample(range(total), min(n, total)))
+
+    mismatches = []
+    audio_key = None
+    offset = 0
+    for path, count in zip(files, counts, strict=True):
+        rows_here = [i - offset for i in wanted if offset <= i < offset + count]
+        offset += count
+        if not rows_here:
+            continue
+        with fs.open(path, "rb") as f:
+            table = pq.read_table(f)
+        if audio_key is None:
+            audio_key = next(
+                name
+                for name, typ in zip(table.column_names, table.schema.types, strict=True)
+                if str(typ).startswith("struct<bytes")
+            )
+        for r in rows_here:
+            row = table.slice(r, 1).to_pylist()[0]
+            blob = row.pop(audio_key)
+            src = int(blob["path"].split(".")[0])
+            audio, sr = decode_audio(blob["bytes"])
+            item = {k: decode_value(v, kinds.get(k)) for k, v in row.items()}
+            item[audio_key] = audio
+            l_item = live[src]
+            atol = 1.5 / 32768 if blob["path"].endswith(".flac") else 0.0
+            diffs = compare_items(item, l_item, audio_key, atol)
+            if "sample_rate" in l_item and sr != l_item["sample_rate"]:
+                diffs.append("sample_rate(decoded)")
+            if diffs:
+                mismatches.append(
+                    {
+                        "file": str(path).rsplit("/", 1)[-1],
+                        "row": r,
+                        "source_index": src,
+                        "keys": diffs,
+                    }
+                )
+    return {"files": len(files), "rows": total, "compared": len(wanted), "mismatches": mismatches}
+
+
 # --- CLI -----------------------------------------------------------------------
 
 
 @click.command()
+@click.option("--config", "config_path", type=click.Path(exists=True, path_type=Path), default=None)
 @click.option(
-    "--config", "config_path", required=True, type=click.Path(exists=True, path_type=Path)
+    "--from-pack",
+    default=None,
+    help="Convert an existing pack (with --format hf) instead of exporting a config",
 )
 @click.option("--key", default=None, help="Key selecting one config inside a collection YAML")
 @click.option("--out", required=True, help="Destination directory: local, gs://, s3://")
@@ -261,7 +384,8 @@ def verify_pack(
 @click.option("--import-module", multiple=True, help="Import first, to register user datasets")
 @click.option("--summary", type=click.Path(path_type=Path), default=None, help="JSON summary path")
 def main(
-    config_path: Path,
+    config_path: Path | None,
+    from_pack: str | None,
     key: str | None,
     out: str,
     fmt: str,
@@ -287,27 +411,40 @@ def main(
     for module in import_module:
         importlib.import_module(module)
 
-    config = config_from_yaml(config_path, key=key)
-    if isinstance(config, list):
-        raise click.UsageError("The YAML key selects a collection; pass a single dataset config")
-    if isinstance(config, ChainedDatasetConfig):
-        logger.warning("Chained config: it will be exported as a concatenation")
+    if (config_path is None) == (from_pack is None):
+        raise click.UsageError("Pass exactly one of --config or --from-pack")
+    if from_pack is not None and fmt != "hf":
+        raise click.UsageError("--from-pack only makes sense with --format hf")
 
-    exporter = pack if fmt == "pack" else to_hf
-    logger.info("Exporting %s to %s as %s with %d workers", config_path, out, fmt, num_workers)
+    config = None
+    if config_path is not None:
+        config = config_from_yaml(config_path, key=key)
+        if isinstance(config, ChainedDatasetConfig):
+            logger.warning("Chained config: it will be exported as a concatenation")
+
     t0 = time.perf_counter()
-    exporter(
-        config,
-        out,
-        samples_per_shard=samples_per_shard,
-        audio_format=audio_format,
-        num_workers=num_workers,
-        on_error=on_error,
-    )
+    if from_pack is not None:
+        logger.info("Converting pack %s to Hugging Face parquet at %s", from_pack, out)
+        to_hf(from_pack, out, samples_per_shard=samples_per_shard)
+        fs = filesystem_from_path(anypath(from_pack))
+        with fs.open(str(anypath(from_pack) / "config.yaml"), "r") as f:
+            source = yaml.safe_load(f)["source"]
+        config = config_from_yaml_dict(source)
+    else:
+        exporter = pack if fmt == "pack" else to_hf
+        logger.info("Exporting %s to %s as %s with %d workers", config_path, out, fmt, num_workers)
+        exporter(
+            config,
+            out,
+            samples_per_shard=samples_per_shard,
+            audio_format=audio_format,
+            num_workers=num_workers,
+            on_error=on_error,
+        )
     export_s = time.perf_counter() - t0
 
     report: dict[str, Any] = {
-        "config": str(config_path),
+        "config": str(config_path) if config_path else f"pack:{from_pack}",
         "out": out,
         "format": fmt,
         "num_workers": num_workers,
@@ -358,7 +495,16 @@ def main(
                     len(v["worker_mismatches"]),
                 )
     elif verify:
-        logger.warning("--verify only applies to the pack format; skipping")
+        logger.info("Verifying %d rows of the Hugging Face export against the live dataset", verify)
+        report["verify"] = verify_hf(config, out, verify, seed)
+        v = report["verify"]
+        logger.info(
+            "Verified %d of %d rows across %d files: %d mismatches",
+            v["compared"],
+            v["rows"],
+            v["files"],
+            len(v["mismatches"]),
+        )
 
     if summary is not None:
         summary.parent.mkdir(parents=True, exist_ok=True)
