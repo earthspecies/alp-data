@@ -217,3 +217,23 @@ def test_to_hf_from_pack_names_fallback_rows_wav(tmp_path: Path) -> None:
         "000000001.flac",
         "000000002.wav",
     ]
+
+
+def test_row_groups_are_bounded_by_bytes(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Parquet `binary` arrays cap at 2 GiB per row group; big audio must be split."""
+    import alp_data.export.hf as hf
+
+    monkeypatch.setattr(hf, "ROW_GROUP_BYTES", 3_000)  # fixture blobs are 1.5 to 3 KB each
+    source = make_source(tmp_path / "src", n=6)
+    from_cfg = to_hf(source, tmp_path / "hf_cfg")
+    assert pq.ParquetFile(from_cfg / "train-00000-of-00001.parquet").num_row_groups > 1
+
+    out = pack(source, tmp_path / "pack")
+    from_pack = to_hf(out, tmp_path / "hf_pack")
+    assert pq.ParquetFile(from_pack / "train-00000-of-00001.parquet").num_row_groups > 1
+
+
+def test_small_blobs_share_one_row_group(tmp_path: Path) -> None:
+    source = make_source(tmp_path / "src", n=6)
+    hf_dir = to_hf(source, tmp_path / "hf")
+    assert pq.ParquetFile(hf_dir / "train-00000-of-00001.parquet").num_row_groups == 1

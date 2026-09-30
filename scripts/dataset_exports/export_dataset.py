@@ -325,35 +325,41 @@ def verify_hf(config: Any, out: str, n: int, seed: int) -> dict[str, Any]:  # no
         offset += count
         if not rows_here:
             continue
+        wanted_here = set(rows_here)
         with fs.open(path, "rb") as f:
-            table = pq.read_table(f)
-        if audio_key is None:
-            audio_key = next(
-                name
-                for name, typ in zip(table.column_names, table.schema.types, strict=True)
-                if str(typ).startswith("struct<bytes")
-            )
-        for r in rows_here:
-            row = table.slice(r, 1).to_pylist()[0]
-            blob = row.pop(audio_key)
-            src = int(blob["path"].split(".")[0])
-            audio, sr = decode_audio(blob["bytes"])
-            item = {k: decode_value(v, kinds.get(k)) for k, v in row.items()}
-            item[audio_key] = audio
-            l_item = live[src]
-            atol = 1.5 / 32768 if blob["path"].endswith(".flac") else 0.0
-            diffs = compare_items(item, l_item, audio_key, atol)
-            if "sample_rate" in l_item and sr != l_item["sample_rate"]:
-                diffs.append("sample_rate(decoded)")
-            if diffs:
-                mismatches.append(
-                    {
-                        "file": str(path).rsplit("/", 1)[-1],
-                        "row": r,
-                        "source_index": src,
-                        "keys": diffs,
-                    }
+            parquet = pq.ParquetFile(f)
+            if audio_key is None:
+                schema = parquet.schema_arrow
+                audio_key = next(
+                    name
+                    for name, typ in zip(schema.names, schema.types, strict=True)
+                    if str(typ).startswith("struct<bytes")
                 )
+            # Row by row: a whole-file read cannot reassemble a struct column
+            # whose binary child exceeds 2 GiB, which long recordings do.
+            for r, batch in enumerate(parquet.iter_batches(batch_size=1)):
+                if r not in wanted_here:
+                    continue
+                row = batch.to_pylist()[0]
+                blob = row.pop(audio_key)
+                src = int(blob["path"].split(".")[0])
+                audio, sr = decode_audio(blob["bytes"])
+                item = {k: decode_value(v, kinds.get(k)) for k, v in row.items()}
+                item[audio_key] = audio
+                l_item = live[src]
+                atol = 1.5 / 32768 if blob["path"].endswith(".flac") else 0.0
+                diffs = compare_items(item, l_item, audio_key, atol)
+                if "sample_rate" in l_item and sr != l_item["sample_rate"]:
+                    diffs.append("sample_rate(decoded)")
+                if diffs:
+                    mismatches.append(
+                        {
+                            "file": str(path).rsplit("/", 1)[-1],
+                            "row": r,
+                            "source_index": src,
+                            "keys": diffs,
+                        }
+                    )
     return {"files": len(files), "rows": total, "compared": len(wanted), "mismatches": mismatches}
 
 

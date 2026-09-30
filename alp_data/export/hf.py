@@ -16,6 +16,8 @@ from os import PathLike
 from typing import Any
 
 import pyarrow as pa
+import pyarrow.compute as pc
+import pyarrow.parquet as pq
 import yaml
 from fsspec import AbstractFileSystem
 
@@ -38,7 +40,6 @@ from alp_data.export.runner import (
     read_shard_metadata,
     run_export,
     shard_metadata,
-    write_parquet,
 )
 from alp_data.export.serializers import AudioFormat, decode_audio
 from alp_data.export.shards import member_name
@@ -49,6 +50,41 @@ README_FILE = "README.md"
 ERRORS_FILE = "export_errors.jsonl"
 
 AUDIO_TYPE = pa.struct([("bytes", pa.binary()), ("path", pa.string())])
+
+# Parquet's plain `binary` type, which the Hub's Audio feature expects, holds at
+# most 2 GiB per array, and pyarrow cannot reassemble a struct whose child had
+# to be chunked. Keeping row groups under this many audio bytes avoids that and
+# also bounds how much a reader decodes per batch.
+ROW_GROUP_BYTES = 256 * 1024**2
+
+
+def write_hf_parquet(fs: AbstractFileSystem, path: str, table: pa.Table, audio_key: str) -> None:
+    """Write one Hub-style parquet file with row groups sized by audio bytes.
+
+    Parameters
+    ----------
+    fs : AbstractFileSystem
+        Filesystem for `path`.
+    path : str
+        Destination file.
+    table : pa.Table
+        The table, with the audio struct column under `audio_key`.
+    audio_key : str
+        Name of the audio column.
+    """
+    rows = table.num_rows
+    if rows:
+        # Per chunk: concatenating chunks of more than 2 GiB overflows the offsets.
+        audio_bytes = sum(
+            int(pc.sum(pc.binary_length(chunk.field("bytes"))).as_py() or 0)
+            for chunk in table.column(audio_key).chunks
+        )
+        per_row = max(1, audio_bytes // rows)
+        row_group_size = max(1, min(rows, ROW_GROUP_BYTES // per_row))
+    else:
+        row_group_size = 1
+    with fs.open(path, "wb") as f:
+        pq.write_table(table, f, row_group_size=row_group_size)
 
 
 def to_hf(
@@ -261,7 +297,7 @@ class _HFShard:
         table = table.replace_schema_metadata(metadata)
         final = join(self.out, self.name)
         tmp = final + ".tmp"
-        write_parquet(self.fs, tmp, table)
+        write_hf_parquet(self.fs, tmp, table, self.job.audio_key)
         self.fs.mv(tmp, final)
         return info
 
@@ -292,7 +328,8 @@ def _pack_to_hf(pack_path: Any, out_dir: str | AnyPathT, rows_per_file: int) -> 
                 {ds.audio_key: blob, **{k: v for k, v in row.items() if k not in BOOKKEEPING_COLS}}
             )
         name = file_name(ds.split, file_idx, num_files)
-        write_parquet(fs, join(out, name), _to_arrow(rows, ds.audio_key, sample_rate))
+        table = _to_arrow(rows, ds.audio_key, sample_rate)
+        write_hf_parquet(fs, join(out, name), table, ds.audio_key)
         files.append({"name": name, "size": fs.size(join(out, name))})
 
     meta = dict(ds.pack_config)
