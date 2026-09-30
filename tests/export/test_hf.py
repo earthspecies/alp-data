@@ -191,3 +191,29 @@ def test_to_hf_accepts_a_cloud_style_path_object(tmp_path: Path) -> None:
     out = pack(source, tmp_path / "pack")
     hf_dir = to_hf(anypath(str(out)), tmp_path / "hf")
     assert (hf_dir / "train-00000-of-00001.parquet").exists()
+
+
+def test_to_hf_from_config_names_fallback_rows_wav(tmp_path: Path) -> None:
+    source = make_source(tmp_path / "src", n=3, loud={2})
+    hf_dir = to_hf(source, tmp_path / "hf")
+    rows = _hf_tables(hf_dir).to_pylist()
+    assert [r["audio"]["path"] for r in rows] == [
+        "000000000.flac",
+        "000000001.flac",
+        "000000002.wav",
+    ]
+    src, _ = dataset_from_config(source)
+    audio, _ = sf.read(io.BytesIO(rows[2]["audio"]["bytes"]), dtype="float32")
+    np.testing.assert_array_equal(audio, src[2]["audio"])
+
+
+def test_to_hf_from_pack_names_fallback_rows_wav(tmp_path: Path) -> None:
+    source = make_source(tmp_path / "src", n=3, loud={2})
+    out = pack(source, tmp_path / "pack")
+    hf_dir = to_hf(out, tmp_path / "hf")
+    rows = _hf_tables(hf_dir).to_pylist()
+    assert [r["audio"]["path"] for r in rows] == [
+        "000000000.flac",
+        "000000001.flac",
+        "000000002.wav",
+    ]

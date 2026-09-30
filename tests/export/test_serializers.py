@@ -8,6 +8,7 @@ from alp_data.export.serializers import (
     decode_audio,
     decode_value,
     encode_audio,
+    encode_audio_lossless_if_needed,
     encode_value,
 )
 
@@ -119,3 +120,28 @@ def test_ndarray_round_trips_with_dtype_and_shape() -> None:
 def test_unsupported_value_raises_type_error() -> None:
     with pytest.raises(TypeError, match="cannot be packed"):
         encode_value(object())
+
+
+def test_flac_clips_audio_above_one() -> None:
+    audio = np.array([0.5, 1.5, -1.5], dtype=np.float32)
+    decoded, _ = decode_audio(encode_audio(audio, 16000, "flac"))
+    assert decoded[1] < 1.01 and decoded[2] > -1.01  # clipped, the reason for the fallback
+
+
+def test_fallback_keeps_flac_when_audio_fits_16_bits(audio: np.ndarray) -> None:
+    data, fmt = encode_audio_lossless_if_needed(audio, 16000, "flac")
+    assert fmt == "flac"
+    np.testing.assert_array_equal(decode_audio(data)[0], audio)
+
+
+def test_fallback_switches_to_wav_when_audio_exceeds_one() -> None:
+    audio = np.array([0.5, 1.5, -1.5], dtype=np.float32)
+    data, fmt = encode_audio_lossless_if_needed(audio, 16000, "flac")
+    assert fmt == "wav"
+    np.testing.assert_array_equal(decode_audio(data)[0], audio)
+
+
+def test_fallback_is_a_no_op_for_wav() -> None:
+    audio = np.array([0.5, 1.5], dtype=np.float32)
+    _, fmt = encode_audio_lossless_if_needed(audio, 16000, "wav")
+    assert fmt == "wav"

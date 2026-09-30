@@ -200,7 +200,12 @@ def verify_pack(
         live_t.append(time.perf_counter() - t0)
         diffs = compare_items(p_item, l_item, audio_key, audio_atol)
         if diffs:
-            mismatches.append({"packed_row": i, "source_index": src, "keys": diffs})
+            entry: dict[str, Any] = {"packed_row": i, "source_index": src, "keys": diffs}
+            if audio_key in diffs:
+                # Distinguish clipping (live audio outside [-1, 1]) from any other cause.
+                entry["live_peak"] = float(np.abs(l_item[audio_key]).max())
+                entry["stored_format"] = packed._data[i].get("_audio_format")
+            mismatches.append(entry)
 
     result: dict[str, Any] = {
         "packed_rows": len(packed),

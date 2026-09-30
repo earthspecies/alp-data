@@ -21,6 +21,7 @@ from fsspec import AbstractFileSystem
 
 from alp_data.dataset import ChainedDatasetConfig
 from alp_data.export.columns import (
+    AUDIO_FORMAT_COL,
     BOOKKEEPING_COLS,
     OFFSET_COL,
     SHARD_COL,
@@ -193,15 +194,17 @@ class HFSink:
         # the Hub's reader cannot open. Drop such files and renumber the rest.
         kept: list[str] = []
         num_rows = 0
+        fallback = 0
         for s in range(ctx.num_shards):
             name = file_name(split, s, ctx.num_shards)
             if s in by_shard:
                 opaque.update(by_shard[s].opaque_columns)
-                rows = by_shard[s].num_rows
+                info = by_shard[s].info
             else:
                 kinds, info = read_shard_metadata(fs, join(out, name))
                 opaque.update(kinds)
-                rows = info["num_rows"]
+            rows = int(info["num_rows"])
+            fallback += int(info.get("num_lossless_fallback", 0))
             if rows == 0:
                 fs.rm(join(out, name))
             else:
@@ -215,7 +218,7 @@ class HFSink:
                 renamed.append(new_name)
             kept = renamed
 
-        meta = ctx.provenance(opaque, num_rows)
+        meta = ctx.provenance(opaque, num_rows, fallback)
         meta["files"] = [{"name": n, "size": fs.size(join(out, n))} for n in kept]
         _write_readme(fs, out, meta)
 
@@ -246,13 +249,13 @@ class _HFShard:
     def __post_init__(self) -> None:
         self.name = file_name(_split_name(self.job.config), self.job.shard, self.job.num_shards)
 
-    def add(self, source_index: int, row: dict[str, Any], audio: bytes) -> None:
-        blob = {"bytes": audio, "path": member_name(source_index, self.job.audio_format)}
+    def add(self, source_index: int, row: dict[str, Any], audio: bytes, ext: str) -> None:
+        blob = {"bytes": audio, "path": member_name(source_index, ext)}
         self.rows.append({self.job.audio_key: blob, **row})
 
-    def close(self, opaque_columns: dict[str, str]) -> dict[str, Any]:
+    def close(self, opaque_columns: dict[str, str], stats: dict[str, Any]) -> dict[str, Any]:
         table = _to_arrow(self.rows, self.job.audio_key, self.job.declared_sample_rate)
-        info = {"name": self.name, "num_rows": len(self.rows)}
+        info = {"name": self.name, "num_rows": len(self.rows), **stats}
         metadata = dict(table.schema.metadata or {})
         metadata.update(shard_metadata(opaque_columns, info))
         table = table.replace_schema_metadata(metadata)
@@ -272,7 +275,7 @@ def _pack_to_hf(pack_path: Any, out_dir: str | AnyPathT, rows_per_file: int) -> 
     fs = filesystem_from_path(out)
     fs.makedirs(str(out), exist_ok=True)
 
-    ext = ds.pack_config["audio_format"]
+    default_ext = ds.pack_config["audio_format"]
     sample_rate = ds.pack_config.get("sample_rate") or _first_sample_rate(ds)
     num_rows = len(ds._data)
     num_files = math.ceil(num_rows / rows_per_file)
@@ -283,6 +286,7 @@ def _pack_to_hf(pack_path: Any, out_dir: str | AnyPathT, rows_per_file: int) -> 
         for row_idx in range(start, stop):
             row = ds._data[row_idx]
             data = ds._store.read(int(row[SHARD_COL]), int(row[OFFSET_COL]), int(row[SIZE_COL]))
+            ext = row.get(AUDIO_FORMAT_COL) or default_ext
             blob = {"bytes": data, "path": member_name(int(row[SOURCE_INDEX_COL]), ext)}
             rows.append(
                 {ds.audio_key: blob, **{k: v for k, v in row.items() if k not in BOOKKEEPING_COLS}}

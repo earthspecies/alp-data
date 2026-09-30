@@ -19,6 +19,7 @@ from fsspec import AbstractFileSystem
 
 from alp_data.dataset import ChainedDatasetConfig
 from alp_data.export.columns import (
+    AUDIO_FORMAT_COL,
     OFFSET_COL,
     SHA256_COL,
     SHARD_COL,
@@ -173,8 +174,11 @@ class TarSink:
                 opaque.update(kinds)
                 shards.append(info)
 
-        meta = ctx.provenance(opaque, table.height)
-        meta["shards"] = shards
+        fallback = sum(int(s.get("num_lossless_fallback", 0)) for s in shards)
+        meta = ctx.provenance(opaque, table.height, fallback)
+        meta["shards"] = [
+            {k: v for k, v in s.items() if k in ("name", "size", "sha256")} for s in shards
+        ]
         with fs.open(join(out, CONFIG_FILE), "w") as f:
             yaml.safe_dump(meta, f, sort_keys=False)
 
@@ -190,16 +194,17 @@ class _TarShard:
         self.writer = ShardWriter(join(self.out, MEDIA_DIR, shard_name(self.job.shard)))
         self.writer.__enter__()
 
-    def add(self, source_index: int, row: dict[str, Any], audio: bytes) -> None:
-        entry = self.writer.add(source_index, audio, self.job.audio_format)
+    def add(self, source_index: int, row: dict[str, Any], audio: bytes, ext: str) -> None:
+        entry = self.writer.add(source_index, audio, ext)
         row[SOURCE_INDEX_COL] = source_index
+        row[AUDIO_FORMAT_COL] = ext
         row[SHARD_COL] = self.job.shard
         row[OFFSET_COL] = entry.offset
         row[SIZE_COL] = entry.size
         row[SHA256_COL] = entry.sha256
         self.rows.append(row)
 
-    def close(self, opaque_columns: dict[str, str]) -> dict[str, Any]:
+    def close(self, opaque_columns: dict[str, str], stats: dict[str, Any]) -> dict[str, Any]:
         self.writer.__exit__(None, None, None)
         if self.writer.size > _LARGE_SHARD_BYTES:
             logger.warning(
@@ -211,6 +216,7 @@ class _TarShard:
             "name": shard_name(self.job.shard),
             "size": self.writer.size,
             "sha256": self.writer.sha256,
+            **stats,
         }
         part = join(self.out, PARTS_DIR, _part_name(self.job.shard))
         table = _rows_to_table(self.rows)
@@ -232,5 +238,6 @@ def _rows_to_table(rows: list[dict[str, Any]]) -> pa.Table:
             OFFSET_COL: pa.array([], pa.int64()),
             SIZE_COL: pa.array([], pa.int64()),
             SHA256_COL: pa.array([], pa.string()),
+            AUDIO_FORMAT_COL: pa.array([], pa.string()),
         }
     )

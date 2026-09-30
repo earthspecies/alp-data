@@ -115,6 +115,7 @@ def make_source(
     optional_every: int | None = None,
     unpackable: bool = False,
     multiline_notes: bool = False,
+    loud: set[int] | None = None,
 ) -> PackTestConfig:
     """Write `n` tiny wav files and a CSV, and return a config pointing at them.
 
@@ -134,6 +135,9 @@ def make_source(
         Every row's `_process` output carries a value that cannot be packed.
     multiline_notes : bool
         Add a free-text `notes` column containing tabs and newlines.
+    loud : set[int] | None
+        Rows whose audio peaks at 1.5, outside what 16-bit PCM can hold. Written
+        as float WAV so the values survive the read.
 
     Returns
     -------
@@ -142,6 +146,7 @@ def make_source(
     """
     duplicate_of = duplicate_of or {}
     corrupt = corrupt or set()
+    loud = loud or set()
     root.mkdir(parents=True, exist_ok=True)
     rng = np.random.default_rng(1234)
     rows = []
@@ -155,7 +160,11 @@ def make_source(
             audio = (local_rng.integers(-32768, 32767, size=800 + 100 * seed) / 32768.0).astype(
                 np.float32
             )
-            sf.write(path, audio, 16000, subtype="PCM_16")
+            if i in loud:
+                audio = audio * 1.5
+                sf.write(path, audio, 16000, subtype="FLOAT")
+            else:
+                sf.write(path, audio, 16000, subtype="PCM_16")
         st = pd.DataFrame({"Begin Time (s)": [0.0, 0.01 * i], "Annotation": ["a", "b"]})
         rows.append(
             {

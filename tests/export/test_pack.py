@@ -3,6 +3,7 @@
 import hashlib
 import os
 import pickle
+import tarfile
 from pathlib import Path
 from typing import Any
 
@@ -16,6 +17,8 @@ import yaml
 from alp_data.dataset import ChainedDatasetConfig, ConcatConfig, dataset_from_config
 from alp_data.export import pack, to_hf
 from alp_data.export.columns import (
+    AUDIO_FORMAT_COL,
+    BOOKKEEPING_COLS,
     OFFSET_COL,
     SHA256_COL,
     SHARD_COL,
@@ -122,15 +125,7 @@ def test_output_take_and_give_is_frozen_into_the_pack(tmp_path: Path) -> None:
     cfg, table, _ = _load(tmp_path / "pack")
     assert cfg["audio_key"] == "waveform"
     assert cfg["sample_rate_key"] == "sr"
-    assert set(table.columns) == {
-        "y",
-        "sr",
-        SOURCE_INDEX_COL,
-        SHARD_COL,
-        OFFSET_COL,
-        SIZE_COL,
-        SHA256_COL,
-    }
+    assert set(table.columns) == {"y", "sr", *BOOKKEEPING_COLS}
 
 
 def test_transformations_are_applied_before_packing(tmp_path: Path) -> None:
@@ -304,3 +299,23 @@ def test_source_config_survives_pickling_for_workers(source: PackTestConfig) -> 
     clone = pickle.loads(pickle.dumps(source))
     assert clone == source
     assert os.path.exists(clone.csv_path)
+
+
+def test_rows_above_full_scale_fall_back_to_float_wav(tmp_path: Path) -> None:
+    source = make_source(tmp_path / "src", n=4, loud={1, 3})
+    out = pack(source, tmp_path / "pack")
+    cfg, table, store = _load(out)
+    assert cfg["audio_format"] == "flac"
+    assert cfg["num_rows_lossless_fallback"] == 2
+    assert table[AUDIO_FORMAT_COL].to_list() == ["flac", "wav", "flac", "wav"]
+    with tarfile.open(out / "media" / "shard-00000.tar") as tar:
+        assert tar.getnames() == [
+            "000000000.flac",
+            "000000001.wav",
+            "000000002.flac",
+            "000000003.wav",
+        ]
+    ds, _ = dataset_from_config(source)
+    for row in table.iter_rows(named=True):
+        audio, _ = decode_audio(store.read(row[SHARD_COL], row[OFFSET_COL], row[SIZE_COL]))
+        np.testing.assert_array_equal(audio, ds[row[SOURCE_INDEX_COL]]["audio"])

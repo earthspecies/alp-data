@@ -54,7 +54,7 @@ pack(config, "gs://my-bucket/packs/beans-validation-16k", samples_per_shard=1000
 | Argument | Meaning |
 |---|---|
 | `samples_per_shard` | Rows per tar shard. Shard `j` holds source rows `j*N` to `(j+1)*N`. Pick it from your clip length: 1,000 three-second clips is about 50 MB of FLAC, 1,000 twenty-minute recordings is about 20 GB. |
-| `audio_format` | `"flac"` (16-bit PCM, default) or `"wav"` (float32, bit-exact, four times larger). |
+| `audio_format` | `"flac"` (16-bit PCM, default) or `"wav"` (float32, bit-exact, four times larger). A row whose audio exceeds `[-1, 1]`, which 16-bit FLAC would clip, is stored as float32 WAV regardless; `config.yaml` counts such rows under `num_rows_lossless_fallback` and the table records each row's format in `_audio_format`. Datasets that resample on the fly produce such rows (see issue #325). |
 | `num_workers` | Spawned worker processes. Each rebuilds the dataset from the config and packs whole shards. |
 | `on_error` | `"raise"` (default) stops on the first row that fails after retries. `"skip"` drops the row, records it in `pack_errors.parquet`, and counts it in `config.yaml` as `num_skipped`. |
 | `audio_key`, `sample_rate_key` | Output keys holding the audio and sample rate. Resolved from the config's `output_take_and_give` by default. |
@@ -72,7 +72,7 @@ Scalars, strings, and lists of scalars are native parquet columns. Two kinds of 
 - a `pandas.DataFrame` (selection tables) is written as arrow IPC bytes, so dtypes survive,
 - a `numpy.ndarray` is written as a struct of raw bytes, dtype, and shape.
 
-Five bookkeeping columns are added: `_export_index`, `_shard`, `_offset`, `_size`, `_sha256`. The index is not called `_source_index` because `ConcatenatedDataset` already uses that name for the row within a child dataset, and that column survives packing. `PackedDataset` strips them from returned items. Identical audio within one shard is stored once and shares an offset.
+Six bookkeeping columns are added: `_export_index`, `_shard`, `_offset`, `_size`, `_sha256`, `_audio_format`. The index is not called `_source_index` because `ConcatenatedDataset` already uses that name for the row within a child dataset, and that column survives packing. `PackedDataset` strips them from returned items. Identical audio within one shard is stored once and shares an offset.
 
 ## Reading
 

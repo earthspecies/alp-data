@@ -39,7 +39,7 @@ from alp_data.dataset import (
     dataset_from_config,
 )
 from alp_data.export.columns import SOURCE_INDEX_COL
-from alp_data.export.serializers import AudioFormat, encode_audio, encode_value
+from alp_data.export.serializers import AudioFormat, encode_audio_lossless_if_needed, encode_value
 from alp_data.io import AnyPathT, anypath, filesystem_from_path
 
 logger = logging.getLogger("alp_data")
@@ -124,7 +124,9 @@ class FinaliseContext:
     declared_sample_rate: int | None
     num_skipped: int
 
-    def provenance(self, opaque_columns: dict[str, str], num_rows: int) -> dict[str, Any]:
+    def provenance(
+        self, opaque_columns: dict[str, str], num_rows: int, num_lossless_fallback: int = 0
+    ) -> dict[str, Any]:
         """Build the provenance block every export format records.
 
         Parameters
@@ -133,6 +135,8 @@ class FinaliseContext:
             Column name to opaque kind.
         num_rows : int
             Rows actually written.
+        num_lossless_fallback : int
+            Rows stored as float32 WAV because FLAC would have clipped them.
 
         Returns
         -------
@@ -157,6 +161,7 @@ class FinaliseContext:
             "samples_per_shard": self.samples_per_shard,
             "num_rows": num_rows,
             "num_skipped": self.num_skipped,
+            "num_rows_lossless_fallback": num_lossless_fallback,
             "alp_data_version": importlib.metadata.version("alp_data"),
             "alp_data_commit": commit,
             "alp_data_dirty": dirty,
@@ -167,14 +172,15 @@ class FinaliseContext:
 class ShardOutput(Protocol):
     """An open shard, as handed out by a sink."""
 
-    def add(self, source_index: int, row: dict[str, Any], audio: bytes) -> None:
-        """Write one row whose values are already encoded."""
+    def add(self, source_index: int, row: dict[str, Any], audio: bytes, ext: str) -> None:
+        """Write one row whose values are already encoded; `ext` is the blob's format."""
 
-    def close(self, opaque_columns: dict[str, str]) -> dict[str, Any]:
+    def close(self, opaque_columns: dict[str, str], stats: dict[str, Any]) -> dict[str, Any]:
         """Finish the shard and return sink-specific info about it.
 
-        The sink stores `opaque_columns` with the shard so that a later run
-        that resumes past this shard can recover them without guessing.
+        The sink stores `opaque_columns` and `stats` with the shard so that a
+        later run that resumes past this shard can recover them without
+        guessing. `stats` is merged into the returned info.
         """
 
     def abort(self) -> None:
@@ -471,6 +477,7 @@ def _export_shard(ds: Dataset, job: ExportJob) -> ShardResult:
     errors: list[dict[str, Any]] = []
     opaque: dict[str, str] = {}
     num_rows = 0
+    num_fallback = 0
 
     logger.info("Exporting shard %d: rows %d to %d", job.shard, job.start, job.stop)
     output = job.sink.open_shard(fs, out, job)
@@ -479,7 +486,9 @@ def _export_shard(ds: Dataset, job: ExportJob) -> ShardResult:
             try:
                 item = _get_item_with_retries(ds, idx)
                 sr = item[job.sample_rate_key] if job.sample_rate_key else job.fallback_sample_rate
-                audio = encode_audio(item[job.audio_key], int(sr), job.audio_format)
+                audio, ext = encode_audio_lossless_if_needed(
+                    item[job.audio_key], int(sr), job.audio_format
+                )
             except Exception as exc:
                 if job.on_error == "raise":
                     raise
@@ -495,12 +504,13 @@ def _export_shard(ds: Dataset, job: ExportJob) -> ShardResult:
             # A value that cannot be encoded is a schema problem with the
             # dataset, not a bad row: it is never skipped.
             row = _encode_row(item, job.audio_key, opaque)
-            output.add(idx, row, audio)
+            output.add(idx, row, audio, ext)
             num_rows += 1
+            num_fallback += ext != job.audio_format
     except BaseException:
         output.abort()
         raise
-    info = output.close(opaque)
+    info = output.close(opaque, {"num_lossless_fallback": num_fallback})
 
     if errors:
         with fs.open(join(out, PARTS_DIR, _errors_name(job.shard)), "wb") as f:

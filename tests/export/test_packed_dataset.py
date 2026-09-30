@@ -195,3 +195,13 @@ def test_packed_concat_items_keep_the_concat_source_index(tmp_path: Path) -> Non
         _assert_same_item(ds[i], src[i])
     assert ds[3]["_source_index"] == 1
     assert ds[3]["_source_dataset"] == 1
+
+
+def test_loud_rows_read_back_exactly(tmp_path: Path) -> None:
+    source = make_source(tmp_path / "src", n=3, loud={1})
+    out = pack(source, tmp_path / "pack")
+    src, _ = dataset_from_config(source)
+    ds = PackedDataset(out)
+    assert np.abs(src[1]["audio"]).max() > 1.0
+    for i in range(3):
+        _assert_same_item(ds[i], src[i])
