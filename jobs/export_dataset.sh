@@ -36,6 +36,10 @@ SUMMARY_DIR=${SUMMARY_DIR:-$HOME/outputs/exports}
 
 mkdir -p "$SUMMARY_DIR" "$HOME/logs"
 cd "$ALP_DATA_DIR"
+if [ -z "$FROM_PACK" ] && [ ! -f "$CONFIG" ]; then
+    echo "CONFIG does not exist: '$CONFIG' (is the variable set in this shell?)" >&2
+    exit 2
+fi
 uv sync
 
 echo "=== export started $(date) on $(hostname) ==="
