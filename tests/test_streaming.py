@@ -95,7 +95,9 @@ class TestPandasStreaming:
         df = pd.DataFrame({"a": [1, 2, 3, 4, 5]})
         with tempfile.NamedTemporaryFile(mode="w", suffix=".jsonl", delete=False) as f:
             df.to_json(f.name, orient="records", lines=True)
-            backend = PandasBackend.from_json(f.name, lines=True, streaming=True, streaming_chunk_size=2)
+            backend = PandasBackend.from_json(
+                f.name, lines=True, streaming=True, streaming_chunk_size=2
+            )
 
             # Use manual iteration instead of list() to avoid __len__ call
             rows = []
@@ -144,7 +146,9 @@ class TestPolarsStreaming:
             df.write_csv(f.name)
             backend = PolarsBackend.from_csv(f.name, streaming=True)
 
-            with pytest.raises(RuntimeError, match="Cannot perform '__getitem__' in streaming mode"):
+            with pytest.raises(
+                RuntimeError, match="Cannot perform '__getitem__' in streaming mode"
+            ):
                 _ = backend[0]
 
             Path(f.name).unlink()
@@ -381,12 +385,8 @@ class TestPolarsStreaming:
         # row_index_name is valid for scan_parquet / read_parquet but NOT
         # for scan_csv. With the bug it would be silently dropped; with the
         # fix it actually gets applied.
-        backend_stream = PolarsBackend.from_parquet(
-            fname, streaming=True, row_index_name="idx"
-        )
+        backend_stream = PolarsBackend.from_parquet(fname, streaming=True, row_index_name="idx")
         assert "idx" in backend_stream.columns
 
-        backend_eager = PolarsBackend.from_parquet(
-            fname, streaming=False, row_index_name="idx"
-        )
+        backend_eager = PolarsBackend.from_parquet(fname, streaming=False, row_index_name="idx")
         assert "idx" in backend_eager.columns

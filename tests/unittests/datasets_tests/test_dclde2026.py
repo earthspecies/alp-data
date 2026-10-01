@@ -30,9 +30,7 @@ EXPECTED_FIRST_ITEM_AUDIO_SHA256 = (
     "87cbf23a8a86233ca55c6263bed7c25bdf4cd61ec69c91b602bc90f8b74fad92"
 )
 ANNOTATIONS_SHA256 = "715975d12bf739e576239c06f267251f6936b1a2c3b08165d23efbd9fbc7b1ec"
-VFPA_SRKW_STANDARD_SHA256 = (
-    "97de2b0b18a661b08261fc758c5f12265c82dbbc120e76844732e21657166317"
-)
+VFPA_SRKW_STANDARD_SHA256 = "97de2b0b18a661b08261fc758c5f12265c82dbbc120e76844732e21657166317"
 # ---------------------------------------------------------------------------
 
 
@@ -139,9 +137,7 @@ def test_check_audio(ds_pandas: DCLDE2026, sample_indices: List[int]) -> None:
         audio = item["audio"]
 
         assert isinstance(audio, np.ndarray), f"[{idx}] audio is not a numpy array"
-        assert (
-            audio.dtype == np.float32
-        ), f"[{idx}] audio dtype is {audio.dtype}, expected float32"
+        assert audio.dtype == np.float32, f"[{idx}] audio dtype is {audio.dtype}, expected float32"
         assert audio.size >= 10, f"[{idx}] audio too short (size={audio.size})"
         assert not np.any(np.isnan(audio)), f"[{idx}] audio contains NaN values"
         assert not np.all(audio == 0), f"[{idx}] audio is all zeros"
@@ -170,9 +166,7 @@ def test_reference_item_stability(ds_pandas: DCLDE2026) -> None:
     assert "audio" in item, "[0] missing 'audio' key"
     audio = item["audio"]
     assert isinstance(audio, np.ndarray), "[0] audio is not a numpy array"
-    assert (
-        audio.dtype == np.float32
-    ), f"[0] audio dtype is {audio.dtype}, expected float32"
+    assert audio.dtype == np.float32, f"[0] audio dtype is {audio.dtype}, expected float32"
 
     # compute sha256 over raw bytes of the float32 array
     h = create_hash(audio.tobytes())
@@ -216,18 +210,12 @@ def test_check_selection_table(ds_pandas: DCLDE2026, sample_indices: List[int]) 
         assert "selection_table" in item, f"[{idx}] missing 'selection_table' key"
         st = item["selection_table"]
 
-        assert isinstance(
-            st, pd.DataFrame
-        ), f"[{idx}] selection_table is not a DataFrame"
+        assert isinstance(st, pd.DataFrame), f"[{idx}] selection_table is not a DataFrame"
         missing = required - set(st.columns)
-        assert (
-            not missing
-        ), f"[{idx}] selection_table missing columns: {sorted(missing)}"
+        assert not missing, f"[{idx}] selection_table missing columns: {sorted(missing)}"
 
         if len(st) > 0:
-            assert not (
-                st["Begin Time (s)"] < 0
-            ).any(), f"[{idx}] negative begin times present"
+            assert not (st["Begin Time (s)"] < 0).any(), f"[{idx}] negative begin times present"
             durs = st["End Time (s)"] - st["Begin Time (s)"]
             assert not durs.min() <= 0, f"[{idx}] events of dur <= 0"
 
@@ -260,12 +248,15 @@ def test_item_keys(ds_pandas: DCLDE2026) -> None:
     """Each item should have the expected top-level keys (incl. provenance)."""
     item = ds_pandas[0]
     expected_keys = {
-        "audio_path", "audio", "sample_rate", "selection_table",
+        "audio_path",
+        "audio",
+        "sample_rate",
+        "selection_table",
         *PROVENANCE_COLUMNS,
     }
-    assert expected_keys.issubset(
-        set(item.keys())
-    ), f"Missing keys: {expected_keys - set(item.keys())}"
+    assert expected_keys.issubset(set(item.keys())), (
+        f"Missing keys: {expected_keys - set(item.keys())}"
+    )
 
 
 def test_str_representation(ds_pandas: DCLDE2026) -> None:

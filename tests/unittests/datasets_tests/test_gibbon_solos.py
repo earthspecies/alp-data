@@ -1,4 +1,3 @@
-
 import numpy as np
 import pandas as pd
 import pytest
@@ -9,7 +8,9 @@ from alp_data.utils import create_hash
 
 
 EXPECTED_LEN_ALL = 18
-EXPECTED_FIRST_ITEM_AUDIO_SHA256 = "3ec0bfb03c2a7bc8ab27f3598c792d455178e7161c92efd32aadb7e0154a724f"
+EXPECTED_FIRST_ITEM_AUDIO_SHA256 = (
+    "3ec0bfb03c2a7bc8ab27f3598c792d455178e7161c92efd32aadb7e0154a724f"
+)
 ANNOTATIONS_SHA256 = "7d4b21830d79ae121cf4ee765530f2b5303e4825f58019a61cade07300517268"
 EXPECTED_COLS = [
     "local_path",
@@ -30,7 +31,7 @@ EXPECTED_COLS = [
 @pytest.fixture
 def ds() -> GibbonSolos:
     """Load GibbonSolos dataset for testing."""
-    return GibbonSolos(split="all", streaming=False, backend='pandas')
+    return GibbonSolos(split="all", streaming=False, backend="pandas")
 
 
 @pytest.fixture
@@ -54,8 +55,7 @@ def create_dataset_hashes(first_sample: dict, ds: GibbonSolos) -> tuple[int, str
 
 
 @pytest.mark.skipif(
-    EXPECTED_LEN_ALL is None,
-    reason="Hash values not yet computed. Run hash computation first."
+    EXPECTED_LEN_ALL is None, reason="Hash values not yet computed. Run hash computation first."
 )
 def test_dataset_integrity(
     ds: GibbonSolos,
@@ -65,12 +65,10 @@ def test_dataset_integrity(
     len_h, first_audio_h, annotations_h = create_dataset_hashes(first_sample, ds)
 
     assert len_h == EXPECTED_LEN_ALL, "Dataset length does not match expected value."
-    assert (
-        first_audio_h == EXPECTED_FIRST_ITEM_AUDIO_SHA256
-    ), "First item audio hash does not match expected value."
-    assert (
-        annotations_h == ANNOTATIONS_SHA256
-    ), "Annotations hash does not match expected value."
+    assert first_audio_h == EXPECTED_FIRST_ITEM_AUDIO_SHA256, (
+        "First item audio hash does not match expected value."
+    )
+    assert annotations_h == ANNOTATIONS_SHA256, "Annotations hash does not match expected value."
 
 
 def test_columns_property(ds: GibbonSolos) -> None:
@@ -100,11 +98,9 @@ def test_transforms_in_from_config() -> None:
         "split": "all",
         "streaming": False,
         "backend": "pandas",
-        "transformations": [{
-            "type": "label_from_feature",
-            "feature": "species_common",
-            "output_feature": "label"
-        }]
+        "transformations": [
+            {"type": "label_from_feature", "feature": "species_common", "output_feature": "label"}
+        ],
     }
     config = DatasetConfig.model_validate(config)
     ds, metadata = GibbonSolos.from_config(config)
@@ -124,11 +120,11 @@ def test_available_splits(ds: GibbonSolos) -> None:
 def test_split_lookup_error() -> None:
     """Test that an invalid split raises a LookupError."""
     with pytest.raises(LookupError):
-        GibbonSolos(split="invalid_split", streaming=False, backend='pandas')
+        GibbonSolos(split="invalid_split", streaming=False, backend="pandas")
 
 
 def test_streaming_iter() -> None:
-    ds = GibbonSolos(split="all", streaming=True, backend='polars')
+    ds = GibbonSolos(split="all", streaming=True, backend="polars")
 
     # iterate through first 5 samples
     for i, sample in enumerate(ds):
@@ -142,7 +138,9 @@ def test_selection_table_is_dataframe(ds: GibbonSolos) -> None:
     """Test that selection_table is properly parsed as a DataFrame."""
     sample = next(iter(ds))
     assert "selection_table" in sample, "Sample does not contain 'selection_table' key."
-    assert isinstance(sample["selection_table"], pd.DataFrame), "selection_table should be a pandas DataFrame."
+    assert isinstance(sample["selection_table"], pd.DataFrame), (
+        "selection_table should be a pandas DataFrame."
+    )
 
 
 def test_random_samples(ds: GibbonSolos) -> None:

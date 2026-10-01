@@ -77,7 +77,8 @@ class ExportJob:
     fallback_sample_rate : int | None
         Used when `sample_rate_key` is None.
     declared_sample_rate : int | None
-        The rate the export advertises: the config's, else the first row's.
+        The rate the export advertises: the config's `sample_rate`, or None
+        when rows were left at their native rates.
     on_error : OnError
         Whether a failing row stops the export or is skipped and recorded.
     sink : ExportSink
@@ -308,9 +309,9 @@ def run_export(
     sample_rate_key, fallback_sr = _resolve_sample_rate_key(
         first, sample_rate_key or mapping.get("sample_rate"), config
     )
+    # Declared only when the config enforced it; a native-rate export has rows
+    # at different rates and must not advertise one.
     declared_sr = getattr(config, "sample_rate", None)
-    if declared_sr is None:
-        declared_sr = int(first[sample_rate_key]) if sample_rate_key else fallback_sr
 
     # A shard is the unit of parallelism: make sure every worker gets one.
     if num_workers > 1:

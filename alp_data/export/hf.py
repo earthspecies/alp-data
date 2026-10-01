@@ -41,7 +41,7 @@ from alp_data.export.runner import (
     run_export,
     shard_metadata,
 )
-from alp_data.export.serializers import AudioFormat, decode_audio
+from alp_data.export.serializers import AudioFormat
 from alp_data.export.shards import member_name
 from alp_data.io import AnyPathT, anypath, filesystem_from_path
 from alp_data.io.paths import PureCloudPath
@@ -312,7 +312,7 @@ def _pack_to_hf(pack_path: Any, out_dir: str | AnyPathT, rows_per_file: int) -> 
     fs.makedirs(str(out), exist_ok=True)
 
     default_ext = ds.pack_config["audio_format"]
-    sample_rate = ds.pack_config.get("sample_rate") or _first_sample_rate(ds)
+    sample_rate = ds.pack_config.get("sample_rate")
     num_rows = len(ds._data)
     num_files = math.ceil(num_rows / rows_per_file)
     files = []
@@ -338,23 +338,3 @@ def _pack_to_hf(pack_path: Any, out_dir: str | AnyPathT, rows_per_file: int) -> 
     meta["converted_from_pack"] = str(ds.path)
     _write_readme(fs, out, meta)
     return out
-
-
-def _first_sample_rate(ds: PackedDataset) -> int:
-    """Sample rate of the first row: from its table value, else by decoding its blob.
-
-    Parameters
-    ----------
-    ds : PackedDataset
-        The pack being converted.
-
-    Returns
-    -------
-    int
-        Sample rate in Hz.
-    """
-    row = ds._data[0]
-    if ds.sample_rate_key is not None:
-        return int(row[ds.sample_rate_key])
-    data = ds._store.read(int(row[SHARD_COL]), int(row[OFFSET_COL]), int(row[SIZE_COL]))
-    return int(decode_audio(data)[1])

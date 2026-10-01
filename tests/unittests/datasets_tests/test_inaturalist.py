@@ -72,18 +72,14 @@ def test_columns_property(dataset_with_transforms_from_config: Dataset) -> None:
     assert "originals_path" in dataset_with_transforms_from_config.columns
     # Check for expected columns
     expected_columns = ["originals_path"]
-    assert all(
-        col in dataset_with_transforms_from_config.columns for col in expected_columns
-    )
+    assert all(col in dataset_with_transforms_from_config.columns for col in expected_columns)
 
 
 def test_available_splits(dataset_with_transforms_from_config: Dataset) -> None:
     """Test if available_splits returns correct split names."""
     # Available splits should contain train, val, all, and unseen variants
     expected_splits = ["train", "val", "all", "train_unseen", "val_unseen", "all_unseen"]
-    assert set(dataset_with_transforms_from_config.available_splits) == set(
-        expected_splits
-    )
+    assert set(dataset_with_transforms_from_config.available_splits) == set(expected_splits)
 
 
 def test_length(dataset_with_transforms_from_config: Dataset) -> None:
@@ -235,9 +231,7 @@ def test_reference_item_stability(dataset_with_transforms_from_config: Dataset) 
     assert "audio" in item, "[0] missing 'audio' key"
     audio = item["audio"]
     assert isinstance(audio, np.ndarray), "[0] audio is not a numpy array"
-    assert (
-        audio.dtype == np.float32
-    ), f"[0] audio dtype is {audio.dtype}, expected float32"
+    assert audio.dtype == np.float32, f"[0] audio dtype is {audio.dtype}, expected float32"
 
     # Compute sha256 over raw bytes of the float32 array
     h = hashlib.sha256(audio.tobytes()).hexdigest()

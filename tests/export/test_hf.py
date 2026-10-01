@@ -10,6 +10,7 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 import pytest
 import soundfile as sf
+import yaml
 
 from alp_data.dataset import dataset_from_config
 from alp_data.export import pack, to_hf
@@ -36,11 +37,24 @@ def test_to_hf_writes_parquet_shards_with_embedded_audio(tmp_path: Path) -> None
 
 def test_to_hf_declares_the_audio_feature_in_parquet_metadata(tmp_path: Path) -> None:
     source = make_source(tmp_path / "src", n=2)
+    source.sample_rate = 16000
     out = pack(source, tmp_path / "pack")
     hf_dir = to_hf(out, tmp_path / "hf")
     schema = pq.read_schema(hf_dir / "train-00000-of-00001.parquet")
     meta = json.loads(schema.metadata[b"huggingface"])
     assert meta["info"]["features"]["audio"] == {"_type": "Audio", "sampling_rate": 16000}
+
+
+def test_native_rate_export_declares_no_sampling_rate(tmp_path: Path) -> None:
+    """With sample_rate=None nothing was resampled, so the pack must not claim a rate."""
+    source = make_source(tmp_path / "src", n=2)
+    assert source.sample_rate is None
+    out = pack(source, tmp_path / "pack")
+    assert yaml.safe_load((out / "config.yaml").read_text())["sample_rate"] is None
+    for hf_dir in (to_hf(out, tmp_path / "hf_pack"), to_hf(source, tmp_path / "hf_cfg")):
+        schema = pq.read_schema(hf_dir / "train-00000-of-00001.parquet")
+        meta = json.loads(schema.metadata[b"huggingface"])
+        assert meta["info"]["features"]["audio"] == {"_type": "Audio"}
 
 
 def test_to_hf_audio_bytes_decode_to_the_source_audio(tmp_path: Path) -> None:
@@ -93,6 +107,7 @@ def test_to_hf_from_config_writes_one_file_per_shard(tmp_path: Path) -> None:
 
 def test_to_hf_from_config_matches_the_source(tmp_path: Path) -> None:
     source = make_source(tmp_path / "src", n=4)
+    source.sample_rate = 16000
     hf_dir = to_hf(source, tmp_path / "hf", samples_per_shard=3)
     src, _ = dataset_from_config(source)
     rows = _hf_tables(hf_dir).to_pylist()

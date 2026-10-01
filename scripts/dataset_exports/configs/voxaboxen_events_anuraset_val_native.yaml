@@ -1,0 +1,6 @@
+# Voxaboxen event clips: generated clips with numpy target arrays, native rate.
+dataset:
+  dataset_name: voxaboxen_events
+  split: Anuraset_val
+  sample_rate: null
+  backend: polars

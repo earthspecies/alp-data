@@ -70,9 +70,7 @@ def test_check_audio(ds: SuperbStarling, sample_indices: List[int]):
         audio = item["audio"]
 
         assert isinstance(audio, np.ndarray), f"[{idx}] audio is not a numpy array"
-        assert (
-            audio.dtype == np.float32
-        ), f"[{idx}] audio dtype is {audio.dtype}, expected float32"
+        assert audio.dtype == np.float32, f"[{idx}] audio dtype is {audio.dtype}, expected float32"
         assert audio.size >= 10, f"[{idx}] audio too short (size={audio.size})"
         assert not np.any(np.isnan(audio)), f"[{idx}] audio contains NaN values"
         assert not np.all(audio == 0), f"[{idx}] audio is all zeros"
@@ -100,8 +98,7 @@ def test_check_duration(ds: SuperbStarling, sample_indices: List[int]):
         expected_duration = audio_len / sr
 
         assert abs(duration - expected_duration) < 1e-6, (
-            f"[{idx}] duration mismatch: duration_s={duration}, "
-            f"audio_len/sr={expected_duration}"
+            f"[{idx}] duration mismatch: duration_s={duration}, audio_len/sr={expected_duration}"
         )
 
 
@@ -128,9 +125,7 @@ def test_reference_item_stability(ds_pandas: SuperbStarling):
     assert "audio" in item, "[0] missing 'audio' key"
     audio = item["audio"]
     assert isinstance(audio, np.ndarray), "[0] audio is not a numpy array"
-    assert (
-        audio.dtype == np.float32
-    ), f"[0] audio dtype is {audio.dtype}, expected float32"
+    assert audio.dtype == np.float32, f"[0] audio dtype is {audio.dtype}, expected float32"
 
     # compute sha256 over raw bytes of the float32 array
     h = hashlib.sha256(audio.tobytes()).hexdigest()

@@ -103,10 +103,7 @@ def test_reference_item_stability(ds: AudioSetStrong):
     )
 
     csv_bytes = (
-        ds._data.unwrap.sort_index(axis=0)
-        .sort_index(axis=1)
-        .to_csv(index=True)
-        .encode("utf-8")
+        ds._data.unwrap.sort_index(axis=0).sort_index(axis=1).to_csv(index=True).encode("utf-8")
     )
     h = hashlib.sha256(csv_bytes).hexdigest()
     assert h == ANNOTATIONS_SHA256, (

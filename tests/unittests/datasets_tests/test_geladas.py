@@ -1,4 +1,3 @@
-
 import numpy as np
 import pytest
 
@@ -8,7 +7,9 @@ from alp_data.utils import create_hash
 
 
 EXPECTED_LEN_ALL = 10583
-EXPECTED_FIRST_ITEM_AUDIO_SHA256 = "5fa66b4e44a95871d980f49169d2ef6d21b0f20e1ef994bee06f956d6ae52075"
+EXPECTED_FIRST_ITEM_AUDIO_SHA256 = (
+    "5fa66b4e44a95871d980f49169d2ef6d21b0f20e1ef994bee06f956d6ae52075"
+)
 ANNOTATIONS_SHA256 = "7d03fb08bd1ba1971938516112747f8ce7c818b6ec0f7795c10082aef5ae0541"
 EXPECTED_COLS = [
     "focal_sample",
@@ -34,14 +35,14 @@ EXPECTED_COLS = [
     "genus",
     "species_scientific",
     "species_common",
-    "taxonomic_name"
+    "taxonomic_name",
 ]
 
 
 @pytest.fixture
 def ds() -> Geladas:
     """Load HawaiianBirds dataset for testing."""
-    return Geladas(split="all", streaming=False, backend='pandas')
+    return Geladas(split="all", streaming=False, backend="pandas")
 
 
 @pytest.fixture
@@ -72,12 +73,10 @@ def test_dataset_integrity(
     len_h, first_audio_h, annotations_h = create_dataset_hashes(first_sample, ds)
 
     assert len_h == EXPECTED_LEN_ALL, "Dataset length does not match expected value."
-    assert (
-        first_audio_h == EXPECTED_FIRST_ITEM_AUDIO_SHA256
-    ), "First item audio hash does not match expected value."
-    assert (
-        annotations_h == ANNOTATIONS_SHA256
-    ), "Annotations hash does not match expected value."
+    assert first_audio_h == EXPECTED_FIRST_ITEM_AUDIO_SHA256, (
+        "First item audio hash does not match expected value."
+    )
+    assert annotations_h == ANNOTATIONS_SHA256, "Annotations hash does not match expected value."
 
 
 def test_columns_property(ds: Geladas) -> None:
@@ -107,11 +106,9 @@ def test_transforms_in_from_config() -> None:
         "split": "all",
         "streaming": False,
         "backend": "pandas",
-        "transformations": [{
-            "type": "label_from_feature",
-            "feature": "vocal_type",
-            "output_feature": "label"
-        }]
+        "transformations": [
+            {"type": "label_from_feature", "feature": "vocal_type", "output_feature": "label"}
+        ],
     }
     config = DatasetConfig.model_validate(config)
     ds, metadata = Geladas.from_config(config)
@@ -131,11 +128,11 @@ def test_available_splits(ds: Geladas) -> None:
 def test_split_lookup_error() -> None:
     """Test that an invalid split raises a LookupError."""
     with pytest.raises(LookupError):
-        Geladas(split="invalid_split", streaming=False, backend='pandas')
+        Geladas(split="invalid_split", streaming=False, backend="pandas")
 
 
 def test_streaming_iter() -> None:
-    ds = Geladas(split="all", streaming=True, backend='polars')
+    ds = Geladas(split="all", streaming=True, backend="polars")
 
     # iterate through first 5 samples
     for i, sample in enumerate(ds):

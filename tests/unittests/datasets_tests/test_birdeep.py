@@ -50,6 +50,7 @@ def test_ds_not_empty(ds: Birdeep):
     """Dataset should have at least one example."""
     assert len(ds) > 0, "Dataset appears empty"
 
+
 def test_check_audio(ds: Birdeep, sample_indices: List[int]):
     """Basic audio integrity checks on a few random items."""
     for idx in sample_indices:
@@ -58,9 +59,7 @@ def test_check_audio(ds: Birdeep, sample_indices: List[int]):
         audio = item["audio"]
 
         assert isinstance(audio, np.ndarray), f"[{idx}] audio is not a numpy array"
-        assert (
-            audio.dtype == np.float32
-        ), f"[{idx}] audio dtype is {audio.dtype}, expected float32"
+        assert audio.dtype == np.float32, f"[{idx}] audio dtype is {audio.dtype}, expected float32"
         assert audio.size >= 10, f"[{idx}] audio too short (size={audio.size})"
         assert not np.any(np.isnan(audio)), f"[{idx}] audio contains NaN values"
         assert not np.all(audio == 0), f"[{idx}] audio is all zeros"
@@ -106,9 +105,7 @@ def test_reference_item_stability(ds_pandas: Birdeep):
     assert "audio" in item, "[0] missing 'audio' key"
     audio = item["audio"]
     assert isinstance(audio, np.ndarray), "[0] audio is not a numpy array"
-    assert (
-        audio.dtype == np.float32
-    ), f"[0] audio dtype is {audio.dtype}, expected float32"
+    assert audio.dtype == np.float32, f"[0] audio dtype is {audio.dtype}, expected float32"
 
     # compute sha256 over raw bytes of the float32 array
     h = hashlib.sha256(audio.tobytes()).hexdigest()
@@ -157,18 +154,12 @@ def test_check_selection_table(ds: Birdeep, sample_indices: List[int]):
         assert "selection_table" in item, f"[{idx}] missing 'selection_table' key"
         st = item["selection_table"]
 
-        assert isinstance(
-            st, pd.DataFrame
-        ), f"[{idx}] selection_table is not a DataFrame"
+        assert isinstance(st, pd.DataFrame), f"[{idx}] selection_table is not a DataFrame"
         missing = required - set(st.columns)
-        assert (
-            not missing
-        ), f"[{idx}] selection_table missing columns: {sorted(missing)}"
+        assert not missing, f"[{idx}] selection_table missing columns: {sorted(missing)}"
 
         if len(st) > 0:
-            assert not (
-                st["Begin Time (s)"] < 0
-            ).any(), f"[{idx}] negative begin times present"
+            assert not (st["Begin Time (s)"] < 0).any(), f"[{idx}] negative begin times present"
 
 
 # if __name__ == "__main__":

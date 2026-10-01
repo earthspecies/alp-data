@@ -35,9 +35,7 @@ from alp_data.backends import PandasBackend, PolarsBackend
         # Single column, mix of strings and lists
         (
             ["col1"],
-            pd.DataFrame(
-                {"col1": ["banana", ["apple"], ["banana", "orange"], "orange"]}
-            ),
+            pd.DataFrame({"col1": ["banana", ["apple"], ["banana", "orange"], "orange"]}),
             [[1], [0], [1, 2], [2]],
             {"apple": 0, "banana": 1, "orange": 2},
         ),
@@ -203,7 +201,9 @@ def test_multilabel_from_features_allow_missing_labels() -> None:
 
     # When allow_missing_labels=False we expect rows with no labels to be **dropped**.
     t_drop = MultiLabelFromFeatures(features=["col1"], allow_missing_labels=False)
-    data = PandasBackend(pd.DataFrame({"col1": ["banana", [], "orange"]}))  # Reset the backend to the original data
+    data = PandasBackend(
+        pd.DataFrame({"col1": ["banana", [], "orange"]})
+    )  # Reset the backend to the original data
     df_drop, meta_drop = t_drop(data)
 
     # Metadata should be identical to the previous run
@@ -215,8 +215,9 @@ def test_multilabel_from_features_allow_missing_labels() -> None:
 
 def test_multilabel_from_features_outputfeature_already_present() -> None:
     """Ensure that an AssertionError is raised if the output feature already exists and override is False."""
-    df = pd.DataFrame({"col1": ["banana", "apple", "banana", "orange"],
-                       "label": ["dog", "cat", "dog", "mouse"]})
+    df = pd.DataFrame(
+        {"col1": ["banana", "apple", "banana", "orange"], "label": ["dog", "cat", "dog", "mouse"]}
+    )
     data = PandasBackend(df)
     t = MultiLabelFromFeatures(features=["label"], output_feature="label", override=False)
     with pytest.raises(AssertionError, match="Feature already exists in DataFrame"):

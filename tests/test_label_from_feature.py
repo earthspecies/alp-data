@@ -142,16 +142,20 @@ def test_label_from_feature_label_map_remains_none(backend_type: str) -> None:
 def test_label_from_feature_with_label_map_two_cols(backend_type: str) -> None:
     """Test label from feature with two columns."""
     if backend_type == "pandas":
-        df = pd.DataFrame({
-            "col1": ["banana", "apple", "banana", "orange"],
-            "col2": ["dog", "cat", "dog", "mouse"]
-        })
+        df = pd.DataFrame(
+            {
+                "col1": ["banana", "apple", "banana", "orange"],
+                "col2": ["dog", "cat", "dog", "mouse"],
+            }
+        )
         backend = PandasBackend(df)
     else:
-        df = pl.DataFrame({
-            "col1": ["banana", "apple", "banana", "orange"],
-            "col2": ["dog", "cat", "dog", "mouse"]
-        })
+        df = pl.DataFrame(
+            {
+                "col1": ["banana", "apple", "banana", "orange"],
+                "col2": ["dog", "cat", "dog", "mouse"],
+            }
+        )
         backend = PolarsBackend(df)
 
     label_map = {"apple": 0, "banana": 1, "orange": 2, "dog": 3, "cat": 4, "mouse": 5}
@@ -175,20 +179,26 @@ def test_label_from_feature_with_label_map_two_cols(backend_type: str) -> None:
 def test_label_from_feature_with_label_map_two_cols_identicalnames(backend_type: str) -> None:
     """Test label from feature with identical column names."""
     if backend_type == "pandas":
-        df = pd.DataFrame({
-            "label": ["banana", "apple", "banana", "orange"],
-            "col2": ["dog", "cat", "dog", "mouse"]
-        })
+        df = pd.DataFrame(
+            {
+                "label": ["banana", "apple", "banana", "orange"],
+                "col2": ["dog", "cat", "dog", "mouse"],
+            }
+        )
         backend = PandasBackend(df)
     else:
-        df = pl.DataFrame({
-            "label": ["banana", "apple", "banana", "orange"],
-            "col2": ["dog", "cat", "dog", "mouse"]
-        })
+        df = pl.DataFrame(
+            {
+                "label": ["banana", "apple", "banana", "orange"],
+                "col2": ["dog", "cat", "dog", "mouse"],
+            }
+        )
         backend = PolarsBackend(df)
 
     label_map = {"apple": 0, "banana": 1, "orange": 2, "dog": 3, "cat": 4, "mouse": 5}
-    t = LabelFromFeature(feature="label", label_map=label_map, output_feature="label", override=True)
+    t = LabelFromFeature(
+        feature="label", label_map=label_map, output_feature="label", override=True
+    )
     result_backend, meta = t(backend)
 
     if backend_type == "pandas":

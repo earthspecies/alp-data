@@ -14,8 +14,10 @@ class TestPureCloudPathBase:
     def test_cloud_prefix_validation(self):
         """Test that subclasses must define cloud_prefix."""
         with pytest.raises(ValueError, match="cloud_prefix must be defined in subclass"):
+
             class InvalidCloudPath(PureCloudPath):
                 pass
+
             InvalidCloudPath("test")
 
     def test_abstract_base_class(self):
@@ -110,13 +112,17 @@ class TestCrossSchemeValidation:
     def test_gs_path_rejects_s3_join(self):
         """Test that GS path rejects joining with S3 URL."""
         gs_path = PureGSPath("gs://my-bucket/folder")
-        with pytest.raises(ValueError, match="Cannot join gs:// path with s3://.*incompatible cloud schemes"):
+        with pytest.raises(
+            ValueError, match="Cannot join gs:// path with s3://.*incompatible cloud schemes"
+        ):
             gs_path / "s3://other-bucket/file.txt"
 
     def test_s3_path_rejects_gs_join(self):
         """Test that S3 path rejects joining with GS URL."""
         s3_path = PureS3Path("s3://my-bucket/folder")
-        with pytest.raises(ValueError, match="Cannot join s3:// path with gs://.*incompatible cloud schemes"):
+        with pytest.raises(
+            ValueError, match="Cannot join s3:// path with gs://.*incompatible cloud schemes"
+        ):
             s3_path / "gs://other-bucket/file.txt"
 
     def test_gs_path_accepts_same_scheme_join(self):
@@ -134,7 +140,9 @@ class TestCrossSchemeValidation:
     def test_r2_path_rejects_gs_join(self):
         """Test that R2 path rejects joining with GS URL."""
         r2_path = PureR2Path("s3://my-bucket/folder")
-        with pytest.raises(ValueError, match="Cannot join s3:// path with gs://.*incompatible cloud schemes"):
+        with pytest.raises(
+            ValueError, match="Cannot join s3:// path with gs://.*incompatible cloud schemes"
+        ):
             r2_path / "gs://other-bucket/file.txt"
 
 
@@ -167,6 +175,7 @@ class TestPathInteractions:
 
     def test_cloud_path_with_os_pathlike(self):
         """Test that cloud paths work with os.PathLike protocol."""
+
         class CustomPathLike:
             def __fspath__(self):
                 return "subfolder/file.txt"
@@ -357,7 +366,7 @@ class TestPureGSPath:
         """Test parts property for GS paths."""
         path = PureGSPath("gs://my-bucket/folder/file.txt")
         parts = path.parts
-        assert parts == ('gs://my-bucket/', 'folder', 'file.txt')
+        assert parts == ("gs://my-bucket/", "folder", "file.txt")
 
     def test_gs_path_joining_from_bucket(self):
         """Test joining paths from bucket-only path."""
@@ -531,7 +540,6 @@ class TestEdgeCases:
         assert s3_path != r2_path  # Different classes even with same prefix
 
 
-
 class TestOSPathLikeIntegration:
     """Test os.PathLike protocol integration."""
 
@@ -548,5 +556,5 @@ class TestOSPathLikeIntegration:
     def test_cloud_path_has_fspath_method(self):
         """Test cloud paths have __fspath__ method for PathLike protocol."""
         gs_path = PureGSPath("gs://bucket/file.txt")
-        assert hasattr(gs_path, '__fspath__')
+        assert hasattr(gs_path, "__fspath__")
         assert gs_path.__fspath__() == "gs://bucket/file.txt"

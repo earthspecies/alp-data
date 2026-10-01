@@ -370,9 +370,7 @@ def test_read_audio_ffmpeg_unparseable_probe_raises(monkeypatch) -> None:
     """
 
     # ffprobe exited 0 but produced no stream line.
-    monkeypatch.setattr(
-        read_utils.subprocess, "run", lambda *a, **k: SimpleNamespace(stdout="")
-    )
+    monkeypatch.setattr(read_utils.subprocess, "run", lambda *a, **k: SimpleNamespace(stdout=""))
 
     with pytest.raises(FFmpegSegmentError) as excinfo:
         _read_audio_ffmpeg("gs://bucket/file.wav", 0.0, 1.0, anonymous=True)

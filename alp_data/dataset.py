@@ -687,6 +687,34 @@ def dataset_from_config(
     return _make_dataset_from_config(config_from_yaml(dataset_config, key=key))
 
 
+def config_from_dict(data: dict[str, Any]) -> DatasetConfig | ConcatConfig | ChainedDatasetConfig:
+    """Validate a plain dict into the right configuration class.
+
+    Dispatches on `dataset_name`: `"concatenated_dataset"` and
+    `"chained_dataset"` give the collection configs, any other name gives the
+    config class registered for it, falling back to `DatasetConfig`. This is
+    the inverse of `model_dump` on a config, so a frozen config (for example
+    the `source` block of a pack's `config.yaml`) can be rebuilt.
+
+    Parameters
+    ----------
+    data : dict[str, Any]
+        The configuration fields, including `dataset_name`.
+
+    Returns
+    -------
+    DatasetConfig | ConcatConfig | ChainedDatasetConfig
+        The validated configuration.
+    """
+    name = data["dataset_name"]
+    if name == "concatenated_dataset":
+        return ConcatConfig.model_validate(data)
+    if name == "chained_dataset":
+        return ChainedDatasetConfig.model_validate(data)
+    cfg_class = _custom_config_registry.get(name, DatasetConfig)
+    return cfg_class.model_validate(data)
+
+
 def config_from_yaml(
     path: AnyPathT | str, key: str | None = None
 ) -> DatasetConfig | ConcatConfig | ChainedDatasetConfig:
@@ -730,13 +758,9 @@ def config_from_yaml(
                 raise ValueError("Configuration cannot contain multiple dataset types at once.")
 
             if "dataset" in data:
-                cfg = data["dataset"]
-                cfg_class = _custom_config_registry.get(cfg["dataset_name"], DatasetConfig)
-                return cfg_class.model_validate(cfg)
-
+                return config_from_dict(data["dataset"])
             if "concat" in data:
                 return ConcatConfig.model_validate(data["concat"])
-
             return ChainedDatasetConfig.model_validate(data["chain"])
 
         raise ValueError(

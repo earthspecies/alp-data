@@ -347,3 +347,18 @@ def test_config_from_yaml_rejects_collections_and_unknown_keys() -> None:
         config_from_yaml("tests/samples/test_collection_config.yml", key="some_collection")
     with pytest.raises(KeyError):
         config_from_yaml("tests/samples/test_collection_config.yml", key="nope")
+
+
+def test_config_from_dict_dispatches_on_dataset_name() -> None:
+    from alp_data.dataset import ChainedDatasetConfig, ConcatConfig, config_from_dict
+
+    concat = config_from_dict(
+        {"dataset_name": "concatenated_dataset", "datasets": [{"dataset_name": "beans"}]}
+    )
+    assert isinstance(concat, ConcatConfig)
+    chain = config_from_dict(
+        {"dataset_name": "chained_dataset", "datasets": [{"dataset_name": "beans"}]}
+    )
+    assert isinstance(chain, ChainedDatasetConfig)
+    custom = config_from_dict({"dataset_name": "my_custom_dataset", "split": "train"})
+    assert isinstance(custom, MyCustomConfig)

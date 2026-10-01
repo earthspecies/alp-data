@@ -92,9 +92,7 @@ def test_check_audio(ds: Subsegmentation, sample_indices: List[int]):
         audio = item["audio"]
 
         assert isinstance(audio, np.ndarray), f"[{idx}] audio is not a numpy array"
-        assert (
-            audio.dtype == np.float32
-        ), f"[{idx}] audio dtype is {audio.dtype}, expected float32"
+        assert audio.dtype == np.float32, f"[{idx}] audio dtype is {audio.dtype}, expected float32"
         assert audio.size >= 10, f"[{idx}] audio too short (size={audio.size})"
         assert not np.any(np.isnan(audio)), f"[{idx}] audio contains NaN values"
         assert not np.all(audio == 0), f"[{idx}] audio is all zeros"
@@ -123,9 +121,7 @@ def test_reference_item_stability(ds_pandas: Subsegmentation):
     assert "audio" in item, "[0] missing 'audio' key"
     audio = item["audio"]
     assert isinstance(audio, np.ndarray), "[0] audio is not a numpy array"
-    assert (
-        audio.dtype == np.float32
-    ), f"[0] audio dtype is {audio.dtype}, expected float32"
+    assert audio.dtype == np.float32, f"[0] audio dtype is {audio.dtype}, expected float32"
 
     # compute sha256 over raw bytes of the float32 array
     h = hashlib.sha256(audio.tobytes()).hexdigest()
@@ -173,18 +169,12 @@ def test_check_selection_table(ds: Subsegmentation, sample_indices: List[int]):
         assert "selection_table" in item, f"[{idx}] missing 'selection_table' key"
         st = item["selection_table"]
 
-        assert isinstance(
-            st, pd.DataFrame
-        ), f"[{idx}] selection_table is not a DataFrame"
+        assert isinstance(st, pd.DataFrame), f"[{idx}] selection_table is not a DataFrame"
         missing = required - set(st.columns)
-        assert (
-            not missing
-        ), f"[{idx}] selection_table missing columns: {sorted(missing)}"
+        assert not missing, f"[{idx}] selection_table missing columns: {sorted(missing)}"
 
         if len(st) > 0:
-            assert not (
-                st["Begin Time (s)"] < 0
-            ).any(), f"[{idx}] negative begin times present"
+            assert not (st["Begin Time (s)"] < 0).any(), f"[{idx}] negative begin times present"
 
 
 def test_qc_flag_consistent(ds: Subsegmentation, sample_indices: List[int]):
@@ -194,9 +184,9 @@ def test_qc_flag_consistent(ds: Subsegmentation, sample_indices: List[int]):
         assert "pass_qc" in item, f"[{idx}] missing 'pass_qc' key"
         st = item["selection_table"]
         expected_pass_qc = len(st) > 0
-        assert (
-            item["pass_qc"] == expected_pass_qc
-        ), f"[{idx}] qc inconsistent: pass_qc={item['pass_qc']} but len(st)={len(st)}"
+        assert item["pass_qc"] == expected_pass_qc, (
+            f"[{idx}] qc inconsistent: pass_qc={item['pass_qc']} but len(st)={len(st)}"
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -233,9 +223,7 @@ def test_single_song_check_audio(
         audio = item["audio"]
 
         assert isinstance(audio, np.ndarray), f"[{idx}] audio is not a numpy array"
-        assert (
-            audio.dtype == np.float32
-        ), f"[{idx}] audio dtype is {audio.dtype}, expected float32"
+        assert audio.dtype == np.float32, f"[{idx}] audio dtype is {audio.dtype}, expected float32"
         assert audio.size >= 10, f"[{idx}] audio too short (size={audio.size})"
         assert not np.any(np.isnan(audio)), f"[{idx}] audio contains NaN values"
         assert not np.all(audio == 0), f"[{idx}] audio is all zeros"
@@ -266,21 +254,21 @@ def test_single_song_check_selection_table(
 
         # Every single-song item is a complete song: at minimum 'a' and 'z'
         assert len(st) >= 2, f"[{idx}] expected at least 2 syllables (a + z), got {len(st)}"
-        assert (
-            st.iloc[0]["Annotation"] == "a"
-        ), f"[{idx}] first annotation is {st.iloc[0]['Annotation']!r}, expected 'a'"
-        assert (
-            st.iloc[-1]["Annotation"] == "z"
-        ), f"[{idx}] last annotation is {st.iloc[-1]['Annotation']!r}, expected 'z'"
+        assert st.iloc[0]["Annotation"] == "a", (
+            f"[{idx}] first annotation is {st.iloc[0]['Annotation']!r}, expected 'a'"
+        )
+        assert st.iloc[-1]["Annotation"] == "z", (
+            f"[{idx}] last annotation is {st.iloc[-1]['Annotation']!r}, expected 'z'"
+        )
 
         valid_annos = {"a", "s", "z"}
         bad = set(st["Annotation"].unique()) - valid_annos
         assert not bad, f"[{idx}] unexpected annotations in single-song table: {bad}"
 
         # Times should be re-zeroed (no negative begin times)
-        assert not (
-            st["Begin Time (s)"] < 0
-        ).any(), f"[{idx}] negative begin times present after re-zeroing"
+        assert not (st["Begin Time (s)"] < 0).any(), (
+            f"[{idx}] negative begin times present after re-zeroing"
+        )
 
 
 def test_single_song_pass_qc_always_true(

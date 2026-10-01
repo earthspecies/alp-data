@@ -7,6 +7,7 @@ from alp_data.io import anypath, exists
 from alp_data import Dataset, Voxaboxen, VoxaboxenEvents
 from alp_data.datasets.voxaboxen import VoxaboxenEventsConfig, VoxaboxenConfig
 
+
 @pytest.fixture
 def voxaboxen_dataset() -> Voxaboxen:
     """Fixture providing an AnimalSpeak dataset instance.
@@ -82,7 +83,13 @@ def test_data_property(voxaboxen_dataset: Dataset) -> None:
 def test_available_splits(voxaboxen_dataset: Dataset) -> None:
     """Test if available_splits returns correct split names."""
     # Available splits should contain these
-    expected_splits = ["Anuraset_train", "humpback_val", "hawaii_test", "katydids_train", "OZF_synthetic_overlap_1_train"]
+    expected_splits = [
+        "Anuraset_train",
+        "humpback_val",
+        "hawaii_test",
+        "katydids_train",
+        "OZF_synthetic_overlap_1_train",
+    ]
     assert all(split in voxaboxen_dataset.available_splits for split in expected_splits)
 
 
@@ -134,6 +141,7 @@ def test_invalid_split() -> None:
 
 ## VoxaboxenEvents Tests
 
+
 def test_voxaboxen_events_info(voxaboxen_events_dataset: Dataset) -> None:
     """Test if the info property returns correct metadata for VoxaboxenEvents."""
     assert voxaboxen_events_dataset.info.name == "voxaboxen_events"
@@ -151,7 +159,9 @@ def test_voxaboxen_events_data_property(voxaboxen_events_dataset: Dataset) -> No
     assert "audio_fp" in voxaboxen_events_dataset._data.columns
     assert voxaboxen_events_dataset._metadata is not None
     assert isinstance(voxaboxen_events_dataset._selection_table_dict, dict)
-    assert len(voxaboxen_events_dataset._selection_table_dict) > 0, "Selection table should not be empty"
+    assert len(voxaboxen_events_dataset._selection_table_dict) > 0, (
+        "Selection table should not be empty"
+    )
 
 
 def test_voxaboxen_events_getitem(voxaboxen_events_dataset: Dataset) -> None:

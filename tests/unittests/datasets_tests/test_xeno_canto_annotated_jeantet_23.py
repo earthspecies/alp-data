@@ -63,9 +63,7 @@ def test_check_audio(ds: XenoCantoAnnotatedJeantet23, sample_indices: List[int])
         audio = item["audio"]
 
         assert isinstance(audio, np.ndarray), f"[{idx}] audio is not a numpy array"
-        assert (
-            audio.dtype == np.float32
-        ), f"[{idx}] audio dtype is {audio.dtype}, expected float32"
+        assert audio.dtype == np.float32, f"[{idx}] audio dtype is {audio.dtype}, expected float32"
         assert audio.size >= 10, f"[{idx}] audio too short (size={audio.size})"
         assert not np.any(np.isnan(audio)), f"[{idx}] audio contains NaN values"
         assert not np.all(audio == 0), f"[{idx}] audio is all zeros"
@@ -110,9 +108,7 @@ def test_reference_item_stability(ds: XenoCantoAnnotatedJeantet23):
     assert "audio" in item, "[0] missing 'audio' key"
     audio = item["audio"]
     assert isinstance(audio, np.ndarray), "[0] audio is not a numpy array"
-    assert (
-        audio.dtype == np.float32
-    ), f"[0] audio dtype is {audio.dtype}, expected float32"
+    assert audio.dtype == np.float32, f"[0] audio dtype is {audio.dtype}, expected float32"
 
     # compute sha256 over raw bytes of the float32 array
     h = create_hash(audio.tobytes())
@@ -127,10 +123,7 @@ def test_reference_item_stability(ds: XenoCantoAnnotatedJeantet23):
 
     # compute sha256 over raw bytes of the float32 array of annotations
     csv_bytes = (
-        ds._data.unwrap.sort_index(axis=0)
-        .sort_index(axis=1)
-        .to_csv(index=True)
-        .encode("utf-8")
+        ds._data.unwrap.sort_index(axis=0).sort_index(axis=1).to_csv(index=True).encode("utf-8")
     )
 
     h = create_hash(csv_bytes)
@@ -160,9 +153,7 @@ def test_load_presampled_32khz():
     assert audio.size >= 10
 
 
-def test_check_selection_table(
-    ds: XenoCantoAnnotatedJeantet23, sample_indices: List[int]
-):
+def test_check_selection_table(ds: XenoCantoAnnotatedJeantet23, sample_indices: List[int]):
     """Selection table should be a DataFrame with required columns and sane times."""
     required = {
         "Begin Time (s)",
@@ -175,19 +166,12 @@ def test_check_selection_table(
         assert "selection_table" in item, f"[{idx}] missing 'selection_table' key"
         st = item["selection_table"]
 
-        assert isinstance(
-            st, pd.DataFrame
-        ), f"[{idx}] selection_table is not a DataFrame"
+        assert isinstance(st, pd.DataFrame), f"[{idx}] selection_table is not a DataFrame"
         missing = required - set(st.columns)
-        assert (
-            not missing
-        ), f"[{idx}] selection_table missing columns: {sorted(missing)}"
+        assert not missing, f"[{idx}] selection_table missing columns: {sorted(missing)}"
 
         if len(st) > 0:
-            assert not (
-                st["Begin Time (s)"] < 0
-            ).any(), f"[{idx}] negative begin times present"
-
+            assert not (st["Begin Time (s)"] < 0).any(), f"[{idx}] negative begin times present"
 
 
 # if __name__ == "__main__":

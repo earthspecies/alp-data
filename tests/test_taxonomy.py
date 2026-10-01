@@ -15,6 +15,7 @@ IN_GITHUB_ACTIONS = os.getenv("GITHUB_ACTIONS") == "true"
 
 # AddTaxonomy Transform Unit Tests
 
+
 def _create_gbif_json_with_taxonomy(tmp_path: Path) -> str:
     """Create a GBIF json with full taxonomy info for testing AddTaxonomy."""
     lookupdict = {
@@ -46,7 +47,7 @@ def _create_gbif_json_with_taxonomy(tmp_path: Path) -> str:
             "family": "Passeridae",
             "genus": "Passer",
         },
-        "Canis lupus" : {
+        "Canis lupus": {
             "taxonID": 3,
             "canonicalName": "Canis lupus",
             "taxonomicStatus": "accepted",
@@ -60,7 +61,7 @@ def _create_gbif_json_with_taxonomy(tmp_path: Path) -> str:
             "family": "Canidae",
             "genus": "Canis",
         },
-        "Puma concolor" : {
+        "Puma concolor": {
             "taxonID": 5,
             "canonicalName": "Puma concolor",
             "taxonomicStatus": "accepted",
@@ -78,6 +79,7 @@ def _create_gbif_json_with_taxonomy(tmp_path: Path) -> str:
     fp = tmp_path / "gbif_with_taxonomy.json"
     pd.DataFrame.from_dict(lookupdict, orient="index").to_json(fp, indent=2)
     return str(fp)
+
 
 def test_gbif_converter(tmp_path: Path) -> None:
     gbif_path = _create_gbif_json_with_taxonomy(tmp_path)
@@ -129,6 +131,7 @@ def test_gbif_converter_sci_name_correction_manual(tmp_path: Path) -> None:
     assert info["canonicalName"] == "Eupodotis rueppellii"
     assert info["family"] == "Otididae"
 
+
 def test_add_taxonomy_basic(tmp_path: Path) -> None:
     """Test basic AddTaxonomy transform functionality."""
     gbif_path = _create_gbif_json_with_taxonomy(tmp_path)
@@ -165,7 +168,6 @@ def test_add_taxonomy_from_config(tmp_path: Path) -> None:
         type="add_taxonomy",
         feature="species",
         gbif_precomputed_taxonomy_path=gbif_path,
-
     )
     transform = AddTaxonomy.from_config(config)
 
@@ -248,7 +250,6 @@ def test_add_taxonomy_with_add_taxonomic_name(tmp_path: Path) -> None:
         feature="scientific_name",
         gbif_precomputed_taxonomy_path=gbif_path,
         add_taxonomic_name=True,
-
     )
     transform = AddTaxonomy.from_config(config)
 
@@ -259,7 +260,9 @@ def test_add_taxonomy_with_add_taxonomic_name(tmp_path: Path) -> None:
 
     # Check that taxonomic_name is in the added columns
     assert "taxonomic_name" in metadata["taxonomy_columns_added"]
-    assert backend[0]["taxonomic_name"] == "Animalia Chordata Aves Passeriformes Corvidae Corvus corax"
+    assert (
+        backend[0]["taxonomic_name"] == "Animalia Chordata Aves Passeriformes Corvidae Corvus corax"
+    )
 
 
 def test_add_taxonomy_make_taxonomic_name(tmp_path: Path) -> None:
@@ -307,7 +310,6 @@ def test_add_taxonomy_config_validation(tmp_path: Path) -> None:
             type="add_taxonomy",
             feature="scientific_name",
             gbif_precomputed_taxonomy_path="/nonexistent/path/to/file.tsv",
-
         )
 
 
@@ -324,6 +326,7 @@ def test_add_taxonomy_empty_dataframe(tmp_path: Path) -> None:
     assert len(result_backend) == 0
     assert metadata["resolved"] == 0
     assert metadata["failed"] == 0
+
 
 @pytest.mark.skipif(IN_GITHUB_ACTIONS, reason="File is too large for Github actions.")
 def test_add_taxonomy_integration_with_beanszero() -> None:
@@ -343,7 +346,6 @@ def test_add_taxonomy_integration_with_beanszero() -> None:
     transform = AddTaxonomy(
         feature="output",  # 'output' column has the canonical names in BeansZero
         add_taxonomic_name=True,
-
         # Uses cache if present
     )
 

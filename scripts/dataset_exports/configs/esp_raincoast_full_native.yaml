@@ -1,0 +1,6 @@
+# ESP Raincoast: segment cuts by start/end time, stereo by default, native rate.
+dataset:
+  dataset_name: esp_raincoast
+  split: full
+  sample_rate: null
+  backend: polars

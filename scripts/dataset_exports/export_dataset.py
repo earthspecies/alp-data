@@ -34,7 +34,12 @@ import pandas as pd
 import pyarrow.parquet as pq
 import yaml
 
-from alp_data.dataset import ChainedDatasetConfig, config_from_yaml, dataset_from_config
+from alp_data.dataset import (
+    ChainedDatasetConfig,
+    config_from_dict,
+    config_from_yaml,
+    dataset_from_config,
+)
 from alp_data.export import PackedDataset, pack, to_hf
 from alp_data.export.columns import SOURCE_INDEX_COL
 from alp_data.export.serializers import decode_audio, decode_value
@@ -239,27 +244,6 @@ def verify_pack(
     return result
 
 
-def config_from_yaml_dict(source: dict[str, Any]) -> Any:  # noqa: ANN401
-    """Rebuild the config object a pack was made from, out of its frozen `source` dict.
-
-    Parameters
-    ----------
-    source : dict[str, Any]
-        The `source` block of a pack's `config.yaml`.
-
-    Returns
-    -------
-    DatasetConfig | ConcatConfig
-        The validated config, using the registered custom class when there is one.
-    """
-    from alp_data.dataset import ConcatConfig, DatasetConfig, _custom_config_registry
-
-    if source.get("dataset_name") == "concatenated_dataset":
-        return ConcatConfig.model_validate(source)
-    cls = _custom_config_registry.get(source["dataset_name"], DatasetConfig)
-    return cls.model_validate(source)
-
-
 def _hf_opaque_columns(fs: Any, out: str) -> dict[str, str]:  # noqa: ANN401
     """Read the opaque-column kinds from the export README's provenance block.
 
@@ -435,7 +419,7 @@ def main(
         fs = filesystem_from_path(anypath(from_pack))
         with fs.open(str(anypath(from_pack) / "config.yaml"), "r") as f:
             source = yaml.safe_load(f)["source"]
-        config = config_from_yaml_dict(source)
+        config = config_from_dict(source)
     else:
         exporter = pack if fmt == "pack" else to_hf
         logger.info("Exporting %s to %s as %s with %d workers", config_path, out, fmt, num_workers)
