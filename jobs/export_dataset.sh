@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 #SBATCH --partition=cpu
-#SBATCH --nodelist=slurm-cpu-48vcpu-384gb-1
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=48
@@ -12,7 +11,9 @@
 
 # Freeze a configured dataset with alp_data.export and verify it against the
 # live dataset. Every knob is an environment variable; see
-# scripts/dataset_exports/README.md.
+# scripts/dataset_exports/README.md. Pass sbatch flags to pick resources, e.g.
+#   sbatch --cpus-per-task=16 --mem=64G jobs/export_dataset.sh
+# WORKERS follows --cpus-per-task unless set.
 #
 #   CONFIG=scripts/dataset_exports/configs/beans_validation_16k.yaml \
 #   OUT=gs://esp-ci-cd-tests/esp-data-tests/exports/beans/validation-16k \
