@@ -59,7 +59,9 @@ def dataset_with_output_mapping() -> Dataset:
         dataset_name="macaques_coo_calls",
         output_take_and_give={"id": "label", "local_path": "audio_path"},
     )
-    ds = MacaquesCooCalls(split="train", output_take_and_give=dataset_config.output_take_and_give)
+    ds = MacaquesCooCalls(
+        split="train", output_take_and_give=dataset_config.output_take_and_give
+    )
     return ds
 
 
@@ -123,7 +125,7 @@ def test_getitem(dataset: Dataset) -> None:
     # Verify audio properties
     audio = sample["audio"]
     assert audio is not None
-    assert hasattr(audio, "shape"), "Audio should be a numpy array with shape attribute"
+    assert hasattr(audio, 'shape'), "Audio should be a numpy array with shape attribute"
     assert len(audio.shape) == 1, "Audio should be mono (1D array)"
 
 
@@ -245,12 +247,11 @@ def test_class_registration() -> None:
 
     # Test that it's in the __all__ list
     import alp_data.datasets as datasets
-
     assert "MacaquesCooCalls" in datasets.__all__
 
     # Test that the class has the correct decorator
-    assert hasattr(MacaquesCooCalls, "info")
-    assert hasattr(MacaquesCooCalls.info, "name")
+    assert hasattr(MacaquesCooCalls, 'info')
+    assert hasattr(MacaquesCooCalls.info, 'name')
 
 
 def test_macaque_specific_features(dataset: Dataset) -> None:

@@ -8,9 +8,7 @@ from alp_data import Dataset, DatasetConfig
 from alp_data.io import exists
 from alp_data.utils import create_hash
 
-EXPECTED_FIRST_VAL_ITEM_AUDIO_SHA256 = (
-    "595ba74365124bc8872c828c46c2449572b91bd4c3e84288322e5f45e77dd340"
-)
+EXPECTED_FIRST_VAL_ITEM_AUDIO_SHA256 = "595ba74365124bc8872c828c46c2449572b91bd4c3e84288322e5f45e77dd340"
 EXPECTED_VAL_ANNOTATIONS_SHA256 = "ff988a4b930682c25d928d5a6b71748d2d7f18c37fadb9b1df498ce9f875ea59"
 
 
@@ -179,7 +177,9 @@ def test_reference_item_stability(dataset: Beans):
     assert "audio" in item, "[0] missing 'audio' key"
     audio = item["audio"]
     assert isinstance(audio, np.ndarray), "[0] audio is not a numpy array"
-    assert audio.dtype == np.float32, f"[0] audio dtype is {audio.dtype}, expected float32"
+    assert (
+        audio.dtype == np.float32
+    ), f"[0] audio dtype is {audio.dtype}, expected float32"
 
     # compute sha256 over raw bytes of the float32 array
     h = create_hash(audio.tobytes())
@@ -221,8 +221,11 @@ if __name__ == "__main__":
     print("audio sha256:", h)
 
     csv_bytes = (
-        ds._data.unwrap.sort_index(axis=0).sort_index(axis=1).to_csv(index=True).encode("utf-8")
-    )
+            ds._data.unwrap.sort_index(axis=0)
+            .sort_index(axis=1)
+            .to_csv(index=True)
+            .encode("utf-8")
+        )
     h = create_hash(csv_bytes)
 
     print("annotations sha256:", h)

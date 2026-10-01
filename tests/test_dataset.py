@@ -25,7 +25,6 @@ from alp_data.transforms import register_transform, transform_from_config
 
 def test_register_dataset():
     """Test registering a dataset."""
-
     class DummyDataset(Dataset):
         info = DatasetInfo(
             name="dummy_dataset",
@@ -34,7 +33,7 @@ def test_register_dataset():
             version="0.1.0",
             description="A dummy dataset for testing purposes.",
             sources=["test_source"],
-            license="CC BY",
+            license="CC BY"
         )
 
     register_dataset(DummyDataset)
@@ -245,9 +244,9 @@ def test_my_custom_dataset():
 def test_custom_transform():
     """Test the RenameTransform with a custom configuration."""
     transform_config = RenameConfig(
-        type="rename_transform",
-        input_features=["fn"],
-        output_features=["fn"],
+    type="rename_transform",
+    input_features=["fn"],
+    output_features=["fn"],
     )
 
     transform = RenameTransform.from_config(transform_config)
@@ -299,10 +298,7 @@ def test_wrong_collection_from_config():
     with pytest.raises(ValueError, match="Invalid configuration format."):
         dataset_from_config("tests/samples/test_wrong_config.yml", key="nested_collection1")
 
-    with pytest.raises(
-        ValueError,
-        match="Invalid dataset configurations found. Please provide a specific key to select one.",
-    ):
+    with pytest.raises(ValueError, match="Invalid dataset configurations found. Please provide a specific key to select one."):
         dataset_from_config("tests/samples/test_wrong_config.yml", key="some_collection2")
 
     with pytest.raises(ValueError, match="Invalid configuration format."):

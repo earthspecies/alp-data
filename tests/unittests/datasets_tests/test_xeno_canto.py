@@ -95,14 +95,7 @@ def test_columns_property(dataset: Dataset) -> None:
 def test_available_splits(dataset: Dataset) -> None:
     """Test if available_splits returns correct split names."""
     # Available splits should contain train
-    expected_splits = [
-        "train",
-        "all",
-        "validation",
-        "train_unseen",
-        "all_unseen",
-        "validation_unseen",
-    ]
+    expected_splits = ["train", "all", "validation", "train_unseen", "all_unseen", "validation_unseen"]
     assert set(dataset.available_splits) == set(expected_splits)
 
 
@@ -264,7 +257,9 @@ def test_pre_resampled_audio_32khz(dataset) -> None:
         assert sample["audio"].dtype.name == "float32"
         print(f"Audio shape: {sample['audio'].shape}")
     else:
-        print("32kHz pre-resampled audio not yet available, on-the-fly resampling will be used")
+        print(
+            "32kHz pre-resampled audio not yet available, on-the-fly resampling will be used"
+        )
         sample = dataset[0]
         assert "audio" in sample
         assert sample["audio"].dtype.name == "float32"
@@ -293,7 +288,9 @@ def test_reference_item_stability() -> None:
     assert "audio" in item, "[0] missing 'audio' key"
     audio = item["audio"]
     assert isinstance(audio, np.ndarray), "[0] audio is not a numpy array"
-    assert audio.dtype == np.float32, f"[0] audio dtype is {audio.dtype}, expected float32"
+    assert (
+        audio.dtype == np.float32
+    ), f"[0] audio dtype is {audio.dtype}, expected float32"
 
     # Compute sha256 over raw bytes of the float32 array
     h = hashlib.sha256(audio.tobytes()).hexdigest()

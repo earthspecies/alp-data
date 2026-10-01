@@ -65,7 +65,9 @@ def dataset_with_output_mapping() -> Dataset:
         dataset_name="insectset_459",
         output_take_and_give={"species_scientific": "species", "family": "fam"},
     )
-    ds = InsectSet459(split="train", output_take_and_give=dataset_config.output_take_and_give)
+    ds = InsectSet459(
+        split="train", output_take_and_give=dataset_config.output_take_and_give
+    )
     return ds
 
 

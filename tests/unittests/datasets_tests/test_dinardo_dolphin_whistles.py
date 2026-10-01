@@ -1,3 +1,4 @@
+
 import numpy as np
 import pytest
 
@@ -7,9 +8,7 @@ from alp_data.utils import create_hash
 
 
 EXPECTED_LEN_ALL = 303
-EXPECTED_FIRST_ITEM_AUDIO_SHA256 = (
-    "4272741742130184c65223df1880313bbd9167b5ef5467aea932b0e1b6f98ce6"
-)
+EXPECTED_FIRST_ITEM_AUDIO_SHA256 = "4272741742130184c65223df1880313bbd9167b5ef5467aea932b0e1b6f98ce6"
 ANNOTATIONS_SHA256 = "c67126ae62fda43ddd5dd0b16f28494b09db289fcb96dc8deb99463e7e693c04"
 EXPECTED_COLS = [
     "local_path",
@@ -31,7 +30,7 @@ EXPECTED_COLS = [
 @pytest.fixture
 def ds() -> DinardoDolphinWhistles:
     """Load DinardoDolphinWhistles dataset for testing."""
-    return DinardoDolphinWhistles(split="all", streaming=False, backend="pandas")
+    return DinardoDolphinWhistles(split="all", streaming=False, backend='pandas')
 
 
 @pytest.fixture
@@ -55,7 +54,8 @@ def create_dataset_hashes(first_sample: dict, ds: DinardoDolphinWhistles) -> tup
 
 
 @pytest.mark.skipif(
-    EXPECTED_LEN_ALL is None, reason="Hash values not yet computed. Run hash computation first."
+    EXPECTED_LEN_ALL is None,
+    reason="Hash values not yet computed. Run hash computation first."
 )
 def test_dataset_integrity(
     ds: DinardoDolphinWhistles,
@@ -65,10 +65,12 @@ def test_dataset_integrity(
     len_h, first_audio_h, annotations_h = create_dataset_hashes(first_sample, ds)
 
     assert len_h == EXPECTED_LEN_ALL, "Dataset length does not match expected value."
-    assert first_audio_h == EXPECTED_FIRST_ITEM_AUDIO_SHA256, (
-        "First item audio hash does not match expected value."
-    )
-    assert annotations_h == ANNOTATIONS_SHA256, "Annotations hash does not match expected value."
+    assert (
+        first_audio_h == EXPECTED_FIRST_ITEM_AUDIO_SHA256
+    ), "First item audio hash does not match expected value."
+    assert (
+        annotations_h == ANNOTATIONS_SHA256
+    ), "Annotations hash does not match expected value."
 
 
 def test_columns_property(ds: DinardoDolphinWhistles) -> None:
@@ -88,9 +90,7 @@ def test_construction_from_config() -> None:
     }
     config = DatasetConfig.model_validate(config)
     ds, _ = DinardoDolphinWhistles.from_config(config)
-    assert isinstance(ds, DinardoDolphinWhistles), (
-        "from_config did not return a DinardoDolphinWhistles instance."
-    )
+    assert isinstance(ds, DinardoDolphinWhistles), "from_config did not return a DinardoDolphinWhistles instance."
 
 
 def test_transforms_in_from_config() -> None:
@@ -100,9 +100,11 @@ def test_transforms_in_from_config() -> None:
         "split": "all",
         "streaming": False,
         "backend": "pandas",
-        "transformations": [
-            {"type": "label_from_feature", "feature": "call_type", "output_feature": "label"}
-        ],
+        "transformations": [{
+            "type": "label_from_feature",
+            "feature": "call_type",
+            "output_feature": "label"
+        }]
     }
     config = DatasetConfig.model_validate(config)
     ds, metadata = DinardoDolphinWhistles.from_config(config)
@@ -122,11 +124,11 @@ def test_available_splits(ds: DinardoDolphinWhistles) -> None:
 def test_split_lookup_error() -> None:
     """Test that an invalid split raises a LookupError."""
     with pytest.raises(LookupError):
-        DinardoDolphinWhistles(split="invalid_split", streaming=False, backend="pandas")
+        DinardoDolphinWhistles(split="invalid_split", streaming=False, backend='pandas')
 
 
 def test_streaming_iter() -> None:
-    ds = DinardoDolphinWhistles(split="all", streaming=True, backend="polars")
+    ds = DinardoDolphinWhistles(split="all", streaming=True, backend='polars')
 
     # iterate through first 5 samples
     for i, sample in enumerate(ds):

@@ -16,8 +16,7 @@ def dataset() -> Dataset:
     Dataset
         An instance of the GiantOtters dataset.
     """
-    ds = GiantOtters(
-        split="test",
+    ds = GiantOtters(split="test",
     )
     return ds
 
@@ -61,7 +60,9 @@ def dataset_with_output_mapping() -> Dataset:
         dataset_name="giant_otters",
         output_take_and_give={"vocalization": "label", "path": "audio_path"},
     )
-    ds = GiantOtters(split="test", output_take_and_give=dataset_config.output_take_and_give)
+    ds = GiantOtters(
+        split="test", output_take_and_give=dataset_config.output_take_and_give
+    )
     return ds
 
 
@@ -119,7 +120,7 @@ def test_getitem(dataset: Dataset) -> None:
     # Verify audio properties
     audio = sample["audio"]
     assert audio is not None
-    assert hasattr(audio, "shape"), "Audio should be a numpy array with shape attribute"
+    assert hasattr(audio, 'shape'), "Audio should be a numpy array with shape attribute"
     assert len(audio.shape) == 1, "Audio should be mono (1D array)"
 
 
@@ -239,12 +240,11 @@ def test_class_registration() -> None:
 
     # Test that it's in the __all__ list
     import alp_data.datasets as datasets
-
     assert "GiantOtters" in datasets.__all__
 
     # Test that the class has the correct decorator
-    assert hasattr(GiantOtters, "info")
-    assert hasattr(GiantOtters.info, "name")
+    assert hasattr(GiantOtters, 'info')
+    assert hasattr(GiantOtters.info, 'name')
 
 
 if __name__ == "__main__":

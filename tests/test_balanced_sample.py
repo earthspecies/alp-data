@@ -164,8 +164,12 @@ def test_balanced_sample_manual_vs_config(backend_type: str) -> None:
         config_result = config_result_backend.unwrap
 
         # Sort and reset index for comparison
-        manual_sorted = manual_result.sort_values(by=["class", "value"]).reset_index(drop=True)
-        config_sorted = config_result.sort_values(by=["class", "value"]).reset_index(drop=True)
+        manual_sorted = manual_result.sort_values(by=["class", "value"]).reset_index(
+            drop=True
+        )
+        config_sorted = config_result.sort_values(by=["class", "value"]).reset_index(
+            drop=True
+        )
         pd.testing.assert_frame_equal(manual_sorted, config_sorted)
     else:
         manual_result = manual_result_backend.unwrap

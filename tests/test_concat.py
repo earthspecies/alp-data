@@ -157,8 +157,12 @@ class TestConcatenateDatasets:
         self, dataset1_different_columns, dataset2_different_columns
     ):
         """Test hard merge fails with different columns."""
-        with pytest.raises(MergeException, match="Hard merge requires identical columns"):
-            ConcatenatedDataset([dataset1_different_columns, dataset2_different_columns], "hard")
+        with pytest.raises(
+            MergeException, match="Hard merge requires identical columns"
+        ):
+            ConcatenatedDataset(
+                [dataset1_different_columns, dataset2_different_columns], "hard"
+            )
 
     def test_overlap_merge_with_common_columns(
         self, dataset1_different_columns, dataset2_different_columns
@@ -180,10 +184,14 @@ class TestConcatenateDatasets:
         ds1 = MockDataset(PandasBackend(data1), dataset_info1)
         ds2 = MockDataset(PandasBackend(data2), dataset_info2)
 
-        with pytest.raises(MergeException, match="No common columns found for overlap merge"):
+        with pytest.raises(
+            MergeException, match="No common columns found for overlap merge"
+        ):
             ConcatenatedDataset([ds1, ds2], "overlap")
 
-    def test_soft_merge_all_columns(self, dataset1_different_columns, dataset2_different_columns):
+    def test_soft_merge_all_columns(
+        self, dataset1_different_columns, dataset2_different_columns
+    ):
         """Test soft merge keeps all columns."""
         result = ConcatenatedDataset(
             [dataset1_different_columns, dataset2_different_columns], "soft"
@@ -201,10 +209,14 @@ class TestConcatenateDatasets:
             isinstance(result[0]["D"], float) and math.isnan(result[0]["D"])
         )  # dataset1 doesn't have D
 
-    def test_invalid_merge_level(self, dataset1_identical_columns, dataset2_identical_columns):
+    def test_invalid_merge_level(
+        self, dataset1_identical_columns, dataset2_identical_columns
+    ):
         """Test invalid merge level raises exception."""
         with pytest.raises(MergeException, match="Invalid merge_level"):
-            ConcatenatedDataset([dataset1_identical_columns, dataset2_identical_columns], "invalid")
+            ConcatenatedDataset(
+                [dataset1_identical_columns, dataset2_identical_columns], "invalid"
+            )
 
     def test_different_sample_rates(self, dataset_info1, dataset_info2):
         """Test different sample rates raise exception."""
@@ -234,8 +246,12 @@ class TestConcatenateDatasets:
         otag1 = {"A": "feature1", "B": "feature2"}
         otag2 = {"A": "feature1", "C": "feature3"}  # Same value for A
 
-        ds1 = MockDataset(PandasBackend(data1), dataset_info1, output_take_and_give=otag1)
-        ds2 = MockDataset(PandasBackend(data2), dataset_info2, output_take_and_give=otag2)
+        ds1 = MockDataset(
+            PandasBackend(data1), dataset_info1, output_take_and_give=otag1
+        )
+        ds2 = MockDataset(
+            PandasBackend(data2), dataset_info2, output_take_and_give=otag2
+        )
 
         result = ConcatenatedDataset([ds1, ds2])
         expected_otag = {"A": "feature1", "B": "feature2", "C": "feature3"}
@@ -288,15 +304,23 @@ class TestConcatenateDatasets:
         otag1 = {"A": "feature1"}
         otag2 = {"A": "different_feature"}  # Conflicting value
 
-        ds1 = MockDataset(PandasBackend(data1), dataset_info1, output_take_and_give=otag1)
-        ds2 = MockDataset(PandasBackend(data2), dataset_info2, output_take_and_give=otag2)
+        ds1 = MockDataset(
+            PandasBackend(data1), dataset_info1, output_take_and_give=otag1
+        )
+        ds2 = MockDataset(
+            PandasBackend(data2), dataset_info2, output_take_and_give=otag2
+        )
 
         with pytest.raises(MergeException, match="Conflicting values for key 'A'"):
             ConcatenatedDataset([ds1, ds2])
 
-    def test_dataset_info_merging(self, dataset1_identical_columns, dataset2_identical_columns):
+    def test_dataset_info_merging(
+        self, dataset1_identical_columns, dataset2_identical_columns
+    ):
         """Test DatasetInfo merging."""
-        result = ConcatenatedDataset([dataset1_identical_columns, dataset2_identical_columns])
+        result = ConcatenatedDataset(
+            [dataset1_identical_columns, dataset2_identical_columns]
+        )
 
         assert result.info.name == "dataset1+dataset2"
         assert result.info.owner == "owner1; owner2"
@@ -324,19 +348,25 @@ class TestConcatenateDatasets:
         ds2 = MockDataset(PandasBackend(pd.DataFrame()), dataset_info2)
         ds2._data = None  # Simulate no data loaded
 
-        with pytest.raises(MergeException, match="Dataset at index 1 has no data loaded"):
+        with pytest.raises(
+            MergeException, match="Dataset at index 1 has no data loaded"
+        ):
             ConcatenatedDataset([ds1, ds2])
 
     def test_non_dataset_objects_fail(self):
         """Test exception with non-Dataset objects."""
-        with pytest.raises(MergeException, match="All objects must be Dataset instances"):
+        with pytest.raises(
+            MergeException, match="All objects must be Dataset instances"
+        ):
             ConcatenatedDataset(["not_a_dataset", "also_not_a_dataset"])
 
     def test_concatenateddataset_methods(
         self, dataset1_identical_columns, dataset2_identical_columns
     ):
         """Test that concatenated dataset methods work correctly."""
-        result = ConcatenatedDataset([dataset1_identical_columns, dataset2_identical_columns])
+        result = ConcatenatedDataset(
+            [dataset1_identical_columns, dataset2_identical_columns]
+        )
 
         # Test __len__
         assert len(result) == 5
@@ -360,15 +390,21 @@ class TestConcatenateDatasets:
         assert "dataset1+dataset2" in str_repr
         assert "Length: 5" in str_repr
 
-    def test_output_take_and_give_in_concatenateddataset(self, dataset_info1, dataset_info2):
+    def test_output_take_and_give_in_concatenateddataset(
+        self, dataset_info1, dataset_info2
+    ):
         """Test output_take_and_give works in concatenated dataset."""
         data1 = pd.DataFrame({"original_name": [1, 2], "B": [3, 4]})
         data2 = pd.DataFrame({"original_name": [5, 6], "B": [7, 8]})
 
         otag = {"original_name": "new_name"}
 
-        ds1 = MockDataset(PandasBackend(data1), dataset_info1, output_take_and_give=otag)
-        ds2 = MockDataset(PandasBackend(data2), dataset_info2, output_take_and_give=otag)
+        ds1 = MockDataset(
+            PandasBackend(data1), dataset_info1, output_take_and_give=otag
+        )
+        ds2 = MockDataset(
+            PandasBackend(data2), dataset_info2, output_take_and_give=otag
+        )
 
         result = ConcatenatedDataset([ds1, ds2])
 
@@ -385,8 +421,12 @@ class TestIntegrationRealDatasets:
     def test_concatenate_animalspeak_and_beans_validation(self):
         """Integration test with AnimalSpeak validation and Beans datasets."""
         # Load small validation splits (should be smaller than train splits)
-        animalspeak = AnimalSpeak(split="validation", sample_rate=16000, backend="polars")
-        beans = Beans(split="cbi_validation", sample_rate=16000, backend="polars")
+        animalspeak = AnimalSpeak(
+            split="validation", sample_rate=16000, backend="polars"
+        )
+        beans = Beans(
+            split="cbi_validation", sample_rate=16000, backend="polars"
+        )
         # Test soft merge (should work despite different columns)
         result = ConcatenatedDataset([animalspeak, beans], merge_level="soft")
 
@@ -471,14 +511,20 @@ class TestIntegrationRealDatasets:
 
     def test_overlap_merge_real_datasets(self):
         """Test overlap merge with real datasets that have some common columns."""
-        animalspeak = AnimalSpeak(split="validation", sample_rate=16000, backend="pandas")
-        beans = Beans(split="cbi_validation", sample_rate=16000, backend="pandas")
+        animalspeak = AnimalSpeak(
+            split="validation", sample_rate=16000, backend="pandas"
+        )
+        beans = Beans(
+            split="cbi_validation", sample_rate=16000, backend="pandas"
+        )
 
         # Find common columns
         common_cols = set(animalspeak.columns) & set(beans.columns)
 
         if common_cols:
-            result = ConcatenatedDataset([animalspeak, beans], merge_level="overlap")
+            result = ConcatenatedDataset(
+                [animalspeak, beans], merge_level="overlap"
+            )
 
             # Should only have common columns
             assert set(result.columns) == common_cols
@@ -486,7 +532,9 @@ class TestIntegrationRealDatasets:
         else:
             # If no common columns, should fail
             with pytest.raises(MergeException, match="No common columns found"):
-                ConcatenatedDataset([animalspeak, beans], merge_level="overlap")
+                ConcatenatedDataset(
+                    [animalspeak, beans], merge_level="overlap"
+                )
 
 
 # Test to reproduce issue #98
@@ -558,21 +606,34 @@ def test_concat_from_config() -> None:
 @pytest.mark.parametrize("backend_type", ["pandas", "polars"])
 def test_dtypes_after_concat(backend_type: str) -> None:
     # Load small validation splits (should be smaller than train splits)
-    animalspeak = AnimalSpeak(split="validation", sample_rate=16000, backend=backend_type)
-    beans = Beans(split="cbi_validation", sample_rate=16000, backend=backend_type)
+    animalspeak = AnimalSpeak(
+        split="validation", sample_rate=16000, backend=backend_type
+    )
+    beans = Beans(
+        split="cbi_validation", sample_rate=16000, backend=backend_type
+    )
     # Test soft merge (should work despite different columns)
     result = ConcatenatedDataset([animalspeak, beans], merge_level="soft")
 
     input_dtypes1 = animalspeak._data.unwrap.dtypes
     input_cols1 = animalspeak.columns
-    input_dtype_data1 = {col: dtype for col, dtype in zip(input_cols1, input_dtypes1)}
+    input_dtype_data1 = {
+        col: dtype
+        for col, dtype in zip(input_cols1, input_dtypes1)
+    }
     input_dtypes2 = beans._data.unwrap.dtypes
     input_cols2 = beans.columns
-    input_dtype_data2 = {col: dtype for col, dtype in zip(input_cols2, input_dtypes2)}
+    input_dtype_data2 = {
+        col: dtype
+        for col, dtype in zip(input_cols2, input_dtypes2)
+    }
 
     result_dtypes = result._data.unwrap.dtypes
     result_cols = result.columns
-    result_dtype_data = {col: dtype for col, dtype in zip(result_cols, result_dtypes)}
+    result_dtype_data = {
+        col: dtype
+        for col, dtype in zip(result_cols, result_dtypes)
+    }
 
     # Check that columns from animalspeak have same dtypes in result
     for col in input_cols1:

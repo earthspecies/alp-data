@@ -9,13 +9,9 @@ from alp_data.io import exists
 from alp_data.utils import create_hash
 
 
-VAL_EXPECTED_FIRST_ITEM_AUDIO_SHA256 = (
-    "28061661586286684f61a92f14bf66a7f5a207a48bd8ec0809b1b8e1924d7d99"
-)
+VAL_EXPECTED_FIRST_ITEM_AUDIO_SHA256 = "28061661586286684f61a92f14bf66a7f5a207a48bd8ec0809b1b8e1924d7d99"
 VAL_ANNOTATIONS_SHA256 = "9be21d795102c21718a8de7ff4b6991203d1df1aa85300a865ac9895cedb6b15"
-TRAIN_EXPECTED_FIRST_ITEM_AUDIO_SHA256 = (
-    "20bedf2fcaf335f711748cb0fa6bbd6fb233dd142ad61209e5dfdbd2e9d09f4c"
-)
+TRAIN_EXPECTED_FIRST_ITEM_AUDIO_SHA256 = "20bedf2fcaf335f711748cb0fa6bbd6fb233dd142ad61209e5dfdbd2e9d09f4c"
 TRAIN_ANNOTATIONS_SHA256 = "12adb75e8dc5fb1aaff2e2c579ac10fc487687187a2baea1f26e1025874bce68"
 
 
@@ -62,6 +58,7 @@ def dataset_with_transforms() -> Dataset:
     ds = AnimalSpeak(split="validation")
     ds.apply_transformations(dataset_config.transformations)
     return ds
+
 
 
 @pytest.fixture
@@ -225,9 +222,7 @@ def test_transformations(dataset_with_transforms: Dataset) -> None:
     assert "Watkins" not in sources
 
 
-def test_transformations_from_config(
-    dataset_with_transforms_streaming_from_config: tuple[Dataset, dict],
-) -> None:
+def test_transformations_from_config(dataset_with_transforms_streaming_from_config: tuple[Dataset, dict]) -> None:
     """Test if transformations from config are applied correctly.
 
     This test verifies that:
@@ -320,7 +315,9 @@ def test_validation_reference_item_stability(dataset: Dataset) -> None:
     assert "audio" in item, "[0] missing 'audio' key"
     audio = item["audio"]
     assert isinstance(audio, np.ndarray), "[0] audio is not a numpy array"
-    assert audio.dtype == np.float32, f"[0] audio dtype is {audio.dtype}, expected float32"
+    assert (
+        audio.dtype == np.float32
+    ), f"[0] audio dtype is {audio.dtype}, expected float32"
 
     # compute sha256 over raw bytes of the float32 array
     h1 = create_hash(audio.tobytes())
@@ -376,7 +373,9 @@ def test_train_reference_item_stability() -> None:
     assert "audio" in item, "[0] missing 'audio' key"
     audio = item["audio"]
     assert isinstance(audio, np.ndarray), "[0] audio is not a numpy array"
-    assert audio.dtype == np.float32, f"[0] audio dtype is {audio.dtype}, expected float32"
+    assert (
+        audio.dtype == np.float32
+    ), f"[0] audio dtype is {audio.dtype}, expected float32"
 
     # compute sha256 over raw bytes of the float32 array
     h1 = create_hash(audio.tobytes())

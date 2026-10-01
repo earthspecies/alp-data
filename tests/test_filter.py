@@ -48,11 +48,7 @@ def test_filter(backend_type: str) -> None:
         filtered_df = filtered_backend.unwrap
         assert set(filtered_df["source"]) == {"xeno-canto", "iNaturalist"}
     else:
-        filtered_df = (
-            filtered_backend.unwrap.collect()
-            if isinstance(filtered_backend.unwrap, pl.LazyFrame)
-            else filtered_backend.unwrap
-        )
+        filtered_df = filtered_backend.unwrap.collect() if isinstance(filtered_backend.unwrap, pl.LazyFrame) else filtered_backend.unwrap
         assert set(filtered_df["source"].to_list()) == {"xeno-canto", "iNaturalist"}
 
     # Test exclude operation
@@ -70,11 +66,7 @@ def test_filter(backend_type: str) -> None:
         filtered_df = filtered_backend.unwrap
         assert set(filtered_df["source"]) == {"Watkins", "other"}
     else:
-        filtered_df = (
-            filtered_backend.unwrap.collect()
-            if isinstance(filtered_backend.unwrap, pl.LazyFrame)
-            else filtered_backend.unwrap
-        )
+        filtered_df = filtered_backend.unwrap.collect() if isinstance(filtered_backend.unwrap, pl.LazyFrame) else filtered_backend.unwrap
         assert set(filtered_df["source"].to_list()) == {"Watkins", "other"}
 
 
@@ -103,7 +95,9 @@ def test_filter_transform_methods_equivalence(backend_type: str) -> None:
         mode: Literal["include", "exclude"],
     ) -> list:
         manual = Filter(property=property, values=values, mode=mode)
-        config = FilterConfig(type="filter", property=property, values=values, mode=mode)
+        config = FilterConfig(
+            type="filter", property=property, values=values, mode=mode
+        )
         from_config_transform = Filter.from_config(config)
         from_registry_transform = transform_from_config(config)
         return [

@@ -66,9 +66,7 @@ def dataset_with_transforms() -> Dataset:
         dataset_name="esp_raincoast",
         split="full",
         transformations=[
-            LabelFromFeatureConfig(
-                type="label_from_feature", feature="Sound Type", label_name="label"
-            ),
+            LabelFromFeatureConfig(type="label_from_feature", feature="Sound Type", label_name="label"),
             DeduplicateConfig(type="deduplicate", subset=None),
         ],
         load_audio_segments=True,
@@ -97,14 +95,8 @@ def test_data_property(dataset: Dataset) -> None:
 def test_columns_property(dataset: Dataset) -> None:
     """Test if the columns property returns correct column names."""
     # Columns should match the dataframe columns
-    expected_columns = [
-        "local_path",
-        "Low Freq (Hz)",
-        "High Freq (Hz)",
-        "Begin Time (s)",
-        "End Time (s)",
-        "Sound Type",
-    ]
+    expected_columns = ["local_path", "Low Freq (Hz)", "High Freq (Hz)",
+                        "Begin Time (s)", "End Time (s)", "Sound Type"]
     assert all(col in dataset.columns for col in expected_columns)
 
 

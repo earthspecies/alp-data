@@ -26,7 +26,9 @@ from alp_data.utils import create_hash
 
 EXPECTED_LEN_ALL = 109
 EXPECTED_LEN_AS = 12
-EXPECTED_FIRST_AS_AUDIO_SHA256 = "77aadf4a911c9b58073a4fe13d98a5075db3a18241ed6d0345886aef92816fe6"
+EXPECTED_FIRST_AS_AUDIO_SHA256 = (
+    "77aadf4a911c9b58073a4fe13d98a5075db3a18241ed6d0345886aef92816fe6"
+)
 AS_ANNOTATIONS_SHA256 = "d7005afd70b68e5b43578cc0fb4a16049f689156bb6924105c448b42efbd01db"
 
 SELECTION_TABLE_COLUMNS = [
@@ -302,7 +304,7 @@ def test_shot_boundaries_are_not_stored(ds_all: FASD13):
 
 def test_shot_boundaries_exclude_unk():
     """UNK events must not be usable as shots, per the protocol."""
-    ms = FASD13(split="MS", backend="pandas")  # 632 UNK events
+    ms = FASD13(split="MS", backend="pandas")          # 632 UNK events
     st = pd.read_csv(StringIO(ms._data[0]["selection_table"]), sep="\t")
     pos_ends = sorted(float(t) for t in st[st["Q"] == "POS"]["End Time (s)"])
     assert _shot_end_times(ms, 0) == pos_ends[:5]

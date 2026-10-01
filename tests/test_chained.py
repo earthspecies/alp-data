@@ -19,7 +19,9 @@ def test_concat_of_selection_table_datasets() -> None:
     hb = HawaiianBirds(split="all", backend="pandas", streaming=False)
     nbm = NocturnalBirdMigration(split="test", backend="pandas", streaming=False)
 
-    result = ConcatenatedDataset([hb, nbm], merge_level="soft")
+    result = ConcatenatedDataset(
+        [hb, nbm], merge_level="soft"
+    )
     assert len(result) == len(hb) + len(nbm)
     assert "selection_table" in result.columns
 

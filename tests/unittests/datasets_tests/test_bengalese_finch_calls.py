@@ -42,7 +42,6 @@ def dataset_with_output_mapping() -> Dataset:
 # Basic integrity checks
 # -----------------------------------------------------------------------------
 
-
 def test_info_property(dataset: Dataset) -> None:
     assert dataset.info.name == "Bengalese Finch Calls"
     assert dataset.info.version == "0.1.0"
@@ -115,9 +114,7 @@ def test_iteration(dataset: Dataset) -> None:
 
 
 def test_load_from_config() -> None:
-    cfg = DatasetConfig(
-        dataset_name="bengalese_finch_calls", split="Bird2_train", sample_rate=16000
-    )
+    cfg = DatasetConfig(dataset_name="bengalese_finch_calls", split="Bird2_train", sample_rate=16000)
     ds, _ = BengaleseFinchCalls.from_config(cfg)
     assert len(ds) == 18303  # Expected Bird2_train size
     assert ds.sample_rate == 16000
@@ -203,28 +200,8 @@ def test_call_types_are_preserved() -> None:
     # Bird2 should have 17 call types (highest diversity)
     assert len(call_types) == 17
     # Call types can be numeric strings or letters (e.g., 'a', 'b', 'c', etc.)
-    expected_types = {
-        "0",
-        "1",
-        "2",
-        "3",
-        "4",
-        "5",
-        "6",
-        "7",
-        "8",
-        "9",
-        "a",
-        "b",
-        "c",
-        "d",
-        "e",
-        "f",
-        "g",
-    }
-    assert call_types <= expected_types, (
-        f"Unexpected call types found: {call_types - expected_types}"
-    )
+    expected_types = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f', 'g'}
+    assert call_types <= expected_types, f"Unexpected call types found: {call_types - expected_types}"
 
 
 def test_audio_snippet_structure() -> None:
@@ -301,6 +278,4 @@ def test_split_consistency() -> None:
     # Check that total equals original
     total_samples = len(train_paths) + len(valid_paths) + len(test_paths)
     original_ds = BengaleseFinchCalls(split="Bird2")
-    assert total_samples == len(original_ds), (
-        f"Split totals don't match original: {total_samples} vs {len(original_ds)}"
-    )
+    assert total_samples == len(original_ds), f"Split totals don't match original: {total_samples} vs {len(original_ds)}"

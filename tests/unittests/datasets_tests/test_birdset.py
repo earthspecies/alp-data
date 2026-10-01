@@ -17,9 +17,7 @@ from alp_data.datasets import BirdSet
 from alp_data.utils import create_hash
 
 EXPECTED_LEN = 15120
-EXPECTED_FIRST_ITEM_AUDIO_SHA256 = (
-    "c6c84647649f958f1ab9eef45276bc590d629ebfb94999d241f9e045b94acde8"
-)
+EXPECTED_FIRST_ITEM_AUDIO_SHA256 = "c6c84647649f958f1ab9eef45276bc590d629ebfb94999d241f9e045b94acde8"
 ANNOTATIONS_SHA256 = "ab019e74963a46c98695b6d1b774348c8cda8ef9783f32c49fffa8d275511943"
 # ---------------------------------------------------------------------------
 
@@ -59,7 +57,9 @@ def test_check_audio(ds: BirdSet, sample_indices: List[int]):
         audio = item["audio"]
 
         assert isinstance(audio, np.ndarray), f"[{idx}] audio is not a numpy array"
-        assert audio.dtype == np.float32, f"[{idx}] audio dtype is {audio.dtype}, expected float32"
+        assert (
+            audio.dtype == np.float32
+        ), f"[{idx}] audio dtype is {audio.dtype}, expected float32"
         assert audio.size >= 10, f"[{idx}] audio too short (size={audio.size})"
         assert not np.any(np.isnan(audio)), f"[{idx}] audio contains NaN values"
         assert not np.all(audio == 0), f"[{idx}] audio is all zeros"
@@ -68,12 +68,9 @@ def test_check_audio(ds: BirdSet, sample_indices: List[int]):
 def test_available_splits(ds: BirdSet) -> None:
     """Test if available_splits returns correct split names."""
     expected_splits = [
-        "HSN-test",
-        "HSN-test_5s",
-        "PER-test",
-        "PER-test_5s",
-        "POW-test",
-        "POW-test_5s",
+        "HSN-test", "HSN-test_5s",
+        "PER-test", "PER-test_5s",
+        "POW-test", "POW-test_5s",
         "all",
     ]
     assert all(split in ds.available_splits for split in expected_splits)
@@ -133,7 +130,9 @@ def test_reference_item_stability(ds_pandas: BirdSet):
     assert "audio" in item, "[0] missing 'audio' key"
     audio = item["audio"]
     assert isinstance(audio, np.ndarray), "[0] audio is not a numpy array"
-    assert audio.dtype == np.float32, f"[0] audio dtype is {audio.dtype}, expected float32"
+    assert (
+        audio.dtype == np.float32
+    ), f"[0] audio dtype is {audio.dtype}, expected float32"
 
     h = create_hash(audio.tobytes())
 
