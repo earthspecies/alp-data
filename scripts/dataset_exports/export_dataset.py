@@ -197,13 +197,24 @@ def verify_pack(
     live_index = [int(packed._data[i][SOURCE_INDEX_COL]) for i in rows]
 
     packed_t, live_t, mismatches = [], [], []
-    for i, src in zip(rows, live_index, strict=True):
+    t_verify = time.perf_counter()
+    for k, (i, src) in enumerate(zip(rows, live_index, strict=True)):
         t0 = time.perf_counter()
         p_item = packed[i]
         packed_t.append(time.perf_counter() - t0)
         t0 = time.perf_counter()
         l_item = live[src]
         live_t.append(time.perf_counter() - t0)
+        if (k + 1) % 10 == 0 or k + 1 == n:
+            logger.info(
+                "  verified %d/%d in %.0fs (last: packed %.1fs, live %.1fs; slowest live %.1fs)",
+                k + 1,
+                n,
+                time.perf_counter() - t_verify,
+                packed_t[-1],
+                live_t[-1],
+                max(live_t),
+            )
         diffs = compare_items(p_item, l_item, audio_key, audio_atol)
         if diffs:
             entry: dict[str, Any] = {"packed_row": i, "source_index": src, "keys": diffs}
