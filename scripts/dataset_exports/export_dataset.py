@@ -123,25 +123,36 @@ def compare_items(
 # --- worker-side reads ---------------------------------------------------------
 
 
-def _read_timed(args: tuple[bytes, list[int]]) -> list[tuple[int, float, dict[str, Any]]]:
-    """Read packed items in a spawned process.
+def _verify_in_worker(
+    args: tuple[bytes, Any, list[tuple[int, int]], str, float],
+) -> list[tuple[int, float, list[str]]]:
+    """Read and compare packed rows in a spawned process.
+
+    The worker rebuilds the live dataset from the config and compares each row
+    locally, so only indices, timings, and differing keys travel back to the
+    parent. Returning decoded items would push gigabytes through the pool's
+    pipes for long recordings.
 
     Parameters
     ----------
-    args : tuple[bytes, list[int]]
-        A pickled `PackedDataset` and the row indices to read.
+    args : tuple
+        A pickled `PackedDataset`, the source config, `(packed_row, source_index)`
+        pairs to check, the audio key, and the audio tolerance.
 
     Returns
     -------
-    list[tuple[int, float, dict[str, Any]]]
-        `(index, seconds, item)` per row.
+    list[tuple[int, float, list[str]]]
+        `(packed_row, seconds_to_read_packed, differing_keys)` per row.
     """
-    ds = pickle.loads(args[0])
+    blob, config, pairs, audio_key, audio_atol = args
+    packed = pickle.loads(blob)
+    live, _ = dataset_from_config(config)
     out = []
-    for i in args[1]:
+    for i, src in pairs:
         t0 = time.perf_counter()
-        item = ds[i]
-        out.append((i, time.perf_counter() - t0, item))
+        item = packed[i]
+        seconds = time.perf_counter() - t0
+        out.append((i, seconds, compare_items(item, live[src], audio_key, audio_atol)))
     return out
 
 
@@ -236,20 +247,19 @@ def verify_pack(
 
     if workers > 0 and n:
         blob = pickle.dumps(packed)
-        chunks = [rows[k::workers] for k in range(workers)]
+        pairs = list(zip(rows, live_index, strict=True))
+        chunks = [pairs[k::workers] for k in range(workers)]
         t0 = time.perf_counter()
         with mp.get_context("spawn").Pool(workers) as pool:
-            results = pool.map(_read_timed, [(blob, c) for c in chunks if c])
+            results = pool.map(
+                _verify_in_worker,
+                [(blob, config, c, audio_key, audio_atol) for c in chunks if c],
+            )
         wall = time.perf_counter() - t0
-        worker_t, worker_mismatch = [], []
-        for chunk in results:
-            for i, sec, item in chunk:
-                worker_t.append(sec)
-                src = live_index[rows.index(i)]
-                if compare_items(item, live[src], audio_key, audio_atol):
-                    worker_mismatch.append(i)
+        worker_t = [sec for chunk in results for _, sec, _ in chunk]
+        worker_mismatch = [i for chunk in results for i, _, diffs in chunk if diffs]
         result["worker_read"] = {**_stats(worker_t), "workers": workers, "wall_s": wall}
-        result["worker_mismatches"] = worker_mismatch
+        result["worker_mismatches"] = sorted(worker_mismatch)
 
     return result
 
