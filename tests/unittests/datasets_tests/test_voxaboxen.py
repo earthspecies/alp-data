@@ -164,3 +164,16 @@ def test_voxaboxen_events_getitem(voxaboxen_events_dataset: Dataset) -> None:
     assert "class_anno" in sample
     assert isinstance(sample["class_anno"], np.ndarray)
     assert sample["class_anno"].ndim == 2
+
+
+def test_voxaboxen_events_load_from_config() -> None:
+    """Test if VoxaboxenEvents can be built from a configuration."""
+    dataset_config = VoxaboxenEventsConfig(
+        dataset_name="voxaboxen_events",
+        split="hawaii_val",
+        sample_rate=None,
+    )
+    dataset, _ = VoxaboxenEvents.from_config(dataset_config)
+    assert dataset.info.name == "voxaboxen_events"
+    assert dataset.mono_method == "average"
+    assert len(dataset) > 0, "Dataset should not be empty"

@@ -794,7 +794,7 @@ class VoxaboxenEvents(Dataset):
             output_take_and_give=cfg["output_take_and_give"],
             data_root=cfg["data_root"],
             sample_rate=cfg["sample_rate"],
-            mono_method=cfg["mono_method", "average"],
+            mono_method=cfg.get("mono_method", "average"),
             clip_duration=cfg["clip_duration"],
             clip_hop=cfg["clip_hop"],
             clip_start_offset=cfg["clip_start_offset"],
