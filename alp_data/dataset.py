@@ -679,58 +679,35 @@ def dataset_from_config(
 
     KeyError
         If the specified key does not match any dataset configuration in the data.
-    """  # noqa: DOC502 -- raised by config_from_yaml, which this delegates to
+    """  # noqa: DOC502 -- raised by load_config, which this delegates to
     if isinstance(dataset_config, (DatasetConfig, ConcatConfig, ChainedDatasetConfig)):
         # If a DatasetConfig is passed, we can directly create the dataset
         return _make_dataset_from_config(dataset_config)
 
-    return _make_dataset_from_config(config_from_yaml(dataset_config, key=key))
+    return _make_dataset_from_config(load_config(dataset_config, key=key))
 
 
-def config_from_dict(data: dict[str, Any]) -> DatasetConfig | ConcatConfig | ChainedDatasetConfig:
-    """Validate a plain dict into the right configuration class.
-
-    Dispatches on `dataset_name`: `"concatenated_dataset"` and
-    `"chained_dataset"` give the collection configs, any other name gives the
-    config class registered for it, falling back to `DatasetConfig`. This is
-    the inverse of `model_dump` on a config, so a frozen config (for example
-    the `source` block of a pack's `config.yaml`) can be rebuilt.
-
-    Parameters
-    ----------
-    data : dict[str, Any]
-        The configuration fields, including `dataset_name`.
-
-    Returns
-    -------
-    DatasetConfig | ConcatConfig | ChainedDatasetConfig
-        The validated configuration.
-    """
-    name = data["dataset_name"]
-    if name == "concatenated_dataset":
-        return ConcatConfig.model_validate(data)
-    if name == "chained_dataset":
-        return ChainedDatasetConfig.model_validate(data)
-    cfg_class = _custom_config_registry.get(name, DatasetConfig)
-    return cfg_class.model_validate(data)
-
-
-def config_from_yaml(
-    path: AnyPathT | str, key: str | None = None
+def load_config(
+    source: dict[str, Any] | AnyPathT | str, key: str | None = None
 ) -> DatasetConfig | ConcatConfig | ChainedDatasetConfig:
-    """Read a dataset configuration from a YAML file without building the dataset.
+    """Load a dataset configuration from a YAML file or a mapping, without building the dataset.
 
-    The file holds a dict with exactly one of the keys `dataset`, `concat`, or
-    `chain`. A `dataset` entry is validated with the config class registered
-    for its `dataset_name`, falling back to `DatasetConfig`.
+    Two mapping shapes are accepted, so both a config file and a frozen config
+    (for example the `source` block of a pack's `config.yaml`) can be loaded:
+
+    - wrapped, as in a YAML file: a dict with exactly one of the keys `dataset`,
+      `concat`, or `chain`;
+    - flat: a dict with `dataset_name`, where `"concatenated_dataset"` and
+      `"chained_dataset"` give the collection configs and any other name gives
+      the config class registered for it, falling back to `DatasetConfig`.
 
     Parameters
     ----------
-    path : AnyPathT | str
-        Path to the YAML file.
+    source : dict[str, Any] | AnyPathT | str
+        A mapping, or the path of a YAML file holding one.
     key : str | None, optional
-        If the file holds several configurations under top-level keys, the key
-        to select. Default is None.
+        If the mapping holds several configurations under top-level keys, the
+        key to select. Default is None.
 
     Returns
     -------
@@ -740,12 +717,11 @@ def config_from_yaml(
     Raises
     ------
     ValueError
-        If the selected data is not a dict with exactly one of the `dataset`,
-        `concat`, or `chain` keys.
+        If the selected data is neither a wrapped nor a flat configuration.
     KeyError
-        If `key` is given and not present in the file.
+        If `key` is given and not present.
     """
-    data = read_yaml(path)
+    data = source if isinstance(source, dict) else read_yaml(source)
 
     if key is not None:
         if key not in data:
@@ -753,16 +729,21 @@ def config_from_yaml(
         data = data[key]
 
     if isinstance(data, dict):
-        if "dataset" in data or "concat" in data or "chain" in data:
-            if sum(k in data for k in ("concat", "dataset", "chain")) > 1:
-                raise ValueError("Configuration cannot contain multiple dataset types at once.")
-
-            if "dataset" in data:
-                return config_from_dict(data["dataset"])
-            if "concat" in data:
-                return ConcatConfig.model_validate(data["concat"])
+        wrappers = [k for k in ("dataset", "concat", "chain") if k in data]
+        if len(wrappers) > 1:
+            raise ValueError("Configuration cannot contain multiple dataset types at once.")
+        if wrappers == ["concat"]:
+            return ConcatConfig.model_validate(data["concat"])
+        if wrappers == ["chain"]:
             return ChainedDatasetConfig.model_validate(data["chain"])
-
+        flat = data["dataset"] if wrappers == ["dataset"] else data
+        if "dataset_name" in flat:
+            name = flat["dataset_name"]
+            if name == "concatenated_dataset":
+                return ConcatConfig.model_validate(flat)
+            if name == "chained_dataset":
+                return ChainedDatasetConfig.model_validate(flat)
+            return _custom_config_registry.get(name, DatasetConfig).model_validate(flat)
         raise ValueError(
             "Invalid dataset configurations found. Please provide a specific key to select one."
         )
@@ -770,6 +751,7 @@ def config_from_yaml(
     raise ValueError("""Invalid configuration format.
     Your configuration must either be:
     1. A DatasetConfig represented as the value of a dict with a single 'dataset' key
+       (or a flat mapping with 'dataset_name')
     2. A ConcatConfig represented as the value of a dict with a single 'concat' key
     3. A ChainedDatasetConfig represented as the value of a dict with a single 'chain' key
     """)

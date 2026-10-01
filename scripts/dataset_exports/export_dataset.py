@@ -36,9 +36,8 @@ import yaml
 
 from alp_data.dataset import (
     ChainedDatasetConfig,
-    config_from_dict,
-    config_from_yaml,
     dataset_from_config,
+    load_config,
 )
 from alp_data.export import PackedDataset, pack, to_hf
 from alp_data.export.columns import SOURCE_INDEX_COL
@@ -408,7 +407,7 @@ def main(
 
     config = None
     if config_path is not None:
-        config = config_from_yaml(config_path, key=key)
+        config = load_config(config_path, key=key)
         if isinstance(config, ChainedDatasetConfig):
             logger.warning("Chained config: it will be exported as a concatenation")
 
@@ -419,7 +418,7 @@ def main(
         fs = filesystem_from_path(anypath(from_pack))
         with fs.open(str(anypath(from_pack) / "config.yaml"), "r") as f:
             source = yaml.safe_load(f)["source"]
-        config = config_from_dict(source)
+        config = load_config(source)
     else:
         exporter = pack if fmt == "pack" else to_hf
         logger.info("Exporting %s to %s as %s with %d workers", config_path, out, fmt, num_workers)

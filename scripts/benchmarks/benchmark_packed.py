@@ -41,7 +41,7 @@ import click
 import pandas as pd
 import psutil
 
-from alp_data.dataset import config_from_dict, dataset_from_config
+from alp_data.dataset import dataset_from_config, load_config
 from alp_data.export import PackedDataset
 from alp_data.io import anypath, filesystem_from_path
 
@@ -279,7 +279,7 @@ def load_pair(pack_path: str) -> tuple[PackedDataset, Any, dict[str, Any]]:
         The packed dataset, the live dataset, and the pack's `config.yaml`.
     """
     packed = PackedDataset(pack_path)
-    live, _ = dataset_from_config(config_from_dict(packed.pack_config["source"]))
+    live, _ = dataset_from_config(load_config(packed.pack_config["source"]))
     return packed, live, packed.pack_config
 
 
