@@ -1,6 +1,7 @@
 """Voxaboxen dataset tests."""
 
 import pytest
+import math
 import numpy as np
 
 from alp_data.io import anypath, exists
@@ -177,3 +178,17 @@ def test_voxaboxen_events_load_from_config() -> None:
     assert dataset.info.name == "voxaboxen_events"
     assert dataset.mono_method == "average"
     assert len(dataset) > 0, "Dataset should not be empty"
+
+
+def test_voxaboxen_events_native_sample_rate() -> None:
+    """Native-rate items carry `sample_rate` and build annotations on that rate."""
+    ds = VoxaboxenEvents(split="hawaii_val", sample_rate=None)
+    for idx in range(len(ds)):
+        sample = ds[idx]
+        assert sample["sample_rate"] > 0
+        if sample["anchor_anno"].max() > 0:
+            break
+    else:
+        pytest.fail("no clip with annotated events found")
+    assert isinstance(sample["sample_rate"], int)
+    assert sample["class_anno"].shape[0] == math.ceil(sample["audio"].shape[-1] / ds.scale_factor)

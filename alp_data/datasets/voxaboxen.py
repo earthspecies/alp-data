@@ -641,7 +641,7 @@ class VoxaboxenEvents(Dataset):
         self,
         split: str = "Anuraset_train",
         output_take_and_give: dict[str, str] | None = None,
-        sample_rate: int = 16000,
+        sample_rate: int | None = 16000,
         data_root: str | AnyPathT | None = None,
         stereo_or_mono: Literal["stereo", "mono"] = "stereo",
         mono_method: Literal["average", "keep_first"] = "average",
@@ -664,8 +664,9 @@ class VoxaboxenEvents(Dataset):
         output_take_and_give : dict[str, str]
             A dictionary mapping the original column names to the new column names.
             It acts as a filter as well.
-        sample_rate : int
-            The sample rate to which audio files should be resampled.
+        sample_rate : int, optional
+            The sample rate to which audio files should be resampled. With None the
+            audio is kept at its native rate and annotations are built on that rate.
         data_root : str | AnyPathT, optional
             The root directory for the dataset. This is optionally appended to the
             path item of a sample in the dataset.
@@ -985,7 +986,10 @@ class VoxaboxenEvents(Dataset):
         return proportions
 
     def _get_annotation(
-        self, pos_intervals: list[tuple[float, float, int]], audio: np.ndarray
+        self,
+        pos_intervals: list[tuple[float, float, int]],
+        audio: np.ndarray,
+        sample_rate: int,
     ) -> tuple[
         np.ndarray,  # anchor_annos
         np.ndarray,  # regression_annos
@@ -1003,6 +1007,8 @@ class VoxaboxenEvents(Dataset):
             List of (start, end, label_idx) tuples
         audio : np.ndarray
             Input audio tensor
+        sample_rate : int
+            Sample rate of `audio`, used to place the intervals on the sample grid.
 
         Returns
         -------
@@ -1037,14 +1043,13 @@ class VoxaboxenEvents(Dataset):
         for iv in pos_intervals:
             start, end, class_idx = iv
             dur = end - start
-            dur_samples = np.ceil(dur * self.sample_rate)
 
-            start_idx = int(math.floor(start * self.sample_rate))
+            start_idx = int(math.floor(start * sample_rate))
             start_idx = max(min(start_idx, seq_len - 1), 0)
 
-            end_idx = int(math.ceil(end * self.sample_rate))
+            end_idx = int(math.ceil(end * sample_rate))
             end_idx = max(min(end_idx, seq_len - 1), 0)
-            dur_samples = int(np.ceil(dur * self.sample_rate))
+            dur_samples = int(np.ceil(dur * sample_rate))
 
             anchor_anno = _get_anchor_anno(start_idx, dur_samples, seq_len)
             anchor_annos.append(anchor_anno)
@@ -1127,6 +1132,7 @@ class VoxaboxenEvents(Dataset):
                 scale=True,
                 res_type="kaiser_best",
             )
+            sr = self.sample_rate
 
         pos_intervals = self._get_pos_intervals(fn, start, end)
         (
@@ -1136,10 +1142,11 @@ class VoxaboxenEvents(Dataset):
             rev_anchor_anno,
             rev_regression_anno,
             rev_class_anno,
-        ) = self._get_annotation(pos_intervals, audio)
+        ) = self._get_annotation(pos_intervals, audio, sr)
 
         row = {
             "audio": audio,
+            "sample_rate": int(sr),
             "fn": fn,
             "audio_fp": audio_fp,
             "start": start,
