@@ -251,3 +251,16 @@ def test_negative_indices_count_from_the_end(packed: tuple[PackTestConfig, Path]
     _assert_same_item(ds[-5], src[0])
     with pytest.raises(IndexError):
         ds[-6]
+
+
+def test_store_knows_shard_sizes_from_config(tmp_path: Path) -> None:
+    """`PackedDataset` hands the recorded shard sizes to the media store."""
+    config = make_source(tmp_path / "src", n=4)
+    out = tmp_path / "pack"
+    pack(config, out, samples_per_shard=2)
+    ds = PackedDataset(out)
+    expected = [s["size"] for s in ds.pack_config["shards"]]
+    assert len(expected) == 2
+    assert ds._store.shard_sizes == expected
+    on_disk = [(out / "media" / s["name"]).stat().st_size for s in ds.pack_config["shards"]]
+    assert expected == on_disk

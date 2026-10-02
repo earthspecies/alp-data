@@ -160,8 +160,11 @@ class PackedDataset(Dataset):
             description=f"Pack of {self.pack_config.get('name')} at {self.path}",
             sources=str(self.pack_config.get("source", {}).get("dataset_name", "unknown")),
         )
+        shards = self.pack_config["shards"]
         self._store = PackedMediaStore(
-            self.path / MEDIA_DIR, [s["name"] for s in self.pack_config["shards"]]
+            self.path / MEDIA_DIR,
+            [s["name"] for s in shards],
+            [s["size"] for s in shards] if all("size" in s for s in shards) else None,
         )
         self._load()
 

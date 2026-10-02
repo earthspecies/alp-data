@@ -22,11 +22,21 @@ class PackedMediaStore:
         Directory holding the shard files. Any `anypath` target.
     shard_names : list[str]
         File names of the shards, indexed by shard number.
+    shard_sizes : list[int] | None, optional
+        Byte size of each shard, indexed like `shard_names`. On object stores a
+        known size is passed to `open`, which saves fsspec a metadata request per
+        shard. Unknown sizes are looked up by fsspec as usual.
     """
 
-    def __init__(self, media_dir: str | AnyPathT, shard_names: list[str]) -> None:
+    def __init__(
+        self,
+        media_dir: str | AnyPathT,
+        shard_names: list[str],
+        shard_sizes: list[int] | None = None,
+    ) -> None:
         self.media_dir = anypath(str(media_dir))
         self.shard_names = list(shard_names)
+        self.shard_sizes = None if shard_sizes is None else [int(n) for n in shard_sizes]
         self._handles: dict[int, Any] = {}
 
     @property
@@ -55,7 +65,12 @@ class PackedMediaStore:
         if handle is None:
             fs = filesystem_from_path(self.media_dir)
             path = str(self.media_dir / self.shard_names[shard])
-            kwargs = {} if fs.protocol in ("file", "local") else {"cache_type": "none"}
+            protocol = fs.protocol if isinstance(fs.protocol, str) else fs.protocol[0]
+            kwargs: dict[str, Any] = {}
+            if protocol not in ("file", "local"):
+                kwargs["cache_type"] = "none"
+                if self.shard_sizes is not None:
+                    kwargs["size"] = self.shard_sizes[shard]
             handle = fs.open(path, "rb", **kwargs)
             self._handles[shard] = handle
         handle.seek(offset)

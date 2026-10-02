@@ -19,7 +19,7 @@ Examples
 uv run --group benchmark python scripts/benchmarks/benchmark_packed.py \\
     --pack gs://bucket/exports/beans/validation-native \\
     --pack gs://bucket/exports/fasd13/all-32k \\
-    --workers 0,4,16,48 --prefetch 2,8 --batch-size 32 --max-batches 40
+    --workers 0,4,16,48 --prefetch 2,8 --batch-size 32 --measure-seconds 60
 """
 
 from __future__ import annotations
@@ -146,10 +146,17 @@ def run_dataloader(
     workers: int,
     prefetch: int,
     warmup_batches: int,
+    measure_seconds: float,
     max_batches: int,
     seed: int,
 ) -> dict[str, Any]:
-    """Iterate a dataset through a `DataLoader` and time it.
+    """Iterate a dataset through a `DataLoader` and time its steady state.
+
+    With workers, the loader has up to `workers * prefetch` batches in flight
+    by the time the first one arrives, because every worker starts prefetching
+    at once. Timing from the first batch would mostly measure that backlog
+    draining. So the warm-up is at least `workers * prefetch` batches, and the
+    timed window is a fixed `measure_seconds` of wall clock after that.
 
     Parameters
     ----------
@@ -162,9 +169,12 @@ def run_dataloader(
     prefetch : int
         `prefetch_factor`, only meaningful with workers.
     warmup_batches : int
-        Batches discarded before timing starts.
+        Minimum batches discarded before timing starts; raised to
+        `workers * prefetch` when that is larger.
+    measure_seconds : float
+        Length of the timed window. The window also ends when the epoch does.
     max_batches : int
-        Batches timed.
+        Upper bound on timed batches; `0` means no bound.
     seed : int
         Shuffle seed.
 
@@ -194,9 +204,11 @@ def run_dataloader(
         **kwargs,
     )
 
+    warmup = max(warmup_batches, workers * prefetch)
     latencies: list[float] = []
     samples = 0
     first_batch_s = float("nan")
+    t_measure = float("nan")
     with MemorySampler() as mem:
         t_start = time.perf_counter()
         t_prev = t_start
@@ -204,17 +216,21 @@ def run_dataloader(
             now = time.perf_counter()
             if i == 0:
                 first_batch_s = now - t_start
-            if i == warmup_batches:
+            if i == warmup:
                 t_measure = now
-            if i >= warmup_batches:
+            if i >= warmup:
                 latencies.append(now - t_prev)
                 samples += len(batch)
+                if now - t_measure >= measure_seconds or (
+                    max_batches and len(latencies) >= max_batches
+                ):
+                    break
             t_prev = now
-            if i + 1 >= warmup_batches + max_batches:
-                break
         t_end = time.perf_counter()
     measured_s = t_end - t_measure if latencies else float("nan")
     return {
+        "warmup_batches": warmup,
+        "batches": len(latencies),
         "samples": samples,
         "measured_s": measured_s,
         "samples_per_s": samples / measured_s if latencies else float("nan"),
@@ -298,8 +314,9 @@ def _parse_ints(text: str) -> list[int]:
 @click.option("--workers", default="0,4,16", show_default=True, help="DataLoader worker counts")
 @click.option("--prefetch", default="2", show_default=True, help="prefetch_factor values")
 @click.option("--batch-size", default=32, show_default=True)
-@click.option("--max-batches", default=40, show_default=True)
-@click.option("--warmup-batches", default=4, show_default=True)
+@click.option("--measure-seconds", default=60.0, show_default=True, help="Timed window per run")
+@click.option("--max-batches", default=0, show_default=True, help="Cap on timed batches; 0 = none")
+@click.option("--warmup-batches", default=4, show_default=True, help="Minimum warm-up batches")
 @click.option("--sequential-samples", default=200, show_default=True)
 @click.option("--modes", default="dataloader,sequential", show_default=True)
 @click.option("--sides", default="packed,live", show_default=True)
@@ -313,6 +330,7 @@ def main(
     workers: str,
     prefetch: str,
     batch_size: int,
+    measure_seconds: float,
     max_batches: int,
     warmup_batches: int,
     sequential_samples: int,
@@ -385,6 +403,7 @@ def main(
                             workers=w,
                             prefetch=pf,
                             warmup_batches=warmup_batches,
+                            measure_seconds=measure_seconds,
                             max_batches=max_batches,
                             seed=seed,
                         )

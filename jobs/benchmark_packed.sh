@@ -24,7 +24,8 @@ PACKS=${PACKS:-"$EXPORTS/beans/validation-native $EXPORTS/fasd13/all-32k"}
 WORKERS=${WORKERS:-0,4,16,48}
 PREFETCH=${PREFETCH:-2,8}
 BATCH_SIZE=${BATCH_SIZE:-32}
-MAX_BATCHES=${MAX_BATCHES:-40}
+MEASURE_SECONDS=${MEASURE_SECONDS:-60}
+MAX_BATCHES=${MAX_BATCHES:-0}
 WARMUP_BATCHES=${WARMUP_BATCHES:-4}
 SEQUENTIAL_SAMPLES=${SEQUENTIAL_SAMPLES:-200}
 MODES=${MODES:-dataloader,sequential}
@@ -41,13 +42,14 @@ PACK_ARGS=()
 for p in $PACKS; do PACK_ARGS+=(--pack "$p"); done
 
 echo "=== benchmark started $(date) on $(hostname) ==="
-echo "packs=$PACKS workers=$WORKERS prefetch=$PREFETCH batch_size=$BATCH_SIZE max_batches=$MAX_BATCHES"
+echo "packs=$PACKS workers=$WORKERS prefetch=$PREFETCH batch_size=$BATCH_SIZE measure_seconds=$MEASURE_SECONDS max_batches=$MAX_BATCHES"
 
 srun uv run --group benchmark python scripts/benchmarks/benchmark_packed.py \
     "${PACK_ARGS[@]}" \
     --workers "$WORKERS" \
     --prefetch "$PREFETCH" \
     --batch-size "$BATCH_SIZE" \
+    --measure-seconds "$MEASURE_SECONDS" \
     --max-batches "$MAX_BATCHES" \
     --warmup-batches "$WARMUP_BATCHES" \
     --sequential-samples "$SEQUENTIAL_SAMPLES" \
