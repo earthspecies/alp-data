@@ -69,11 +69,12 @@ def encode_audio(audio: np.ndarray, sample_rate: int, audio_format: AudioFormat)
 def encode_audio_lossless_if_needed(
     audio: np.ndarray, sample_rate: int, audio_format: AudioFormat
 ) -> tuple[bytes, AudioFormat]:
-    """Encode audio, switching to float32 WAV when 16-bit FLAC would clip it.
+    """Encode audio, switching to float32 WAV when FLAC cannot hold it faithfully.
 
-    Datasets that resample on the fly can return samples outside `[-1, 1]`
-    (see issue #325). FLAC PCM_16 clips those at full scale, so such rows are
-    stored as float32 WAV instead, which is exact.
+    Two cases switch. Datasets that resample on the fly can return samples
+    outside `[-1, 1]` (see issue #325); FLAC PCM_16 clips those at full scale.
+    And libsndfile writes an empty FLAC as zero bytes, which it cannot read
+    back, whereas an empty WAV keeps its header, channel count and rate.
 
     Parameters
     ----------
@@ -90,7 +91,7 @@ def encode_audio_lossless_if_needed(
         The encoded bytes and the format actually used.
     """
     fmt: AudioFormat = audio_format
-    if audio_format == "flac" and audio.size and float(np.max(np.abs(audio))) > 1.0:
+    if audio_format == "flac" and (audio.size == 0 or float(np.max(np.abs(audio))) > 1.0):
         fmt = "wav"
     return encode_audio(audio, sample_rate, fmt), fmt
 

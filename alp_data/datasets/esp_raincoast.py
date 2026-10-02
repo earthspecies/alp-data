@@ -38,8 +38,10 @@ class ESPRaincoastConfig(DatasetConfig):
         The sample rate to which audio files should be resampled.
         If None, audio files are loaded at their original sample rate.
     load_audio_segments : bool
-        If True, audio files will be spliced between 'Begin Time(s)' and 'End Time(s)'.
-        If False, entire audio files will be loaded. Default is True.
+        If True, each row's segment is cut from its file: from 'File Offset (s)' for
+        'Delta Time (s)' when the Raven table has those columns, otherwise between
+        'Begin Time (s)' and 'End Time (s)'. If False, entire audio files are loaded.
+        Default is True.
     mono_method : str | None
         Method to convert stereo audio to mono. If None, no conversion is done.
         Options are ["keep_first", "average"]. Default is None.
@@ -106,8 +108,9 @@ class ESPRaincoast(Dataset):
         sample_rate : int
             The sample rate to which audio files should be resampled.
         load_audio_segments : bool
-            If True, the audio files will be spliced between the 'Begin time(s)'
-            and 'End time (s)' columns in the dataset.
+            If True, each row's segment is cut from its file: from 'File Offset (s)'
+            for 'Delta Time (s)' when the Raven table has those columns, otherwise
+            between 'Begin Time (s)' and 'End Time (s)'.
             If False, the entire audio file will be loaded.
         mono_method : str | None
             Method to convert stereo audio to mono. If None, no conversion is done.
@@ -236,8 +239,19 @@ class ESPRaincoast(Dataset):
 
         # Read the audio clip
         if self.load_audio_segments:
-            start_time = row.get("Begin Time (s)", 0.0)
-            end_time = row.get("End Time (s)", None)
+            # Raven tables can span several files of one recording series. Then
+            # "Begin Time (s)" counts from the start of the series, while
+            # "File Offset (s)" is the position inside "Begin File", which is the
+            # file at `local_path`.
+            if row.get("File Offset (s)") is not None:
+                start_time = float(row["File Offset (s)"])
+                delta = row.get("Delta Time (s)")
+                if delta is None:
+                    delta = float(row["End Time (s)"]) - float(row["Begin Time (s)"])
+                end_time = start_time + float(delta)
+            else:
+                start_time = row.get("Begin Time (s)", 0.0)
+                end_time = row.get("End Time (s)", None)
             audio, sample_rate = read_audio(audio_path, start_time=start_time, end_time=end_time)
         else:
             audio, sample_rate = read_audio(audio_path)

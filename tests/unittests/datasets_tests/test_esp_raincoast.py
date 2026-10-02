@@ -206,3 +206,17 @@ def test_audio_segment_extraction(dataset: Dataset) -> None:
     # Assuming 16kHz sample rate, allow some tolerance
     expected_length = int(segment_duration * sample["sample_rate"])
     assert abs(audio_length - expected_length) < 2000  # Allow 2000 samples tolerance
+
+
+def test_segments_use_file_offset(dataset: Dataset) -> None:
+    """Raven tables span several files; the segment position is `File Offset (s)`."""
+    rows = [dataset._data[i] for i in range(min(len(dataset), 40))]
+    idx = next(
+        i
+        for i, r in enumerate(rows)
+        if abs(r["Begin Time (s)"] - r["File Offset (s)"]) > 1.0
+    )
+    row = rows[idx]
+    item = dataset[idx]
+    expected = round(row["Delta Time (s)"] * item["sample_rate"])
+    assert abs(item["audio"].shape[0] - expected) <= 1

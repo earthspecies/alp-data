@@ -152,3 +152,14 @@ def test_encode_audio_rejects_channels_first() -> None:
     audio = np.zeros((2, 16000), dtype=np.float32)
     with pytest.raises(ValueError, match=r"shape \(2, 16000\)"):
         encode_audio(audio, 16000, "flac")
+
+
+@pytest.mark.parametrize("shape", [(0,), (0, 2)])
+def test_empty_audio_is_stored_as_wav_and_decodes(shape: tuple[int, ...]) -> None:
+    """libsndfile writes an empty FLAC as zero bytes, which it cannot read back."""
+    data, fmt = encode_audio_lossless_if_needed(np.zeros(shape, dtype=np.float32), 16000, "flac")
+    assert fmt == "wav"
+    assert len(data) > 0
+    audio, sr = decode_audio(data)
+    assert audio.shape == shape
+    assert sr == 16000
