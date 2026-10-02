@@ -202,3 +202,23 @@ def test_voxaboxen_events_getitem_past_recording_count() -> None:
     assert "audio" in sample
     with pytest.raises(IndexError):
         ds[len(ds)]
+
+
+def test_voxaboxen_events_from_config_passes_stereo_or_mono() -> None:
+    """`stereo_or_mono` from the config reaches the dataset."""
+    dataset_config = VoxaboxenEventsConfig(
+        dataset_name="voxaboxen_events", split="hawaii_val", sample_rate=None
+    )
+    assert dataset_config.stereo_or_mono == "mono"
+    dataset, _ = VoxaboxenEvents.from_config(dataset_config)
+    assert dataset.stereo_or_mono == "mono"
+
+
+def test_voxaboxen_events_stereo_is_frames_first() -> None:
+    """Stereo items use the `(frames, channels)` layout of `read_audio`."""
+    ds = VoxaboxenEvents(split="Anuraset_val", sample_rate=None, stereo_or_mono="stereo")
+    sample = ds[0]
+    frames, channels = sample["audio"].shape
+    assert channels == 2
+    assert frames > channels
+    assert sample["class_anno"].shape[0] == math.ceil(frames / ds.scale_factor)

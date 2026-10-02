@@ -671,6 +671,9 @@ class VoxaboxenEvents(Dataset):
             The root directory for the dataset. This is optionally appended to the
             path item of a sample in the dataset.
             If None, the default is the parent directory of the split path.
+        stereo_or_mono : {"stereo", "mono"}, optional
+            With "mono", stereo files are mixed down with `mono_method`. With "stereo"
+            the audio keeps the `(frames, channels)` layout returned by `read_audio`.
         mono_method : str, optional
             The method to convert stereo audio to mono. Defaults to "average".
             Other options are "average" and "keep_first"
@@ -795,6 +798,7 @@ class VoxaboxenEvents(Dataset):
             output_take_and_give=cfg["output_take_and_give"],
             data_root=cfg["data_root"],
             sample_rate=cfg["sample_rate"],
+            stereo_or_mono=cfg.get("stereo_or_mono", "stereo"),
             mono_method=cfg.get("mono_method", "average"),
             clip_duration=cfg["clip_duration"],
             clip_hop=cfg["clip_hop"],
@@ -1006,7 +1010,7 @@ class VoxaboxenEvents(Dataset):
         pos_intervals : list
             List of (start, end, label_idx) tuples
         audio : np.ndarray
-            Input audio tensor
+            Input audio, shape `(frames,)` or `(frames, channels)`
         sample_rate : int
             Sample rate of `audio`, used to place the intervals on the sample grid.
 
@@ -1022,7 +1026,7 @@ class VoxaboxenEvents(Dataset):
             - rev_class_annos: Reverse class probabilities
         """
 
-        raw_seq_len = audio.shape[-1]
+        raw_seq_len = audio.shape[0]
         seq_len = int(math.ceil(raw_seq_len / self.scale_factor))
 
         regression_annos = np.zeros((seq_len,))
@@ -1119,19 +1123,19 @@ class VoxaboxenEvents(Dataset):
 
         if self.stereo_or_mono == "mono":
             audio = audio_stereo_to_mono(audio, mono_method=self.mono_method)
-        else:
-            channel_dim = np.argmin(audio.shape)
-            if channel_dim != 0:
-                audio = audio.T
+        # Otherwise keep the `(frames, channels)` layout returned by `read_audio`.
 
         if self.sample_rate is not None and sr != self.sample_rate:
+            # librosa resamples along the last axis, so put time last for stereo.
             audio = librosa.resample(
-                y=audio,
+                y=audio.T if audio.ndim == 2 else audio,
                 orig_sr=sr,
                 target_sr=self.sample_rate,
                 scale=True,
                 res_type="kaiser_best",
             )
+            if audio.ndim == 2:
+                audio = np.ascontiguousarray(audio.T)
             sr = self.sample_rate
 
         pos_intervals = self._get_pos_intervals(fn, start, end)
