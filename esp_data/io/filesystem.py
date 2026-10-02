@@ -3,6 +3,7 @@ This file offers functionalities necessary to manipulate different sort of files
 """
 
 import logging
+import os
 from functools import cache
 from typing import Literal
 
@@ -65,6 +66,15 @@ def filesystem(
     True
     """
     if protocol in ["gcs", "gs"]:
+        # gcsfs defaults requests_timeout=None -> a stalled GCS read HANGS FOREVER, which
+        # stalls a dataloader worker -> that rank never reaches the next all-reduce -> in
+        # multi-node the other ranks block and the run dies on the (3h) NCCL collective
+        # timeout. The ChainedDataset.__getitem__ retry only recovers reads that RAISE, not
+        # ones that hang. So bound the read: a stalled request now RAISES (retryable) instead
+        # of hanging. Override via ESP_DATA_GCS_REQUESTS_TIMEOUT (seconds).
+        kwargs.setdefault(
+            "requests_timeout", float(os.environ.get("ESP_DATA_GCS_REQUESTS_TIMEOUT", "60"))
+        )
         return GCSFileSystem(**kwargs)
     elif protocol == "r2":
         return S3FileSystem(

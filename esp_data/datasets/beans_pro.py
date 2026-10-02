@@ -137,6 +137,24 @@ class BeansPro(Dataset):
             "flight-call-presence-v2": "gs://esp-data-ingestion/beans-pro-v2-eval/flight_call_presence_v2.jsonl",
             "begging-call-presence-v2": "gs://esp-data-ingestion/beans-pro-v2-eval/begging_call_presence_v2.jsonl",
             "call-type-fixed-vocab-v2": "gs://esp-data-ingestion/beans-pro-v2-eval/call_type_fixed_vocab_v2.jsonl",
+            # v2.1 call-type splits: v2 pool (20260707) + NEW leakage-free XC rows
+            # (added_rows_20260813_final.csv, ingested after the holdout -> postdates
+            # training). Grows the positive-limited call-type tasks +45-77% (see
+            # scripts/build_beans_pro_calltype_v21.py). Reserve these rows from training.
+            "alarm-call-presence-v21": "gs://esp-data-ingestion/beans-pro-v2-eval/alarm_call_presence_v21.jsonl",
+            "flight-call-presence-v21": "gs://esp-data-ingestion/beans-pro-v2-eval/flight_call_presence_v21.jsonl",
+            "begging-call-presence-v21": "gs://esp-data-ingestion/beans-pro-v2-eval/begging_call_presence_v21.jsonl",
+            "call-type-fixed-vocab-v21": "gs://esp-data-ingestion/beans-pro-v2-eval/call_type_fixed_vocab_v21.jsonl",
+            # v2.1 recording-quality: 2001 leakage-free XC clips from added_rows_20260813_final.csv,
+            # balanced 5-way A/B/C/D/E (611/611/610/152/17) mapped to excellent/good/moderate/poor/
+            # very poor. Trained prompt from configs/prompts/recording_quality.yml (variant 0).
+            # Reserve these rows from training. Build: scripts/build_beans_pro_recording_quality_v21.py.
+            "recording-quality-v21": "gs://esp-data-ingestion/beans-pro-v2-eval/recording_quality_v21.jsonl",
+            # Species-conditioned sex classification (male / female) on held-out XC
+            # callers. Built from all_unseen_new_only_20260429 + added_rows_20260707_final
+            # + added_rows_20260813_final, filtered to behavior contains "call",
+            # per-species balanced M/F with min_each=5. See build_beans_pro_xc_sex_classification.py.
+            "xc-sex-classification": "gs://esp-data-ingestion/beans-pro/v0.1.0/raw/xc_sex_classification/test.jsonl",
         },
         version="0.1.0",
         description=(
@@ -188,6 +206,14 @@ class BeansPro(Dataset):
         "flight-call-presence-v2": "gs://esp-data-ingestion/",
         "begging-call-presence-v2": "gs://esp-data-ingestion/",
         "call-type-fixed-vocab-v2": "gs://esp-data-ingestion/",
+        # v2.1 (grown call-type splits) — same ingestion-root-relative audio paths.
+        "alarm-call-presence-v21": "gs://esp-data-ingestion/",
+        "flight-call-presence-v21": "gs://esp-data-ingestion/",
+        "begging-call-presence-v21": "gs://esp-data-ingestion/",
+        "call-type-fixed-vocab-v21": "gs://esp-data-ingestion/",
+        "recording-quality-v21": "gs://esp-data-ingestion/",
+        # audio_path_original_sample_rate is `audio_32k/XCxxxxx-....wav` relative to XC raw
+        "xc-sex-classification": "gs://esp-data-ingestion/xeno-canto/v0.1.0/raw/",
     }
 
     _originals_path_column = "audio_path_original_sample_rate"

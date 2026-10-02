@@ -59,8 +59,7 @@ SNIPPET_AUDIO_ROOT = (
 FORD_METADATA_PATH = "gs://esp-data-ingestion/ford-catalogue/metadata.jsonl"
 FORD_AUDIO_ROOT = "gs://esp-data-ingestion/ford-catalogue"
 GCS_OUTPUT_ROOT = (
-    "gs://esp-data-ingestion/beans-pro/v0.1.0/raw/"
-    "raincoast_2025_nrkw_calltype_fewshot"
+    "gs://esp-data-ingestion/beans-pro/v0.1.0/raw/raincoast_2025_nrkw_calltype_fewshot"
 )
 
 
@@ -650,13 +649,10 @@ def make_row(
         "support_source": support_source,
         "num_options": len(LABELS),
         "max_supports_per_option": num_supports_per_option,
-        "option_support_counts": {
-            label: len(option_supports[label]) for label in LABELS
-        },
+        "option_support_counts": {label: len(option_supports[label]) for label in LABELS},
         "option_call_types": option_call_types,
         "option_audio_paths": {
-            label: [support.rel_path for support in option_supports[label]]
-            for label in LABELS
+            label: [support.rel_path for support in option_supports[label]] for label in LABELS
         },
         "option_source_audio_paths": {
             label: [support.source_audio_path for support in option_supports[label]]
@@ -669,8 +665,7 @@ def make_row(
         "audio_paths": audio_paths,
         "audio_ids": [row_id],
         "template_path": (
-            f"raincoast/nrkw_ma_{support_source}_support_4way_"
-            f"{num_supports_per_option}shot"
+            f"raincoast/nrkw_ma_{support_source}_support_4way_{num_supports_per_option}shot"
         ),
         "skills": ["few_shot_call_type_classification", "audio_multiple_choice"],
         "messages": [
@@ -795,8 +790,7 @@ def build_rows(
         dict(
             sorted(
                 Counter(
-                    json.loads(row["metadata"])["query_call_type"]
-                    for row in output_rows
+                    json.loads(row["metadata"])["query_call_type"] for row in output_rows
                 ).items()
             )
         ),
@@ -840,8 +834,7 @@ def validate_rows(
         if metadata["max_supports_per_option"] != num_supports_per_option:
             raise ValueError(f"Unexpected support count in {row['id']}")
         if any(
-            count != num_supports_per_option
-            for count in metadata["option_support_counts"].values()
+            count != num_supports_per_option for count in metadata["option_support_counts"].values()
         ):
             raise ValueError(f"Support counts are not exact in {row['id']}")
         if metadata["query_audio_path"] in metadata["option_audio_paths"][metadata["correct"]]:

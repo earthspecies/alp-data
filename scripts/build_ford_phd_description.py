@@ -39,8 +39,7 @@ SEED = 42
 LABELS = ("A", "B", "C", "D")
 METADATA_PATH = "gs://esp-data-ingestion/ford-catalogue/metadata.jsonl"
 DESCRIPTION_PATH = (
-    REPO_ROOT
-    / "esp-research/projects/NatureLM-audio-v1.5/config/datasets/"
+    REPO_ROOT / "esp-research/projects/NatureLM-audio-v1.5/config/datasets/"
     "ford_phd_call_type_descriptions.json"
 )
 OUTPUT_PATH = "gs://esp-data-ingestion/beans-pro/v0.1.0/raw/ford_phd_description/test.jsonl"
@@ -356,9 +355,7 @@ def build_rows(
         rng.shuffle(option_types)
         option_call_types = dict(zip(LABELS, option_types, strict=True))
         correct_label = next(
-            label
-            for label, call_type in option_call_types.items()
-            if call_type == query_call_type
+            label for label, call_type in option_call_types.items() if call_type == query_call_type
         )
         output_rows.append(
             make_row(
@@ -381,9 +378,7 @@ def build_rows(
         "Query base call-type counts: %s",
         dict(
             sorted(
-                Counter(
-                    normalize_call_type(str(row["call_type"])) for row in eligible_rows
-                ).items()
+                Counter(normalize_call_type(str(row["call_type"])) for row in eligible_rows).items()
             )
         ),
     )
@@ -419,9 +414,7 @@ def parse_args() -> argparse.Namespace:
     argparse.Namespace
         Parsed command-line arguments.
     """
-    parser = argparse.ArgumentParser(
-        description="Build Ford PhD 4-way acoustic-description JSONL."
-    )
+    parser = argparse.ArgumentParser(description="Build Ford PhD 4-way acoustic-description JSONL.")
     parser.add_argument("--metadata-path", default=METADATA_PATH)
     parser.add_argument("--description-path", default=str(DESCRIPTION_PATH))
     parser.add_argument("--output-path", default=OUTPUT_PATH)

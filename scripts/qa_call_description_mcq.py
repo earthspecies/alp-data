@@ -57,7 +57,9 @@ def main() -> None:
     parser.add_argument(
         "--jsonl",
         type=Path,
-        default=REPO_ROOT / "data" / "roots_call_description_mcq"
+        default=REPO_ROOT
+        / "data"
+        / "roots_call_description_mcq"
         / "call_description_mcq_iconic_v1.jsonl",
     )
     parser.add_argument(
@@ -97,7 +99,7 @@ def main() -> None:
         ax.set_xlabel("")
         ax.set_ylabel("")
 
-    for ax in axes[len(indices):]:
+    for ax in axes[len(indices) :]:
         ax.axis("off")
 
     fig.tight_layout()
@@ -115,7 +117,7 @@ def main() -> None:
                     print(
                         f"[{idx}] {meta['correct_common_name']} "
                         f"({meta['correct_species']}) <- "
-                        f"\"{[e for e in [meta['correct']]][0]}\" "
+                        f'"{[e for e in [meta["correct"]]][0]}" '
                         f"| {row['source_dataset']}"
                     )
                     break

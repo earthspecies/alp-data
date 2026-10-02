@@ -173,9 +173,7 @@ def stage_extract(shard_dir: Path) -> None:
     ext_df.write_parquet(_EXT_PARQUET)
 
     # Report yield per (species, call_type)
-    counts = (
-        ext_df.group_by(["common_name", "call_type"]).len().sort(["common_name", "call_type"])
-    )
+    counts = ext_df.group_by(["common_name", "call_type"]).len().sort(["common_name", "call_type"])
     logger.info("Yield per (species, call_type):\n%s", counts)
     logger.info("Wrote %d extractions to %s", ext_df.height, _EXT_PARQUET)
 
@@ -279,7 +277,7 @@ def stage_build(
 
     # species -> set of available (described) call types
     types_by_sp: dict[str, list[str]] = collections.defaultdict(list)
-    for (sp, ct) in rows_by_key:
+    for sp, ct in rows_by_key:
         types_by_sp[sp].append(ct)
     eligible_sp = {sp for sp, ts in types_by_sp.items() if len(set(ts)) >= min_types}
     logger.info("Species eligible (>=%d call types): %d", min_types, len(eligible_sp))

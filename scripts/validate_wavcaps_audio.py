@@ -101,8 +101,14 @@ def main() -> None:
 
     workers = args.workers or int(os.environ.get("SLURM_CPUS_PER_TASK", "0")) or os.cpu_count() or 8
     batches = [
-        (records[i : i + args.batch_size], AUDIOSET_BUCKET, AUDIOSET_PREFIX,
-         args.rate_col, args.expect_sr, project)
+        (
+            records[i : i + args.batch_size],
+            AUDIOSET_BUCKET,
+            AUDIOSET_PREFIX,
+            args.rate_col,
+            args.expect_sr,
+            project,
+        )
         for i in range(0, len(records), args.batch_size)
     ]
     print(f"{len(batches)} batches, {workers} workers")
@@ -115,15 +121,20 @@ def main() -> None:
             if (i + 1) % 50 == 0 or (i + 1) == len(batches):
                 done = len(results)
                 ok = sum(1 for _, s, _ in results if s == "ok")
-                print(f"  [{i + 1}/{len(batches)}] checked={done} ok={ok} "
-                      f"elapsed={(time.time() - t0) / 60:.1f}min", flush=True)
+                print(
+                    f"  [{i + 1}/{len(batches)}] checked={done} ok={ok} "
+                    f"elapsed={(time.time() - t0) / 60:.1f}min",
+                    flush=True,
+                )
 
     status = pd.Series([s for _, s, _ in results])
     print("\n=== status breakdown ===")
     print(status.value_counts().to_string())
     n_ok = int((status == "ok").sum())
-    print(f"\nTOTAL {len(results)} | ok {n_ok} ({100 * n_ok / len(results):.2f}%) | "
-          f"failed {len(results) - n_ok}")
+    print(
+        f"\nTOTAL {len(results)} | ok {n_ok} ({100 * n_ok / len(results):.2f}%) | "
+        f"failed {len(results) - n_ok}"
+    )
 
     fails = pd.DataFrame(
         [(c, s, d) for c, s, d in results if s != "ok"], columns=["id", "status", "detail"]

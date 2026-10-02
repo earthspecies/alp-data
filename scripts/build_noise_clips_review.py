@@ -59,8 +59,10 @@ def main() -> None:
 
     mraw = bucket.blob(f"{prefix}/noise_manifest_{args.dataset}.csv").download_as_bytes()
     m = pd.read_csv(io.BytesIO(mraw))
-    print(f"{args.dataset}: {len(m)} clips from {m['source_fn'].nunique()} recordings, "
-          f"{m['dur_s'].sum() / 3600:.2f} h total")
+    print(
+        f"{args.dataset}: {len(m)} clips from {m['source_fn'].nunique()} recordings, "
+        f"{m['dur_s'].sum() / 3600:.2f} h total"
+    )
     print("dur_s:", m["dur_s"].describe()[["min", "50%", "max"]].to_dict())
     print("rms percentiles:", {p: round(float(np.percentile(m["rms"], p)), 5) for p in (5, 50, 95)})
 
@@ -75,8 +77,9 @@ def main() -> None:
         if y.ndim > 1:
             y = y.mean(axis=1)
         S = librosa.amplitude_to_db(np.abs(librosa.stft(y, n_fft=1024, hop_length=256)), ref=np.max)
-        librosa.display.specshow(S, sr=sr, hop_length=256, x_axis="time", y_axis="hz", ax=ax,
-                                 cmap="magma")
+        librosa.display.specshow(
+            S, sr=sr, hop_length=256, x_axis="time", y_axis="hz", ax=ax, cmap="magma"
+        )
         ax.set_title(f"{row['clip'][:28]}\nrms={row['rms']:.4f} {row['dur_s']}s", fontsize=6)
         ax.label_outer()
         ax.tick_params(labelsize=5)

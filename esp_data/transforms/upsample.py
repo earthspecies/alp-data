@@ -17,11 +17,13 @@ class UpsampleConfig(BaseModel):
     type : Literal["upsample"]
         Discriminator field for transform registry.
     factor : int
-        Number of times to repeat every row. Must be >= 2.
+        Number of times to repeat every row. Must be >= 1 (1 = identity no-op:
+        concat([backend]*1) returns the data unchanged; allowed so configs can keep an
+        explicit `factor: 1` on non-upsampled sources for uniformity alongside upsampled ones).
     """
 
     type: Literal["upsample"]
-    factor: int = Field(ge=2)
+    factor: int = Field(ge=1)
 
 
 class Upsample:

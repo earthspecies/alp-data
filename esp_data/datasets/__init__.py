@@ -29,6 +29,7 @@ from .dclde2026 import DCLDE2026
 from .delphinid_whistles import DelphinidWhistles
 from .dinardo_dolphin_whistles import DinardoDolphinWhistles
 from .dori import DORI
+from .dcase_fewshot_val import DCASEFewshotVal
 from .drasdic import DRASDIC
 from .ecosoundset import EcoSoundSet
 from .esp_raincoast import ESPRaincoast
@@ -67,6 +68,7 @@ from .roots import ROOTS
 from .spanish_carrion_crows_flight_clips import SpanishCarrionCrowsFlightClips
 from .ssw60 import SSW60
 from .subsegmentation import Subsegmentation
+from .subseg_pseudolabel import SubsegPseudolabel
 from .subsegmentation_synthetic_v9 import SubsegmentationSyntheticV9
 from .superb_starling import SuperbStarling
 from .superwhales_detection import SuperWhaleDetection
@@ -77,6 +79,7 @@ from .voxaboxen import Voxaboxen, VoxaboxenEvents
 from .wabad import WABAD
 from .watkins import Watkins
 from .weldy_dawn_chorus import WeldyDawnChorus
+from .watkins_soundscapes import WatkinsSoundscapes
 from .whales import Whales
 from .wytham_great_tit import WythamGreatTit
 from .xeno_canto import XenoCanto
@@ -121,6 +124,7 @@ __all__ = [
     "F0Bioacoustic",
     "FASD13",
     "Subsegmentation",
+    "SubsegPseudolabel",
     "SubsegmentationSyntheticV9",
     "SuperbStarling",
     "SuperWhaleDetection",
@@ -167,9 +171,11 @@ __all__ = [
     "MadeiraOdontocetes",
     "MediterraneanCetaceans",
     "DRASDIC",
+    "DCASEFewshotVal",
     "EcoSoundSet",
     "Watkins",
     "WeldyDawnChorus",
+    "WatkinsSoundscapes",
     "Whales",
     "WythamGreatTit",
 ]

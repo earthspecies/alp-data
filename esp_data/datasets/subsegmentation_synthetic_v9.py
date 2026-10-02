@@ -65,6 +65,15 @@ class SubsegmentationSyntheticV9(Dataset):
             "mode_a": "gs://esp-data-ingestion/subseg_v9_pool_25k/mode_A_normalized.csv",
             "mode_b": f"{_CORPUS_ROOT}/mode_B/manifest.csv",
             "mode_c": f"{_CORPUS_ROOT}/mode_C/manifest.csv",
+            # 10 s-windowed recovery of the long modes (audio_max_sec=10). Each row
+            # carries crop_start_s/crop_end_s (SCENE coords -> _process slices the scene
+            # wav to a 10 s window) and a window-relative units_json (onset-in-window,
+            # group_id dropped). mode_a_win10 = ALL mode_a full-scene songs windowed
+            # (song-mode was otherwise excluded at 10 s); mode_b_long_win10 = only the
+            # >10 s mode_b crops (the <=10 s crops stay in "mode_b"). See
+            # build_subseg_v9_windowed.py. Treat both as boxed-clip subsegmentation.
+            "mode_a_win10": "gs://esp-data-ingestion/subseg_v9_pool_25k/mode_A_win10.csv",
+            "mode_b_long_win10": "gs://esp-data-ingestion/subseg_v9_pool_25k/mode_B_long_win10.csv",
         },
         version="0.1.0",
         description=(

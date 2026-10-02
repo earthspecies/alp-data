@@ -320,7 +320,11 @@ def extract_from_shards(
             )
     logger.info(
         "%s: scanned %d file_ids, matched %d, clean crops %d, behavior-skipped %d",
-        shard_dir.name, n_seen, n_matched, n_clean, n_behavior_skip,
+        shard_dir.name,
+        n_seen,
+        n_matched,
+        n_clean,
+        n_behavior_skip,
     )
     return extractions
 
@@ -431,7 +435,9 @@ def main() -> None:
     parser.add_argument(
         "--output",
         type=Path,
-        default=REPO_ROOT / "data" / "roots_call_description_mcq"
+        default=REPO_ROOT
+        / "data"
+        / "roots_call_description_mcq"
         / "call_description_mcq_iconic_v1.jsonl",
     )
     parser.add_argument("--split-name", default="call_description_mcq_iconic_v1")
@@ -456,7 +462,8 @@ def main() -> None:
     by_sp = collections.Counter(e.focal for e in extractions)
     logger.info(
         "After capping: %d extractions across %d species (median/spc=%d)",
-        len(extractions), len(by_sp),
+        len(extractions),
+        len(by_sp),
         int(np.median(list(by_sp.values()))) if by_sp else 0,
     )
 
@@ -472,9 +479,14 @@ def main() -> None:
     ext_df = pl.DataFrame(
         [
             {
-                "source": e.source, "src_id": e.src_id, "focal": e.focal,
-                "audio_uri": e.audio_uri, "start_ms": e.start_ms, "end_ms": e.end_ms,
-                "det_score": e.det_score, "behavior": e.behavior,
+                "source": e.source,
+                "src_id": e.src_id,
+                "focal": e.focal,
+                "audio_uri": e.audio_uri,
+                "start_ms": e.start_ms,
+                "end_ms": e.end_ms,
+                "det_score": e.det_score,
+                "behavior": e.behavior,
             }
             for e in extractions
         ]

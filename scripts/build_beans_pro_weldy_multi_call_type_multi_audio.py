@@ -412,9 +412,7 @@ def build(
     candidates = list(_iter_candidate_rows(manifest, desc_map, limit_clips))
     logger.info("Candidate windows (call_N with description): %d", len(candidates))
 
-    selected, counts_before, species_variants = _select_balanced(
-        candidates, min_per_class, seed
-    )
+    selected, counts_before, species_variants = _select_balanced(candidates, min_per_class, seed)
     _log_eligibility_table(counts_before, species_variants, min_per_class)
 
     if limit_species:
@@ -438,9 +436,7 @@ def build(
         selected = capped
         logger.info("After --max-per-class cap: %d rows", len(selected))
 
-    logger.info(
-        "Balanced selection: %d rows / %d species", len(selected), len(species_variants)
-    )
+    logger.info("Balanced selection: %d rows / %d species", len(selected), len(species_variants))
     if not selected:
         logger.warning("No rows survived eligibility/balancing.")
         return
@@ -521,9 +517,7 @@ def build(
                 option_audio_paths: list[str] = []
                 for v in order:
                     for exemplar_key in option_exemplars[v]:
-                        option_audio_paths.append(
-                            f"audio/{audio_filename_by_window[exemplar_key]}"
-                        )
+                        option_audio_paths.append(f"audio/{audio_filename_by_window[exemplar_key]}")
                 query_audio_path = f"audio/{audio_filename_by_window[q_wkey]}"
                 audio_paths = option_audio_paths + [query_audio_path]
 
@@ -536,9 +530,7 @@ def build(
                     "source_dataset": SOURCE_DATASET,
                     "query_variant": variant,
                     "option_variants": list(order),
-                    "option_types": {
-                        LETTERS[i]: order[i] for i in range(len(order))
-                    },
+                    "option_types": {LETTERS[i]: order[i] for i in range(len(order))},
                     "correct": correct_letter,
                     "correct_variant": variant,
                     "n_choices": len(order),

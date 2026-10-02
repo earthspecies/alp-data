@@ -118,9 +118,7 @@ def _load_chain_config(
             flush=True,
         )
 
-    return ChainedDatasetConfig(
-        datasets=[DatasetConfig.model_validate(ds) for ds in raw_configs]
-    )
+    return ChainedDatasetConfig(datasets=[DatasetConfig.model_validate(ds) for ds in raw_configs])
 
 
 def _select_entry_shard(

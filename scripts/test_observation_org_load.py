@@ -40,15 +40,28 @@ def _load_one(args: tuple[int, object]) -> tuple[int, bool, str, int, int, dict]
         return idx, False, f"row_index:{type(e).__name__}", -1, 0, {}
 
     def _ok(v):
-        if v is None: return False
+        if v is None:
+            return False
         s = str(v).strip()
         return s and s.lower() != "nan"
 
     schema_flags = {
-        col: _ok(row.get(col)) for col in [
-            "canonical_name", "species_common", "genus", "family", "order",
-            "class", "phylum", "lifeStage", "sex", "license", "media_license",
-            "16khz_path", "32khz_path", "relative_path",
+        col: _ok(row.get(col))
+        for col in [
+            "canonical_name",
+            "species_common",
+            "genus",
+            "family",
+            "order",
+            "class",
+            "phylum",
+            "lifeStage",
+            "sex",
+            "license",
+            "media_license",
+            "16khz_path",
+            "32khz_path",
+            "relative_path",
         ]
     }
 
@@ -87,17 +100,18 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--out-dir", type=Path, required=True)
     parser.add_argument("--workers", type=int, default=8)
-    parser.add_argument("--max-rows", type=int, default=-1,
-                        help="Limit for smoke-testing; -1 = all rows.")
+    parser.add_argument(
+        "--max-rows", type=int, default=-1, help="Limit for smoke-testing; -1 = all rows."
+    )
     args = parser.parse_args()
     args.out_dir.mkdir(parents=True, exist_ok=True)
 
     # Load the dataset once; share across worker threads (read-only).
     from esp_data.datasets import ObservationOrg
+
     ds = ObservationOrg(split="all", sample_rate=32000, backend="pandas")
     n_rows = len(ds)
-    print(f"Dataset has {n_rows:,} rows; columns = {list(ds.columns)[:20]} ...",
-          flush=True)
+    print(f"Dataset has {n_rows:,} rows; columns = {list(ds.columns)[:20]} ...", flush=True)
     print(f"available_sample_rates = {ds.available_sample_rates}", flush=True)
 
     if args.max_rows > 0:
@@ -161,11 +175,10 @@ def main() -> None:
     print("\n=== SUMMARY ===")
     print(json.dumps(summary, indent=2))
 
-    (args.out_dir / "observation_org_load_test.json").write_text(
-        json.dumps(summary, indent=2)
-    )
+    (args.out_dir / "observation_org_load_test.json").write_text(json.dumps(summary, indent=2))
     if error_rows:
         import csv
+
         with (args.out_dir / "observation_org_load_test_errors.csv").open("w") as f:
             w = csv.writer(f)
             w.writerow(["row_index", "error_class"])

@@ -82,6 +82,56 @@ _SPLIT_DIRS: dict[str, str] = {
     # 20% "None" (true-negative) twin, disjoint seeds (ids offset by 1,000,000)
     "sed_fewshot_32k_none": f"{_BASE_ROOT}/synthetic_sed_fewshot_32k_none",
     "sed_fewshot_32k_combined": f"{_BASE_ROOT}/synthetic_sed_fewshot_32k_combined",
+    # xcbg: next-gen 200k few-shot SED, 15.0% "None", XC-weighted backgrounds (6:3:1)
+    # + DRASDIC per-event acoustic features, from the ~6.5x enlarged clustered pool
+    # (2.26M clips / ~113k train_unseen recs). Scene ids in a disjoint block. Added
+    # ALONGSIDE the three siblings (few-shot pool -> 600k).
+    "sed_fewshot_32k_xcbg": f"{_BASE_ROOT}/synthetic_sed_fewshot_32k_xcbg",
+    # xcbg FEATURE-ONLY view (same corpus dir, conversations_feature_only.jsonl): the
+    # target is described by a TEXT acoustic-feature profile (duration/freq-range/peak/SNR)
+    # instead of support clips -> SINGLE query audio, feature-conditioned SED. Distinct
+    # task `feature_conditioned_sed` (see the config), vision-routed (localizes on the
+    # query spectrogram), NOT few-shot.
+    "sed_fewshot_32k_xcbg_featonly": f"{_BASE_ROOT}/synthetic_sed_fewshot_32k_xcbg",
+    # Support-MONTAGE variant of xcbg few-shot SED (same corpus dir; split_paths ->
+    # conversations_montage.jsonl). Each record adds `montage_path` (a montage of the support
+    # spectrograms with target events boxed in time / freq+time) + a montage prompt prefix; the
+    # query spectrogram stays the model's own vision image. Vision-routed as a montage batch.
+    "sed_fewshot_32k_xcbg_montage": f"{_BASE_ROOT}/synthetic_sed_fewshot_32k_xcbg",
+    # v2 xcbg few-shot SED corpus (400k, next-gen replacement for the 200k xcbg + base/combined).
+    "sed_fewshot_32k_xcbg_v2": f"{_BASE_ROOT}/synthetic_sed_fewshot_32k_xcbg_v2",
+    "sed_fewshot_32k_xcbg_v2_montage": f"{_BASE_ROOT}/synthetic_sed_fewshot_32k_xcbg_v2",
+    # TIME-ONLY, feature-free montage variant (200,403 = the half of the v2 montage corpus whose
+    # boxes were rendered as full-height TIME spans). Support prompt carries event time ranges
+    # only -- no duration/frequency/peak/SNR text -- so it is the montage analogue of the bare-time
+    # base corpus. Reuses the SAME rendered PNGs (no re-render); built by
+    # scripts/build_sed_montage_timeonly_jsonl.py. DCASE-val found freq-in-montage the worst of
+    # four configs, which is what motivates a freq-free montage mode.
+    "sed_fewshot_32k_xcbg_v2_montage_timeonly": f"{_BASE_ROOT}/synthetic_sed_fewshot_32k_xcbg_v2",
+    # same/different comparison MONTAGE variant: parent v2 corpus, but split_paths ->
+    # same_different_montage.jsonl (each carries montage_path = a full-res render of clip_0; the
+    # collater renders clip_1 as its standard image -> [clip_0, clip_1] high-res comparison, NO
+    # collater change). Vision-routed as a montage batch (task same_different_montage).
+    "same_different_v2_montage": f"{_BASE_ROOT}/synthetic_call_type_tasks_32k_avex_hardneg_v2",
+    # Reviewed within-species call-type MCQ (16 kHz, template multiple_choice_v3m2; 8 options
+    # x ~2 clips + query -> ~14-15 audios/item, so MUST be pooled as DRASDIC for the <=1-per-
+    # audio-batch memory cap -- see DEFAULT_DRASDIC_TASKS in data/vision_routing.py). Each dir
+    # holds conversations.jsonl (bulk) + hard_verified.jsonl (the ~95%-pure HARD distillate:
+    # items NLM missed that GPT solved from species-name-free spectrograms). Task column falls
+    # back to the split name (multiple_choice_v3m2 is unmapped in _TASK_BY_TEMPLATE).
+    "mcq_v4_hard": f"{_BASE_ROOT}/synthetic_mcq_v4_hard_72k",       # 5,163 hard / 72k bulk, 212 sp
+    "mcq_v3_hard": f"{_BASE_ROOT}/synthetic_mcq_v3_reviewed_50k",   # 1,927 hard / 50k bulk, 90 sp
+    # v5 HARD distillates at 32 kHz (hard_verified.jsonl per dir). Diversity ceiling broken:
+    # base 2,463 hard / 764 sp, hard 1,144 hard / 305 sp; ~93.5% purity (hand-check pending ->
+    # modest upsample for now). Multi-audio (9-15 audios) -> DEFAULT_DRASDIC_TASKS memory cap.
+    "mcq_v5_base": f"{_BASE_ROOT}/synthetic_mcq_v5_32k_base",       # 2,463 hard / 36k bulk, 764 sp
+    "mcq_v5_hard": f"{_BASE_ROOT}/synthetic_mcq_v5_32k_hard",       # 1,144 hard / 14k bulk, 305 sp
+    # Montage variants of the two hard distillates: same corpus dir, but split_paths points at
+    # hard_verified_montage.jsonl (adds `montage_path` + a montage prompt prefix; a labeled
+    # spectrogram montage of all options + query is attached as a 2nd vision image). Vision-routed
+    # at bs1 (see data/vision_routing.py); the plain-hard splits stay in training alongside these.
+    "mcq_v4_hard_montage": f"{_BASE_ROOT}/synthetic_mcq_v4_hard_72k",
+    "mcq_v3_hard_montage": f"{_BASE_ROOT}/synthetic_mcq_v3_reviewed_50k",
     "call_type_all": f"{_BASE_ROOT}/synthetic_call_type_tasks_16k",
     "call_type_all_v1": f"{_V1_ROOT}/synthetic_call_type_tasks_16k_v1",
     "call_type_all_v2_16k": f"{_BASE_ROOT}/synthetic_call_type_tasks_16k_v2",
@@ -230,6 +280,37 @@ class DRASDIC(Dataset):
             "sed_fewshot_32k_combined": (
                 f"{_SPLIT_DIRS['sed_fewshot_32k_combined']}/conversations.jsonl"
             ),
+            "sed_fewshot_32k_xcbg": (
+                f"{_SPLIT_DIRS['sed_fewshot_32k_xcbg']}/conversations.jsonl"
+            ),
+            "sed_fewshot_32k_xcbg_featonly": (
+                f"{_SPLIT_DIRS['sed_fewshot_32k_xcbg_featonly']}/conversations_feature_only.jsonl"
+            ),
+            "sed_fewshot_32k_xcbg_montage": (
+                f"{_SPLIT_DIRS['sed_fewshot_32k_xcbg_montage']}/conversations_montage.jsonl"
+            ),
+            "sed_fewshot_32k_xcbg_v2": (
+                f"{_SPLIT_DIRS['sed_fewshot_32k_xcbg_v2']}/conversations.jsonl"
+            ),
+            "sed_fewshot_32k_xcbg_v2_montage": (
+                f"{_SPLIT_DIRS['sed_fewshot_32k_xcbg_v2_montage']}/conversations_montage.jsonl"
+            ),
+            "sed_fewshot_32k_xcbg_v2_montage_timeonly": (
+                f"{_SPLIT_DIRS['sed_fewshot_32k_xcbg_v2_montage_timeonly']}"
+                "/conversations_montage_timeonly.jsonl"
+            ),
+            "same_different_v2_montage": (
+                f"{_SPLIT_DIRS['same_different_v2_montage']}/same_different_montage.jsonl"
+            ),
+            # MCQ call-type HARD distillates (hard_verified.jsonl within each corpus dir); the
+            # matching bulk splits (conversations.jsonl) can be added later as mcq_v*_bulk.
+            "mcq_v4_hard": f"{_SPLIT_DIRS['mcq_v4_hard']}/hard_verified.jsonl",
+            "mcq_v3_hard": f"{_SPLIT_DIRS['mcq_v3_hard']}/hard_verified.jsonl",
+            "mcq_v5_base": f"{_SPLIT_DIRS['mcq_v5_base']}/hard_verified.jsonl",
+            "mcq_v5_hard": f"{_SPLIT_DIRS['mcq_v5_hard']}/hard_verified.jsonl",
+            # Montage variants: same hard items + `montage_path` + montage prompt prefix.
+            "mcq_v4_hard_montage": f"{_SPLIT_DIRS['mcq_v4_hard_montage']}/hard_verified_montage.jsonl",
+            "mcq_v3_hard_montage": f"{_SPLIT_DIRS['mcq_v3_hard_montage']}/hard_verified_montage.jsonl",
             "call_type_all": f"{_SPLIT_DIRS['call_type_all']}/conversations.jsonl",
             "fewshot_detection": f"{_SPLIT_DIRS['fewshot_detection']}/conversations.jsonl",
             "feature_conditioned_detection": (

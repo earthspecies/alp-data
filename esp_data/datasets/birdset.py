@@ -123,6 +123,17 @@ class BirdSet(Dataset):
             # / annotation_features / multilabel chain blocks on the SSW
             # split. Audio paths still resolve against _GCS_ROOT.
             "SSW-test-aggregated": f"{_AGG_ROOT}/SSW_test_aggregated.csv",
+            # Per-recording aggregated shapes for the 7 test subsets, mirroring
+            # SSW-test-aggregated. Enables ``window_annotations`` to slice
+            # arbitrary-length windows (10/15/20/25/30 s etc.) at eval time.
+            # Built by scripts/build_birdset_test_aggregated.py.
+            "HSN-test-aggregated": f"{_AGG_ROOT}/HSN_test_aggregated.csv",
+            "NBP-test-aggregated": f"{_AGG_ROOT}/NBP_test_aggregated.csv",
+            "NES-test-aggregated": f"{_AGG_ROOT}/NES_test_aggregated.csv",
+            "PER-test-aggregated": f"{_AGG_ROOT}/PER_test_aggregated.csv",
+            "POW-test-aggregated": f"{_AGG_ROOT}/POW_test_aggregated.csv",
+            "SNE-test-aggregated": f"{_AGG_ROOT}/SNE_test_aggregated.csv",
+            "UHH-test-aggregated": f"{_AGG_ROOT}/UHH_test_aggregated.csv",
             "all": f"{_GCS_ROOT}/birdset_all.csv",
         },
         version="0.1.0",

@@ -102,6 +102,10 @@ class FASD13(Dataset):
         owner="david",
         split_paths={
             "all": f"{_GCS_BASE}/fasd13_all.csv",
+            "KD_slow6": f"{_GCS_BASE}/fasd13_KD_slow6.csv",
+            "KD_slow6_native": f"{_GCS_BASE}/fasd13_KD_slow6_native.csv",
+            "KD_slow3_native": f"{_GCS_BASE}/fasd13_KD_slow3_native.csv",
+            "KD_slow3": f"{_GCS_BASE}/fasd13_KD_slow3.csv",
             **{code: f"{_GCS_BASE}/fasd13_{code}.csv" for code in SUBDATASET_CODES},
         },
         version="0.1.0",

@@ -166,6 +166,23 @@ class XenoCanto(Dataset):
             # recs keep BirdCODE>=0.70 (~82% precise). selection_table carries
             # Species/Species_Common/Species_Taxonomic for windowed multilabel.
             "train_strong_unseen_bchybrid": "gs://esp-data-ingestion/xeno-canto/v0.1.0/raw/train_strong_unseen_bchybrid.csv",
+            # Drop-in NatureLM-corroborated upgrade of train_strong_unseen_bchybrid:
+            # identical A/B/E tiers, plus two NEW tiers on the recordings the (partial)
+            # NatureLM multilabel run covers (189,689 of 718,392) — C: BirdCODE>=0.50
+            # corroborated by NatureLM (both AT regimes), D: Associated-Taxa species
+            # NatureLM fired that BirdCODE missed. Uncovered recs = identical bchybrid
+            # (non-regressive). selection_table gains a trailing Source column; extra
+            # cols (covered_by_nlm/n_nlm_added/label_corroborated) support tier gating.
+            # Built by scripts/data_preprocessing_scripts/xeno_canto_strong/build_nlm_hybrid.py.
+            "train_strong_unseen_nlmhybrid": "gs://esp-data-ingestion/xeno-canto/v0.1.0/raw/train_strong_unseen_nlmhybrid.csv",
+            # Window-level NatureLM-open ∪ BirdCODE, AT-gated, gap-merged (0.15 s) strong
+            # pseudolabels with per-window quality cols (both_frac / nonfocal_both) and
+            # ContextBuilder geo columns. Each row is one inferred 10 s window
+            # (window_start_sec/window_end_sec drive lazy audio crop). Built by
+            # scripts/data_preprocessing_scripts/xeno_canto_strong/build_nlmbc_geo.py.
+            "train_strong_unseen_nlmbc_geo": "gs://esp-data-ingestion/xeno-canto/v0.1.0/raw/train_strong_unseen_nlmbc_geo.csv",
+            # v2: expanded pool (m9fsv open-det, 204k recs -> 320,630 windows), same schema/recipe
+            "train_strong_unseen_nlmbc_geo_v2": "gs://esp-data-ingestion/xeno-canto/v0.1.0/raw/train_strong_unseen_nlmbc_geo_v2.csv",
             "train_single_clean_unseen_logitneg15_focal95": "gs://esp-data-ingestion/xeno-canto/v0.1.0/raw/train_single_clean_unseen_logitneg15_focal95.csv",
         },
         version="0.1.0",
@@ -433,7 +450,12 @@ class XenoCanto(Dataset):
                 audio_path = anypath(gcs_path)
             else:
                 rel_path = row[self._originals_path_column]
-                if not rel_path.startswith("audio/"):
+                if not rel_path:  # null/empty originals path -> unloadable record; retry picks another
+                    raise ValueError(
+                        f"xeno_canto row {row.get('id', '?')!r} has null/empty "
+                        f"{self._originals_path_column!r}; cannot resolve audio path"
+                    )
+                if not str(rel_path).startswith("audio/"):
                     audio_path = anypath(self.data_root) / "audio" / rel_path
                 else:
                     audio_path = anypath(self.data_root) / rel_path

@@ -77,8 +77,8 @@ def main() -> None:
                 fn[sp] += 1
 
         # confusion: for each true species, what did the model predict
-        for t in (tgt or {"None"}):
-            for p in (pred or {"None"}):
+        for t in tgt or {"None"}:
+            for p in pred or {"None"}:
                 confusion[t][p] += 1
 
     def prf(sp: str) -> tuple[float, float, float]:
@@ -95,14 +95,18 @@ def main() -> None:
         f"{(neg_fp / n_neg if n_neg else 0):.4f}\n"
     )
 
-    print(f"{'species':28s} {'common':9s} {'supp':>5s} {'TP':>5s} {'FP':>5s} {'FN':>5s} "
-          f"{'prec':>6s} {'rec':>6s} {'F1':>6s}")
+    print(
+        f"{'species':28s} {'common':9s} {'supp':>5s} {'TP':>5s} {'FP':>5s} {'FN':>5s} "
+        f"{'prec':>6s} {'rec':>6s} {'F1':>6s}"
+    )
     macro = []
     for sp in SPECIES:
         p, rcl, f1 = prf(sp)
         macro.append(f1)
-        print(f"{sp:28s} {COMMON[sp]:9s} {support[sp]:5d} {tp[sp]:5d} {fp[sp]:5d} "
-              f"{fn[sp]:5d} {p:6.3f} {rcl:6.3f} {f1:6.3f}")
+        print(
+            f"{sp:28s} {COMMON[sp]:9s} {support[sp]:5d} {tp[sp]:5d} {fp[sp]:5d} "
+            f"{fn[sp]:5d} {p:6.3f} {rcl:6.3f} {f1:6.3f}"
+        )
     print(f"\nmacro-F1 over 4 species: {sum(macro) / len(macro):.4f}")
 
     print("\nconfusion (rows=true label incl. None, cols=predicted):")

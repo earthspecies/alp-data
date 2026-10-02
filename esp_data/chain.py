@@ -61,7 +61,62 @@ def _transforms_prefix_key(base_key: str, transforms: list) -> str:
     return base_key + "|" + json.dumps(tf_dumps, sort_keys=True, default=str)
 
 
-CHAIN_CACHE_DIR = Path("./chain_cache")
+CHAIN_CACHE_DIR = Path(os.environ.get("ESP_DATA_CHAIN_CACHE_DIR", "./chain_cache"))
+
+# Sidecar file written alongside the Arrow files of a *persistent* chain cache.
+CHAIN_CACHE_SIDECAR = "chain_cache_manifest.json"
+
+
+def _esp_data_code_version() -> str:
+    """Best-effort esp_data code version, used to invalidate persistent caches
+    when the library changes.
+
+    Overridable via ``ESP_DATA_CHAIN_CACHE_CODE_VERSION`` (e.g. a git SHA the
+    launcher injects). Falls back to the installed package version, or ``"dev"``
+    for an editable checkout without version metadata.
+
+    Returns
+    -------
+    str
+        A short string identifying the code version.
+    """
+    override = os.environ.get("ESP_DATA_CHAIN_CACHE_CODE_VERSION")
+    if override:
+        return override
+    try:
+        from importlib.metadata import version
+
+        return version("esp-data")
+    except Exception:
+        return "dev"
+
+
+def chain_cache_signature(chain_config: ChainedDatasetConfig) -> str:
+    """Deterministic signature keying a persistent chain cache directory.
+
+    Combines the full chain config, the esp_data code version, and an optional
+    manual data-version tag (``ESP_DATA_CHAIN_CACHE_DATA_VERSION``). The config
+    hash cannot see *remote source-data content* (e.g. a re-uploaded manifest
+    CSV whose path is unchanged), so the data-version tag is the escape hatch:
+    bump it to force a rebuild after a source-data change.
+
+    Parameters
+    ----------
+    chain_config : ChainedDatasetConfig
+        The resolved chain configuration.
+
+    Returns
+    -------
+    str
+        A filesystem-safe signature of the form ``{config_hash}_{combined}``.
+    """
+    config_hash = hashlib.sha256(
+        chain_config.model_dump_json(exclude_none=False).encode()
+    ).hexdigest()[:16]
+    code = _esp_data_code_version()
+    data_ver = os.environ.get("ESP_DATA_CHAIN_CACHE_DATA_VERSION", "0")
+    combined = hashlib.sha256(f"{config_hash}|{code}|{data_ver}".encode()).hexdigest()[:12]
+    return f"{config_hash}_{combined}"
 
 
 def _cleanup_dir(path: str) -> None:
@@ -149,6 +204,10 @@ class ChainedDataset(Dataset):
 
         self._data: PolarsBackend | None = None
         self._cache_dir: str | None = None
+        # Whether this instance owns (and must clean up) its cache dir. A cache
+        # loaded from a persistent, externally-managed location sets this False
+        # so ranks exiting never delete a shared cache.
+        self._owns_cache_dir: bool = True
 
     @property
     def columns(self) -> list[str]:
@@ -164,7 +223,7 @@ class ChainedDataset(Dataset):
         pass
 
     def __del__(self) -> None:
-        if getattr(self, "_cache_dir", None) is not None:
+        if getattr(self, "_owns_cache_dir", True) and getattr(self, "_cache_dir", None) is not None:
             _cleanup_dir(self._cache_dir)
 
     def __len__(self) -> int:
@@ -260,9 +319,7 @@ class ChainedDataset(Dataset):
             else:
                 cumulative_length = 0
                 dataset = None
-                for candidate, length in zip(
-                    self._source_datasets, self._lengths, strict=True
-                ):
+                for candidate, length in zip(self._source_datasets, self._lengths, strict=True):
                     if idx < cumulative_length + length:
                         dataset = candidate
                         break
@@ -300,9 +357,20 @@ class ChainedDataset(Dataset):
 
     @classmethod
     def from_config(
-        cls, chain_config: ChainedDatasetConfig
+        cls,
+        chain_config: ChainedDatasetConfig,
+        *,
+        cache_dir: str | Path | None = None,
+        owns_cache_dir: bool = True,
+        resume: bool = False,
     ) -> tuple["ChainedDataset", dict[str, Any]]:
         """Create a ChainedDataset from a ChainedDatasetConfig object.
+
+        When ``resume`` is True, any entry whose ``{entry_idx}.arrow`` already
+        exists under ``cache_dir`` is reused as-is (no base reload / transform
+        re-run), so a crashed persistent build can continue where it stopped
+        instead of restarting. Safe only when ``cache_dir`` is keyed to this
+        exact config (as in :meth:`build_persistent_cache`).
 
         When multiple entries share the same base dataset (same name, split,
         sample rate, etc.) only the first triggers a GCS/disk read.  Subsequent
@@ -341,16 +409,22 @@ class ChainedDataset(Dataset):
         lengths: list[int] = []
         metadata: dict[str, Any] = {}
 
-        config_hash = hashlib.sha256(
-            chain_config.model_dump_json(exclude_none=False).encode()
-        ).hexdigest()[:16]
-        CHAIN_CACHE_DIR.mkdir(parents=True, exist_ok=True)
-        cache_dir = Path(
-            tempfile.mkdtemp(
-                prefix=f"{config_hash}_pid{os.getpid()}_",
-                dir=CHAIN_CACHE_DIR,
+        if cache_dir is None:
+            config_hash = hashlib.sha256(
+                chain_config.model_dump_json(exclude_none=False).encode()
+            ).hexdigest()[:16]
+            CHAIN_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+            cache_dir = Path(
+                tempfile.mkdtemp(
+                    prefix=f"{config_hash}_pid{os.getpid()}_",
+                    dir=CHAIN_CACHE_DIR,
+                )
             )
-        )
+        else:
+            # Caller supplied an explicit cache dir (e.g. a persistent build):
+            # write Arrow files directly there and let the caller own cleanup.
+            cache_dir = Path(cache_dir)
+            cache_dir.mkdir(parents=True, exist_ok=True)
         ipc_files: list[str] = []
         in_memory_backends: dict[int, Any] = {}
 
@@ -384,6 +458,36 @@ class ChainedDataset(Dataset):
         for entry_idx, cfg in enumerate(chain_config.datasets):
             entry_label = f"[{entry_idx}/{num_entries}] {cfg.dataset_name}/{cfg.split}"
             cache_key = _base_dataset_key(cfg)
+
+            # Resume: if a prior (crashed) build already wrote this entry's Arrow
+            # file, reuse it instead of re-loading the base from GCS + re-running
+            # transforms. cache_dir is signature-keyed so the file matches THIS
+            # config. A partial/corrupt file (crash mid-write) is removed + rebuilt.
+            if resume and not is_streaming:
+                _ipc = Path(cache_dir) / f"{entry_idx}.arrow"
+                if _ipc.exists():
+                    _n = 0
+                    try:
+                        _df = pl.read_ipc(str(_ipc), memory_map=True)
+                        _n = _df.height
+                    except Exception:
+                        _n = 0
+                    if _n > 0:
+                        lengths.append(_n)
+                        all_columns.update(_df.columns)
+                        ipc_files.append(str(_ipc))
+                        logger.info(
+                            "ChainedDataset: RESUME reuse entry %d/%d (%d rows) <- %s",
+                            entry_idx,
+                            num_entries,
+                            _n,
+                            _ipc,
+                        )
+                        continue
+                    try:
+                        _ipc.unlink()
+                    except Exception:
+                        pass
 
             if cache_key not in base_cache:
                 no_tf_cfg = cfg.model_copy(update={"transformations": None})
@@ -529,7 +633,8 @@ class ChainedDataset(Dataset):
         # Streaming path: fall back to the old behaviour (no IPC)
         # ------------------------------------------------------------------
         if is_streaming:
-            _cleanup_dir(str(cache_dir))
+            if owns_cache_dir:
+                _cleanup_dir(str(cache_dir))
             chained = cls(datasets)
             chained._cache_dir = None
             return chained, metadata
@@ -577,8 +682,229 @@ class ChainedDataset(Dataset):
         chained._all_columns = sorted(all_columns)
         chained._data = consolidated
         chained._cache_dir = str(cache_dir)
+        chained._owns_cache_dir = owns_cache_dir
 
         return chained, metadata
+
+    @classmethod
+    def persistent_cache_dir(cls, chain_config: ChainedDatasetConfig, root: str | Path) -> Path:
+        """Return the persistent cache directory for a config under ``root``.
+
+        Parameters
+        ----------
+        chain_config : ChainedDatasetConfig
+            The resolved chain configuration.
+        root : str | Path
+            The persistent cache root directory.
+
+        Returns
+        -------
+        Path
+            ``root / signature`` where signature is :func:`chain_cache_signature`.
+        """
+        return Path(root) / chain_cache_signature(chain_config)
+
+    @classmethod
+    def cache_is_valid(cls, chain_config: ChainedDatasetConfig, root: str | Path) -> bool:
+        """Return whether a complete, matching persistent cache exists under ``root``.
+
+        Checks that the sidecar exists, is marked complete, has a signature
+        matching ``chain_config``, and that every referenced Arrow file is present.
+
+        Parameters
+        ----------
+        chain_config : ChainedDatasetConfig
+            The resolved chain configuration.
+        root : str | Path
+            The persistent cache root directory.
+
+        Returns
+        -------
+        bool
+            True if a valid, complete cache is present.
+        """
+        d = cls.persistent_cache_dir(chain_config, root)
+        sidecar = d / CHAIN_CACHE_SIDECAR
+        if not sidecar.exists():
+            return False
+        try:
+            meta = json.loads(sidecar.read_text())
+        except Exception:
+            return False
+        if not meta.get("complete"):
+            return False
+        if meta.get("signature") != chain_cache_signature(chain_config):
+            return False
+        return all((d / e["file"]).exists() for e in meta.get("entries", []))
+
+    @classmethod
+    def build_persistent_cache(
+        cls,
+        chain_config: ChainedDatasetConfig,
+        root: str | Path,
+        *,
+        overwrite: bool = False,
+    ) -> Path:
+        """Build a chain and write it to a persistent, reusable cache directory.
+
+        Intended to be run ONCE, single-process (e.g. a CPU pre-build job), so
+        the expensive windowing/transform work is not repeated on every GPU
+        launch nor duplicated across DDP ranks. The result is a set of Arrow IPC
+        files plus a sidecar manifest under ``root / signature``.
+
+        Parameters
+        ----------
+        chain_config : ChainedDatasetConfig
+            The resolved chain configuration to materialize.
+        root : str | Path
+            The persistent cache root directory.
+        overwrite : bool
+            If True, rebuild even when a valid cache already exists.
+
+        Returns
+        -------
+        Path
+            The persistent cache directory that was written.
+
+        Raises
+        ------
+        ChainException
+            If the config is streaming (persistent caching is non-streaming only).
+        """
+        dest = cls.persistent_cache_dir(chain_config, root)
+        if not overwrite and cls.cache_is_valid(chain_config, root):
+            logger.info("ChainedDataset: persistent cache already valid at %s", dest)
+            return dest
+        # overwrite -> wipe and rebuild from scratch. Otherwise keep any partial
+        # cache left by a crashed run so from_config(resume=True) skips the
+        # entries already built (the signature dir guarantees the partial matches
+        # this config) and continues from where it stopped.
+        if overwrite and dest.exists():
+            _cleanup_dir(str(dest))
+        arrow_dir = dest / "arrow"
+        arrow_dir.mkdir(parents=True, exist_ok=True)
+
+        # Build directly into arrow_dir; owns_cache_dir=False so discarding the
+        # returned dataset does not delete the freshly-written cache.
+        chained, _ = cls.from_config(
+            chain_config, cache_dir=arrow_dir, owns_cache_dir=False, resume=not overwrite
+        )
+        if chained._data is None:
+            raise ChainException(
+                "build_persistent_cache does not support streaming or empty chains"
+            )
+
+        entries = []
+        for f in sorted(arrow_dir.glob("*.arrow"), key=lambda p: int(p.stem)):
+            n = pl.read_ipc(str(f), memory_map=True).height
+            entries.append({"entry_idx": int(f.stem), "file": f"arrow/{f.name}", "length": n})
+
+        columns = [c for c in (chained._all_columns or []) if c != "_chain_idx"]
+        sidecar = {
+            "signature": chain_cache_signature(chain_config),
+            "config_hash": hashlib.sha256(
+                chain_config.model_dump_json(exclude_none=False).encode()
+            ).hexdigest()[:16],
+            "code_version": _esp_data_code_version(),
+            "data_version": os.environ.get("ESP_DATA_CHAIN_CACHE_DATA_VERSION", "0"),
+            "is_streaming": False,
+            "columns": columns,
+            "total_length": chained._total_length,
+            "num_entries": len(chain_config.datasets),
+            "entries": entries,
+            "complete": True,
+        }
+        (dest / CHAIN_CACHE_SIDECAR).write_text(json.dumps(sidecar, indent=2))
+
+        # Release the build-time mmap handles; the Arrow files persist on disk
+        # (owns_cache_dir=False, so no cleanup on GC).
+        del chained
+        gc.collect()
+        logger.info(
+            "ChainedDataset: wrote persistent cache -> %s (%d entries, %d rows)",
+            dest,
+            len(entries),
+            sidecar["total_length"],
+        )
+        return dest
+
+    @classmethod
+    def from_cache(
+        cls, chain_config: ChainedDatasetConfig, root: str | Path
+    ) -> tuple["ChainedDataset", dict[str, Any]]:
+        """Load a prebuilt persistent chain cache instead of rebuilding.
+
+        Memory-maps the cached Arrow files (read-only, shareable across DDP
+        ranks) and reconstructs the per-entry source datasets *without*
+        transformations so their ``_process`` (lazy audio decode) is available.
+        The returned dataset never deletes the cache (``_owns_cache_dir`` False).
+
+        Parameters
+        ----------
+        chain_config : ChainedDatasetConfig
+            The resolved chain configuration (used to verify the signature and
+            to reconstruct source datasets).
+        root : str | Path
+            The persistent cache root directory.
+
+        Returns
+        -------
+        tuple[ChainedDataset, dict]
+            The loaded dataset and an (empty) metadata dict.
+
+        Raises
+        ------
+        ChainException
+            If the cache is missing or its signature does not match the config.
+        """
+        dest = cls.persistent_cache_dir(chain_config, root)
+        sidecar = dest / CHAIN_CACHE_SIDECAR
+        if not sidecar.exists():
+            raise ChainException(f"No persistent chain cache sidecar at {sidecar}")
+        meta = json.loads(sidecar.read_text())
+        if meta.get("signature") != chain_cache_signature(chain_config):
+            raise ChainException(
+                f"Chain cache at {dest} is stale for this config "
+                f"(signature mismatch); rebuild it."
+            )
+
+        mmap_dfs = [
+            pl.read_ipc(str(dest / e["file"]), memory_map=True)
+            for e in meta["entries"]
+        ]
+        consolidated = PolarsBackend(
+            pl.concat(mmap_dfs, how="diagonal_relaxed", rechunk=False)
+        )
+
+        # Reconstruct source datasets (no transforms), indexed by entry_idx to
+        # match the cached ``_chain_idx`` column. ``_process`` needs the dataset
+        # object but not its base table, so free ``_data`` to keep this cheap.
+        datasets: list[Dataset] = []
+        for cfg in chain_config.datasets:
+            no_tf_cfg = cfg.model_copy(update={"transformations": None})
+            ds, _ = dataset_from_config(no_tf_cfg)
+            ds._data = None
+            datasets.append(ds)
+
+        chained = object.__new__(cls)
+        chained._streaming = False
+        chained._backend_class = None
+        chained.output_take_and_give = None
+        chained._source_datasets = datasets
+        chained._lengths = [e["length"] for e in meta["entries"]]
+        chained._total_length = int(meta["total_length"])
+        chained._all_columns = sorted(meta.get("columns", []))
+        chained._data = consolidated
+        chained._cache_dir = None
+        chained._owns_cache_dir = False
+
+        logger.info(
+            "ChainedDataset: loaded persistent cache from %s (%d rows, %d entries)",
+            dest,
+            chained._total_length,
+            len(datasets),
+        )
+        return chained, {}
 
     def save_data(self, path: str, fmt: SaveFormat = "csv") -> None:
         """Save the consolidated data to a single file.

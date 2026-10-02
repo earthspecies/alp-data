@@ -62,7 +62,6 @@ import re
 import sys
 import uuid
 from collections import Counter, defaultdict
-from io import StringIO
 from pathlib import Path
 
 import fsspec
@@ -492,7 +491,9 @@ def build(args: argparse.Namespace) -> None:
         try:
             audio = _load_audio(path_32k, fs)
         except Exception as err:  # noqa: BLE001
-            logger.warning("Audio load failed for %s: %s — skipping %d windows.", path_32k, err, len(rows))
+            logger.warning(
+                "Audio load failed for %s: %s — skipping %d windows.", path_32k, err, len(rows)
+            )
             continue
         for w in rows:
             species_sorted = sorted(w["species"])
@@ -558,7 +559,9 @@ def main() -> None:
     parser.add_argument("--single-species-cap", type=int, default=500)
     parser.add_argument("--neg-fraction", type=float, default=0.30)
     parser.add_argument("--limit-clips", type=int, default=None, help="Smoke cap on recordings.")
-    parser.add_argument("--stats-only", action="store_true", help="Compute stats without cutting audio.")
+    parser.add_argument(
+        "--stats-only", action="store_true", help="Compute stats without cutting audio."
+    )
     parser.add_argument("--seed", type=int, default=SEED)
     args = parser.parse_args()
     build(args)

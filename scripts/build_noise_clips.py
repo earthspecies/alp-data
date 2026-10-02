@@ -255,7 +255,7 @@ def main() -> None:
             if (i + 1) % 10 == 0 or (i + 1) == len(batches):
                 print(
                     f"  [{i + 1}/{len(batches)}] clips={len(manifest)} "
-                    f"elapsed={ (time.time() - t0) / 60:.1f}min",
+                    f"elapsed={(time.time() - t0) / 60:.1f}min",
                     flush=True,
                 )
 
