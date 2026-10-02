@@ -192,3 +192,13 @@ def test_voxaboxen_events_native_sample_rate() -> None:
         pytest.fail("no clip with annotated events found")
     assert isinstance(sample["sample_rate"], int)
     assert sample["class_anno"].shape[0] == math.ceil(sample["audio"].shape[-1] / ds.scale_factor)
+
+
+def test_voxaboxen_events_getitem_past_recording_count() -> None:
+    """Clips beyond the number of source recordings are still reachable."""
+    ds = VoxaboxenEvents(split="hawaii_val", sample_rate=None)
+    assert len(ds) > len(ds._data), "split must expand into more clips than recordings"
+    sample = ds[len(ds) - 1]
+    assert "audio" in sample
+    with pytest.raises(IndexError):
+        ds[len(ds)]

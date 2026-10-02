@@ -1108,8 +1108,8 @@ class VoxaboxenEvents(Dataset):
         IndexError
             If the index is out of bounds.
         """
-        if idx >= len(self._data):
-            raise IndexError(f"Index {idx} out of bounds for dataset of length {len(self._data)}.")
+        if idx >= len(self):
+            raise IndexError(f"Index {idx} out of bounds for dataset of length {len(self)}.")
 
         fn, audio_fp, start, end = self._metadata[idx]
 
