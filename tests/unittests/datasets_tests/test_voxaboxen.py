@@ -222,3 +222,10 @@ def test_voxaboxen_events_stereo_is_frames_first() -> None:
     assert channels == 2
     assert frames > channels
     assert sample["class_anno"].shape[0] == math.ceil(frames / ds.scale_factor)
+
+
+def test_voxaboxen_events_defaults_to_mono() -> None:
+    """Constructor and config agree on mono as the default."""
+    ds = VoxaboxenEvents(split="Anuraset_val", sample_rate=None)
+    assert ds.stereo_or_mono == VoxaboxenEventsConfig().stereo_or_mono == "mono"
+    assert ds[0]["audio"].ndim == 1
