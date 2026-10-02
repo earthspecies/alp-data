@@ -18,6 +18,9 @@ import soundfile as sf
 AudioFormat = Literal["flac", "wav"]
 OpaqueKind = Literal["dataframe", "ndarray"]
 
+MAX_CHANNELS = 8
+"""Most channels libsndfile writes to FLAC; also the sanity bound for WAV."""
+
 _AUDIO_FORMATS: dict[str, tuple[str, str]] = {
     "flac": ("FLAC", "PCM_16"),
     "wav": ("WAV", "FLOAT"),
@@ -44,7 +47,8 @@ def encode_audio(audio: np.ndarray, sample_rate: int, audio_format: AudioFormat)
     Raises
     ------
     ValueError
-        If `audio_format` is not one of the supported formats.
+        If `audio_format` is not one of the supported formats, or if `audio` is not
+        shaped `(n,)` or `(n, channels)` with at most `MAX_CHANNELS` channels.
     """
     try:
         fmt, subtype = _AUDIO_FORMATS[audio_format]
@@ -52,6 +56,11 @@ def encode_audio(audio: np.ndarray, sample_rate: int, audio_format: AudioFormat)
         raise ValueError(
             f"Unsupported audio_format {audio_format!r}; expected one of {sorted(_AUDIO_FORMATS)}"
         ) from None
+    if audio.ndim not in (1, 2) or (audio.ndim == 2 and audio.shape[1] > MAX_CHANNELS):
+        raise ValueError(
+            f"Audio has shape {audio.shape}; expected (n,) or (n, channels) with at most "
+            f"{MAX_CHANNELS} channels. Channels-first arrays must be transposed by the dataset."
+        )
     buffer = io.BytesIO()
     sf.write(buffer, audio, sample_rate, format=fmt, subtype=subtype)
     return buffer.getvalue()

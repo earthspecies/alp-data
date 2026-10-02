@@ -145,3 +145,10 @@ def test_fallback_is_a_no_op_for_wav() -> None:
     audio = np.array([0.5, 1.5], dtype=np.float32)
     _, fmt = encode_audio_lossless_if_needed(audio, 16000, "wav")
     assert fmt == "wav"
+
+
+def test_encode_audio_rejects_channels_first() -> None:
+    """A `(channels, n)` array is reported by shape instead of a libsndfile error."""
+    audio = np.zeros((2, 16000), dtype=np.float32)
+    with pytest.raises(ValueError, match=r"shape \(2, 16000\)"):
+        encode_audio(audio, 16000, "flac")
