@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 #SBATCH --partition=cpu
-#SBATCH --nodelist=slurm-cpu-48vcpu-384gb-1
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=48
@@ -11,8 +10,10 @@
 #SBATCH --mail-type=FAIL
 
 # Benchmark packed datasets against the live datasets they were frozen from.
-# Packed and live run back to back per configuration on the same node so
-# they see the same bucket conditions. See scripts/benchmarks/benchmark_packed.py.
+# Packed and live run back to back per configuration within one job, so both
+# sides run on the same node and see the same bucket conditions. Pin a node
+# with `sbatch --nodelist=... jobs/benchmark_packed.sh` if runs must be compared
+# across jobs. See scripts/benchmarks/benchmark_packed.py.
 #
 #   PACKS="gs://.../beans/validation-native gs://.../fasd13/all-32k" sbatch jobs/benchmark_packed.sh
 
