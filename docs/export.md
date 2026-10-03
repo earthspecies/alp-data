@@ -125,3 +125,45 @@ The result is a directory of `<split>-NNNNN-of-MMMMM.parquet` files whose schema
 - Shards are not compressed. Audio is already compressed, and compressing the archive would break range reads.
 - There is no `unpack`. Blobs are re-encoded outputs, possibly windowed, not the original files.
 - The pack format is described in full in the API reference for `alp_data.export`.
+
+## Benchmark: packed against live
+
+Measured on a 48 vCPU cluster node reading from the bucket (job 92824, 2026-10-03), with
+`scripts/benchmarks/benchmark_packed.py`: a `DataLoader` with spawned workers, batches of 32,
+shuffle on, a warm-up of at least `workers x prefetch` batches so the prefetch backlog is not
+counted, then a 60 s timed window. Both sides serve the same rows: the live dataset is rebuilt
+from the pack's frozen config. Plots come from `scripts/benchmarks/plot_packed_bench.py`.
+
+![Throughput, packed vs live](img/benchmark_packed/throughput.png)
+
+![Speed-up of the pack](img/benchmark_packed/speedup.png)
+
+| dataset | rows | what the live side does per row | best packed | best live | speed-up |
+|---|---|---|---|---|---|
+| BEANS validation, native rate | 62,415 | one small file per row | 1029/s (48 workers) | 497/s | 2.1x |
+| Infant marmosets, native rate | 72,921 | cut a segment out of a long recording | 1393/s (48 workers) | 81/s | 17x |
+| DCLDE2026 vfpa, 32 kHz | 1,336 | cut a segment out of a long recording | 27/s (in-process) | 2.5/s | 11x |
+| AudioSet train-environmental, 32 kHz | 632,257 | one presampled WAV per row | 431/s (48 workers) | 455/s | 0.9x |
+
+What this says:
+
+- **Segment datasets gain an order of magnitude.** When `_process` cuts a window out of a
+  long recording, the live read pays for a range request and a partial decode; the pack holds
+  the window as its own blob. Tail latency drops with it: live p95 batch times of 1 to 8 s
+  become under 1 s.
+- **One-file-per-row datasets gain little on an object store.** Both sides issue one request
+  per row and that request dominates. BEANS still gains 2x from the pack's smaller transfers
+  and from skipping the live path's metadata work. AudioSet reads presampled WAV live, so the
+  pack's FLAC decode costs slightly more than it saves in bytes, and live stays ahead by
+  5 to 15%. On POSIX storage, where millions of small files are the problem, the picture
+  changes; that is the JUPITER measurement still to do.
+- **Worker start-up is the same on both sides and large:** about 3 s per spawned worker,
+  linear, so 48 workers wait around 140 s for the first batch. Each worker receives a pickled
+  copy of the table. That cost is per epoch unless `persistent_workers=True`, and it is the
+  next thing to remove (issue #253).
+- **Per-worker memory is 0.8 to 1.5 GB on both sides**, dominated by that table copy. The
+  pack's parquet table carries every output column, so for AudioSet it is slightly larger than
+  the live CSV path.
+- Prefetch 8 over 2 buys at most 20%, and nothing at 48 workers.
+
+![Start-up and memory](img/benchmark_packed/startup_memory.png)
