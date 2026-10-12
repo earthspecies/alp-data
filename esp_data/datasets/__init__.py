@@ -15,6 +15,7 @@ from .beans_pro import BeansPro
 from .beans_pro_multi_audio import BeansProMultiAudio
 from .beans_zero import BeansZero
 from .beans_zero_call_variants import BeansZeroCallVariants
+from .beans_zero_hq import BeansZeroHQ
 from .bengalese_finch import BengaleseFinch
 from .bengalese_finch_calls import BengaleseFinchCalls
 from .birdeep import Birdeep
@@ -25,11 +26,11 @@ from .clotho import Clotho
 from .corvid_wascher import CorvidWascher
 from .dartmouth_avian_soundscapes import DartmouthAvianSoundscapes
 from .datased import DataSED
+from .dcase_fewshot_val import DCASEFewshotVal
 from .dclde2026 import DCLDE2026
 from .delphinid_whistles import DelphinidWhistles
 from .dinardo_dolphin_whistles import DinardoDolphinWhistles
 from .dori import DORI
-from .dcase_fewshot_val import DCASEFewshotVal
 from .drasdic import DRASDIC
 from .ecosoundset import EcoSoundSet
 from .esp_raincoast import ESPRaincoast
@@ -67,8 +68,8 @@ from .pteroset import PteroSet
 from .roots import ROOTS
 from .spanish_carrion_crows_flight_clips import SpanishCarrionCrowsFlightClips
 from .ssw60 import SSW60
-from .subsegmentation import Subsegmentation
 from .subseg_pseudolabel import SubsegPseudolabel
+from .subsegmentation import Subsegmentation
 from .subsegmentation_synthetic_v9 import SubsegmentationSyntheticV9
 from .superb_starling import SuperbStarling
 from .superwhales_detection import SuperWhaleDetection
@@ -78,8 +79,8 @@ from .synthetic_scenes import SyntheticScenes
 from .voxaboxen import Voxaboxen, VoxaboxenEvents
 from .wabad import WABAD
 from .watkins import Watkins
-from .weldy_dawn_chorus import WeldyDawnChorus
 from .watkins_soundscapes import WatkinsSoundscapes
+from .weldy_dawn_chorus import WeldyDawnChorus
 from .whales import Whales
 from .wytham_great_tit import WythamGreatTit
 from .xeno_canto import XenoCanto
@@ -178,4 +179,5 @@ __all__ = [
     "WatkinsSoundscapes",
     "Whales",
     "WythamGreatTit",
+    "BeansZeroHQ",
 ]
