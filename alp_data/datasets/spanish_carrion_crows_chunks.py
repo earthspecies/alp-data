@@ -375,7 +375,14 @@ class SpanishCarrionCrowsChunks(Dataset):
             If the decoded chunk's length differs from its nominal span by more
             than `_LENGTH_TOLERANCE_SAMPLES`.
         """
-        audio_path = anypath(self.data_root) / row[self._originals_path_column]
+        # `anypath` renders a bare scheme as ``gs:///``, so joining onto it
+        # leaves a stray separator and the path then reports an *empty* bucket.
+        # `alp_data.io` scopes its short-lived GCS token to the bucket the path
+        # names, so an empty one grants nothing: the ffmpeg range read is
+        # refused with a 403 and `read_audio` quietly falls back to downloading
+        # the whole recording, costing gigabytes per chunk instead of megabytes.
+        joined = anypath(self.data_root) / row[self._originals_path_column]
+        audio_path = anypath(str(joined).replace(":///", "://", 1))
         audio, sr = read_audio(
             audio_path,
             start_time=row["chunk_start_sec"],
