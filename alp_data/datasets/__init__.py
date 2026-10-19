@@ -10,6 +10,7 @@ from .bengalese_finch_calls import BengaleseFinchCalls
 from .birdeep import Birdeep
 from .birdset import BirdSet
 from .chiffchaff_id import ChiffchaffId
+from .colombia_costa_rica import ColombiaCostaRica
 from .corvid_wascher import CorvidWascher
 from .dclde2026 import DCLDE2026
 from .dinardo_dolphin_whistles import DinardoDolphinWhistles
@@ -77,4 +78,5 @@ __all__ = [
     "Watkins",
     "FASD13",
     "SouthwesternAmazonBasin",
+    "ColombiaCostaRica",
 ]
