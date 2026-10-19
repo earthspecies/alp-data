@@ -13,6 +13,10 @@ from alp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from alp_data.backends import BackendType
 from alp_data.io import DATA_HOME, AnyPathT, anypath, audio_stereo_to_mono, read_audio
 
+# temporary override; remove before merge
+DATA_HOME = "gs://esp-data-ingestion"  # noqa: F811
+##
+
 _RAW_ROOT = f"{DATA_HOME}/southwestern_amazon_basin_soundscapes/v0.1.0/raw"
 
 
@@ -103,7 +107,7 @@ class SouthwesternAmazonBasin(Dataset):
         self,
         split: str = "all",
         output_take_and_give: Dict[str, str] | None = None,
-        sample_rate: int | None = 32000,
+        sample_rate: int | None = None,
         data_root: str | AnyPathT | None = None,
         backend: BackendType = "polars",
         streaming: bool = False,
@@ -116,20 +120,15 @@ class SouthwesternAmazonBasin(Dataset):
         output_take_and_give : dict[str, str] | None
             Optional mapping of original → new output keys (filters columns as well).
         sample_rate : int | None
-            If set, audio is resampled to this rate. Defaults to 32000, the native
-            rate, as resampling an hour-long recording takes ~2 minutes.
+            If set, audio is resampled to this rate. Defaults to None. The native
+            rate is 32000.
         data_root : str | AnyPathT | None
             Optional root directory to prepend to each row['audio_path'].
         backend : BackendType, optional
             The backend to use ("pandas" or "polars"), by default "polars"
         streaming : bool, optional
             Whether to use streaming mode, by default False
-
-        Raises
-        ------
-        LookupError
-            If `split` is not one of `available_splits`.
-        """  # noqa: DOC502 - raised by `_load`
+        """
         super().__init__(output_take_and_give, backend=backend, streaming=streaming)
         self.split = split
         self._data = None

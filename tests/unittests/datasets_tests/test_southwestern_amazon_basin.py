@@ -11,7 +11,6 @@ takes ~2 minutes, so every test that reads audio does so at the default (native)
 
 from __future__ import annotations
 
-import hashlib
 import random
 from io import StringIO
 from typing import Any, Dict
@@ -21,14 +20,15 @@ import pandas as pd
 import pytest
 
 from alp_data.datasets import SouthwesternAmazonBasin
+from alp_data.utils import create_hash
 
 # # --- Dataset snapshot ---
 
 # # Code to generate snapshot:
-# import hashlib
 # from io import StringIO
 # import pandas as pd
 # from alp_data.datasets import SouthwesternAmazonBasin
+# from alp_data.utils import create_hash
 # for split in ["all", "all_with_unknowns"]:
 #     ds = SouthwesternAmazonBasin(split=split, backend="pandas")
 #     df = ds._data.unwrap
@@ -36,14 +36,12 @@ from alp_data.datasets import SouthwesternAmazonBasin
 #     st = pd.concat([pd.read_csv(StringIO(x), sep="\t") for x in df["selection_table"]])
 #     print("events:", len(st), "labels:", len(ds.get_available_labels()))
 #     csv_bytes = df.sort_index(axis=0).sort_index(axis=1).to_csv(index=True).encode("utf-8")
-#     print("annotations sha256:", hashlib.sha256(csv_bytes).hexdigest())
+#     print("annotations sha256:", create_hash(csv_bytes))
 
 # ds = SouthwesternAmazonBasin(split="all", backend="pandas")
 # audio0 = ds[0]["audio"]
 # print("dtype:", audio0.dtype, "shape:", audio0.shape)
-# print("sha256:", hashlib.sha256(audio0.tobytes()).hexdigest())
-
-# quit()
+# print("sha256:", create_hash(audio0.tobytes()))
 # # #
 
 SPLITS = ["all", "all_with_unknowns"]
@@ -201,7 +199,7 @@ def test_reference_item_stability(ds_pandas: SouthwesternAmazonBasin):
         .to_csv(index=True)
         .encode("utf-8")
     )
-    h = hashlib.sha256(csv_bytes).hexdigest()
+    h = create_hash(csv_bytes)
 
     assert h == ANNOTATIONS_SHA256[split], (
         f"[{split}] Annotation's hash changed.\n"
@@ -224,7 +222,7 @@ def test_reference_item_stability(ds_pandas: SouthwesternAmazonBasin):
     assert audio.dtype == np.float32, f"[0] audio dtype is {audio.dtype}, expected float32"
 
     # compute sha256 over raw bytes of the float32 array
-    h = hashlib.sha256(audio.tobytes()).hexdigest()
+    h = create_hash(audio.tobytes())
 
     assert h == EXPECTED_FIRST_ITEM_AUDIO_SHA256, (
         "First item's audio hash changed.\n"
