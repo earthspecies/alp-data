@@ -2,13 +2,21 @@
 
 34 hour-long dawn and dusk soundscapes (32 kHz FLAC) from coffee farms in
 Jardín, Colombia (site ``S01``) and San Ramón, Costa Rica (site ``S02``), fully
-annotated with time-frequency boxes for 89 bird species. Labels are 2021 eBird
+annotated with time-frequency boxes for 87 bird species. Labels are 2021 eBird
 species codes; unidentifiable calls are labelled ``????``.
 
+Annotations are read from `ANNOTATIONS_FP`, an update from Alvaro Vega-Hidalgo
+(October 2026) of the Zenodo ``annotations.csv`` (also kept in `RAW_DIR`). It
+corrects two labels, each the only event of its species in the Zenodo version:
+
+- ``NES_017_S02`` at 1569.6 s: ``rucwar1`` (Russet-crowned Warbler, an Andean
+  species) to ``rucwar`` (Rufous-capped Warbler).
+- ``NES_019_S02`` at 986.8 s: ``melwar1`` (Melodious Warbler, a European
+  species) to ``melbla1`` (Melodious Blackbird).
+
 eBird codes are mapped to scientific names with the 2021 eBird taxonomy, then to
-accepted GBIF canonical names with `GBIFConverter`. ``????`` becomes ``Unknown``,
-as does ``melwar1`` (see `UNKNOWN_CODES`). Zero-length events (end time <= start
-time) are dropped.
+accepted GBIF canonical names with `GBIFConverter`. ``????`` becomes
+``Unknown``. Zero-length events (end time <= start time) are dropped.
 
 The raw FLACs are losslessly re-encoded with ffmpeg (see `reencode_audio`) next
 to the manifests so ``audio_path`` stays relative to them, then two versions of
@@ -31,18 +39,14 @@ from alp_data.discover import GBIFConverter
 from alp_data.io import anypath, audio_stereo_to_mono, filesystem, read_audio
 
 RAW_DIR = "esp-data-ingestion/colombia_costa_rica_soundscapes/raw"
+ANNOTATIONS_FP = f"gs://{RAW_DIR}/annotations_updated_AVH_Oct_20_2026.csv"
 OUT_DIR = "esp-data-ingestion/colombia_costa_rica_soundscapes/formatted"
 EBIRD_TO_SCI_FP = "esp-data-ingestion/taxonomy/ebird_taxonomy_cached/ebird_to_sci_name_2021.json"
 TARGET_FPS = {
     "all": f"gs://{OUT_DIR}/all.csv",
     "all_with_unknowns": f"gs://{OUT_DIR}/all_with_unknowns.csv",
 }
-UNKNOWN_CODES = {
-    "????",
-    # A single Melodious Warbler (European species) event in NES_019_S02 (Costa
-    # Rica), among ~20 Melodious Blackbird (`melbla1`) events; likely a mislabel.
-    "melwar1",
-}
+UNKNOWN_CODE = "????"
 UNKNOWN_LABEL = "Unknown"
 
 converter = GBIFConverter()
@@ -61,7 +65,7 @@ def build_species_map(ebird_codes: list[str]) -> dict[str, str]:
     Returns
     -------
     dict[str, str]
-        eBird code to GBIF canonical name, with `UNKNOWN_CODES` mapped to ``Unknown``.
+        eBird code to GBIF canonical name, with `UNKNOWN_CODE` mapped to ``Unknown``.
 
     Raises
     ------
@@ -73,7 +77,7 @@ def build_species_map(ebird_codes: list[str]) -> dict[str, str]:
 
     species_map = {}
     for code in ebird_codes:
-        if code in UNKNOWN_CODES:
+        if code == UNKNOWN_CODE:
             species_map[code] = UNKNOWN_LABEL
             continue
         species_info, matched = converter(ebird_to_sci[code])
@@ -164,7 +168,7 @@ def format_dataset() -> None:
     credentials may only have read access to the bucket. A failed `gsutil`
     or `ffmpeg` call propagates as `subprocess.CalledProcessError`.
     """
-    raw_anno = pd.read_csv(f"gs://{RAW_DIR}/annotations.csv")
+    raw_anno = pd.read_csv(ANNOTATIONS_FP)
     zero_length = raw_anno["End Time (s)"] <= raw_anno["Start Time (s)"]
     print(f"Dropping {zero_length.sum()} zero-length events")
     raw_anno = raw_anno[~zero_length].copy()

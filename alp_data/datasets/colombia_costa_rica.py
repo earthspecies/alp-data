@@ -71,12 +71,17 @@ class ColombiaCostaRica(Dataset):
 
     Labels
     ------
-    The original eBird codes are mapped to scientific names with the 2021
-    eBird taxonomy, then to accepted GBIF canonical names. Calls the annotators
-    could not identify (``????`` in the source) are labelled ``Unknown``, as is
-    the single ``melwar1`` (Melodious Warbler, a European species) event, which
-    sits among Melodious Blackbird events and is likely a mislabel. This leaves
-    88 species. Zero-length events are dropped.
+    Labels come from updated annotations provided by Alvaro Vega-Hidalgo in
+    October 2026, which correct two single-event labels in the Zenodo release:
+    a Russet-crowned Warbler (``rucwar1``, an Andean species) in
+    ``NES_017_S02`` is relabelled Rufous-capped Warbler (``rucwar``), and a
+    Melodious Warbler (``melwar1``, a European species) in ``NES_019_S02`` is
+    relabelled Melodious Blackbird (``melbla1``).
+
+    The eBird codes are mapped to scientific names with the 2021 eBird
+    taxonomy, then to accepted GBIF canonical names. Calls the annotators could
+    not identify (``????`` in the source) are labelled ``Unknown``. This leaves
+    87 species. Zero-length events are dropped.
 
     Splits
     ------
@@ -103,7 +108,7 @@ class ColombiaCostaRica(Dataset):
         version="0.1.0",
         description=(
             "34 hour-long dawn and dusk soundscapes from coffee farms in Colombia and "
-            "Costa Rica, annotated with time-frequency boxes for 88 bird species."
+            "Costa Rica, annotated with time-frequency boxes for 87 bird species."
         ),
         sources="Zenodo",
         license="CC-BY-4.0",
