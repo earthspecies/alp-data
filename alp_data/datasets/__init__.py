@@ -28,12 +28,15 @@ from .macaques_coo_calls import MacaquesCooCalls
 from .nocturnal_bird_migration import NocturnalBirdMigration
 from .pipit_id import PipitId
 from .powdermill import Powdermill
+from .sapsucker_woods import SapsuckerWoods
+from .sierra_nevada import SierraNevada
 from .southwestern_amazon_basin import SouthwesternAmazonBasin
 from .subsegmentation import Subsegmentation
 from .superb_starling import SuperbStarling
 from .voxaboxen import Voxaboxen, VoxaboxenEvents
 from .wabad import WABAD
 from .watkins import Watkins
+from .western_us import WesternUS
 from .xeno_canto import XenoCanto
 from .xeno_canto_annotated_jeantet_23 import XenoCantoAnnotatedJeantet23
 from .zebra_finch_julie_elie import ZebraFinchJulieElie
@@ -79,4 +82,7 @@ __all__ = [
     "FASD13",
     "SouthwesternAmazonBasin",
     "ColombiaCostaRica",
+    "SapsuckerWoods",
+    "SierraNevada",
+    "WesternUS",
 ]
