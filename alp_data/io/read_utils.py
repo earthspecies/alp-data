@@ -1,4 +1,4 @@
-"""This file offers functionalities necessary to read input streams, like audio."""
+"""This file offers functionalities necessary to read input streams, like audio and video."""
 
 import json
 import logging
@@ -13,8 +13,10 @@ import numpy as np
 import soundfile as sf
 import yaml
 from soundfile import LibsndfileError
+from torchcodec.decoders import VideoDecoder
 
 from alp_data.io.auth import GCSAuthError, get_gcs_token, get_gcs_token_if_available
+from alp_data.io.decode_utils import SeekMode, decode_frames_in_range, decode_video
 from alp_data.io.filesystem import filesystem_from_path
 from alp_data.io.paths import AnyPathT, PureGSPath, PureHTTPPath, PureHTTPSPath, anypath
 
@@ -773,4 +775,116 @@ def get_audio_info(
         "num_channels": info.channels,
         "format": info.format,
         "subtype": info.subtype,
+    }
+
+
+# ---- VIDEO UTILS ----
+
+
+def read_video(
+    file_path: str | AnyPathT,
+    start_time: float | None = None,
+    end_time: float | None = None,
+    fps: float | None = None,
+) -> tuple[np.ndarray, float]:
+    """Reads video data from a file path.
+
+    Handles various path types (local, GCS, R2) via the `anypath` utility.
+    Reads the entire file by default, or a time range when `start_time` and/or
+    `end_time` is given.
+
+    Parameters
+    ----------
+    file_path : str or AnyPathT
+        The path string or path object (e.g., Path, GSPath, R2Path) pointing
+        to the video file.
+    start_time : float or None, optional
+        Start time in seconds. If None, reads from the start of the file.
+    end_time : float or None, optional
+        End time in seconds. If None, reads to end of file.
+    fps : float or None, optional
+        Frame rate to read the video at. If None, the video's native frame
+        rate is used. A rate above the native one duplicates frames.
+
+    Returns
+    -------
+    tuple[np.ndarray, float]
+        A tuple containing:
+        - data (np.ndarray): The video data as a `uint8` NumPy array of shape
+          `(N, C, H, W)`.
+        - fps (float): The frame rate of the returned video.
+
+    Raises
+    ------
+    ValueError
+        If `end_time` is less than or equal to `start_time`.
+
+    Notes
+    -----
+    Opening a missing `file_path` raises `FileNotFoundError` and an undecodable
+    file raises `ValueError` or `RuntimeError`.
+    """
+    file_path = anypath(file_path)
+
+    if start_time is not None and end_time is not None and end_time <= start_time:
+        raise ValueError("end_time must be greater than start_time")
+
+    if fps is None:
+        fps = get_video_info(file_path)["average_fps"]
+
+    if start_time is not None or end_time is not None:
+        video = decode_frames_in_range(file_path, start_time, end_time, fps)
+    else:
+        video = decode_video(file_path, fps)
+    return video.data.numpy(), fps
+
+
+def get_video_info(
+    file_path: str | AnyPathT, seek_mode: SeekMode = "approximate"
+) -> dict[str, Any]:
+    """Gets video file information without loading the data.
+
+    Under `seek_mode="approximate"` the frame count is derived from
+    `duration * average_fps`. Use `seek_mode="exact"` for a frame count
+    obtained by scanning the stream, which requires downloading the whole
+    video.
+
+    Parameters
+    ----------
+    file_path : str or AnyPathT
+        The path string or path object (e.g., Path, GSPath, R2Path) pointing
+        to the video file.
+    seek_mode : SeekMode, optional
+        Decoder seek mode, by default "approximate".
+
+    Returns
+    -------
+    dict[str, Any]
+        A dictionary containing:
+        - duration (float | None): Duration of the video stream in seconds.
+        - height (int | None): Frame height in pixels.
+        - width (int | None): Frame width in pixels.
+        - num_frames (int | None): Number of frames in the stream.
+        - average_fps (float | None): Average frame rate of the stream.
+        - codec (str | None): Name of the video codec.
+        - pixel_format (str | None): Pixel format of the decoded frames.
+
+    Notes
+    -----
+    Opening a missing `file_path` raises `FileNotFoundError` and an undecodable
+    file raises `ValueError` or `RuntimeError`.
+    """
+    file_path = anypath(file_path)
+
+    with filesystem_from_path(file_path).open(str(file_path), "rb") as f:
+        info = VideoDecoder(f, seek_mode=seek_mode).metadata
+
+    return {
+        "duration": info.duration_seconds,
+        "height": info.height,
+        "width": info.width,
+        "num_frames": info.num_frames,
+        "average_fps": info.average_fps,
+        "codec": info.codec,
+        "pixel_format": info.pixel_format,
     }
