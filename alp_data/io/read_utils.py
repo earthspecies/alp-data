@@ -11,12 +11,18 @@ from typing import Any, BinaryIO, Literal
 import librosa
 import numpy as np
 import soundfile as sf
+import torch
 import yaml
 from soundfile import LibsndfileError
 from torchcodec.decoders import VideoDecoder
 
 from alp_data.io.auth import GCSAuthError, get_gcs_token, get_gcs_token_if_available
-from alp_data.io.decode_utils import SeekMode, decode_frames_in_range, decode_video
+from alp_data.io.decode_utils import (
+    SeekMode,
+    decode_frames_at,
+    decode_frames_in_range,
+    decode_video,
+)
 from alp_data.io.filesystem import filesystem_from_path
 from alp_data.io.paths import AnyPathT, PureGSPath, PureHTTPPath, PureHTTPSPath, anypath
 
@@ -786,7 +792,7 @@ def read_video(
     start_time: float | None = None,
     end_time: float | None = None,
     fps: float | None = None,
-) -> tuple[np.ndarray, float]:
+) -> torch.Tensor:
     """Reads video data from a file path.
 
     Handles various path types (local, GCS, R2) via the `anypath` utility.
@@ -808,11 +814,8 @@ def read_video(
 
     Returns
     -------
-    tuple[np.ndarray, float]
-        A tuple containing:
-        - data (np.ndarray): The video data as a `uint8` NumPy array of shape
-          `(N, C, H, W)`.
-        - fps (float): The frame rate of the returned video.
+    torch.Tensor
+        The video frames as a `uint8` tensor of shape `(N, C, H, W)`.
 
     Raises
     ------
@@ -829,14 +832,62 @@ def read_video(
     if start_time is not None and end_time is not None and end_time <= start_time:
         raise ValueError("end_time must be greater than start_time")
 
-    if fps is None:
-        fps = get_video_info(file_path)["average_fps"]
-
     if start_time is not None or end_time is not None:
         video = decode_frames_in_range(file_path, start_time, end_time, fps)
     else:
         video = decode_video(file_path, fps)
-    return video.data.numpy(), fps
+    return video.data
+
+
+def read_video_at_frames(
+    file_path: str | AnyPathT,
+    start_frame: int | None = None,
+    end_frame: int | None = None,
+    stride: int = 1,
+    custom_frame_indices: list[int] | None = None,
+) -> torch.Tensor:
+    """Reads video frames by index from a file path.
+
+    Handles various path types (local, GCS, R2) via the `anypath` utility.
+    Reads every frame by default, the frames at `range(start_frame, end_frame,
+    stride)` when any of those is given, or exactly the frames listed in
+    `custom_frame_indices`.
+
+    Parameters
+    ----------
+    file_path : str or AnyPathT
+        The path string or path object (e.g., Path, GSPath, R2Path) pointing
+        to the video file.
+    start_frame : int or None, optional
+        First frame index, inclusive. If None, starts at the first frame.
+    end_frame : int or None, optional
+        Last frame index, exclusive. If None, reads to the last frame.
+    stride : int, optional
+        Step between frame indices, by default 1.
+    custom_frame_indices : list[int] or None, optional
+        Explicit frame indices to read, in order (repeats allowed). Negative
+        indices count from the end of the video. Cannot be combined with
+        `start_frame`, `end_frame` or `stride`. By default None.
+
+    Returns
+    -------
+    torch.Tensor
+        The selected frames as a `uint8` tensor of shape `(N, C, H, W)`, in
+        the requested order.
+
+    Notes
+    -----
+    Invalid frame arguments raise `ValueError` or `IndexError`, as described
+    in `decode_frames_at`. Opening a missing `file_path` raises
+    `FileNotFoundError` and an undecodable file raises `ValueError` or
+    `RuntimeError`.
+    """
+    file_path = anypath(file_path)
+
+    video = decode_frames_at(
+        file_path, start_frame, end_frame, stride, custom_frame_indices=custom_frame_indices
+    )
+    return video.data
 
 
 def get_video_info(

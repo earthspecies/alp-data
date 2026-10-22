@@ -1,6 +1,7 @@
 """Unitary tests of video file reading functions."""
 
-import numpy as np
+from typing import Any
+
 import pytest
 import torch
 
@@ -10,7 +11,7 @@ from alp_data.io.decode_utils import (
     decode_frames_in_range,
     decode_video,
 )
-from alp_data.io.read_utils import get_video_info, read_video
+from alp_data.io.read_utils import get_video_info, read_video, read_video_at_frames
 
 # 2 s, 30 fps, 64x48 h264 clip of ffmpeg's `testsrc` pattern
 VIDEO_PATH = "tests/samples/video.mp4"
@@ -18,28 +19,25 @@ VIDEO_PATH = "tests/samples/video.mp4"
 
 def test_read_from_file() -> None:
     path = VIDEO_PATH
-    data, fps = read_video(path)
-    assert fps == 30
+    data = read_video(path)
+    assert isinstance(data, torch.Tensor)
     assert data.shape == (60, 3, 48, 64)
-    assert data.dtype == np.uint8
+    assert data.dtype == torch.uint8
 
 
 def test_read_from_file_from_time() -> None:
     path = VIDEO_PATH
-    data, fps = read_video(path, start_time=0.0)
-    assert fps == 30
+    data = read_video(path, start_time=0.0)
     assert data.shape == (60, 3, 48, 64)
 
-    data, fps = read_video(path, start_time=1.0)
-    assert fps == 30
+    data = read_video(path, start_time=1.0)
     assert data.shape == (30, 3, 48, 64)
 
 
 def test_read_from_file_to_time() -> None:
     """Test if read_video honours `end_time` when no `start_time` is given."""
     path = VIDEO_PATH
-    data, fps = read_video(path, end_time=1.0)
-    assert fps == 30
+    data = read_video(path, end_time=1.0)
     assert data.shape == (30, 3, 48, 64)
 
 
@@ -63,10 +61,9 @@ def test_read_video_by_time() -> None:
     start_time = 0.5  # Start at 0.5 seconds
     end_time = 1.0  # End at 1 second
 
-    video, fps = read_video(path, start_time=start_time, end_time=end_time)
+    video = read_video(path, start_time=start_time, end_time=end_time)
 
-    assert fps == 30
-    expected_length = int((end_time - start_time) * fps)
+    expected_length = int((end_time - start_time) * 30)  # native fps
     assert video.shape[0] == expected_length
 
 
@@ -81,21 +78,91 @@ def test_read_video_invalid_time_range() -> None:
 
 def test_read_video_resample_fps() -> None:
     """Test if read_video resamples to a lower frame rate."""
-    data, fps = read_video(VIDEO_PATH, fps=10)
-    assert fps == 10
+    data = read_video(VIDEO_PATH, fps=10)
     assert data.shape == (20, 3, 48, 64)
 
-    data, fps = read_video(VIDEO_PATH, start_time=0.5, end_time=1.0, fps=10)
-    assert fps == 10
+    data = read_video(VIDEO_PATH, start_time=0.5, end_time=1.0, fps=10)
     assert data.shape == (5, 3, 48, 64)
 
 
 def test_read_video_fps_above_native_duplicates_frames() -> None:
     """Test if a frame rate above the native one duplicates frames instead of raising."""
-    data, fps = read_video(VIDEO_PATH, fps=60)
-    assert fps == 60
+    data = read_video(VIDEO_PATH, fps=60)
     assert data.shape == (120, 3, 48, 64)
-    np.testing.assert_array_equal(data[0], data[1])
+    torch.testing.assert_close(data[0], data[1])
+
+
+def test_read_at_frames_from_file() -> None:
+    path = VIDEO_PATH
+    data = read_video_at_frames(path)
+    assert isinstance(data, torch.Tensor)
+    assert data.shape == (60, 3, 48, 64)
+    assert data.dtype == torch.uint8
+
+
+def test_read_at_frames_by_range() -> None:
+    """Test if read_video_at_frames reads the frames in `[start_frame, end_frame)`."""
+    path = VIDEO_PATH
+    full = read_video(path)
+
+    data = read_video_at_frames(path, start_frame=10, end_frame=20)
+    torch.testing.assert_close(data, full[10:20])
+
+    data = read_video_at_frames(path, start_frame=50)
+    torch.testing.assert_close(data, full[50:])
+
+    data = read_video_at_frames(path, end_frame=10)
+    torch.testing.assert_close(data, full[:10])
+
+
+def test_read_at_frames_with_stride() -> None:
+    """Test if read_video_at_frames steps by `stride`."""
+    path = VIDEO_PATH
+    full = read_video(path)
+
+    data = read_video_at_frames(path, start_frame=0, end_frame=10, stride=3)
+    torch.testing.assert_close(data, full[0:10:3])
+
+    data = read_video_at_frames(path, stride=2)
+    torch.testing.assert_close(data, full[::2])
+
+
+def test_read_at_frames_custom_indices() -> None:
+    """Test if custom indices are read in order, with repeats and negative indices."""
+    path = VIDEO_PATH
+    full = read_video(path)
+
+    data = read_video_at_frames(path, custom_frame_indices=[-1, 0, 0, 30])
+    torch.testing.assert_close(data, full[[59, 0, 0, 30]])
+
+
+@pytest.mark.parametrize(
+    "kwargs, match",
+    [
+        ({"start_frame": 5, "end_frame": 5}, "end must be greater than start"),
+        ({"start_frame": 10, "end_frame": 5}, "end must be greater than start"),
+        ({"start_frame": -1}, "start and end must be non-negative"),
+        ({"end_frame": -1}, "start and end must be non-negative"),
+        ({"stride": 0}, "stride must be at least 1"),
+        ({"custom_frame_indices": []}, "custom_frame_indices must not be empty"),
+        ({"custom_frame_indices": [1], "start_frame": 0}, "cannot be combined"),
+        ({"custom_frame_indices": [1], "stride": 2}, "cannot be combined"),
+    ],
+)
+def test_read_at_frames_invalid_arguments(kwargs: dict[str, Any], match: str) -> None:
+    with pytest.raises(ValueError, match=match):
+        read_video_at_frames(VIDEO_PATH, **kwargs)
+
+
+def test_read_at_frames_out_of_range() -> None:
+    with pytest.raises(IndexError):
+        read_video_at_frames(VIDEO_PATH, start_frame=60)
+
+    with pytest.raises(IndexError):
+        read_video_at_frames(VIDEO_PATH, start_frame=0, end_frame=61)
+
+    with pytest.raises(IndexError):
+        read_video_at_frames(VIDEO_PATH, custom_frame_indices=[60])
 
 
 def test_decode_video() -> None:
@@ -115,10 +182,17 @@ def test_decode_frames_at_with_stride() -> None:
     assert batch.data.shape == (4, 3, 48, 64)
 
 
+def test_decode_frames_at_open_ended() -> None:
+    """Test if decode_frames_at defaults to the first and last frames."""
+    assert decode_frames_at(VIDEO_PATH).data.shape[0] == 60
+    assert decode_frames_at(VIDEO_PATH, start=50).data.shape[0] == 10
+    assert decode_frames_at(VIDEO_PATH, end=10).data.shape[0] == 10
+
+
 def test_decode_frames_at_custom_indices() -> None:
     """Test if custom indices are read in the requested order, with repeats."""
     indices = [5, 2, 5]
-    batch = decode_frames_at(VIDEO_PATH, start=0, end=0, custom_frame_indices=indices)
+    batch = decode_frames_at(VIDEO_PATH, custom_frame_indices=indices)
 
     expected = torch.stack([decode_frame_at(VIDEO_PATH, i) for i in indices])
     torch.testing.assert_close(batch.data, expected)
