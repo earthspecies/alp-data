@@ -27,6 +27,7 @@ from .macaques_coo_calls import MacaquesCooCalls
 from .nocturnal_bird_migration import NocturnalBirdMigration
 from .pipit_id import PipitId
 from .powdermill import Powdermill
+from .southwestern_amazon_basin import SouthwesternAmazonBasin
 from .subsegmentation import Subsegmentation
 from .superb_starling import SuperbStarling
 from .voxaboxen import Voxaboxen, VoxaboxenEvents
@@ -75,4 +76,5 @@ __all__ = [
     "DCLDE2026",
     "Watkins",
     "FASD13",
+    "SouthwesternAmazonBasin",
 ]
