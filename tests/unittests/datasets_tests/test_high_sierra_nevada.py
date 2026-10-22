@@ -1,12 +1,11 @@
 """
-Unit tests for western_us dataset.
+Unit tests for high_sierra_nevada dataset.
 
 Run with:
-    pytest -q test_western_us.py
+    pytest -q test_high_sierra_nevada.py
 
-Recordings are hour-long, and resampling one to 16 kHz with `kaiser_best`
-takes ~2 minutes, so every test that reads audio does so at the default (native)
-32 kHz.
+Resampling with `kaiser_best` is slow, so every test that reads audio does so
+at the default (native) 32 kHz.
 """
 
 from __future__ import annotations
@@ -19,7 +18,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from alp_data.datasets import WesternUS
+from alp_data.datasets import HighSierraNevada
 from alp_data.utils import create_hash
 
 # # --- Dataset snapshot ---
@@ -27,10 +26,10 @@ from alp_data.utils import create_hash
 # # Code to generate snapshot:
 # from io import StringIO
 # import pandas as pd
-# from alp_data.datasets import WesternUS
+# from alp_data.datasets import HighSierraNevada
 # from alp_data.utils import create_hash
-# for split in ["all"]:
-#     ds = WesternUS(split=split, backend="pandas")
+# for split in ["all", "all_with_unknowns"]:
+#     ds = HighSierraNevada(split=split, backend="pandas")
 #     df = ds._data.unwrap
 #     print(split, "len(ds) =", len(ds))
 #     st = pd.concat([pd.read_csv(StringIO(x), sep="\t") for x in df["selection_table"]])
@@ -38,42 +37,44 @@ from alp_data.utils import create_hash
 #     csv_bytes = df.sort_index(axis=0).sort_index(axis=1).to_csv(index=True).encode("utf-8")
 #     print("annotations sha256:", create_hash(csv_bytes))
 
-# ds = WesternUS(split="all", backend="pandas")
+# ds = HighSierraNevada(split="all", backend="pandas")
 # audio0 = ds[0]["audio"]
 # print("dtype:", audio0.dtype, "shape:", audio0.shape)
 # print("sha256:", create_hash(audio0.tobytes()))
 # # #
 
-SPLITS = ["all"]
+SPLITS = ["all", "all_with_unknowns"]
 DEFAULT_SAMPLE_RATE = 32000
-RECORDING_DURATION_S = 3600.0
+RECORDING_DURATION_S = 600.0
+UNKNOWN_LABEL = "Unknown"
 
-EXPECTED_LEN = {"all": 33}
-EXPECTED_NUM_EVENTS = {"all": 20145}
-EXPECTED_NUM_LABELS = {"all": 56}
+EXPECTED_LEN = {"all": 100, "all_with_unknowns": 100}
+EXPECTED_NUM_EVENTS = {"all": 10234, "all_with_unknowns": 10913}
+EXPECTED_NUM_LABELS = {"all": 21, "all_with_unknowns": 22}
 EXPECTED_FIRST_ITEM_AUDIO_SHA256 = (
-    "7a4a5bf3eccf23d47afccf1b13bbb4b0d3d38c111a428890bb1a198d88762e82"
+    "a14a95bad3958c81e59ff0f71d3f7fe0c46433d7fa0b92c592d08e58e9d9ea4f"
 )
 ANNOTATIONS_SHA256 = {
-    "all": "4846d7e735331826d8334896ac82f14e574ab2c7187b46d81ca7bb25f897cb90",
+    "all": "17215580f4191bce279116fe9e5f2a707c43aa8d91b67a14f82424b92a7d0717",
+    "all_with_unknowns": "9634c98f453d9bce5eedeca2bd1deae21fa5f8ddeb39755c713dd224a2231ebc",
 }
 # ---------------------------------------------------------------------------
 
 
 @pytest.fixture(scope="module")
-def ds() -> WesternUS:
-    """Load WesternUS dataset with default settings for testing."""
-    return WesternUS(split="all")
+def ds() -> HighSierraNevada:
+    """Load HighSierraNevada dataset with default settings for testing."""
+    return HighSierraNevada(split="all")
 
 
 @pytest.fixture(scope="module", params=SPLITS)
-def ds_pandas(request: pytest.FixtureRequest) -> WesternUS:
+def ds_pandas(request: pytest.FixtureRequest) -> HighSierraNevada:
     """Load each split with the pandas backend, without reading audio."""
-    return WesternUS(split=request.param, backend="pandas")
+    return HighSierraNevada(split=request.param, backend="pandas")
 
 
 @pytest.fixture(scope="module")
-def sample_items(ds: WesternUS) -> Dict[int, Dict[str, Any]]:
+def sample_items(ds: HighSierraNevada) -> Dict[int, Dict[str, Any]]:
     """Read up to 3 deterministic random items once, shared across tests."""
     n = len(ds)
     rng = random.Random(23)
@@ -81,7 +82,7 @@ def sample_items(ds: WesternUS) -> Dict[int, Dict[str, Any]]:
     return {idx: ds[idx] for idx in indices}
 
 
-def test_ds_not_empty(ds: WesternUS):
+def test_ds_not_empty(ds: HighSierraNevada):
     """Dataset should have at least one example."""
     assert len(ds) > 0, "Dataset appears empty"
 
@@ -89,7 +90,7 @@ def test_ds_not_empty(ds: WesternUS):
 def test_invalid_split_raises():
     """Unknown split names should raise a LookupError."""
     with pytest.raises(LookupError):
-        WesternUS(split="train")
+        HighSierraNevada(split="train")
 
 
 def test_check_audio(sample_items: Dict[int, Dict[str, Any]]):
@@ -108,14 +109,14 @@ def test_check_audio(sample_items: Dict[int, Dict[str, Any]]):
         assert item["sample_rate"] == DEFAULT_SAMPLE_RATE, (
             f"[{idx}] sample_rate is {item['sample_rate']}, expected {DEFAULT_SAMPLE_RATE}"
         )
-        # 4 recordings are up to ~5.1s short of an hour
+        # 18 recordings are up to ~4s short of 10 minutes
         duration = audio.size / item["sample_rate"]
-        assert duration == pytest.approx(RECORDING_DURATION_S, abs=5.5), (
+        assert duration == pytest.approx(RECORDING_DURATION_S, abs=4.0), (
             f"[{idx}] recording is {duration:.1f}s, expected ~{RECORDING_DURATION_S}s"
         )
 
 
-def test_dataset_length_matches_expected(ds_pandas: WesternUS):
+def test_dataset_length_matches_expected(ds_pandas: HighSierraNevada):
     """
     The dataset length should match the known, version-controlled expectation.
 
@@ -134,7 +135,7 @@ def test_dataset_length_matches_expected(ds_pandas: WesternUS):
     )
 
 
-def test_num_events_matches_expected(ds_pandas: WesternUS):
+def test_num_events_matches_expected(ds_pandas: HighSierraNevada):
     """Total number of annotated events per split should match the snapshot."""
     split = ds_pandas.split
     n_events = sum(
@@ -145,7 +146,7 @@ def test_num_events_matches_expected(ds_pandas: WesternUS):
     )
 
 
-def test_get_available_labels(ds_pandas: WesternUS):
+def test_get_available_labels(ds_pandas: HighSierraNevada):
     """Test get_available_labels for the Species column."""
     split = ds_pandas.split
     labels = ds_pandas.get_available_labels(anno_column="Species")
@@ -155,9 +156,27 @@ def test_get_available_labels(ds_pandas: WesternUS):
     )
     for label in labels:
         assert isinstance(label, str), f"Species label for {label} should be string"
+    assert "????" not in labels, f"[{split}] raw eBird unknown code '????' was not mapped"
 
 
-def test_reference_item_stability(ds_pandas: WesternUS):
+def test_unknown_label_only_in_with_unknowns_split(ds_pandas: HighSierraNevada):
+    """`Unknown` events must be removed from `all` and kept in `all_with_unknowns`."""
+    labels = ds_pandas.get_available_labels(anno_column="Species")
+    if ds_pandas.split == "all":
+        assert UNKNOWN_LABEL not in labels, "'all' split should not contain Unknown events"
+    else:
+        assert UNKNOWN_LABEL in labels, "'all_with_unknowns' split should contain Unknown events"
+
+
+def test_splits_share_recordings():
+    """Both splits should list the same recordings in the same order."""
+    paths = [
+        list(HighSierraNevada(split=s, backend="pandas")._data.unwrap["audio_path"]) for s in SPLITS
+    ]
+    assert paths[0] == paths[1], "Splits list different recordings"
+
+
+def test_reference_item_stability(ds_pandas: HighSierraNevada):
     """
     Check that the annotations of each split, and a canonical item (index 0),
     are bitwise-stable.
@@ -188,6 +207,10 @@ def test_reference_item_stability(ds_pandas: WesternUS):
         "If this is an intentional dataset/content update, "
         "replace ANNOTATIONS_SHA256 with the new hash."
     )
+
+    # Both splits share the same recordings, so only read audio once
+    if split != "all":
+        return
 
     item = ds_pandas[0]
 
@@ -239,4 +262,7 @@ def test_check_selection_table(sample_items: Dict[int, Dict[str, Any]]):
         )
         assert (st["High Freq (Hz)"] <= item["sample_rate"] / 2).all(), (
             f"[{idx}] high frequency above Nyquist"
+        )
+        assert UNKNOWN_LABEL not in set(st["Species"]), (
+            f"[{idx}] Unknown events present in 'all' split"
         )

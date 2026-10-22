@@ -93,6 +93,9 @@ class ColombiaCostaRica(Dataset):
     ----------
     Dataset: [Zenodo](https://zenodo.org/records/7525349)
 
+    A derived version of this dataset, consisting of 5-sec clips with clip-level labels,
+    appears as part of BirdSet (NES)
+
     """
 
     info = DatasetInfo(

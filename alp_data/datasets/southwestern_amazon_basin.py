@@ -81,6 +81,9 @@ class SouthwesternAmazonBasin(Dataset):
     ----------
     Dataset: [Zenodo](https://zenodo.org/records/7079124)
 
+    A derived version of this dataset, consisting of 5-sec clips with clip-level labels,
+    appears as part of BirdSet (PER)
+
     """
 
     info = DatasetInfo(

@@ -4,8 +4,9 @@ Unit tests for sierra_nevada dataset.
 Run with:
     pytest -q test_sierra_nevada.py
 
-Resampling with `kaiser_best` is slow, so every test that reads audio does so
-at the default (native) 32 kHz.
+Recordings are hour-long, and resampling one to 16 kHz with `kaiser_best`
+takes ~2 minutes, so every test that reads audio does so at the default (native)
+32 kHz.
 """
 
 from __future__ import annotations
@@ -28,7 +29,7 @@ from alp_data.utils import create_hash
 # import pandas as pd
 # from alp_data.datasets import SierraNevada
 # from alp_data.utils import create_hash
-# for split in ["all", "all_with_unknowns"]:
+# for split in ["all"]:
 #     ds = SierraNevada(split=split, backend="pandas")
 #     df = ds._data.unwrap
 #     print(split, "len(ds) =", len(ds))
@@ -43,20 +44,18 @@ from alp_data.utils import create_hash
 # print("sha256:", create_hash(audio0.tobytes()))
 # # #
 
-SPLITS = ["all", "all_with_unknowns"]
+SPLITS = ["all"]
 DEFAULT_SAMPLE_RATE = 32000
-RECORDING_DURATION_S = 600.0
-UNKNOWN_LABEL = "Unknown"
+RECORDING_DURATION_S = 3600.0
 
-EXPECTED_LEN = {"all": 100, "all_with_unknowns": 100}
-EXPECTED_NUM_EVENTS = {"all": 10234, "all_with_unknowns": 10913}
-EXPECTED_NUM_LABELS = {"all": 21, "all_with_unknowns": 22}
+EXPECTED_LEN = {"all": 33}
+EXPECTED_NUM_EVENTS = {"all": 20145}
+EXPECTED_NUM_LABELS = {"all": 56}
 EXPECTED_FIRST_ITEM_AUDIO_SHA256 = (
-    "a14a95bad3958c81e59ff0f71d3f7fe0c46433d7fa0b92c592d08e58e9d9ea4f"
+    "7a4a5bf3eccf23d47afccf1b13bbb4b0d3d38c111a428890bb1a198d88762e82"
 )
 ANNOTATIONS_SHA256 = {
-    "all": "17215580f4191bce279116fe9e5f2a707c43aa8d91b67a14f82424b92a7d0717",
-    "all_with_unknowns": "9634c98f453d9bce5eedeca2bd1deae21fa5f8ddeb39755c713dd224a2231ebc",
+    "all": "4846d7e735331826d8334896ac82f14e574ab2c7187b46d81ca7bb25f897cb90",
 }
 # ---------------------------------------------------------------------------
 
@@ -109,9 +108,9 @@ def test_check_audio(sample_items: Dict[int, Dict[str, Any]]):
         assert item["sample_rate"] == DEFAULT_SAMPLE_RATE, (
             f"[{idx}] sample_rate is {item['sample_rate']}, expected {DEFAULT_SAMPLE_RATE}"
         )
-        # 18 recordings are up to ~4s short of 10 minutes
+        # 4 recordings are up to ~5.1s short of an hour
         duration = audio.size / item["sample_rate"]
-        assert duration == pytest.approx(RECORDING_DURATION_S, abs=4.0), (
+        assert duration == pytest.approx(RECORDING_DURATION_S, abs=5.5), (
             f"[{idx}] recording is {duration:.1f}s, expected ~{RECORDING_DURATION_S}s"
         )
 
@@ -156,24 +155,6 @@ def test_get_available_labels(ds_pandas: SierraNevada):
     )
     for label in labels:
         assert isinstance(label, str), f"Species label for {label} should be string"
-    assert "????" not in labels, f"[{split}] raw eBird unknown code '????' was not mapped"
-
-
-def test_unknown_label_only_in_with_unknowns_split(ds_pandas: SierraNevada):
-    """`Unknown` events must be removed from `all` and kept in `all_with_unknowns`."""
-    labels = ds_pandas.get_available_labels(anno_column="Species")
-    if ds_pandas.split == "all":
-        assert UNKNOWN_LABEL not in labels, "'all' split should not contain Unknown events"
-    else:
-        assert UNKNOWN_LABEL in labels, "'all_with_unknowns' split should contain Unknown events"
-
-
-def test_splits_share_recordings():
-    """Both splits should list the same recordings in the same order."""
-    paths = [
-        list(SierraNevada(split=s, backend="pandas")._data.unwrap["audio_path"]) for s in SPLITS
-    ]
-    assert paths[0] == paths[1], "Splits list different recordings"
 
 
 def test_reference_item_stability(ds_pandas: SierraNevada):
@@ -207,10 +188,6 @@ def test_reference_item_stability(ds_pandas: SierraNevada):
         "If this is an intentional dataset/content update, "
         "replace ANNOTATIONS_SHA256 with the new hash."
     )
-
-    # Both splits share the same recordings, so only read audio once
-    if split != "all":
-        return
 
     item = ds_pandas[0]
 
@@ -262,7 +239,4 @@ def test_check_selection_table(sample_items: Dict[int, Dict[str, Any]]):
         )
         assert (st["High Freq (Hz)"] <= item["sample_rate"] / 2).all(), (
             f"[{idx}] high frequency above Nyquist"
-        )
-        assert UNKNOWN_LABEL not in set(st["Species"]), (
-            f"[{idx}] Unknown events present in 'all' split"
         )

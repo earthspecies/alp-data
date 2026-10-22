@@ -1,4 +1,4 @@
-"""Western US soundscapes dataset"""
+"""High Sierra Nevada soundscapes dataset"""
 
 from __future__ import annotations
 
@@ -13,74 +13,76 @@ from alp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from alp_data.backends import BackendType
 from alp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
 
-# _RAW_ROOT = f"{DATA_HOME}/western_us_soundscapes/v0.1.0/raw"
+# _RAW_ROOT = f"{DATA_HOME}/sierra_nevada_soundscapes/v0.1.0/formatted"
 
 # temporary override; remove before merge
-_RAW_ROOT = "gs://esp-data-ingestion/western_us_soundscapes/formatted"
+_RAW_ROOT = "gs://esp-data-ingestion/sierra_nevada_soundscapes/formatted"
 
 
 @register_dataset
-class WesternUS(Dataset):
-    """WesternUS Dataset
+class HighSierraNevada(Dataset):
+    """HighSierraNevada Dataset
 
     Description
     -----------
-    Fully annotated morning and evening soundscapes from the Lassen and Plumas
-    National Forests in the Sierra Nevada, California, USA, provided by the
-    Cornell Lab of Ornithology.
+    Fully annotated 10-minute morning soundscapes from high-elevation lake
+    basins in Sequoia and Kings Canyon National Parks, California, USA,
+    provided by the Cornell Lab of Ornithology.
 
     Description from the Zenodo:
 
-    "This collection contains 33 hour-long soundscape recordings, which have
-    been annotated with 20,147 bounding box labels for 56 different bird
-    species from the Western United States. The data were recorded in 2018 in
-    the Sierra Nevada, California, USA. This collection has partially been
-    featured as test data in the 2021 BirdCLEF competition and can primarily
-    be used for training and evaluation of machine learning algorithms.
+    "This collection contains 100 soundscape recordings of 10 minutes
+    duration, which have been annotated with 10,296 bounding box labels for 21
+    different bird species from the Western United States. The data were
+    recorded in 2015 in the southern end of the Sierra Nevada mountain range in
+    California, USA. This collection has been featured as test data in the
+    2020 BirdCLEF and Kaggle Birdcall Identification competition and can
+    primarily be used for training and evaluation of machine learning
+    algorithms.
 
     Data collection
 
-    Measuring the effects of forest management activities in the Sierra
-    Nevada, California, USA can reveal a potential correlation with avian
-    population density and diversity. For this dataset, passive acoustic
-    surveys were conducted in the Lassen and Plumas National Forests in
-    May-August 2018. Survey grid cells (4 km2) were randomly selected from a
-    6,000-km2 area, and SWIFT recording units were deployed at locations
-    conducive to sound propagation (e.g., ridges rather than gullies) within
-    those cells. [...] Recording units recorded continuously 17:00 - 23:59,
-    0:00 - 10:00, one-hour files were stored as uncompressed WAVE sampled at
-    32 kHz and later converted to FLAC.
+    The recordings were made in Sequoia and Kings Canyon National Parks, two
+    contiguous national parks in the southern Sierra Nevada mountain range in
+    California, USA. The focus of the acoustic study was the high-elevation
+    region of the Parks; specifically, the headwater lake basins above 3,000
+    km in elevation. [...] Soundscapes were recorded for 24 h continuously at
+    10 lakes (5 fishless, 5 fish-containing) throughout Sequoia and Kings
+    Canyon National Parks during June-September 2015. Song Meter SM2+ units
+    (Wildlife Acoustics, USA) [...] continuously recorded mono-channel,
+    16-bits uncompressed WAVE files at 48 kHz sampling rate. For this
+    collection, recordings were resampled at 32 kHz and converted to FLAC.
 
     Sampling and annotation protocol
 
-    We subsampled data for this collection by selecting locations that
-    spanned the full elevational and latitudinal gradients of our study area
-    (~840 – 1700 m asl and 39.41 – 40.71°N), and thus represent a broad range
-    of plant communities. A single annotator boxed every bird call he could
-    recognize, ignoring those that are too faint or unidentifiable. Raven Pro
-    software was used to annotate the data. Provided labels contain full bird
-    calls that are boxed in time and frequency. The annotator was allowed to
-    combine multiple consecutive calls of one species into one bounding box
-    label if pauses between calls were shorter than five seconds. We use eBird
-    species codes as labels, following the 2021 eBird taxonomy (Clements
-    list)."
+    A total of 100 10-minute segments of audio between July 9 and 12, 2015
+    from morning hours (06:10-09:10 PDT) from all 10 sites were selected at
+    random. Annotators were asked to box every bird call they could
+    recognize, ignoring those that are too faint or unidentifiable. Every
+    sound that could not be confidently assigned an identity was reviewed with
+    1-2 other experts in bird identification. To minimize observer bias, all
+    identifying information about the location, date and time of the
+    recordings was hidden from the annotator. Raven Pro software was used to
+    annotate the data. Provided labels contain full bird calls that are boxed
+    in time and frequency. In this collection, we use eBird species codes as
+    labels, following the 2021 eBird taxonomy (Clements list). Unidentifiable
+    calls have been marked with "????" and were added as bounding box labels
+    to the ground truth annotations."
 
-    Recording filenames contain a sequential ID, date, and start time in PDT;
-    recordings start between 04:00 and 09:00 or between 17:00 and 19:00. 4
-    recordings are up to ~5 s shorter than an hour. The audio is losslessly
-    re-encoded from the Zenodo FLACs, 5 of which libsndfile cannot decode as
-    distributed.
+    Recording filenames contain a sequential ID, date, and start time in PDT.
+    18 recordings are 3-4 s shorter than 10 minutes.
 
     Labels
     ------
     The original eBird codes are mapped to scientific names with the 2021
-    eBird taxonomy, then to accepted GBIF canonical names. Unlike other
-    collections in this series, there are no unidentified (``????``) calls.
+    eBird taxonomy, then to accepted GBIF canonical names. Calls the annotators
+    could not identify (``????`` in the source) are labelled ``Unknown``.
     Zero-length events are dropped.
 
     Splits
     ------
-    - ``all``: all 33 recordings.
+    - ``all``: all 100 recordings, ``Unknown`` events removed.
+    - ``all_with_unknowns``: all 100 recordings, ``Unknown`` events kept.
 
     Each entry consists of:
     - an audio recording
@@ -88,20 +90,24 @@ class WesternUS(Dataset):
 
     References
     ----------
-    Dataset: [Zenodo](https://zenodo.org/records/7050014)
+    Dataset: [Zenodo](https://zenodo.org/records/7525805)
+
+    A derived version of this dataset, consisting of 5-sec clips with clip-level labels,
+    appears as part of BirdSet (HSN)
 
     """
 
     info = DatasetInfo(
-        name="western_us",
+        name="high_sierra_nevada",
         owner="benjamin",
         split_paths={
             "all": f"{_RAW_ROOT}/all.csv",
+            "all_with_unknowns": f"{_RAW_ROOT}/all_with_unknowns.csv",
         },
         version="0.1.0",
         description=(
-            "33 hour-long soundscapes from the Sierra Nevada (California, USA), "
-            "annotated with time-frequency boxes for 56 bird species."
+            "100 10-minute morning soundscapes from the southern Sierra Nevada "
+            "(California, USA), annotated with time-frequency boxes for 21 bird species."
         ),
         sources="Zenodo",
         license="CC-BY-4.0",
@@ -278,7 +284,9 @@ class WesternUS(Dataset):
             yield self._process(row)
 
     @classmethod
-    def from_config(cls, dataset_config: DatasetConfig) -> tuple["WesternUS", dict[str, Any]]:
+    def from_config(
+        cls, dataset_config: DatasetConfig
+    ) -> tuple["HighSierraNevada", dict[str, Any]]:
         """Create the dataset from a `DatasetConfig`.
 
         Parameters
@@ -288,7 +296,7 @@ class WesternUS(Dataset):
 
         Returns
         -------
-        tuple[WesternUS, dict[str, Any]]
+        tuple[HighSierraNevada, dict[str, Any]]
             The dataset and the metadata returned by its transformations (empty if none).
         """
         cfg = dataset_config.model_dump(exclude={"dataset_name", "transformations"})

@@ -75,6 +75,9 @@ class HawaiianBirds(Dataset):
     ----------
     Dataset: [Zenodo](https://zenodo.org/records/7078499)
 
+    A derived version of this dataset, consisting of 5-sec clips with clip-level labels,
+    appears as part of BirdSet (UHH)
+
     """
 
     info = DatasetInfo(

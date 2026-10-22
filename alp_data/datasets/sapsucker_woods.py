@@ -13,7 +13,7 @@ from alp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from alp_data.backends import BackendType
 from alp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
 
-# _RAW_ROOT = f"{DATA_HOME}/sapsucker_woods_soundscapes/v0.1.0/raw"
+# _RAW_ROOT = f"{DATA_HOME}/sapsucker_woods_soundscapes/v0.1.0/formatted"
 
 # temporary override; remove before merge
 _RAW_ROOT = "gs://esp-data-ingestion/sapsucker_woods_soundscapes/formatted"
@@ -88,6 +88,9 @@ class SapsuckerWoods(Dataset):
     References
     ----------
     Dataset: [Zenodo](https://zenodo.org/records/7079380)
+
+    A derived version of this dataset, consisting of 5-sec clips with clip-level labels,
+    appears as part of BirdSet (SSW)
 
     """
 

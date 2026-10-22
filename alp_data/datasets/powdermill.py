@@ -63,6 +63,9 @@ class Powdermill(Dataset):
     ----------
     [Publication](https://esajournals.onlinelibrary.wiley.com/doi/full/10.1002/ecy.3329)
 
+    A derived version of this dataset, consisting of 5-sec clips with clip-level labels,
+    appears as part of BirdSet (POW)
+
     """
 
     info = DatasetInfo(

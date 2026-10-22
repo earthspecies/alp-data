@@ -72,14 +72,14 @@ class BirdSet(Dataset):
     Rauch, Lukas, et al. "BirdSet: A multi-task benchmark for classification
     in avian bioacoustics." [arXiv](https://arxiv.org/abs/2403.10380)
 
-    HSN: [Zenodo](https://zenodo.org/records/7525805),
+    HSN: [Zenodo](https://zenodo.org/records/7525805), HighSierraNevada alp-data dataset,
     NBP: [Figshare](https://figshare.com/articles/dataset/Transcriptions_of_NIPS4B_2013_Bird_Challenge_Training_Dataset/6798548),
-    NES: [Zenodo](https://zenodo.org/records/7525349),
-    PER: [Zenodo](https://zenodo.org/records/7079124),
-    POW: [Zenodo](https://zenodo.org/records/4656848),
-    SSW: [Zenodo](https://zenodo.org/records/7079380),
-    SNE: [Zenodo](https://zenodo.org/records/7050014),
-    UHH: [Zenodo](https://zenodo.org/records/7078499)
+    NES: [Zenodo](https://zenodo.org/records/7525349), ColombiaCostaRica alp-data dataset,
+    PER: [Zenodo](https://zenodo.org/records/7079124), SouthwesternAmazonBasin alp-data dataset,
+    POW: [Zenodo](https://zenodo.org/records/4656848), Powdermill alp-data dataset,
+    SSW: [Zenodo](https://zenodo.org/records/7079380), SapsuckerWoods alp-data dataset,
+    SNE: [Zenodo](https://zenodo.org/records/7050014), SierraNevada alp-data dataset,
+    UHH: [Zenodo](https://zenodo.org/records/7078499), HawaiianBirds alp-data dataset
 
     [BirdSet GitHub](https://github.com/DBD-research-group/BirdSet)
 
