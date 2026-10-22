@@ -20,7 +20,11 @@ dependencies = [
     "s3fs>=2025.12.0",
     "semver",
     "soundfile>=0.13.1",
+<<<<<<< HEAD
     "torch>=2.9.1,<2.12",
+=======
+    "torch>=2.9.1",
+>>>>>>> 7d18569 (Basic video reading functionality and tests)
     "torchcodec>=0.17.0",
 ]
 

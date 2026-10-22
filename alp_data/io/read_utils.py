@@ -17,6 +17,7 @@ from soundfile import LibsndfileError
 from torchcodec.decoders import VideoDecoder
 
 from alp_data.io.auth import GCSAuthError, get_gcs_token, get_gcs_token_if_available
+from alp_data.io.decode_utils import SeekMode, decode_frames_in_range, decode_video
 from alp_data.io.filesystem import filesystem_from_path
 from alp_data.io.paths import AnyPathT, PureGSPath, PureHTTPPath, PureHTTPSPath, anypath
 from alp_data.io.video_utils import (
@@ -792,8 +793,12 @@ def read_video(
     start_time: float | None = None,
     end_time: float | None = None,
     fps: float | None = None,
+<<<<<<< HEAD
     device: str | torch.device | None = None,
 ) -> torch.Tensor:
+=======
+) -> tuple[np.ndarray, float]:
+>>>>>>> 7d18569 (Basic video reading functionality and tests)
     """Reads video data from a file path.
 
     Handles various path types (local, GCS, R2) via the `anypath` utility.
@@ -812,6 +817,7 @@ def read_video(
     fps : float or None, optional
         Frame rate to read the video at. If None, the video's native frame
         rate is used. A rate above the native one duplicates frames.
+<<<<<<< HEAD
     device : str | torch.device | None, optional
         Device to decode on, e.g. "cpu" or "cuda". If None (default), uses
         PyTorch's default device, `torch.get_default_device()`, which is the CPU
@@ -821,6 +827,16 @@ def read_video(
     -------
     torch.Tensor
         The video frames as a `uint8` tensor of shape `(N, C, H, W)` on `device`.
+=======
+
+    Returns
+    -------
+    tuple[np.ndarray, float]
+        A tuple containing:
+        - data (np.ndarray): The video data as a `uint8` NumPy array of shape
+          `(N, C, H, W)`.
+        - fps (float): The frame rate of the returned video.
+>>>>>>> 7d18569 (Basic video reading functionality and tests)
 
     Raises
     ------
@@ -837,6 +853,7 @@ def read_video(
     if start_time is not None and end_time is not None and end_time <= start_time:
         raise ValueError("end_time must be greater than start_time")
 
+<<<<<<< HEAD
     if start_time is not None or end_time is not None:
         video = decode_frames_in_range(file_path, start_time, end_time, fps, device=device)
     else:
@@ -903,6 +920,16 @@ def read_video_at_frames(
         device=device,
     )
     return video.data
+=======
+    if fps is None:
+        fps = get_video_info(file_path)["average_fps"]
+
+    if start_time is not None or end_time is not None:
+        video = decode_frames_in_range(file_path, start_time, end_time, fps)
+    else:
+        video = decode_video(file_path, fps)
+    return video.data.numpy(), fps
+>>>>>>> 7d18569 (Basic video reading functionality and tests)
 
 
 def get_video_info(
