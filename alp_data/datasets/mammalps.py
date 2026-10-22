@@ -1,19 +1,33 @@
-import logging
-import pandas as pd
+from typing import Any, Iterator
 
 from alp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from alp_data.backends import BackendType
-from alp_data.io import read_video
-
-logger = logging.getLogger("alp_data")
+from alp_data.io import AnyPathT, read_video_at_frames
 
 _ROOT = "gs://esp-data-ingestion/mammalps/v0.1.1"
 
 
 @register_dataset
 class MammAlps(Dataset):
-    """
-    todo: some description here
+    """MammAlps: multi-view camera-trap videos of wild mammals in the Swiss Alps.
+
+    Each row of a benchmark-1 split is one pre-cut clip of a single animal, with
+    species, activity and action labels. Items contain the decoded clip under
+    `video`, a `uint8` tensor of shape `(N, C, H, W)`.
+
+    On load, every row gets the clip columns that select which frames are decoded:
+
+    - `start_frame`, `end_frame`: half-open frame indices in the video's native
+      timebase, initially the whole clip.
+    - `frame_stride`: step between decoded frames, initially 1.
+    - `video_fps`: native frame rate of the video, copied from `average_fps`.
+    - `fps`: effective sampled frame rate, `video_fps / frame_stride`.
+
+    Transforms can edit these columns to cut clips into windows or resample them;
+    `__getitem__` decodes `range(start_frame, end_frame, frame_stride)`.
+
+    Streaming is not supported: the split tables are small and the clip columns
+    require an eager backend.
     """
 
     info = DatasetInfo(
@@ -30,7 +44,10 @@ class MammAlps(Dataset):
             "Multi-view, multi-modal camera-trap recordings of wild mammals in the Swiss "
             "Alps, annotated with species, activity, and action labels."
         ),
-        sources="zenodo.org",
+        sources=[
+            "https://zenodo.org/records/15040900",
+            "https://github.com/eceo-epfl/MammAlps",
+        ],
         license="CC BY-NC 4.0",
     )
 
@@ -38,54 +55,60 @@ class MammAlps(Dataset):
         self,
         split: str = "benchmark-1-train",
         output_take_and_give: dict[str, str] | None = None,
-        fps: int | None = None,
         data_root: str | AnyPathT | None = None,
-        backend: BackendType = "pandas",
+        backend: BackendType = "polars",
     ) -> None:
-        """Initialize the BEANS dataset.
+        """Initialize the MammAlps dataset.
 
         Parameters
         ----------
-        split : str
-            The split to load. One of info.split_paths keys.
-        output_take_and_give : dict[str, str]
+        split : str, optional
+            The split to load, one of `info.split_paths` keys. By default
+            "benchmark-1-train".
+        output_take_and_give : dict[str, str] | None, optional
             A dictionary mapping the original column names to the new column names.
             It acts as a filter as well.
-        sample_rate : int
-            The sample rate to which audio files should be resampled.
-        data_root : str | AnyPathT, optional
-            The root directory for the dataset. This is optionally appended to the
-            path item of a sample in the dataset.
-            If None, the default is the parent directory of the split path.
+        data_root : str | AnyPathT | None, optional
+            Root of a mirror of the dataset. If given, it replaces the
+            `gs://esp-data-ingestion/mammalps/v0.1.1` prefix of every video path.
+            If None, the paths in the split table are used as they are.
         backend : BackendType, optional
-            The backend to use ("pandas" or "polars"), by default "polars"
-        streaming : bool, optional
-            Whether to use streaming mode, by default False
-        """
-        super().__init__(output_take_and_give, backend=backend, streaming=streaming)
-        self.split = split
-        self._data: pd.DataFrame = None
-        self._load()  # Load the dataset (fills self._data)
-        self.sample_rate = sample_rate
-        self.data_root = data_root
+            The backend to use ("pandas" or "polars"), by default "polars".
 
-        if data_root is None:
-            self.data_root = anypath(self.info.split_paths[self.split]).parent
-        else:
-            self.data_root = data_root
+        Notes
+        -----
+        Loading raises `LookupError` if `split` is not a key of `info.split_paths`.
+        """
+        super().__init__(output_take_and_give, backend=backend)
+        self.split = split
+        self.data_root = None if data_root is None else str(data_root).rstrip("/")
+        self._data = None
+        self._load()
 
     @property
     def columns(self) -> list[str]:
-        """Return the columns of the dataset."""
+        """Return the columns of the dataset.
+
+        Returns
+        -------
+        list[str]
+            The split table's columns, including the clip columns.
+        """
         return list(self._data.columns)
 
     @property
     def available_splits(self) -> list[str]:
-        """Return the available splits of the dataset."""
+        """Return the available splits of the dataset.
+
+        Returns
+        -------
+        list[str]
+            The keys of `info.split_paths`.
+        """
         return list(self.info.split_paths.keys())
 
     def _load(self) -> None:
-        """Read the split's CSV into the backend and, on video splits, add `video_fps`.
+        """Read the split's table into the backend and add the clip columns.
 
         Raises
         ------
@@ -94,42 +117,50 @@ class MammAlps(Dataset):
         """
         if self.split not in self.info.split_paths:
             raise LookupError(
-                f"Invalid split: {self.split}. Expected one of {list(self.info.split_paths.keys())}"
+                f"Invalid split: {self.split}. Expected one of {self.available_splits}"
             )
         location = self.info.split_paths[self.split]
-        # Read CSV content
-        self._data = self._backend_class.from_csv(
+        # Read empty strings as nulls but keep literal values such as "None"
+        data = self._backend_class.from_csv(
             location, keep_default_na=False, na_values=[""], null_values=[]
-        )  # This setting avoids setting 'None' to a pd.NA type
-        # Previously there was this line as well:
-        # self._data = data.add_column("video_fps", float(self._original_fps))
-        # but let's just manually put video_fps as a column in the mammalps csvs
-        # if it's not there already?
+        )
+        table = data.unwrap
+        data = data.add_column("start_frame", 0)
+        data = data.add_column("end_frame", list(table["num_frames"]))
+        data = data.add_column("frame_stride", 1)
+        data = data.add_column("video_fps", list(table["average_fps"]))
+        data = data.add_column("fps", list(table["average_fps"]))
+        self._data = data
 
     @classmethod
     def from_config(cls, dataset_config: DatasetConfig) -> tuple["MammAlps", dict[str, Any]]:
-        """Create a Dataset instance from a configuration dictionary.
+        """Create a Dataset instance from a configuration.
 
         Parameters
         ----------
         dataset_config : DatasetConfig
-            Configuration dictionary containing dataset parametesf
+            Configuration for the dataset. Its `split` must be one of
+            `info.split_paths` keys.
 
         Returns
         -------
-        tuple[Dataset, dict[str, Any]]
+        tuple[MammAlps, dict[str, Any]]
             A tuple containing the dataset instance and metadata.
             If the dataset_config contains transformations, they will be applied
             and the metadata will be returned as dict, otherwise an empty dict.
-        """
-        cfg = dataset_config.model_dump(exclude={"dataset_name", "transformations"})
 
+        Raises
+        ------
+        ValueError
+            If `dataset_config.streaming` is True; streaming is not supported.
+        """
+        if dataset_config.streaming:
+            raise ValueError("MammAlps does not support streaming.")
         ds = cls(
-            split=cfg["split"],
-            output_take_and_give=cfg["output_take_and_give"],
-            data_root=cfg["data_root"],
-            fps=cfg["fps"],
-            backend=cfg["backend"],
+            split=dataset_config.split,
+            output_take_and_give=dataset_config.output_take_and_give,
+            data_root=dataset_config.data_root,
+            backend=dataset_config.backend,
         )
 
         if dataset_config.transformations:
@@ -138,31 +169,35 @@ class MammAlps(Dataset):
 
         return ds, {}
 
+    def _video_path(self, row: dict[str, Any]) -> str:
+        path = row["video_path"]
+        if self.data_root is not None and path.startswith(_ROOT):
+            path = self.data_root + path[len(_ROOT) :]
+        return path
+
     def _process(self, row: dict[str, Any]) -> dict[str, Any]:
-        video_path = row["video_path"]
+        """Decode a row's clip and apply `output_take_and_give`.
 
-        # If frame indices are available, read by frame
-        if "clip_start_idx" in row:
-            # TODO: call read_video_at_indices
-            video, fps = [], 0
-            pass
-        else:  # Otherwise, read by time, or read the whole video
-            start_time = row.get("clip_start", None)
-            end_time = row.get("clip_end", None)
-            fps = row.get("fps", None)  # I think the fps here should be requested fps? confirm?
-            # Read the video clip
-            video, fps = read_video(video_path, start_time, end_time, fps)
+        Parameters
+        ----------
+        row : dict[str, Any]
+            A row of the split table, including the clip columns.
 
-        row["video"] = video
+        Returns
+        -------
+        dict[str, Any]
+            The row with the decoded clip under `video`.
+        """
+        row["video"] = read_video_at_frames(
+            self._video_path(row),
+            start_frame=int(row["start_frame"]),
+            end_frame=int(row["end_frame"]),
+            stride=int(row["frame_stride"]),
+        )
 
         if self.output_take_and_give:
-            item = {}
-            for key, value in self.output_take_and_give.items():
-                item[value] = row[key]
-        else:
-            item = row
-
-        return item
+            return {new: row[old] for old, new in self.output_take_and_give.items()}
+        return row
 
     def __len__(self) -> int:
         """Return the number of samples in the dataset.
@@ -171,20 +206,12 @@ class MammAlps(Dataset):
         -------
         int
             Number of samples in the current split.
-
-        Raises
-        ------
-        RuntimeError
-            If no split has been loaded yet.
         """
-        if self._data is None:
-            raise RuntimeError("No split has been loaded yet. Call load() first.")
-        if self._streaming:
-            raise NotImplementedError("Length is not available in streaming mode.")
         return len(self._data)
 
     def __getitem__(self, idx: int) -> dict[str, Any]:
         """Get a specific sample from the dataset.
+
         Parameters
         ----------
         idx : int
@@ -193,17 +220,23 @@ class MammAlps(Dataset):
         Returns
         -------
         dict[str, Any]
-            A dictionary containing the data.
-        """
-        row = self._data[idx]
-        return self._process(row)
+            A dictionary containing the sample, with the decoded clip under `video`.
 
-    def __iter__(self) -> Iterator[Dict[str, Any]]:
+        Raises
+        ------
+        IndexError
+            If `idx` is out of range.
+        """
+        if not -len(self) <= idx < len(self):
+            raise IndexError(f"Index {idx} out of range for dataset of size {len(self)}")
+        return self._process(self._data[idx])
+
+    def __iter__(self) -> Iterator[dict[str, Any]]:
         """Iterate over samples in the dataset.
 
         Yields
-        -------
-        Dict[str, Any]
+        ------
+        dict[str, Any]
             Each sample in the dataset.
         """
         for row in self._data:
@@ -216,14 +249,13 @@ class MammAlps(Dataset):
         -------
         str
             A string representation of the dataset including its name, version,
-            and basic statistics if data is loaded.
+            split, size and sources.
         """
-        base_info = f"{self.info.name} (v{self.info.version}), split: {self.split}"
-
         return (
-            f"{base_info}\n"
-            f"Description: {self.info.description}\n"
-            f"Sources: {', '.join(self.info.sources)}\n"
-            f"License: {self.info.license}\n"
-            f"Available splits: {', '.join(self.info.split_paths.keys())}"
+            f"{self.info.name} (v{self.info.version}), split='{self.split}'\n"
+            f"  Rows: {len(self)}\n"
+            f"  Description: {self.info.description}\n"
+            f"  Sources: {', '.join(self.info.sources)}\n"
+            f"  License: {self.info.license}\n"
+            f"  Available splits: {', '.join(self.available_splits)}"
         )
