@@ -11,23 +11,12 @@ _ROOT = "gs://esp-data-ingestion/mammalps/v0.1.1"
 class MammAlps(Dataset):
     """MammAlps: multi-view camera-trap videos of wild mammals in the Swiss Alps.
 
-    Each row of a benchmark-1 split is one pre-cut clip of a single animal, with
-    species, activity and action labels. Items contain the decoded clip under
-    `video`, a `uint8` tensor of shape `(N, C, H, W)`.
-
-    On load, every row gets the clip columns that select which frames are decoded:
-
-    - `start_frame`, `end_frame`: half-open frame indices in the video's native
-      timebase, initially the whole clip.
-    - `frame_stride`: step between decoded frames, initially 1.
-    - `video_fps`: native frame rate of the video, copied from `average_fps`.
-    - `fps`: effective sampled frame rate, `video_fps / frame_stride`.
-
-    Transforms can edit these columns to cut clips into windows or resample them;
-    `__getitem__` decodes `range(start_frame, end_frame, frame_stride)`.
-
-    Streaming is not supported: the split tables are small and the clip columns
-    require an eager backend.
+    Description
+    -----------
+    MammAlps is a multimodal and multi-view dataset of wildlife behavior monitoring.
+    Nine camera-traps were placed at three monitoring sites in the Swiss National Park,
+    from which we curated over 14 hours of video with audio, 2D segmentation maps and
+    8.5 hours of individual tracks densely labeled for species and behavior.
     """
 
     info = DatasetInfo(
@@ -39,7 +28,7 @@ class MammAlps(Dataset):
             "benchmark-1-val": f"{_ROOT}/benchmark_1/metadata/val.csv",
             "benchmark-1-test": f"{_ROOT}/benchmark_1/metadata/test.csv",
         },
-        version="0.1.1",
+        version="0.1.0",
         description=(
             "Multi-view, multi-modal camera-trap recordings of wild mammals in the Swiss "
             "Alps, annotated with species, activity, and action labels."
@@ -69,9 +58,7 @@ class MammAlps(Dataset):
             A dictionary mapping the original column names to the new column names.
             It acts as a filter as well.
         data_root : str | AnyPathT | None, optional
-            Root of a mirror of the dataset. If given, it replaces the
-            `gs://esp-data-ingestion/mammalps/v0.1.1` prefix of every video path.
-            If None, the paths in the split table are used as they are.
+            Dataset root path.
         backend : BackendType, optional
             The backend to use ("pandas" or "polars"), by default "polars".
 
@@ -125,6 +112,8 @@ class MammAlps(Dataset):
             location, keep_default_na=False, na_values=[""], null_values=[]
         )
         table = data.unwrap
+
+        # Add columns to prepare for any video sampling transforms
         data = data.add_column("start_frame", 0)
         data = data.add_column("end_frame", list(table["num_frames"]))
         data = data.add_column("frame_stride", 1)
