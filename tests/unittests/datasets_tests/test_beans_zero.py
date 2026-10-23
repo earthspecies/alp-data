@@ -55,7 +55,7 @@ _hashes = {
     'red-team': (
         166,
         'a1f9ef323d035f451be629abd0b971a2a02782747b8b064262b70882ea12a0a0',
-        '29f5e1cb8051a1c9d5cd95f2899be573dad9826dbc8d48d8a3183a4df8c1d39f',
+        '05e43dc42c8e8e654b69e71b8d09bd3c5a1eee5ecf83524182f183f73e375570',
     ),
 }
 EXPECTED_LENGTHS = {k: v[0] for k, v in _hashes.items()}
@@ -189,6 +189,10 @@ RED_TEAM_COLS = [
     "pair_base",
     "reference_output",
     "reference_verdict",
+    "context",
+    "system_prompt",
+    "query",
+    "audio_synthesized",
 ]
 RED_TEAM_AUDIO_REQUIREMENTS = {"optional", "matched", "proxy", "partial", "synthetic"}
 
@@ -207,6 +211,10 @@ def test_red_team_split() -> None:
     # Clips are reused from other BEANS-Zero splits, so they must resolve to existing rows there.
     full = BeansZero(split="test", streaming=False, backend="pandas")._data.unwrap
     assert set(df["clip_beans_zero_id"]) <= set(full["id"])
+    synthetic = df["audio_synthesized"].astype(bool)
+    assert synthetic.sum() == 46
+    assert df.loc[synthetic, "audio_path_32KHz"].str.startswith("audio/red-team/").all()
+    assert not df.loc[~synthetic, "audio_path_32KHz"].str.startswith("audio/red-team/").any()
     clip_meta = full.set_index("id").loc[df["clip_beans_zero_id"], "metadata"]
     assert not any(json.loads(m).get("exclude_from_release", False) for m in clip_meta)
 

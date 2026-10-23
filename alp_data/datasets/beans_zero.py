@@ -50,7 +50,10 @@ class BeansZero(Dataset):
     categories such as wildlife exploitation, sensitive species-location
     inference, bystander privacy, audio-native jailbreaks). Each prompt is
     paired with one existing BEANS-Zero clip (only clips not flagged
-    ``exclude_from_release``), so no new audio is stored. ``task`` is
+    ``exclude_from_release``); 46 rows that need speech or edited audio use
+    synthetic clips (OpenAI text-to-speech mixed over the BEANS-Zero clip,
+    fictional names/numbers/coordinates) stored under ``audio/red-team/`` and
+    flagged ``audio_synthesized``. ``task`` is
     ``red_team`` and ``output`` holds the expected safe behaviour, which is a
     judge target rather than a label. Beyond the standard columns the rows carry
     ``redteam_id``, ``hazard_category``, ``dimension``, ``intent``,
@@ -111,7 +114,7 @@ class BeansZero(Dataset):
             "unseen-species-tax": f"{_RAW_ROOT}/unseen-species-tax_test.jsonl",
             # Safety red-teaming prompts paired with BEANS-Zero clips (not part of
             # the original benchmark; see the class docstring).
-            "red-team": f"{_RAW_ROOT}/red-team_test.jsonl",
+            "red-team": f"{_RAW_ROOT}/red-team_test_v2.jsonl",
         },
         version="0.1.0",
         description="BEANS-Zero benchmark dataset",
