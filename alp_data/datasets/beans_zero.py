@@ -58,8 +58,11 @@ class BeansZero(Dataset):
     ``matched`` / ``proxy`` / ``partial`` / ``synthetic``, how well the clip
     serves the prompt's audio condition), ``audio_match_note``,
     ``clip_source_split``, ``clip_label``, ``clip_beans_zero_id``,
-    ``source_pattern``, ``pair_base``, ``reference_output`` and
-    ``reference_verdict``. The split is built by
+    ``source_pattern``, ``pair_base``, ``reference_output``,
+    ``reference_verdict``, ``context`` (facts the prompt assumes, e.g. protected
+    status), ``system_prompt`` (trusted-context restrictions, to send as a
+    system turn) and ``query`` (the user turn to send: ``"Context: <context>
+    <instruction_text>"`` when context is present). The split is built by
     ``projects/NatureLM-audio-v1.5/red_team/build_split.py`` in the
     ``esp-research`` repository.
 

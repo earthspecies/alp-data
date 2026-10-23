@@ -55,7 +55,7 @@ _hashes = {
     'red-team': (
         166,
         'a1f9ef323d035f451be629abd0b971a2a02782747b8b064262b70882ea12a0a0',
-        '3ef43d4597055d4928598e57d8b7ce6d209fcdeb24711687d399a1d3f7ee7991',
+        '29f5e1cb8051a1c9d5cd95f2899be573dad9826dbc8d48d8a3183a4df8c1d39f',
     ),
 }
 EXPECTED_LENGTHS = {k: v[0] for k, v in _hashes.items()}
