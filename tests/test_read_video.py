@@ -15,6 +15,8 @@ from alp_data.io.read_utils import get_video_info, read_video, read_video_at_fra
 
 # 2 s, 30 fps, 64x48 h264 clip of ffmpeg's `testsrc` pattern
 VIDEO_PATH = "tests/samples/video.mp4"
+# Byte-identical copy of `VIDEO_PATH` on GCS
+REMOTE_VIDEO_PATH = "gs://esp-data-ingestion/tests/samples/video.mp4"
 
 
 def test_read_from_file() -> None:
@@ -206,3 +208,51 @@ def test_decode_frame_at() -> None:
 def test_decode_frame_at_out_of_range() -> None:
     with pytest.raises(IndexError):
         decode_frame_at(VIDEO_PATH, 60)
+
+
+# -- GCS -------------------------------------------------------------------------
+
+
+def test_get_video_info_from_gcs() -> None:
+    """Test if get_video_info reads the same metadata from GCS as locally."""
+    assert get_video_info(REMOTE_VIDEO_PATH) == get_video_info(VIDEO_PATH)
+
+
+def test_read_video_from_gcs() -> None:
+    """Test reading a whole video from GCS."""
+    data = read_video(REMOTE_VIDEO_PATH)
+    assert data.shape == (60, 3, 48, 64)
+    assert data.dtype == torch.uint8
+    torch.testing.assert_close(data, read_video(VIDEO_PATH))
+
+
+def test_read_video_by_time_from_gcs() -> None:
+    """Test reading a video segment by time from GCS, with and without resampling."""
+    data = read_video(REMOTE_VIDEO_PATH, start_time=0.5, end_time=1.0)
+    assert data.shape[0] == 15
+    torch.testing.assert_close(data, read_video(VIDEO_PATH, start_time=0.5, end_time=1.0))
+
+    data = read_video(REMOTE_VIDEO_PATH, start_time=1.0, fps=10)
+    assert data.shape == (10, 3, 48, 64)
+
+
+def test_read_at_frames_from_gcs() -> None:
+    """Test reading frames by index from GCS."""
+    full = read_video(VIDEO_PATH)
+
+    data = read_video_at_frames(REMOTE_VIDEO_PATH, start_frame=10, end_frame=40, stride=3)
+    torch.testing.assert_close(data, full[10:40:3])
+
+    data = read_video_at_frames(REMOTE_VIDEO_PATH, custom_frame_indices=[-1, 0, 30])
+    torch.testing.assert_close(data, full[[59, 0, 30]])
+
+
+def test_decode_frame_at_from_gcs() -> None:
+    torch.testing.assert_close(
+        decode_frame_at(REMOTE_VIDEO_PATH, 5), decode_frame_at(VIDEO_PATH, 5)
+    )
+
+
+def test_read_video_missing_from_gcs() -> None:
+    with pytest.raises(FileNotFoundError):
+        read_video("gs://esp-data-ingestion/tests/samples/does_not_exist.mp4")
