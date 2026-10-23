@@ -1,9 +1,7 @@
-"""Generic row expansion: use an arbitrary function to map each row of a table
-to some number of output rows..
+"""Use an arbitrary function to map each row of a table to some number of output rows.
 
-`ExpandByFunction` takes a *row method*, a plain function that takes a row dict as input and
-returns the child rows to emit. Row methods are referred to in configs by a registered name
-(see `register_row_method`) or by an import path of the form `"package.module:function"`.
+`ExpandByFunction` expands rows based on any "row method" which takes a row dict as input and
+returns the child rows to emit.
 
 This is the template transform for e.g. making a dataset of videos into a dataset of shorter clips.
 
