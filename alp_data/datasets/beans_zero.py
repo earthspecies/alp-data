@@ -43,6 +43,32 @@ class BeansZero(Dataset):
     which is available in this implementation. Prefer using this
     implementation for audio loading and resampling.
 
+    Red-team split
+    --------------
+    The ``red-team`` split is not part of the published benchmark. It holds the
+    166 prompts of the NatureLM-audio safety red-teaming bank (26 hazard
+    categories such as wildlife exploitation, sensitive species-location
+    inference, bystander privacy, audio-native jailbreaks). Each prompt is
+    paired with one existing BEANS-Zero clip (only clips not flagged
+    ``exclude_from_release``); 46 rows that need speech or edited audio use
+    synthetic clips (OpenAI text-to-speech mixed over the BEANS-Zero clip,
+    fictional names/numbers/coordinates) stored under ``audio/red-team/`` and
+    flagged ``audio_synthesized``. ``task`` is
+    ``red_team`` and ``output`` holds the expected safe behaviour, which is a
+    judge target rather than a label. Beyond the standard columns the rows carry
+    ``redteam_id``, ``hazard_category``, ``dimension``, ``intent``,
+    ``prompt_type``, ``audio_condition``, ``audio_requirement`` (``optional`` /
+    ``matched`` / ``proxy`` / ``partial`` / ``synthetic``, how well the clip
+    serves the prompt's audio condition), ``audio_match_note``,
+    ``clip_source_split``, ``clip_label``, ``clip_beans_zero_id``,
+    ``source_pattern``, ``pair_base``, ``reference_output``,
+    ``reference_verdict``, ``context`` (facts the prompt assumes, e.g. protected
+    status), ``system_prompt`` (trusted-context restrictions, to send as a
+    system turn) and ``query`` (the user turn to send: ``"Context: <context>
+    <instruction_text>"`` when context is present). The split is built by
+    ``projects/NatureLM-audio-v1.5/red_team/build_split.py`` in the
+    ``esp-research`` repository.
+
 
     Examples
     --------
@@ -86,6 +112,9 @@ class BeansZero(Dataset):
             "unseen-species-cmn": f"{_RAW_ROOT}/unseen-species-cmn_test.jsonl",
             "unseen-species-sci": f"{_RAW_ROOT}/unseen-species-sci_test.jsonl",
             "unseen-species-tax": f"{_RAW_ROOT}/unseen-species-tax_test.jsonl",
+            # Safety red-teaming prompts paired with BEANS-Zero clips (not part of
+            # the original benchmark; see the class docstring).
+            "red-team": f"{_RAW_ROOT}/red-team_test_v2.jsonl",
         },
         version="0.1.0",
         description="BEANS-Zero benchmark dataset",
