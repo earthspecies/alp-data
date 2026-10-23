@@ -1,3 +1,4 @@
+import json
 
 import numpy as np
 import pandas as pd
@@ -49,7 +50,13 @@ _hashes = {
     'unseen-genus-tax': (951, 'ecd46d487b255b0d23d84f937c51514d9aeac985a30f76020a0a07b8f9cfcf87', '39478ac7b582e170457a78d0a32285b944b7ec429c1bc8a97c1b32e960c4de44'),
     'unseen-species-cmn': (1255, 'c5361fbca40e0d9c51e1bb5f6a3253ca884786d9077671962ffc97f8e0cfee25', '57959150ed55d9490d2412a460a6489706b6ae1333b10f453ac171703529b2e6'),
     'unseen-species-sci': (1255, '65fd1ae4a2569f944efbcf31660dda5baf5579f1da13ebf185f95b73ed9d1a27', '71dee29f08a3336330693a3741fc6607e7e20e47297386fe0403efa9d70139ca'),
-    'unseen-species-tax': (1255, '684567ae8d640a600def2cf808237967b75b94841f5dff3c29a0648005ec3e4a', 'e18db9dba52301687accfdc131ea0f384666ef98938454cf02c0c9986636ca91')
+    'unseen-species-tax': (1255, '684567ae8d640a600def2cf808237967b75b94841f5dff3c29a0648005ec3e4a', 'e18db9dba52301687accfdc131ea0f384666ef98938454cf02c0c9986636ca91'),
+    # Hash values computed on 2026-10-23
+    'red-team': (
+        166,
+        'a1f9ef323d035f451be629abd0b971a2a02782747b8b064262b70882ea12a0a0',
+        '3ef43d4597055d4928598e57d8b7ce6d209fcdeb24711687d399a1d3f7ee7991',
+    ),
 }
 EXPECTED_LENGTHS = {k: v[0] for k, v in _hashes.items()}
 EXPECTED_FIRST_ITEM_AUDIO_SHA256 = {k: v[1] for k, v in _hashes.items()}
@@ -164,6 +171,44 @@ def test_streaming_iter(ds: BeansZero) -> None:
             break
         assert "audio" in sample, "Sample does not contain 'audio' key."
         assert "instruction" in sample, "Sample does not contain 'instruction' key."
+
+
+RED_TEAM_COLS = [
+    "redteam_id",
+    "hazard_category",
+    "dimension",
+    "intent",
+    "prompt_type",
+    "audio_condition",
+    "audio_requirement",
+    "audio_match_note",
+    "clip_source_split",
+    "clip_label",
+    "clip_beans_zero_id",
+    "source_pattern",
+    "pair_base",
+    "reference_output",
+    "reference_verdict",
+]
+RED_TEAM_AUDIO_REQUIREMENTS = {"optional", "matched", "proxy", "partial", "synthetic"}
+
+
+def test_red_team_split() -> None:
+    """The red-team split keeps the BEANS-Zero schema and adds the annotation columns."""
+    ds = BeansZero(split="red-team", streaming=False, backend="pandas")
+    for col in EXPECTED_COLS + RED_TEAM_COLS:
+        assert col in ds.columns, f"Expected column '{col}' not found in red-team columns."
+    df = ds._data.unwrap
+    assert len(df) == 166
+    assert df["redteam_id"].is_unique
+    assert (df["task"] == "red_team").all()
+    assert set(df["audio_requirement"]) <= RED_TEAM_AUDIO_REQUIREMENTS
+    assert (df["instruction"] == "<Audio><AudioHere></Audio> " + df["instruction_text"]).all()
+    # Clips are reused from other BEANS-Zero splits, so they must resolve to existing rows there.
+    full = BeansZero(split="test", streaming=False, backend="pandas")._data.unwrap
+    assert set(df["clip_beans_zero_id"]) <= set(full["id"])
+    clip_meta = full.set_index("id").loc[df["clip_beans_zero_id"], "metadata"]
+    assert not any(json.loads(m).get("exclude_from_release", False) for m in clip_meta)
 
 
 def test_random_samples() -> None:
