@@ -1,11 +1,10 @@
-"""Transforms that cut video rows into clips and set their sampling rate.
+"""Transforms that expand rows corresponding to the whole video into
+rows corresponding to individual clips and/or set their frame sampling rate.
 
-Clip columns
-------------
 Video datasets contain the information:
 
-- `start_frame`, `end_frame`: half-open frame indices in the video's native timebase.
-- `frame_stride`: step between decoded frames, in native frames.
+- `start_frame`, `end_frame`: frame indices, by default referring to native video start/end.
+- `frame_stride`: number of native frames to step between the frames to decode.
 - `video_fps`: native frame rate of the video (read only).
 - `fps`: effective sampled frame rate, `video_fps / frame_stride`.
 
