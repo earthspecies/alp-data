@@ -63,6 +63,9 @@ class Powdermill(Dataset):
     ----------
     [Publication](https://esajournals.onlinelibrary.wiley.com/doi/full/10.1002/ecy.3329)
 
+    A derived version of this dataset, consisting of 5-sec clips with clip-level labels,
+    appears as part of BirdSet (POW)
+
     """
 
     info = DatasetInfo(
@@ -180,10 +183,6 @@ class Powdermill(Dataset):
 
         # Selection table
         st = pd.read_csv(StringIO(row["selection_table"]), sep="\t")
-
-        # Clip events outside audio (keep only events that begin before audio end)
-        audio_dur = len(audio) / float(sample_rate)
-        st = st[st["Begin Time (s)"] < audio_dur].copy()
 
         # Build output
         row["audio"] = audio
