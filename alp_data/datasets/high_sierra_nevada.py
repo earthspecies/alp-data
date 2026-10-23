@@ -11,12 +11,9 @@ import pandas as pd
 
 from alp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from alp_data.backends import BackendType
-from alp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
+from alp_data.io import DATA_HOME, AnyPathT, anypath, audio_stereo_to_mono, read_audio
 
-# _RAW_ROOT = f"{DATA_HOME}/sierra_nevada_soundscapes/v0.1.0/formatted"
-
-# temporary override; remove before merge
-_RAW_ROOT = "gs://esp-data-ingestion/sierra_nevada_soundscapes/formatted"
+_RAW_ROOT = f"{DATA_HOME}/sierra_nevada_soundscapes/v0.1.0/formatted"
 
 
 @register_dataset
