@@ -3,7 +3,7 @@ from collections.abc import Sequence
 from typing import Any, Dict, Iterator, Literal
 
 import semver
-from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, field_validator
+from pydantic import BaseModel, ConfigDict, Field, PositiveInt, TypeAdapter, field_validator
 
 from alp_data.backends import BackendType, get_backend
 from alp_data.io import AnyPathT, read_yaml
@@ -197,6 +197,11 @@ class DatasetInfo(BaseModel):
         License for the dataset, if applicable
     changelog : Optional[str]
         Changelog from previous version
+    native_sample_rates : list[int] | None
+        Original recording sample rates in Hz, before resampling. Multiple rates
+        may be present in a dataset. None means the rates are not documented;
+        it does not imply a single common rate. Pre-resampled copies and the
+        requested output sample rate are not included here.
     **kwargs : Any (optional)
         Not validated, but can be used to pass additional information
 
@@ -255,6 +260,12 @@ class DatasetInfo(BaseModel):
 
     changelog: str = Field(
         default_factory=lambda: "", description="Changelog from previous version"
+    )
+
+    native_sample_rates: list[PositiveInt] | None = Field(
+        default=None,
+        min_length=1,
+        description="Original recording sample rates in Hz; None if not documented",
     )
 
     @field_validator("version")
