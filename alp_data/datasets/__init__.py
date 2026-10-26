@@ -20,6 +20,7 @@ from .geladas import Geladas
 from .giant_otters import GiantOtters
 from .gibbon_solos import GibbonSolos
 from .hawaiian_birds import HawaiianBirds
+from .high_sierra_nevada import HighSierraNevada
 from .inaturalist import INaturalist
 from .infant_marmosets_vox import InfantMarmosetsVox
 from .insectset_459 import InsectSet459
@@ -37,7 +38,6 @@ from .superb_starling import SuperbStarling
 from .voxaboxen import Voxaboxen, VoxaboxenEvents
 from .wabad import WABAD
 from .watkins import Watkins
-from .western_us import WesternUS
 from .xeno_canto import XenoCanto
 from .xeno_canto_annotated_jeantet_23 import XenoCantoAnnotatedJeantet23
 from .zebra_finch_julie_elie import ZebraFinchJulieElie
@@ -84,7 +84,7 @@ __all__ = [
     "SouthwesternAmazonBasin",
     "ColombiaCostaRica",
     "SapsuckerWoods",
-    "SierraNevada",
-    "WesternUS",
     "NIPS4BPlus",
+    "HighSierraNevada",
+    "SierraNevada",
 ]

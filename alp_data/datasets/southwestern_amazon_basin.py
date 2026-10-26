@@ -11,12 +11,9 @@ import pandas as pd
 
 from alp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from alp_data.backends import BackendType
-from alp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
+from alp_data.io import DATA_HOME, AnyPathT, anypath, audio_stereo_to_mono, read_audio
 
-# _RAW_ROOT = f"{DATA_HOME}/southwestern_amazon_basin_soundscapes/v0.1.0/raw"
-
-# temporary override; remove before merge
-_RAW_ROOT = "gs://esp-data-ingestion/southwestern_amazon_basin_soundscapes/formatted"
+_RAW_ROOT = f"{DATA_HOME}/southwestern_amazon_basin_soundscapes/v0.1.0/formatted"
 
 
 @register_dataset
@@ -83,6 +80,9 @@ class SouthwesternAmazonBasin(Dataset):
     References
     ----------
     Dataset: [Zenodo](https://zenodo.org/records/7079124)
+
+    A derived version of this dataset, consisting of 5-sec clips with clip-level labels,
+    appears as part of BirdSet (PER)
 
     """
 
@@ -227,10 +227,6 @@ class SouthwesternAmazonBasin(Dataset):
 
         # Selection table
         st = pd.read_csv(StringIO(row["selection_table"]), sep="\t")
-
-        # Clip events outside audio (keep only events that begin before audio end)
-        audio_dur = len(audio) / float(sample_rate)
-        st = st[st["Begin Time (s)"] < audio_dur].copy()
 
         # Build output
         row["audio"] = audio

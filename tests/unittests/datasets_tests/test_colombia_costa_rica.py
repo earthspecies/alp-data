@@ -50,14 +50,14 @@ RECORDING_DURATION_S = 3600.0
 UNKNOWN_LABEL = "Unknown"
 
 EXPECTED_LEN = {"all": 34, "all_with_unknowns": 34}
-EXPECTED_NUM_EVENTS = {"all": 6951, "all_with_unknowns": 7338}
-EXPECTED_NUM_LABELS = {"all": 88, "all_with_unknowns": 89}
+EXPECTED_NUM_EVENTS = {"all": 6952, "all_with_unknowns": 7338}
+EXPECTED_NUM_LABELS = {"all": 87, "all_with_unknowns": 88}
 EXPECTED_FIRST_ITEM_AUDIO_SHA256 = (
     "597cbae46aeb4cda983d598829b8a947649107d9860c99dfeb8c90bdd647379b"
 )
 ANNOTATIONS_SHA256 = {
-    "all": "42588733c29eb18d2198c450fadaf6f8d7e3598c5f17123e98f939809786346f",
-    "all_with_unknowns": "bb09acdeace8e0a03cc113c7201d336220697a8c7232d6f7bf6621ec2e124976",
+    "all": "ea0cffda72fbcfc4e8e33c2f3217c2dc5ef82129e1db490c4defa5da41ffe50e",
+    "all_with_unknowns": "7d1e61104a5bc81475bfe4b7cf256ee490c2c0875af7b0416aea7679cb780538",
 }
 # ---------------------------------------------------------------------------
 
@@ -158,7 +158,9 @@ def test_get_available_labels(ds_pandas: ColombiaCostaRica):
     for label in labels:
         assert isinstance(label, str), f"Species label for {label} should be string"
     assert "????" not in labels, f"[{split}] raw eBird unknown code '????' was not mapped"
-    assert "Hippolais polyglotta" not in labels, f"[{split}] 'melwar1' was not mapped to Unknown"
+    # Labels corrected in the updated annotations (`rucwar1` and `melwar1` in Zenodo)
+    for superseded in ["Myiothlypis coronata", "Hippolais polyglotta"]:
+        assert superseded not in labels, f"[{split}] superseded label '{superseded}' present"
 
 
 def test_unknown_label_only_in_with_unknowns_split(ds_pandas: ColombiaCostaRica):
