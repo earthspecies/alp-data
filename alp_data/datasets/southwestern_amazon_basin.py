@@ -81,6 +81,9 @@ class SouthwesternAmazonBasin(Dataset):
     ----------
     Dataset: [Zenodo](https://zenodo.org/records/7079124)
 
+    A derived version of this dataset, consisting of 5-sec clips with clip-level labels,
+    appears as part of BirdSet (PER)
+
     """
 
     info = DatasetInfo(
@@ -224,10 +227,6 @@ class SouthwesternAmazonBasin(Dataset):
 
         # Selection table
         st = pd.read_csv(StringIO(row["selection_table"]), sep="\t")
-
-        # Clip events outside audio (keep only events that begin before audio end)
-        audio_dur = len(audio) / float(sample_rate)
-        st = st[st["Begin Time (s)"] < audio_dur].copy()
 
         # Build output
         row["audio"] = audio

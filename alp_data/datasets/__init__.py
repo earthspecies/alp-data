@@ -20,6 +20,7 @@ from .geladas import Geladas
 from .giant_otters import GiantOtters
 from .gibbon_solos import GibbonSolos
 from .hawaiian_birds import HawaiianBirds
+from .high_sierra_nevada import HighSierraNevada
 from .inaturalist import INaturalist
 from .infant_marmosets_vox import InfantMarmosetsVox
 from .insectset_459 import InsectSet459
@@ -28,6 +29,8 @@ from .macaques_coo_calls import MacaquesCooCalls
 from .nocturnal_bird_migration import NocturnalBirdMigration
 from .pipit_id import PipitId
 from .powdermill import Powdermill
+from .sapsucker_woods import SapsuckerWoods
+from .sierra_nevada import SierraNevada
 from .southwestern_amazon_basin import SouthwesternAmazonBasin
 from .subsegmentation import Subsegmentation
 from .superb_starling import SuperbStarling
@@ -79,4 +82,7 @@ __all__ = [
     "FASD13",
     "SouthwesternAmazonBasin",
     "ColombiaCostaRica",
+    "SapsuckerWoods",
+    "HighSierraNevada",
+    "SierraNevada",
 ]
