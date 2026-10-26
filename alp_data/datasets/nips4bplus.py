@@ -108,6 +108,9 @@ class NIPS4BPlus(Dataset):
     Annotations: [Figshare](https://doi.org/10.6084/m9.figshare.6798548.v7)
     Recordings: [NIPS4B 2013](http://sabiod.univ-tln.fr/nips4b/challenge1.html)
 
+    A derived version of this dataset, consisting of 5-sec clips with clip-level labels,
+    appears as part of BirdSet (NBP)
+
     """
 
     info = DatasetInfo(
