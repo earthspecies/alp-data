@@ -26,6 +26,7 @@ from .infant_marmosets_vox import InfantMarmosetsVox
 from .insectset_459 import InsectSet459
 from .littleowl_id import LittleOwlId
 from .macaques_coo_calls import MacaquesCooCalls
+from .nips4bplus import NIPS4BPlus
 from .nocturnal_bird_migration import NocturnalBirdMigration
 from .pipit_id import PipitId
 from .powdermill import Powdermill
@@ -83,6 +84,7 @@ __all__ = [
     "SouthwesternAmazonBasin",
     "ColombiaCostaRica",
     "SapsuckerWoods",
+    "NIPS4BPlus",
     "HighSierraNevada",
     "SierraNevada",
 ]

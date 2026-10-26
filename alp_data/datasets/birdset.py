@@ -73,7 +73,7 @@ class BirdSet(Dataset):
     in avian bioacoustics." [arXiv](https://arxiv.org/abs/2403.10380)
 
     HSN: [Zenodo](https://zenodo.org/records/7525805), HighSierraNevada alp-data dataset,
-    NBP: [Figshare](https://figshare.com/articles/dataset/Transcriptions_of_NIPS4B_2013_Bird_Challenge_Training_Dataset/6798548),
+    NBP: [Figshare](https://doi.org/10.6084/m9.figshare.6798548), NIPS4BPlus alp-data dataset,
     NES: [Zenodo](https://zenodo.org/records/7525349), ColombiaCostaRica alp-data dataset,
     PER: [Zenodo](https://zenodo.org/records/7079124), SouthwesternAmazonBasin alp-data dataset,
     POW: [Zenodo](https://zenodo.org/records/4656848), Powdermill alp-data dataset,
