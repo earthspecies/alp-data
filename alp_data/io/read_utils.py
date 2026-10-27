@@ -17,14 +17,14 @@ from soundfile import LibsndfileError
 from torchcodec.decoders import VideoDecoder
 
 from alp_data.io.auth import GCSAuthError, get_gcs_token, get_gcs_token_if_available
+from alp_data.io.filesystem import filesystem_from_path
+from alp_data.io.paths import AnyPathT, PureGSPath, PureHTTPPath, PureHTTPSPath, anypath
 from alp_data.io.video_utils import (
     SeekMode,
     decode_frames_at,
     decode_frames_in_range,
     decode_video,
 )
-from alp_data.io.filesystem import filesystem_from_path
-from alp_data.io.paths import AnyPathT, PureGSPath, PureHTTPPath, PureHTTPSPath, anypath
 
 logger = logging.getLogger("alp_data")
 
@@ -792,6 +792,7 @@ def read_video(
     start_time: float | None = None,
     end_time: float | None = None,
     fps: float | None = None,
+    device: str | torch.device | None = None,
 ) -> torch.Tensor:
     """Reads video data from a file path.
 
@@ -811,11 +812,15 @@ def read_video(
     fps : float or None, optional
         Frame rate to read the video at. If None, the video's native frame
         rate is used. A rate above the native one duplicates frames.
+    device : str | torch.device | None, optional
+        Device to decode on, e.g. "cpu" or "cuda". If None (default), uses
+        PyTorch's default device, `torch.get_default_device()`, which is the CPU
+        unless changed with `torch.set_default_device`.
 
     Returns
     -------
     torch.Tensor
-        The video frames as a `uint8` tensor of shape `(N, C, H, W)`.
+        The video frames as a `uint8` tensor of shape `(N, C, H, W)` on `device`.
 
     Raises
     ------
@@ -833,9 +838,9 @@ def read_video(
         raise ValueError("end_time must be greater than start_time")
 
     if start_time is not None or end_time is not None:
-        video = decode_frames_in_range(file_path, start_time, end_time, fps)
+        video = decode_frames_in_range(file_path, start_time, end_time, fps, device=device)
     else:
-        video = decode_video(file_path, fps)
+        video = decode_video(file_path, fps, device=device)
     return video.data
 
 
@@ -845,6 +850,7 @@ def read_video_at_frames(
     end_frame: int | None = None,
     stride: int = 1,
     custom_frame_indices: list[int] | None = None,
+    device: str | torch.device | None = None,
 ) -> torch.Tensor:
     """Reads video frames by index from a file path.
 
@@ -868,12 +874,16 @@ def read_video_at_frames(
         Explicit frame indices to read, in order (repeats allowed). Negative
         indices count from the end of the video. Cannot be combined with
         `start_frame`, `end_frame` or `stride`. By default None.
+    device : str | torch.device | None, optional
+        Device to decode on, e.g. "cpu" or "cuda". If None (default), uses
+        PyTorch's default device, `torch.get_default_device()`, which is the CPU
+        unless changed with `torch.set_default_device`.
 
     Returns
     -------
     torch.Tensor
-        The selected frames as a `uint8` tensor of shape `(N, C, H, W)`, in
-        the requested order.
+        The selected frames as a `uint8` tensor of shape `(N, C, H, W)` on
+        `device`, in the requested order.
 
     Notes
     -----
@@ -885,7 +895,12 @@ def read_video_at_frames(
     file_path = anypath(file_path)
 
     video = decode_frames_at(
-        file_path, start_frame, end_frame, stride, custom_frame_indices=custom_frame_indices
+        file_path,
+        start_frame,
+        end_frame,
+        stride,
+        custom_frame_indices=custom_frame_indices,
+        device=device,
     )
     return video.data
 
