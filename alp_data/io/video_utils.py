@@ -21,7 +21,10 @@ __all__ = [
 
 
 def decode_video(
-    path: str | AnyPathT, fps: float | None = None, seek_mode: SeekMode = "approximate"
+    path: str | AnyPathT,
+    fps: float | None = None,
+    seek_mode: SeekMode = "approximate",
+    device: str | torch.device | None = None,
 ) -> FrameBatch:
     """Read every frame of a video, optionally resampled to a target frame rate.
 
@@ -33,11 +36,18 @@ def decode_video(
         Target frame rate. If None, the video's native frame rate is used.
     seek_mode : SeekMode, optional
         Decoder seek mode, by default "approximate".
+        "approximate" seeks to the frames to decode by relying on video metadata,
+        and returns the same result as "exact" for most videos. "exact" performs
+        a full scan of the video first, so instantiating the VideoDecoder is slower.
+    device : str | torch.device | None, optional
+        Device to decode on, e.g. "cpu" or "cuda". If None (default), uses
+        PyTorch's default device, `torch.get_default_device()`, which is the CPU
+        unless changed with `torch.set_default_device`.
 
     Returns
     -------
     FrameBatch
-        All frames, with `.data` shaped `(N, C, H, W)`.
+        All frames, with `.data` shaped `(N, C, H, W)` and on `device`.
 
     Notes
     -----
@@ -45,7 +55,7 @@ def decode_video(
     file raises `ValueError` or `RuntimeError`.
     """
     with filesystem_from_path(path).open(str(path), "rb") as f:
-        decoder = VideoDecoder(f, seek_mode=seek_mode)
+        decoder = VideoDecoder(f, seek_mode=seek_mode, device=device)
         return decoder.get_all_frames(fps)
 
 
@@ -55,6 +65,7 @@ def decode_frames_in_range(
     end_time: float | None = None,
     fps: float | None = None,
     seek_mode: SeekMode = "approximate",
+    device: str | torch.device | None = None,
 ) -> FrameBatch:
     """Read the frames played within a time range of a video.
 
@@ -70,12 +81,19 @@ def decode_frames_in_range(
         Target frame rate. If None, the video's native frame rate is used.
     seek_mode : SeekMode, optional
         Decoder seek mode, by default "approximate".
+        "approximate" seeks to the frames to decode by relying on video metadata,
+        and returns the same result as "exact" for most videos. "exact" performs
+        a full scan of the video first, so instantiating the VideoDecoder is slower.
+    device : str | torch.device | None, optional
+        Device to decode on, e.g. "cpu" or "cuda". If None (default), uses
+        PyTorch's default device, `torch.get_default_device()`, which is the CPU
+        unless changed with `torch.set_default_device`.
 
     Returns
     -------
     FrameBatch
         The frames played in `[start_time, end_time)`, with `.data` shaped
-        `(N, C, H, W)`.
+        `(N, C, H, W)` and on `device`.
 
     Notes
     -----
@@ -84,7 +102,7 @@ def decode_frames_in_range(
     video's stream raises `ValueError`.
     """
     with filesystem_from_path(path).open(str(path), "rb") as f:
-        decoder = VideoDecoder(f, seek_mode=seek_mode)
+        decoder = VideoDecoder(f, seek_mode=seek_mode, device=device)
         if start_time is None:
             start_time = decoder.metadata.begin_stream_seconds
         if end_time is None:
@@ -99,6 +117,7 @@ def decode_frames_at(
     stride: int = 1,
     seek_mode: SeekMode = "approximate",
     custom_frame_indices: list[int] | None = None,
+    device: str | torch.device | None = None,
 ) -> FrameBatch:
     """Read a strided range of frames, or an explicit list of frames, from a video.
 
@@ -118,15 +137,22 @@ def decode_frames_at(
         Step between frame indices, by default 1.
     seek_mode : SeekMode, optional
         Decoder seek mode, by default "approximate".
+        "approximate" seeks to the frames to decode by relying on video metadata,
+        and returns the same result as "exact" for most videos. "exact" performs
+        a full scan of the video first, so instantiating the VideoDecoder is slower.
     custom_frame_indices : list[int] | None, optional
         Explicit frame indices to read, in order (repeats allowed). Negative
         indices count from the end of the video. By default None.
+    device : str | torch.device | None, optional
+        Device to decode on, e.g. "cpu" or "cuda". If None (default), uses
+        PyTorch's default device, `torch.get_default_device()`, which is the CPU
+        unless changed with `torch.set_default_device`.
 
     Returns
     -------
     FrameBatch
-        The selected frames, with `.data` shaped `(N, C, H, W)`, in the requested
-        order.
+        The selected frames, with `.data` shaped `(N, C, H, W)` and on `device`,
+        in the requested order.
 
     Raises
     ------
@@ -160,7 +186,7 @@ def decode_frames_at(
             raise ValueError("end must be greater than start")
 
     with filesystem_from_path(path).open(str(path), "rb") as f:
-        decoder = VideoDecoder(f, seek_mode=seek_mode)
+        decoder = VideoDecoder(f, seek_mode=seek_mode, device=device)
         if custom_frame_indices is not None:
             indices = list(custom_frame_indices)
         else:
@@ -175,7 +201,10 @@ def decode_frames_at(
 
 
 def decode_frame_at(
-    path: str | AnyPathT, index: int, seek_mode: SeekMode = "approximate"
+    path: str | AnyPathT,
+    index: int,
+    seek_mode: SeekMode = "approximate",
+    device: str | torch.device | None = None,
 ) -> torch.Tensor:
     """Read a single frame from a video.
 
@@ -187,11 +216,18 @@ def decode_frame_at(
         Frame index to read.
     seek_mode : SeekMode, optional
         Decoder seek mode, by default "approximate".
+        "approximate" seeks to the frames to decode by relying on video metadata,
+        and returns the same result as "exact" for most videos. "exact" performs
+        a full scan of the video first, so instantiating the VideoDecoder is slower.
+    device : str | torch.device | None, optional
+        Device to decode on, e.g. "cpu" or "cuda". If None (default), uses
+        PyTorch's default device, `torch.get_default_device()`, which is the CPU
+        unless changed with `torch.set_default_device`.
 
     Returns
     -------
     torch.Tensor
-        The frame, shaped `(C, H, W)`.
+        The frame, shaped `(C, H, W)` and on `device`.
 
     Notes
     -----
@@ -200,5 +236,5 @@ def decode_frame_at(
     if `index` is out of range for the video.
     """
     with filesystem_from_path(path).open(str(path), "rb") as f:
-        decoder = VideoDecoder(f, seek_mode=seek_mode)
+        decoder = VideoDecoder(f, seek_mode=seek_mode, device=device)
         return decoder[index]
