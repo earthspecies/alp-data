@@ -10,6 +10,7 @@ from .bengalese_finch_calls import BengaleseFinchCalls
 from .birdeep import Birdeep
 from .birdset import BirdSet
 from .chiffchaff_id import ChiffchaffId
+from .colombia_costa_rica import ColombiaCostaRica
 from .corvid_wascher import CorvidWascher
 from .dclde2026 import DCLDE2026
 from .dinardo_dolphin_whistles import DinardoDolphinWhistles
@@ -19,14 +20,19 @@ from .geladas import Geladas
 from .giant_otters import GiantOtters
 from .gibbon_solos import GibbonSolos
 from .hawaiian_birds import HawaiianBirds
+from .high_sierra_nevada import HighSierraNevada
 from .inaturalist import INaturalist
 from .infant_marmosets_vox import InfantMarmosetsVox
 from .insectset_459 import InsectSet459
 from .littleowl_id import LittleOwlId
 from .macaques_coo_calls import MacaquesCooCalls
+from .nips4bplus import NIPS4BPlus
 from .nocturnal_bird_migration import NocturnalBirdMigration
 from .pipit_id import PipitId
 from .powdermill import Powdermill
+from .sapsucker_woods import SapsuckerWoods
+from .sierra_nevada import SierraNevada
+from .southwestern_amazon_basin import SouthwesternAmazonBasin
 from .subsegmentation import Subsegmentation
 from .superb_starling import SuperbStarling
 from .voxaboxen import Voxaboxen, VoxaboxenEvents
@@ -75,4 +81,10 @@ __all__ = [
     "DCLDE2026",
     "Watkins",
     "FASD13",
+    "SouthwesternAmazonBasin",
+    "ColombiaCostaRica",
+    "SapsuckerWoods",
+    "NIPS4BPlus",
+    "HighSierraNevada",
+    "SierraNevada",
 ]
