@@ -5,13 +5,13 @@ from typing import Any
 import pytest
 import torch
 
-from alp_data.io.decode_utils import (
+from alp_data.io.read_utils import get_video_info, read_video, read_video_at_frames
+from alp_data.io.video_utils import (
     decode_frame_at,
     decode_frames_at,
     decode_frames_in_range,
     decode_video,
 )
-from alp_data.io.read_utils import get_video_info, read_video, read_video_at_frames
 
 # 2 s, 30 fps, 64x48 h264 clip of ffmpeg's `testsrc` pattern
 VIDEO_PATH = "tests/samples/video.mp4"
