@@ -114,7 +114,7 @@ class BeansZero(Dataset):
             "unseen-species-tax": f"{_RAW_ROOT}/unseen-species-tax_test.jsonl",
             # Safety red-teaming prompts paired with BEANS-Zero clips (not part of
             # the original benchmark; see the class docstring).
-            "red-team": f"{_RAW_ROOT}/red-team_test_v2.jsonl",
+            "red-team": f"{_RAW_ROOT}/red-team_test_v3.jsonl",
         },
         version="0.1.0",
         description="BEANS-Zero benchmark dataset",
