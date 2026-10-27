@@ -17,7 +17,7 @@ from soundfile import LibsndfileError
 from torchcodec.decoders import VideoDecoder
 
 from alp_data.io.auth import GCSAuthError, get_gcs_token, get_gcs_token_if_available
-from alp_data.io.decode_utils import (
+from alp_data.io.video_utils import (
     SeekMode,
     decode_frames_at,
     decode_frames_in_range,
