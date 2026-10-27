@@ -1162,6 +1162,11 @@ class PolarsBackend(DataBackend):
         for f in input_features:
             if f not in df.columns:
                 raise ValueError(f"Input feature '{f}' does not exist in DataFrame.")
+            if df[f].dtype == pl.List(pl.Null):
+                raise ValueError(
+                    f"Column '{f}' has dtype List(Null); every list element is null. "
+                    "Populate the column with string labels."
+                )
             if not df[f].dtype.base_type() == pl.List:
                 # try to convert to list
                 # first, get the base type of the column
