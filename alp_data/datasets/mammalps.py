@@ -2,9 +2,11 @@ from typing import Any, Iterator
 
 from alp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from alp_data.backends import BackendType
-from alp_data.io import AnyPathT, read_video_at_frames
+from alp_data.io import AnyPathT, anypath, read_video_at_frames
 
-_ROOT = "gs://esp-data-ingestion/"
+# Paths in the split tables are relative to the bucket root
+_ROOT = "gs://esp-data-ingestion"
+_V010_ROOT = f"{_ROOT}/mammalps/v0.1.0"
 
 
 @register_dataset
@@ -56,10 +58,10 @@ class MammAlps(Dataset):
         name="mammalps",
         owner="kai",
         split_paths={
-            "benchmark-1-all": f"{_ROOT}/benchmark_1/metadata/all.csv",
-            "benchmark-1-train": f"{_ROOT}/benchmark_1/metadata/train.csv",
-            "benchmark-1-val": f"{_ROOT}/benchmark_1/metadata/val.csv",
-            "benchmark-1-test": f"{_ROOT}/benchmark_1/metadata/test.csv",
+            "benchmark-1-all": f"{_V010_ROOT}/benchmark_1/metadata/all.csv",
+            "benchmark-1-train": f"{_V010_ROOT}/benchmark_1/metadata/train.csv",
+            "benchmark-1-val": f"{_V010_ROOT}/benchmark_1/metadata/val.csv",
+            "benchmark-1-test": f"{_V010_ROOT}/benchmark_1/metadata/test.csv",
         },
         version="0.1.0",
         description=(
@@ -91,7 +93,9 @@ class MammAlps(Dataset):
             A dictionary mapping the original column names to the new column names.
             It acts as a filter as well.
         data_root : str | AnyPathT | None, optional
-            Dataset root path.
+            Root that the file paths in the split table are relative to, e.g. a
+            local mirror of the bucket. By default the `gs://esp-data-ingestion`
+            bucket root.
         backend : BackendType, optional
             The backend to use ("pandas" or "polars"), by default "polars".
 
@@ -101,7 +105,7 @@ class MammAlps(Dataset):
         """
         super().__init__(output_take_and_give, backend=backend)
         self.split = split
-        self.data_root = None if data_root is None else str(data_root).rstrip("/")
+        self.data_root = anypath(_ROOT if data_root is None else data_root)
         self._data = None
         self._load()
 
@@ -191,12 +195,6 @@ class MammAlps(Dataset):
 
         return ds, {}
 
-    def _video_path(self, row: dict[str, Any]) -> str:
-        path = row["video_path"]
-        if self.data_root is not None and path.startswith(_ROOT):
-            path = self.data_root + path[len(_ROOT) :]
-        return path
-
     def _process(self, row: dict[str, Any]) -> dict[str, Any]:
         """Decode a row's clip and apply `output_take_and_give`.
 
@@ -211,7 +209,7 @@ class MammAlps(Dataset):
             The row with the decoded clip under `video`.
         """
         row["video"] = read_video_at_frames(
-            self._video_path(row),
+            self.data_root / row["video_path"],
             start_frame=int(row["start_frame"]),
             end_frame=int(row["end_frame"]),
             stride=int(row["frame_stride"]),
