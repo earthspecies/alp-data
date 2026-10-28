@@ -1,5 +1,6 @@
 """Test suite for the MammAlps camera-trap video dataset."""
 
+import hashlib
 import random
 import shutil
 from pathlib import Path
@@ -10,7 +11,6 @@ import torch
 
 from alp_data import DatasetConfig
 from alp_data.datasets import MammAlps
-from alp_data.datasets.mammalps import _ROOT
 
 # Local sample: 2 s, 30 fps, 64x48 clip, see tests/test_read_video.py
 SAMPLE_VIDEO = Path("tests/samples/video.mp4").resolve()
@@ -44,6 +44,15 @@ EXPECTED_LEN = {
     "benchmark-1-test": 1244,
 }
 
+# To regenerate:
+#   import hashlib
+#   from alp_data.datasets import MammAlps
+#   video = MammAlps(split="benchmark-1-train", backend="pandas")[0]["video"]
+#   print(hashlib.sha256(video.contiguous().numpy().tobytes()).hexdigest())
+EXPECTED_FIRST_ITEM_VIDEO_SHA256 = (
+    "49698b08ae3c06a053050bd1b9c65fcf202fbc9fafa47d01d32533d348a48914"
+)
+
 
 def _write_split(path: Path, video_paths: list[str]) -> None:
     rows = [
@@ -72,13 +81,17 @@ def _write_split(path: Path, video_paths: list[str]) -> None:
 def local_split(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> str:
     """Register a 3-row split whose clips all point at the local sample video.
 
+    The default `data_root` is pointed at the sample's directory, so the split's
+    relative `video_path`s resolve locally.
+
     Returns
     -------
     str
         The name of the registered split.
     """
+    monkeypatch.setattr("alp_data.datasets.mammalps._ROOT", str(SAMPLE_VIDEO.parent))
     csv_path = tmp_path / "local.csv"
-    _write_split(csv_path, [str(SAMPLE_VIDEO)] * 3)
+    _write_split(csv_path, [SAMPLE_VIDEO.name] * 3)
     monkeypatch.setitem(MammAlps.info.split_paths, LOCAL_SPLIT, str(csv_path))
     return LOCAL_SPLIT
 
@@ -148,14 +161,14 @@ def test_output_take_and_give(local_split: str) -> None:
 
 
 def test_data_root_handling(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Test if `data_root` replaces the GCS root of video paths with a mirror."""
-    relative = "benchmark_1/clips/clip_c0.mp4"
+    """Test if video paths are resolved relative to a local mirror passed as `data_root`."""
+    relative = "mammalps/v0.1.0/benchmark_1/clips/clip_c0.mp4"
     mirror = tmp_path / "mirror"
     (mirror / relative).parent.mkdir(parents=True)
     shutil.copy(SAMPLE_VIDEO, mirror / relative)
 
     csv_path = tmp_path / "remote.csv"
-    _write_split(csv_path, [f"{_ROOT}/{relative}"])
+    _write_split(csv_path, [relative])
     monkeypatch.setitem(MammAlps.info.split_paths, LOCAL_SPLIT, str(csv_path))
 
     ds = MammAlps(split=LOCAL_SPLIT, data_root=str(mirror))
@@ -183,7 +196,7 @@ def test_load_from_config_streaming_unsupported(local_split: str) -> None:
 
 def test_str_representation(local_split: str) -> None:
     text = str(MammAlps(split=local_split))
-    assert "mammalps (v0.1.1)" in text
+    assert "mammalps (v0.1.0)" in text
     assert "Rows: 3" in text
     assert "Sources: https://zenodo.org/records/15040900, " in text
 
@@ -198,7 +211,7 @@ def ds_val() -> MammAlps:
 
 def test_info_property() -> None:
     assert MammAlps.info.name == "mammalps"
-    assert MammAlps.info.version == "0.1.1"
+    assert MammAlps.info.version == "0.1.0"
     assert set(EXPECTED_LEN) <= set(MammAlps.info.split_paths)
 
 
@@ -224,3 +237,25 @@ def test_load_from_config_gcs() -> None:
     cfg = DatasetConfig(dataset_name="mammalps", split="benchmark-1-val")
     ds, _ = MammAlps.from_config(cfg)
     assert len(ds) == EXPECTED_LEN["benchmark-1-val"]
+
+
+def test_reference_item_stability() -> None:
+    """Check that a canonical item (index 0 of the train split) is bitwise-stable.
+
+    We hash the raw uint8 frame buffer. This catches changes to the split's order,
+    the clip columns' defaults, the decoder's frame selection, or the files on GCS.
+    Decoded bytes can depend on the FFmpeg build; if this fails for a legitimate
+    reason, regenerate `EXPECTED_FIRST_ITEM_VIDEO_SHA256` (see top of file).
+    """
+    ds = MammAlps(split="benchmark-1-train", backend="pandas")
+    item = ds[0]
+
+    # Defensive checks, so a hash failure is easier to interpret
+    assert "video" in item, "[0] missing 'video' key"
+    video = item["video"]
+    assert isinstance(video, torch.Tensor), "[0] video is not a torch.Tensor"
+    assert video.dtype == torch.uint8, f"[0] video dtype is {video.dtype}, expected uint8"
+    assert video.shape == (item["num_frames"], 3, 256, 256)
+
+    h = hashlib.sha256(video.contiguous().numpy().tobytes()).hexdigest()
+    assert h == EXPECTED_FIRST_ITEM_VIDEO_SHA256, f"[0] video sha256 mismatch: {h}"
