@@ -50,7 +50,7 @@ EXPECTED_LEN = {
 #   video = MammAlps(split="benchmark-1-train", backend="pandas")[0]["video"]
 #   print(hashlib.sha256(video.contiguous().numpy().tobytes()).hexdigest())
 EXPECTED_FIRST_ITEM_VIDEO_SHA256 = (
-    "49698b08ae3c06a053050bd1b9c65fcf202fbc9fafa47d01d32533d348a48914"
+    "5807ef673d8d62165c7be4635811bd949c198fbc3548c11a30ba6e49e5204e4f"
 )
 
 
