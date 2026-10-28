@@ -93,9 +93,7 @@ class MammAlps(Dataset):
             A dictionary mapping the original column names to the new column names.
             It acts as a filter as well.
         data_root : str | AnyPathT | None, optional
-            Root that the file paths in the split table are relative to, e.g. a
-            local mirror of the bucket. By default the `gs://esp-data-ingestion`
-            bucket root.
+            Dataset root.
         backend : BackendType, optional
             The backend to use ("pandas" or "polars"), by default "polars".
 
