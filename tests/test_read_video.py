@@ -1,6 +1,5 @@
 """Unitary tests of video file reading functions."""
 
-<<<<<<< HEAD
 from typing import Any
 
 import pytest
@@ -8,74 +7,39 @@ import torch
 
 from alp_data.io.read_utils import get_video_info, read_video, read_video_at_frames
 from alp_data.io.video_utils import (
-=======
-import numpy as np
-import pytest
-import torch
-
-from alp_data.io.decode_utils import (
->>>>>>> 7d18569 (Basic video reading functionality and tests)
     decode_frame_at,
     decode_frames_at,
     decode_frames_in_range,
     decode_video,
 )
-<<<<<<< HEAD
 
 # 2 s, 30 fps, 64x48 h264 clip of ffmpeg's `testsrc` pattern
 VIDEO_PATH = "tests/samples/video.mp4"
 # Byte-identical copy of `VIDEO_PATH` on GCS
 REMOTE_VIDEO_PATH = "gs://esp-data-ingestion/tests/samples/video.mp4"
-=======
-from alp_data.io.read_utils import get_video_info, read_video
-
-# 2 s, 30 fps, 64x48 h264 clip of ffmpeg's `testsrc` pattern
-VIDEO_PATH = "tests/samples/video.mp4"
->>>>>>> 7d18569 (Basic video reading functionality and tests)
 
 
 def test_read_from_file() -> None:
     path = VIDEO_PATH
-<<<<<<< HEAD
     data = read_video(path)
     assert isinstance(data, torch.Tensor)
     assert data.shape == (60, 3, 48, 64)
     assert data.dtype == torch.uint8
-=======
-    data, fps = read_video(path)
-    assert fps == 30
-    assert data.shape == (60, 3, 48, 64)
-    assert data.dtype == np.uint8
->>>>>>> 7d18569 (Basic video reading functionality and tests)
 
 
 def test_read_from_file_from_time() -> None:
     path = VIDEO_PATH
-<<<<<<< HEAD
     data = read_video(path, start_time=0.0)
     assert data.shape == (60, 3, 48, 64)
 
     data = read_video(path, start_time=1.0)
-=======
-    data, fps = read_video(path, start_time=0.0)
-    assert fps == 30
-    assert data.shape == (60, 3, 48, 64)
-
-    data, fps = read_video(path, start_time=1.0)
-    assert fps == 30
->>>>>>> 7d18569 (Basic video reading functionality and tests)
     assert data.shape == (30, 3, 48, 64)
 
 
 def test_read_from_file_to_time() -> None:
     """Test if read_video honours `end_time` when no `start_time` is given."""
     path = VIDEO_PATH
-<<<<<<< HEAD
     data = read_video(path, end_time=1.0)
-=======
-    data, fps = read_video(path, end_time=1.0)
-    assert fps == 30
->>>>>>> 7d18569 (Basic video reading functionality and tests)
     assert data.shape == (30, 3, 48, 64)
 
 
@@ -99,16 +63,9 @@ def test_read_video_by_time() -> None:
     start_time = 0.5  # Start at 0.5 seconds
     end_time = 1.0  # End at 1 second
 
-<<<<<<< HEAD
     video = read_video(path, start_time=start_time, end_time=end_time)
 
     expected_length = int((end_time - start_time) * 30)  # native fps
-=======
-    video, fps = read_video(path, start_time=start_time, end_time=end_time)
-
-    assert fps == 30
-    expected_length = int((end_time - start_time) * fps)
->>>>>>> 7d18569 (Basic video reading functionality and tests)
     assert video.shape[0] == expected_length
 
 
@@ -123,25 +80,15 @@ def test_read_video_invalid_time_range() -> None:
 
 def test_read_video_resample_fps() -> None:
     """Test if read_video resamples to a lower frame rate."""
-<<<<<<< HEAD
     data = read_video(VIDEO_PATH, fps=10)
     assert data.shape == (20, 3, 48, 64)
 
     data = read_video(VIDEO_PATH, start_time=0.5, end_time=1.0, fps=10)
-=======
-    data, fps = read_video(VIDEO_PATH, fps=10)
-    assert fps == 10
-    assert data.shape == (20, 3, 48, 64)
-
-    data, fps = read_video(VIDEO_PATH, start_time=0.5, end_time=1.0, fps=10)
-    assert fps == 10
->>>>>>> 7d18569 (Basic video reading functionality and tests)
     assert data.shape == (5, 3, 48, 64)
 
 
 def test_read_video_fps_above_native_duplicates_frames() -> None:
     """Test if a frame rate above the native one duplicates frames instead of raising."""
-<<<<<<< HEAD
     data = read_video(VIDEO_PATH, fps=60)
     assert data.shape == (120, 3, 48, 64)
     torch.testing.assert_close(data[0], data[1])
@@ -218,12 +165,6 @@ def test_read_at_frames_out_of_range() -> None:
 
     with pytest.raises(IndexError):
         read_video_at_frames(VIDEO_PATH, custom_frame_indices=[60])
-=======
-    data, fps = read_video(VIDEO_PATH, fps=60)
-    assert fps == 60
-    assert data.shape == (120, 3, 48, 64)
-    np.testing.assert_array_equal(data[0], data[1])
->>>>>>> 7d18569 (Basic video reading functionality and tests)
 
 
 def test_decode_video() -> None:
@@ -243,7 +184,6 @@ def test_decode_frames_at_with_stride() -> None:
     assert batch.data.shape == (4, 3, 48, 64)
 
 
-<<<<<<< HEAD
 def test_decode_frames_at_open_ended() -> None:
     """Test if decode_frames_at defaults to the first and last frames."""
     assert decode_frames_at(VIDEO_PATH).data.shape[0] == 60
@@ -255,12 +195,6 @@ def test_decode_frames_at_custom_indices() -> None:
     """Test if custom indices are read in the requested order, with repeats."""
     indices = [5, 2, 5]
     batch = decode_frames_at(VIDEO_PATH, custom_frame_indices=indices)
-=======
-def test_decode_frames_at_custom_indices() -> None:
-    """Test if custom indices are read in the requested order, with repeats."""
-    indices = [5, 2, 5]
-    batch = decode_frames_at(VIDEO_PATH, start=0, end=0, custom_frame_indices=indices)
->>>>>>> 7d18569 (Basic video reading functionality and tests)
 
     expected = torch.stack([decode_frame_at(VIDEO_PATH, i) for i in indices])
     torch.testing.assert_close(batch.data, expected)
@@ -274,7 +208,6 @@ def test_decode_frame_at() -> None:
 def test_decode_frame_at_out_of_range() -> None:
     with pytest.raises(IndexError):
         decode_frame_at(VIDEO_PATH, 60)
-<<<<<<< HEAD
 
 
 # -- GCS -------------------------------------------------------------------------
@@ -323,5 +256,3 @@ def test_decode_frame_at_from_gcs() -> None:
 def test_read_video_missing_from_gcs() -> None:
     with pytest.raises(FileNotFoundError):
         read_video("gs://esp-data-ingestion/tests/samples/does_not_exist.mp4")
-=======
->>>>>>> 7d18569 (Basic video reading functionality and tests)

@@ -18,10 +18,7 @@ from alp_data.io.read_utils import (
     read_json,
     read_text,
     read_video,
-<<<<<<< HEAD
     read_video_at_frames,
-=======
->>>>>>> 7d18569 (Basic video reading functionality and tests)
     read_yaml,
 )
 
@@ -39,10 +36,7 @@ __all__ = [
     "audio_stereo_to_mono",
     "get_audio_info",
     "read_video",
-<<<<<<< HEAD
     "read_video_at_frames",
-=======
->>>>>>> 7d18569 (Basic video reading functionality and tests)
     "get_video_info",
     "filesystem",
     "filesystem_from_path",
