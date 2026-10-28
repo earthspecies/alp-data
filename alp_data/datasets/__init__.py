@@ -26,6 +26,7 @@ from .infant_marmosets_vox import InfantMarmosetsVox
 from .insectset_459 import InsectSet459
 from .littleowl_id import LittleOwlId
 from .macaques_coo_calls import MacaquesCooCalls
+from .mammalps import MammAlps
 from .nips4bplus import NIPS4BPlus
 from .nocturnal_bird_migration import NocturnalBirdMigration
 from .pipit_id import PipitId
@@ -59,6 +60,7 @@ __all__ = [
     "AudioSet",
     "AudioSetStrong",
     "MacaquesCooCalls",
+    "MammAlps",
     "Voxaboxen",
     "VoxaboxenEvents",
     "ESPRaincoast",
