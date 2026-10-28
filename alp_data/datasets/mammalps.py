@@ -4,7 +4,7 @@ from alp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from alp_data.backends import BackendType
 from alp_data.io import AnyPathT, read_video_at_frames
 
-_ROOT = "gs://esp-data-ingestion/mammalps/v0.1.1"
+_ROOT = "gs://esp-data-ingestion/"
 
 
 @register_dataset
@@ -17,6 +17,39 @@ class MammAlps(Dataset):
     Nine camera-traps were placed at three monitoring sites in the Swiss National Park,
     from which we curated over 14 hours of video with audio, 2D segmentation maps and
     8.5 hours of individual tracks densely labeled for species and behavior.
+
+    Available Metadata Fields
+    -------------------------
+
+    **Video File Path:**
+        - ``video_path``: Path to video clip (.mp4)
+
+    **Audio File Paths:**
+        - ``audio_path``: Path to original audio (.wav)
+
+    **Segmentation Map File Paths:**
+        - ``segmap_path``: Path to background segmentation maps for each frame in the clip (.npz)
+
+    **Recording Metadata:**
+        - ``start_s``, ``end_s``, ``duration_seconds``: time range from beginning to end of clip,
+        ``start_s`` = 0 and ``end_s`` = ``duration_seconds`` for all clips in benchmark 1
+        - ``activity``: high-level behavior label exhibited in clip
+        - ``species``: species of individual animal shown in clip
+        - ``actions``: semicolon-separated list of two actions displayed during clip; second action
+        is "none" if only one action was displayed
+        - ``num_frames``, ``average_fps``: total number of frames, frames per second
+        - ``width``, ``height``: video width and height in pixels
+
+    **Split:**
+        - ``split``: one of "train", "val", or "test"
+
+    Available Splits
+    ----------------
+    - ``benchmark-1-train``: Training set (benchmark 1 split from MammAlps paper)
+    - ``benchmark-1-val``: Validation set (benchmark 1 split from MammAlps paper)
+    - ``benchmark-1-test``: Test set (benchmark 1 split from MammAlps paper)
+    - ``benchmark-1-all``: Complete dataset (train + val + test)
+
     """
 
     info = DatasetInfo(
