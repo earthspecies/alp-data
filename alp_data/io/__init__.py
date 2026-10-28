@@ -13,9 +13,12 @@ from alp_data.io.paths import (
 from alp_data.io.read_utils import (
     audio_stereo_to_mono,
     get_audio_info,
+    get_video_info,
     read_audio,
     read_json,
     read_text,
+    read_video,
+    read_video_at_frames,
     read_yaml,
 )
 
@@ -32,6 +35,9 @@ __all__ = [
     "read_text",
     "audio_stereo_to_mono",
     "get_audio_info",
+    "read_video",
+    "read_video_at_frames",
+    "get_video_info",
     "filesystem",
     "filesystem_from_path",
     "exists",
