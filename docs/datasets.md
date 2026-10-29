@@ -77,6 +77,42 @@ ds, transform_metadata = dataset_from_config("path/to/config.yaml")
 print(len(ds))
 ```
 
+### Native and output sample rates
+
+`Dataset.info.native_sample_rates` documents the original recording rates in Hz,
+before any resampling. A list can contain multiple rates; `None` means the native
+rates have not yet been documented. It does not mean that all recordings share
+one rate. This metadata is independent of the requested `sample_rate` and the
+rate of the returned audio (`sample["sample_rate"]`).
+
+For example, [InfantMarmosetsVox](https://www.idiap.ch/en/dataset/infantmarmosetsvox)
+was recorded at 44.1 kHz:
+
+```python
+from alp_data.datasets import InfantMarmosetsVox
+
+# Inspect metadata without loading the dataset.
+print(InfantMarmosetsVox.info.native_sample_rates)  # [44100]
+```
+
+For this dataset, `sample_rate=None` keeps native audio, `sample_rate=16000`
+selects a pre-resampled copy, and `sample_rate=22050` resamples on the fly.
+Its `available_sample_rates` includes both original and pre-resampled copies;
+these are distinct from its native recording rates. Enable its debug logger to
+see the source and target rates whenever on-the-fly resampling occurs:
+
+```python
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logging.getLogger("alp_data.datasets.infant_marmosets_vox").setLevel(logging.DEBUG)
+```
+
+Native-rate metadata and resampling diagnostics are currently populated for
+InfantMarmosetsVox. Other loaders can adopt them as their source rates are verified.
+Concatenated and chained datasets do not yet aggregate native rates; their metadata
+leaves this field as `None` even when individual source datasets document rates.
+
 ### Dataset Configuration
 
 Deeper levels of configurations can be achieved by using specific parameters which are either common to all datasets or specific to a single dataset.
