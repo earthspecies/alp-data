@@ -1,6 +1,7 @@
 """Voxaboxen dataset tests."""
 
 import pytest
+import math
 import numpy as np
 
 from alp_data.io import anypath, exists
@@ -164,3 +165,67 @@ def test_voxaboxen_events_getitem(voxaboxen_events_dataset: Dataset) -> None:
     assert "class_anno" in sample
     assert isinstance(sample["class_anno"], np.ndarray)
     assert sample["class_anno"].ndim == 2
+
+
+def test_voxaboxen_events_load_from_config() -> None:
+    """Test if VoxaboxenEvents can be built from a configuration."""
+    dataset_config = VoxaboxenEventsConfig(
+        dataset_name="voxaboxen_events",
+        split="hawaii_val",
+        sample_rate=None,
+    )
+    dataset, _ = VoxaboxenEvents.from_config(dataset_config)
+    assert dataset.info.name == "voxaboxen_events"
+    assert dataset.mono_method == "average"
+    assert len(dataset) > 0, "Dataset should not be empty"
+
+
+def test_voxaboxen_events_native_sample_rate() -> None:
+    """Native-rate items carry `sample_rate` and build annotations on that rate."""
+    ds = VoxaboxenEvents(split="hawaii_val", sample_rate=None)
+    for idx in range(len(ds)):
+        sample = ds[idx]
+        assert sample["sample_rate"] > 0
+        if sample["anchor_anno"].max() > 0:
+            break
+    else:
+        pytest.fail("no clip with annotated events found")
+    assert isinstance(sample["sample_rate"], int)
+    assert sample["class_anno"].shape[0] == math.ceil(sample["audio"].shape[-1] / ds.scale_factor)
+
+
+def test_voxaboxen_events_getitem_past_recording_count() -> None:
+    """Clips beyond the number of source recordings are still reachable."""
+    ds = VoxaboxenEvents(split="hawaii_val", sample_rate=None)
+    assert len(ds) > len(ds._data), "split must expand into more clips than recordings"
+    sample = ds[len(ds) - 1]
+    assert "audio" in sample
+    with pytest.raises(IndexError):
+        ds[len(ds)]
+
+
+def test_voxaboxen_events_from_config_passes_stereo_or_mono() -> None:
+    """`stereo_or_mono` from the config reaches the dataset."""
+    dataset_config = VoxaboxenEventsConfig(
+        dataset_name="voxaboxen_events", split="hawaii_val", sample_rate=None
+    )
+    assert dataset_config.stereo_or_mono == "mono"
+    dataset, _ = VoxaboxenEvents.from_config(dataset_config)
+    assert dataset.stereo_or_mono == "mono"
+
+
+def test_voxaboxen_events_stereo_is_frames_first() -> None:
+    """Stereo items use the `(frames, channels)` layout of `read_audio`."""
+    ds = VoxaboxenEvents(split="Anuraset_val", sample_rate=None, stereo_or_mono="stereo")
+    sample = ds[0]
+    frames, channels = sample["audio"].shape
+    assert channels == 2
+    assert frames > channels
+    assert sample["class_anno"].shape[0] == math.ceil(frames / ds.scale_factor)
+
+
+def test_voxaboxen_events_defaults_to_mono() -> None:
+    """Constructor and config agree on mono as the default."""
+    ds = VoxaboxenEvents(split="Anuraset_val", sample_rate=None)
+    assert ds.stereo_or_mono == VoxaboxenEventsConfig().stereo_or_mono == "mono"
+    assert ds[0]["audio"].ndim == 1

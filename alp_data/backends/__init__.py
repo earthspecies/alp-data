@@ -3,21 +3,17 @@
 This module provides a protocol-based backend system that allows alp-data to work
 with multiple data libraries through a common interface.
 
-Two protocols are defined:
-- StreamingDataBackend: For streaming-only data formats (e.g., WebDataset/tar files)
-  that only support iteration, not random access.
-- DataBackend: For in-memory data formats (e.g., pandas, polars DataFrames)
-  that support both random access and iteration.
+The `DataBackend` protocol covers in-memory table formats (e.g., pandas, polars
+DataFrames) that support both random access and iteration.
 """
 
 from .backends import BackendType, get_backend
 from .pandas_backend import PandasBackend
 from .polars_backend import PolarsBackend
-from .protocol import DataBackend, StreamingDataBackend
+from .protocol import DataBackend
 
 __all__ = [
     "DataBackend",
-    "StreamingDataBackend",
     "PandasBackend",
     "PolarsBackend",
     "BackendType",

@@ -392,3 +392,12 @@ def test_read_audio_ffmpeg_input_sr_mismatch_warns(monkeypatch, caplog) -> None:
     with caplog.at_level("WARNING", logger="alp_data"):
         _read_audio_ffmpeg("gs://bucket/file.wav", 0.0, 1.0, input_sr=44100, anonymous=True)
     assert any("doesn't match" in r.message for r in caplog.records)
+
+
+def test_time_range_past_end_of_file_warns(caplog: pytest.LogCaptureFixture) -> None:
+    """A segment that starts after the file ends comes back empty, with a warning."""
+    with caplog.at_level("WARNING", logger="alp_data"):
+        audio, sr = read_audio("tests/samples/stereo.wav", start_time=1e6, end_time=1e6 + 1)
+    assert audio.shape[0] == 0
+    assert sr > 0
+    assert any("no samples" in r.getMessage() for r in caplog.records)

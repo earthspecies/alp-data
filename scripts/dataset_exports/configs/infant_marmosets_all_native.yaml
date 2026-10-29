@@ -1,0 +1,6 @@
+# Infant marmosets: every row is a segment cut from a long recording; native 44.1 kHz.
+dataset:
+  dataset_name: InfantMarmosetsVox
+  split: all
+  sample_rate: null
+  backend: polars

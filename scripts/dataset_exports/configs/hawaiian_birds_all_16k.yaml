@@ -1,0 +1,6 @@
+# Hawaiian Birds, all rows, frozen at 16 kHz. Whole recordings with selection tables.
+dataset:
+  dataset_name: hawaiian_birds
+  split: all
+  sample_rate: 16000
+  backend: polars
