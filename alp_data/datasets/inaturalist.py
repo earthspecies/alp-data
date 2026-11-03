@@ -107,6 +107,12 @@ class INaturalist(Dataset):
         - ``source``, ``data_source``: Origin of the data
         - ``identifier``: iNaturalist observation identifier
 
+    **v0.2.0 adds:**
+        - ``stateProvince``, ``county``, ``municipality``: Finer-grained location names
+        - ``publishingCountry``: GBIF publishing country code
+        - ``references``: iNaturalist observation URL
+        - ``publishingOrgKey``, ``Associated Taxa``: GBIF fields, currently empty
+
     Available Splits
     ----------------
     - ``train``: Training set (random split)
@@ -124,11 +130,12 @@ class INaturalist(Dataset):
 
     Remarks
     -------
-    ⚠️ Some original audio files in m4a format were converted to WAV. This does not
-    resolve the issues with m4a as a bioacoustic recording format,
-    and the conversion to WAV via soundfile.write
-    (see scripts/data_preprocessing_scripts/inat_m4a_to_wav.py) may introduce decoder specific
-    metadata.
+    ⚠️ Original audio files in m4a format were decoded with ffmpeg (via librosa) and
+    stored as 16-bit PCM WAV at their native sample rate, in both versions. The WAV
+    samples are identical to the decoded m4a, but this does not resolve the issues with
+    m4a (lossy AAC) as a bioacoustic recording format. m4a files that could not be decoded
+    were removed from the splits
+    (see scripts/data_preprocessing_scripts/inat_m4a_to_wav.py).
     ⚠️ MP3 audio files that were unreadable by soundfile were also converted to WAV using librosa
     and ffmpeg. This may introduce decoder specific metadata and potential quality issues.
     (see scripts/data_preprocessing_scripts/inat_mp3_to_wav.py)
@@ -161,23 +168,23 @@ class INaturalist(Dataset):
     VERSIONS = {
         "0.1.0": {
             "split_paths": {
-                "train": f"{_RAW_ROOT}/train_20260201_v3.csv",
-                "train_unseen": f"{_RAW_ROOT}/train_unseen_20260201_v3.csv",
-                "val": f"{_RAW_ROOT}/val_20260201_v3.csv",
-                "val_unseen": f"{_RAW_ROOT}/val_unseen_20260201_v3.csv",
-                "all": f"{_RAW_ROOT}/all_20260201_v3.csv",
-                "all_unseen": f"{_RAW_ROOT}/all_unseen_20260201_v3.csv",
+                "train": f"{_RAW_ROOT}/train_20260201_v4.csv",
+                "train_unseen": f"{_RAW_ROOT}/train_unseen_20260201_v4.csv",
+                "val": f"{_RAW_ROOT}/val_20260201_v4.csv",
+                "val_unseen": f"{_RAW_ROOT}/val_unseen_20260201_v4.csv",
+                "all": f"{_RAW_ROOT}/all_20260201_v4.csv",
+                "all_unseen": f"{_RAW_ROOT}/all_unseen_20260201_v4.csv",
             },
             "data_root": f"{_RAW_ROOT}/",
         },
         "0.2.0": {
             "split_paths": {
-                "train": f"{_RAW_ROOT}/train_20260616_v1.csv",
-                "train_unseen": f"{_RAW_ROOT}/train_unseen_20260616_v1.csv",
-                "val": f"{_RAW_ROOT}/val_20260616_v1.csv",
-                "val_unseen": f"{_RAW_ROOT}/val_unseen_20260616_v1.csv",
-                "all": f"{_RAW_ROOT}/all_20260616_v1.csv",
-                "all_unseen": f"{_RAW_ROOT}/all_unseen_20260616_v1.csv",
+                "train": f"{_RAW_ROOT}/train_20260616_v2.csv",
+                "train_unseen": f"{_RAW_ROOT}/train_unseen_20260616_v2.csv",
+                "val": f"{_RAW_ROOT}/val_20260616_v2.csv",
+                "val_unseen": f"{_RAW_ROOT}/val_unseen_20260616_v2.csv",
+                "all": f"{_RAW_ROOT}/all_20260616_v2.csv",
+                "all_unseen": f"{_RAW_ROOT}/all_unseen_20260616_v2.csv",
             },
             "data_root": f"{_RAW_ROOT}/",
         },
