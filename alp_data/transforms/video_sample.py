@@ -10,7 +10,6 @@ Video datasets contain the information:
 
 Transforms expand one video row into multiple clips and/or edit these columns for the clips.
 
-- `ResampleToFPS` sets `frame_stride` and `fps`.
 - `ClipToNumFrames` cuts each clip into clips of a fixed number of sampled frames.
 - `ClipToNumSeconds` cuts each clip into clips of a fixed duration.
 
@@ -363,61 +362,5 @@ class ClipToNumSeconds(ExpandByFunction):
         return cls(**cfg.model_dump(exclude={"type"}))
 
 
-class ResampleToFPSConfig(BaseModel):
-    type: Literal["resample_to_fps"]
-    fps: float
-
-
-class ResampleToFPS:
-    """Sample every clip at a target frame rate without changing its bounds.
-
-    Sets each row's `frame_stride` to `round(video_fps / fps)` (at least 1) and its
-    `fps` to the resulting effective rate, `video_fps / frame_stride`. A warning is
-    logged when that misses `fps` by more than 1%.
-
-    Parameters
-    ----------
-    fps : float
-        Target sampling rate.
-
-    Notes
-    -----
-    Construction raises `ValueError` (from its argument check) if `fps` is not
-    positive.
-    """
-
-    def __init__(self, *, fps: float) -> None:
-        _check_positive_number("fps", fps)
-        self.fps = fps
-
-    @classmethod
-    def from_config(cls, cfg: ResampleToFPSConfig) -> "ResampleToFPS":
-        return cls(**cfg.model_dump(exclude={"type"}))
-
-    def __call__(self, backend: DataBackend) -> tuple[DataBackend, dict]:
-        """Set `frame_stride` and `fps` on every row of `backend`.
-
-        Parameters
-        ----------
-        backend : DataBackend
-            The backend wrapping a table with the clip columns.
-
-        Returns
-        -------
-        tuple[DataBackend, dict]
-            The resampled backend (same type as input) and metadata with the number
-            of rows (`n_rows`).
-        """
-        strides = [_stride_for_fps(float(row["video_fps"]), self.fps) for row in backend]
-        if strides:
-            video_fps = [float(v) for v in backend.unwrap["video_fps"]]
-            backend = backend.add_column("frame_stride", strides)
-            backend = backend.add_column(
-                "fps", [v / s for v, s in zip(video_fps, strides, strict=True)]
-            )
-        return backend, {"n_rows": len(strides)}
-
-
 register_transform(ClipToNumFramesConfig, ClipToNumFrames)
 register_transform(ClipToNumSecondsConfig, ClipToNumSeconds)
-register_transform(ResampleToFPSConfig, ResampleToFPS)
