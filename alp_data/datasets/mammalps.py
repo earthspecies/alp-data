@@ -96,15 +96,28 @@ class MammAlps(Dataset):
         data_root : str | AnyPathT | None, optional
             Dataset root.
         frames_per_second : float | None, optional
-            Frame rate that dataset is read at, requested by the user.
-            If None, defaults to native video frame rate.
+            Frame rate to sample videos at. Each video's `frame_stride` is set to
+            `max(1, round(video_fps / frames_per_second))` and its `fps` column to
+            the resulting rate `video_fps / frame_stride`. If None, videos are read
+            at their native frame rate.
         backend : BackendType, optional
             The backend to use ("pandas" or "polars"), by default "polars".
+
+        Raises
+        ------
+        ValueError
+            If `frames_per_second` is not a positive number.
 
         Notes
         -----
         Loading raises `LookupError` if `split` is not a key of `info.split_paths`.
         """
+        if frames_per_second is not None and (
+            isinstance(frames_per_second, bool)
+            or not isinstance(frames_per_second, (int, float))
+            or frames_per_second <= 0
+        ):
+            raise ValueError(f"frames_per_second must be a number > 0, got {frames_per_second!r}")
         super().__init__(output_take_and_give, backend=backend)
         self.split = split
         self.data_root = anypath(_ROOT if data_root is None else data_root)
@@ -156,10 +169,14 @@ class MammAlps(Dataset):
         # Add columns to prepare for any video sampling transforms
         data = data.add_column("start_frame", 0)
         data = data.add_column("end_frame", list(table["num_frames"]))
-        data = data.add_column("frame_stride", 1)
-        data = data.add_column("video_fps", list(table["average_fps"]))
-        fps = list(table["average_fps"]) if self.fps is None else self.fps
-        data = data.add_column("fps", fps)
+        video_fps = [float(f) for f in table["average_fps"]]
+        if self.fps is None:
+            strides = [1] * len(video_fps)
+        else:
+            strides = [max(1, round(f / self.fps)) for f in video_fps]
+        data = data.add_column("frame_stride", strides)
+        data = data.add_column("video_fps", video_fps)
+        data = data.add_column("fps", [f / s for f, s in zip(video_fps, strides, strict=True)])
         self._data = data
 
     @classmethod

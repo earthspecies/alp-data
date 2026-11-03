@@ -114,6 +114,40 @@ def test_clip_columns_added(local_split: str, backend: str) -> None:
 
 
 @pytest.mark.parametrize("backend", ["pandas", "polars"])
+@pytest.mark.parametrize(
+    "frames_per_second, stride, fps, n_frames",
+    [(10, 3, 10.0, 20), (7, 4, 7.5, 15), (60, 1, 30.0, 60)],
+)
+def test_frames_per_second_sets_stride(
+    local_split: str,
+    backend: str,
+    frames_per_second: float,
+    stride: int,
+    fps: float,
+    n_frames: int,
+) -> None:
+    """Test if `frames_per_second` sets each row's stride and effective fps."""
+    ds = MammAlps(split=local_split, frames_per_second=frames_per_second, backend=backend)
+    row = ds._data[0]
+    assert row["frame_stride"] == stride
+    assert row["fps"] == fps
+    assert row["video_fps"] == 30.0
+    assert ds[0]["video"].shape[0] == n_frames
+
+
+@pytest.mark.parametrize("frames_per_second", [0, -1.0, True, "10"])
+def test_invalid_frames_per_second(local_split: str, frames_per_second: object) -> None:
+    with pytest.raises(ValueError, match="frames_per_second"):
+        MammAlps(split=local_split, frames_per_second=frames_per_second)
+
+
+def test_load_from_config_frames_per_second(local_split: str) -> None:
+    cfg = DatasetConfig(dataset_name="mammalps", split=local_split, frames_per_second=10)
+    ds, _ = MammAlps.from_config(cfg)
+    assert ds._data[0]["frame_stride"] == 3
+
+
+@pytest.mark.parametrize("backend", ["pandas", "polars"])
 def test_getitem(local_split: str, backend: str) -> None:
     ds = MammAlps(split=local_split, backend=backend)
     item = ds[0]
