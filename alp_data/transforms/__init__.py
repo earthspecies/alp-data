@@ -13,20 +13,11 @@ from .multilabel_from_features import (
 )
 from .select_columns import SelectColumns, SelectColumnsConfig
 from .subsample import Subsample, SubsampleConfig
-from .video_sample import (
-    ClipToNumFrames,
-    ClipToNumFramesConfig,
-    ClipToNumSeconds,
-    ClipToNumSecondsConfig,
-)
+from .video_sample import SplitClip, SplitClipConfig
 
 __all__ = [
     "BalancedSample",
     "BalancedSampleConfig",
-    "ClipToNumFrames",
-    "ClipToNumFramesConfig",
-    "ClipToNumSeconds",
-    "ClipToNumSecondsConfig",
     "Deduplicate",
     "DeduplicateConfig",
     "ExpandByFunction",
@@ -41,6 +32,8 @@ __all__ = [
     "MultiLabelFromFeaturesConfig",
     "SelectColumns",
     "SelectColumnsConfig",
+    "SplitClip",
+    "SplitClipConfig",
     "Subsample",
     "SubsampleConfig",
     "register_row_method",

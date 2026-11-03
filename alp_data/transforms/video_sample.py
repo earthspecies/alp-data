@@ -1,20 +1,18 @@
-"""Transforms that expand rows corresponding to the whole video into
-rows corresponding to individual clips and/or set their frame sampling rate.
+"""Transforms that expand rows corresponding to whole videos into rows corresponding
+to individual clips.
 
 Video datasets contain the information:
 
 - `start_frame`, `end_frame`: frame indices, by default referring to native video start/end.
 - `frame_stride`: number of native frames to step between the frames to decode.
 - `video_fps`: native frame rate of the video (read only).
-- `fps`: effective sampled frame rate, `video_fps / frame_stride`.
+- `fps`: sampling rate. The dataset sets it from its `frames_per_second` argument
+  (defaulting to `video_fps`). The clipping row methods read it to pick the stride and
+  write back the effective rate `video_fps / frame_stride`.
 
-Transforms expand one video row into multiple clips and/or edit these columns for the clips.
-
-- `ClipToNumFrames` cuts each clip into clips of a fixed number of sampled frames.
-- `ClipToNumSeconds` cuts each clip into clips of a fixed duration.
-
-The clipping transforms are just wrappers on `ExpandByFunction` transforms with the row methods
-`clip_to_num_frames` and `clip_to_num_seconds`.
+`SplitClip` cuts each clip into clips of either a fixed number of sampled frames
+(`clip_length`) or a fixed duration (`clip_duration`). It is a wrapper on
+`ExpandByFunction` with the row method `clip_to_num_frames` or `clip_to_num_seconds`.
 
 Examples
 --------
@@ -22,23 +20,22 @@ Examples
 >>> cfg = DatasetConfig(
 ...     dataset_name="mammalps",
 ...     split="benchmark-1-val",
+...     frames_per_second=5,
 ...     transformations=[
-...         {"type": "clip_to_num_frames", "clip_length": 16, "fps": 5},
+...         {"type": "split_clip", "clip_length": 16},
 ...     ],
 ... )
 
 Or in Python, applied to a dataset's backend:
 
->>> from alp_data.transforms import ClipToNumFrames
->>> transform = ClipToNumFrames(clip_length=16, fps=5)
+>>> from alp_data.transforms import SplitClip
+>>> transform = SplitClip(clip_duration=2.0)
 """
 
 import logging
 from typing import Any, Literal
 
 from pydantic import BaseModel
-
-from alp_data.backends.protocol import DataBackend
 
 from . import register_transform
 from .expand import ExpandByFunction, register_row_method
@@ -137,13 +134,15 @@ def clip_to_num_frames(
     """Cut a row's clip into consecutive clips of `clip_length` sampled frames.
 
     Works within the row's current `[start_frame, end_frame)`, so it can be chained
-    after other clipping transforms. Each output clip decodes exactly `clip_length`
+    after other clipping transforms. The stride is `round(video_fps / fps)` from the
+    row's `video_fps` and `fps` columns; a warning is logged when the resulting rate
+    misses `fps` by more than 1%. Each output clip decodes exactly `clip_length`
     frames. Set `clip_length=1` to turn a video dataset into an image dataset.
 
     Parameters
     ----------
     row : dict[str, Any]
-        Row carrying the clip columns.
+        Row carrying the clip columns, including `video_fps` and `fps`.
     clip_length : int
         Number of sampled frames per clip.
     drop_last : bool, optional
@@ -157,20 +156,20 @@ def clip_to_num_frames(
     Returns
     -------
     list[dict[str, Any]]
-        Updates for each clip: `start_frame`, `end_frame`, `frame_stride`.
-        Empty if the row's clip is shorter than one output clip.
+        Updates for each clip: `start_frame`, `end_frame`, `frame_stride` and `fps`
+        (the effective rate `video_fps / frame_stride`). Empty if the row's clip is
+        shorter than one output clip.
 
     Notes
     -----
     Raises `ValueError` (from its argument checks) if `clip_length` or `hop` is not a
-    positive integer, or `fps` is not positive.
+    positive integer, or the row's `fps` is not positive.
     """
     _check_positive_int("clip_length", clip_length)
     if hop is not None:
         _check_positive_int("hop", hop)
     video_fps = float(row["video_fps"])
-    fps = float(row["fps"])
-    stride = _stride_for_fps(video_fps, fps) if fps is not None else int(row["frame_stride"])
+    stride = _stride_for_fps(video_fps, float(row["fps"]))
     windows = _cut_windows(
         int(row["start_frame"]),
         int(row["end_frame"]),
@@ -193,12 +192,13 @@ def clip_to_num_seconds(
     Durations are converted to native frames with `round(seconds * video_fps)`, so
     videos with different frame rates give clips of the same length in time. The
     number of decoded frames per clip is `ceil(span / frame_stride)`, which can vary
-    between videos of different frame rates.
+    between videos of different frame rates. The stride is picked from the row's `fps`
+    as in `clip_to_num_frames`.
 
     Parameters
     ----------
     row : dict[str, Any]
-        Row carrying the clip columns.
+        Row carrying the clip columns, including `video_fps` and `fps`.
     clip_duration : float
         Clip length in seconds.
     drop_last : bool, optional
@@ -210,7 +210,7 @@ def clip_to_num_seconds(
     Returns
     -------
     list[dict[str, Any]]
-        Updates for each clip: `start_frame`, `end_frame`, `frame_stride`.
+        Updates for each clip: `start_frame`, `end_frame`, `frame_stride` and `fps`.
         Empty if the row's clip is shorter than one output clip.
 
     Raises
@@ -221,14 +221,13 @@ def clip_to_num_seconds(
     Notes
     -----
     Also raises `ValueError` (from its argument checks) if `clip_duration`,
-    `hop_duration` or `fps` is not positive.
+    `hop_duration` or the row's `fps` is not positive.
     """
     _check_positive_number("clip_duration", clip_duration)
     if hop_duration is not None:
         _check_positive_number("hop_duration", hop_duration)
     video_fps = float(row["video_fps"])
-    fps = float(row["fps"])
-    stride = _stride_for_fps(video_fps, fps) if fps is not None else int(row["frame_stride"])
+    stride = _stride_for_fps(video_fps, float(row["fps"]))
     span = round(clip_duration * video_fps)
     hop = round((hop_duration or clip_duration) * video_fps)
     if span < 1 or hop < 1:
@@ -236,46 +235,51 @@ def clip_to_num_seconds(
             f"clip_duration={clip_duration} / hop_duration={hop_duration} is shorter "
             f"than one frame at {video_fps} fps"
         )
-    windows = _cut_windows(
-        int(row["start_frame"]),
-        int(row["end_frame"]),
-        span, hop, drop_last)
+    windows = _cut_windows(int(row["start_frame"]), int(row["end_frame"]), span, hop, drop_last)
     return _clip_rows(windows, stride, video_fps)
 
 
 class SplitClipConfig(BaseModel):
-    type: Literal["clip_to_num_frames"]
+    type: Literal["split_clip"]
     clip_length: int | None = None
     clip_duration: float | None = None
     drop_last: bool = True
     hop: int | None = None
+    hop_duration: float | None = None
 
 
 class SplitClip(ExpandByFunction):
-    """Cut every clip into clips of `clip_length` sampled frames or
-    `clip_duration` seconds.
+    """Cut every clip into clips of `clip_length` sampled frames or `clip_duration` seconds.
 
-    An `ExpandByFunction` with the `clip_to_num_frames` row method or
-   `clip_to_num_seconds` row method; see it for the meaning of the parameters.
+    An `ExpandByFunction` with the `clip_to_num_frames` row method (when `clip_length`
+    is given) or the `clip_to_num_seconds` row method (when `clip_duration` is given);
+    see them for the meaning of the parameters. The sampling rate is read from each
+    row's `fps` column, which the dataset sets from its `frames_per_second` argument.
 
     Parameters
     ----------
-    clip_length : int
-        Number of sampled frames per clip.
-    clip_duration : float
-        Clip length in seconds.
-    (One of clip_length or clip_duration is required.)
+    clip_length : int | None, optional
+        Number of sampled frames per clip. Exactly one of `clip_length` and
+        `clip_duration` must be given.
+    clip_duration : float | None, optional
+        Clip length in seconds. Exactly one of `clip_length` and `clip_duration` must
+        be given.
     drop_last : bool, optional
         Whether to discard frames left over after the last full clip, by default True.
     hop : int | None, optional
-        Distance between consecutive clip starts, in sampled frames. Defaults to
-        `clip_length`.
+        Distance between consecutive clip starts, in sampled frames. Only valid with
+        `clip_length`, which it defaults to.
+    hop_duration : float | None, optional
+        Distance between consecutive clip starts, in seconds. Only valid with
+        `clip_duration`, which it defaults to.
 
-    Notes
-    -----
-    Construction raises `ValueError` (from its argument checks) if `clip_length` or
-    `hop` is not a positive integer, or `fps` is not positive, or if not exactly one
-    of `clip_length` or `clip_duration` is specified.
+    Raises
+    ------
+    ValueError
+        If not exactly one of `clip_length` and `clip_duration` is given, if `hop` is
+        given with `clip_duration` or `hop_duration` with `clip_length`, if
+        `clip_length` or `hop` is not a positive integer, or if `clip_duration` or
+        `hop_duration` is not a positive number.
     """
 
     def __init__(
@@ -283,25 +287,38 @@ class SplitClip(ExpandByFunction):
         *,
         clip_length: int | None = None,
         clip_duration: float | None = None,
-        fps: float | None = None,
         drop_last: bool = True,
         hop: int | None = None,
+        hop_duration: float | None = None,
     ) -> None:
-        if (clip_length is None and clip_duration is None) or (clip_length and clip_duration):
-            # "must specify exactly one of clip_length or clip_duration"
-            raise ValueError()
-        _check_positive_int("clip_length", clip_length)
-        if hop is not None:
-            _check_positive_int("hop", hop)
-        if clip_length:
+        if (clip_length is None) == (clip_duration is None):
+            raise ValueError(
+                "Exactly one of clip_length and clip_duration must be given, got "
+                f"clip_length={clip_length!r}, clip_duration={clip_duration!r}"
+            )
+        if clip_length is not None:
+            if hop_duration is not None:
+                raise ValueError("hop_duration can only be used with clip_duration; use hop")
+            _check_positive_int("clip_length", clip_length)
+            if hop is not None:
+                _check_positive_int("hop", hop)
             super().__init__(
                 method=clip_to_num_frames,
                 kwargs={"clip_length": clip_length, "drop_last": drop_last, "hop": hop},
             )
         else:
+            if hop is not None:
+                raise ValueError("hop can only be used with clip_length; use hop_duration")
+            _check_positive_number("clip_duration", clip_duration)
+            if hop_duration is not None:
+                _check_positive_number("hop_duration", hop_duration)
             super().__init__(
                 method=clip_to_num_seconds,
-                kwargs={"clip_duration": clip_duration, "drop_last": drop_last, "hop": hop},
+                kwargs={
+                    "clip_duration": clip_duration,
+                    "drop_last": drop_last,
+                    "hop_duration": hop_duration,
+                },
             )
 
     @classmethod
