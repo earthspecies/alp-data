@@ -18,8 +18,6 @@ from .video_sample import (
     ClipToNumFramesConfig,
     ClipToNumSeconds,
     ClipToNumSecondsConfig,
-    ResampleToFPS,
-    ResampleToFPSConfig,
 )
 
 __all__ = [
@@ -41,8 +39,6 @@ __all__ = [
     "LongTailUpsampleConfig",
     "MultiLabelFromFeatures",
     "MultiLabelFromFeaturesConfig",
-    "ResampleToFPS",
-    "ResampleToFPSConfig",
     "SelectColumns",
     "SelectColumnsConfig",
     "Subsample",
