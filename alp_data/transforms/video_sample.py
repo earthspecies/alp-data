@@ -131,7 +131,6 @@ def _clip_rows(
 def clip_to_num_frames(
     row: dict[str, Any],
     clip_length: int,
-    fps: float | None = None,
     drop_last: bool = True,
     hop: int | None = None,
 ) -> list[dict[str, Any]]:
@@ -147,10 +146,6 @@ def clip_to_num_frames(
         Row carrying the clip columns.
     clip_length : int
         Number of sampled frames per clip.
-    fps : float | None, optional
-        Target sampling rate. The stride is `round(video_fps / fps)`; a warning is
-        logged when that misses `fps` by more than 1%. If None, the row's current
-        `frame_stride` is kept.
     drop_last : bool, optional
         If True (default), frames left over after the last full clip are discarded.
         If False, an extra clip ending on the last frame is added, overlapping its
@@ -162,7 +157,7 @@ def clip_to_num_frames(
     Returns
     -------
     list[dict[str, Any]]
-        Updates for each clip: `start_frame`, `end_frame`, `frame_stride` and `fps`.
+        Updates for each clip: `start_frame`, `end_frame`, `frame_stride`.
         Empty if the row's clip is shorter than one output clip.
 
     Notes
@@ -174,6 +169,7 @@ def clip_to_num_frames(
     if hop is not None:
         _check_positive_int("hop", hop)
     video_fps = float(row["video_fps"])
+    fps = float(row["fps"])
     stride = _stride_for_fps(video_fps, fps) if fps is not None else int(row["frame_stride"])
     windows = _cut_windows(
         int(row["start_frame"]),
@@ -189,7 +185,6 @@ def clip_to_num_frames(
 def clip_to_num_seconds(
     row: dict[str, Any],
     clip_duration: float,
-    fps: float | None = None,
     drop_last: bool = True,
     hop_duration: float | None = None,
 ) -> list[dict[str, Any]]:
@@ -206,9 +201,6 @@ def clip_to_num_seconds(
         Row carrying the clip columns.
     clip_duration : float
         Clip length in seconds.
-    fps : float | None, optional
-        Target sampling rate, as in `clip_to_num_frames`. If None, the row's current
-        `frame_stride` is kept.
     drop_last : bool, optional
         As in `clip_to_num_frames`, by default True.
     hop_duration : float | None, optional
@@ -218,7 +210,7 @@ def clip_to_num_seconds(
     Returns
     -------
     list[dict[str, Any]]
-        Updates for each clip: `start_frame`, `end_frame`, `frame_stride` and `fps`.
+        Updates for each clip: `start_frame`, `end_frame`, `frame_stride`.
         Empty if the row's clip is shorter than one output clip.
 
     Raises
@@ -235,6 +227,7 @@ def clip_to_num_seconds(
     if hop_duration is not None:
         _check_positive_number("hop_duration", hop_duration)
     video_fps = float(row["video_fps"])
+    fps = float(row["fps"])
     stride = _stride_for_fps(video_fps, fps) if fps is not None else int(row["frame_stride"])
     span = round(clip_duration * video_fps)
     hop = round((hop_duration or clip_duration) * video_fps)
@@ -243,30 +236,35 @@ def clip_to_num_seconds(
             f"clip_duration={clip_duration} / hop_duration={hop_duration} is shorter "
             f"than one frame at {video_fps} fps"
         )
-    windows = _cut_windows(int(row["start_frame"]), int(row["end_frame"]), span, hop, drop_last)
+    windows = _cut_windows(
+        int(row["start_frame"]),
+        int(row["end_frame"]),
+        span, hop, drop_last)
     return _clip_rows(windows, stride, video_fps)
 
 
-class ClipToNumFramesConfig(BaseModel):
+class SplitClipConfig(BaseModel):
     type: Literal["clip_to_num_frames"]
-    clip_length: int
-    fps: float | None = None
+    clip_length: int | None = None
+    clip_duration: float | None = None
     drop_last: bool = True
     hop: int | None = None
 
 
-class ClipToNumFrames(ExpandByFunction):
-    """Cut every clip into clips of `clip_length` sampled frames.
+class SplitClip(ExpandByFunction):
+    """Cut every clip into clips of `clip_length` sampled frames or
+    `clip_duration` seconds.
 
-    An `ExpandByFunction` with the `clip_to_num_frames` row method; see it for the
-    meaning of the parameters.
+    An `ExpandByFunction` with the `clip_to_num_frames` row method or
+   `clip_to_num_seconds` row method; see it for the meaning of the parameters.
 
     Parameters
     ----------
     clip_length : int
         Number of sampled frames per clip.
-    fps : float | None, optional
-        Target sampling rate. If None, each row's current `frame_stride` is kept.
+    clip_duration : float
+        Clip length in seconds.
+    (One of clip_length or clip_duration is required.)
     drop_last : bool, optional
         Whether to discard frames left over after the last full clip, by default True.
     hop : int | None, optional
@@ -276,91 +274,39 @@ class ClipToNumFrames(ExpandByFunction):
     Notes
     -----
     Construction raises `ValueError` (from its argument checks) if `clip_length` or
-    `hop` is not a positive integer, or `fps` is not positive.
+    `hop` is not a positive integer, or `fps` is not positive, or if not exactly one
+    of `clip_length` or `clip_duration` is specified.
     """
 
     def __init__(
         self,
         *,
-        clip_length: int,
+        clip_length: int | None = None,
+        clip_duration: float | None = None,
         fps: float | None = None,
         drop_last: bool = True,
         hop: int | None = None,
     ) -> None:
+        if (clip_length is None and clip_duration is None) or (clip_length and clip_duration):
+            # "must specify exactly one of clip_length or clip_duration"
+            raise ValueError()
         _check_positive_int("clip_length", clip_length)
         if hop is not None:
             _check_positive_int("hop", hop)
-        if fps is not None:
-            _check_positive_number("fps", fps)
-        super().__init__(
-            method=clip_to_num_frames,
-            kwargs={"clip_length": clip_length, "fps": fps, "drop_last": drop_last, "hop": hop},
-        )
+        if clip_length:
+            super().__init__(
+                method=clip_to_num_frames,
+                kwargs={"clip_length": clip_length, "drop_last": drop_last, "hop": hop},
+            )
+        else:
+            super().__init__(
+                method=clip_to_num_seconds,
+                kwargs={"clip_duration": clip_duration, "drop_last": drop_last, "hop": hop},
+            )
 
     @classmethod
-    def from_config(cls, cfg: ClipToNumFramesConfig) -> "ClipToNumFrames":
+    def from_config(cls, cfg: SplitClipConfig) -> "SplitClip":
         return cls(**cfg.model_dump(exclude={"type"}))
 
 
-class ClipToNumSecondsConfig(BaseModel):
-    type: Literal["clip_to_num_seconds"]
-    clip_duration: float
-    fps: float | None = None
-    drop_last: bool = True
-    hop_duration: float | None = None
-
-
-class ClipToNumSeconds(ExpandByFunction):
-    """Cut every clip into clips of `clip_duration` seconds.
-
-    An `ExpandByFunction` with the `clip_to_num_seconds` row method; see it for the
-    meaning of the parameters.
-
-    Parameters
-    ----------
-    clip_duration : float
-        Clip length in seconds.
-    fps : float | None, optional
-        Target sampling rate. If None, each row's current `frame_stride` is kept.
-    drop_last : bool, optional
-        Whether to discard frames left over after the last full clip, by default True.
-    hop_duration : float | None, optional
-        Distance between consecutive clip starts, in seconds. Defaults to
-        `clip_duration`.
-
-    Notes
-    -----
-    Construction raises `ValueError` (from its argument checks) if `clip_duration`,
-    `hop_duration` or `fps` is not positive.
-    """
-
-    def __init__(
-        self,
-        *,
-        clip_duration: float,
-        fps: float | None = None,
-        drop_last: bool = True,
-        hop_duration: float | None = None,
-    ) -> None:
-        _check_positive_number("clip_duration", clip_duration)
-        if hop_duration is not None:
-            _check_positive_number("hop_duration", hop_duration)
-        if fps is not None:
-            _check_positive_number("fps", fps)
-        super().__init__(
-            method=clip_to_num_seconds,
-            kwargs={
-                "clip_duration": clip_duration,
-                "fps": fps,
-                "drop_last": drop_last,
-                "hop_duration": hop_duration,
-            },
-        )
-
-    @classmethod
-    def from_config(cls, cfg: ClipToNumSecondsConfig) -> "ClipToNumSeconds":
-        return cls(**cfg.model_dump(exclude={"type"}))
-
-
-register_transform(ClipToNumFramesConfig, ClipToNumFrames)
-register_transform(ClipToNumSecondsConfig, ClipToNumSeconds)
+register_transform(SplitClipConfig, SplitClip)
