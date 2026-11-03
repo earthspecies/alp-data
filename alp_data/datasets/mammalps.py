@@ -80,6 +80,7 @@ class MammAlps(Dataset):
         split: str = "benchmark-1-train",
         output_take_and_give: dict[str, str] | None = None,
         data_root: str | AnyPathT | None = None,
+        frames_per_second: float | None = None,
         backend: BackendType = "polars",
     ) -> None:
         """Initialize the MammAlps dataset.
@@ -94,6 +95,9 @@ class MammAlps(Dataset):
             It acts as a filter as well.
         data_root : str | AnyPathT | None, optional
             Dataset root.
+        frames_per_second : float | None, optional
+            Frame rate that dataset is read at, requested by the user.
+            If None, defaults to native video frame rate.
         backend : BackendType, optional
             The backend to use ("pandas" or "polars"), by default "polars".
 
@@ -104,6 +108,7 @@ class MammAlps(Dataset):
         super().__init__(output_take_and_give, backend=backend)
         self.split = split
         self.data_root = anypath(_ROOT if data_root is None else data_root)
+        self.fps = frames_per_second
         self._data = None
         self._load()
 
@@ -153,7 +158,8 @@ class MammAlps(Dataset):
         data = data.add_column("end_frame", list(table["num_frames"]))
         data = data.add_column("frame_stride", 1)
         data = data.add_column("video_fps", list(table["average_fps"]))
-        data = data.add_column("fps", list(table["average_fps"]))
+        fps = list(table["average_fps"]) if self.fps is None else self.fps
+        data = data.add_column("fps", fps)
         self._data = data
 
     @classmethod
@@ -184,6 +190,7 @@ class MammAlps(Dataset):
             split=dataset_config.split,
             output_take_and_give=dataset_config.output_take_and_give,
             data_root=dataset_config.data_root,
+            frames_per_second=getattr(dataset_config, "frames_per_second", None),
             backend=dataset_config.backend,
         )
 
