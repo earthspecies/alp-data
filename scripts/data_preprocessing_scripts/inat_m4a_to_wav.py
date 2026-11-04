@@ -1,51 +1,69 @@
-"""Convert iNaturalist .m4a originals to .wav and publish cleaned split CSVs.
+"""Convert unreadable iNaturalist originals to .wav and publish cleaned split CSVs.
 
-``alp_data.io.read_audio`` cannot decode AAC (``.m4a``) from a stream, so any
-row whose ``originals_path`` is ``.m4a`` fails to load whenever the requested
-sample rate is not one of the pre-resampled rates (16 kHz / 32 kHz). v0.1.0's
-CSVs were already patched (see git history); v0.2.0's (``*_20260616_v1.csv``)
-were not (issue #345).
+Some ``originals_path`` files cannot be loaded by ``alp_data.io.read_audio``
+whenever the requested sample rate is not one of the pre-resampled rates
+(16 kHz / 32 kHz), so the dataset class falls back to the originals (issue
+#345):
+
+- ``.m4a`` (AAC), which soundfile cannot decode from a stream;
+- ``.mp3`` that libsndfile/libmpg123 cannot parse, or that were deleted after
+  an earlier conversion while the CSV still points at them;
+- broken or missing ``.wav``.
+
+v0.1.0's CSVs were patched earlier for m4a and mp3 (``inat_mp3_to_wav.py``);
+v0.2.0's never were. The *targets* of this script are every ``.m4a`` in the
+v0.2.0 CSVs plus every ``originals_path`` listed in the failure CSVs written
+by ``scripts/iterate_inaturalist.py`` (``--extra-targets``).
 
 The work is split into stages that share a work directory, so each can be
 inspected before the next runs and nothing is written to GCS until ``upload``:
 
 ``scan``
     Download all split CSVs of both versions into ``<work-dir>/csv``, collect
-    every unique ``.m4a`` in ``originals_path`` and check (on GCS) whether the
-    ``.m4a`` and its sibling ``.wav`` exist. Writes ``scan.parquet``.
+    the targets and check (on GCS) whether each target and its sibling
+    ``.wav`` exist. Status per target: ``broken_wav`` (a ``.wav`` target;
+    nothing to convert from, rows are dropped), ``wav_exists`` (only the CSV
+    path changes), ``to_convert`` or ``missing`` (rows are dropped). Writes
+    ``scan.parquet``.
 ``convert``
-    For every ``.m4a`` that exists but has no ``.wav`` sibling, download it to
-    ``<work-dir>/audio/<originals_path>``, decode it with ``librosa.load``
-    (ffmpeg via audioread) and write a PCM_16 ``.wav`` next to it at the
-    native sample rate and channel count. Writes ``convert.parquet``.
+    For every ``to_convert`` target, download it to
+    ``<work-dir>/audio/<originals_path>``, decode it with ``librosa.load`` on
+    audioread's ffmpeg backend (pinned, so the result does not depend on the
+    OS) and write a PCM_16 ``.wav`` sibling at the native sample rate and
+    channel count. Writes ``convert.parquet``.
 ``verify``
-    Re-decode both local files with ``librosa.load`` and require equal sample
-    rate, equal shape and bit-exact samples (audioread decodes AAC to int16,
-    so a PCM_16 round trip is lossless). Optionally cross-check a fraction of
-    files against the existing ``16khz_path`` resample by correlation.
-    Writes ``verify.parquet``.
+    Re-decode both local files and require equal sample rate, equal shape and
+    bit-exact samples (audioread decodes to int16, so a PCM_16 round trip is
+    lossless). Optionally cross-check a fraction of files against the existing
+    ``16khz_path`` resample by correlation. Writes ``verify.parquet``.
 ``upload``
     Upload verified ``.wav`` files to their sibling path on GCS, never
     overwriting an existing blob. Writes ``upload.parquet``.
 ``rewrite``
     Write new split CSVs to ``<work-dir>/out``: drop the ``gcs_path`` and
     ``relative_path`` columns (both point at the ingestion bucket and are not
-    used by the dataset class), and for v0.2.0 point ``originals_path`` at the
-    ``.wav`` sibling. Rows whose ``.m4a`` could not be decoded or verified, or
-    that have neither an ``.m4a`` nor a ``.wav`` on GCS, are dropped.
-    Writes ``rewrite_report.json``.
+    used by the dataset class), point every resolved target's
+    ``originals_path`` at its ``.wav`` sibling, and drop rows whose target is
+    unresolved (broken wav, missing, or failed decode/verify). Writes
+    ``rewrite_report.json``.
 ``publish``
-    Upload the rewritten CSVs to ``DATA_ROOT`` (refuses to overwrite).
+    Upload the rewritten CSVs to ``DATA_ROOT``. Refuses to overwrite unless
+    ``--overwrite`` is given.
+
+Note: the first (m4a-only) run decoded on macOS, where audioread picked its
+CoreAudio backend rather than ffmpeg. Those WAVs are bit-exact to the
+CoreAudio decode and correlate with the independently made 16 kHz files
+(min r = 0.976 on a 2% sample); later runs pin ffmpeg.
 
 Usage
 -----
     uv run --with tqdm python scripts/data_preprocessing_scripts/inat_m4a_to_wav.py \\
-        --work-dir ~/inat_m4a_work scan
+        --work-dir ~/inat_m4a_work scan --extra-targets failures_0.2.0_all_srnative.csv
     ... convert --n-workers 8
     ... verify --n-workers 8 --crosscheck-frac 0.02
     ... upload
     ... rewrite
-    ... publish
+    ... publish [--overwrite]
 """
 
 from __future__ import annotations
@@ -60,6 +78,7 @@ from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from pathlib import Path
 from typing import Callable, Iterable
 
+import audioread.ffdec
 import librosa
 import numpy as np
 import polars as pl
@@ -73,7 +92,7 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
 )
-logger = logging.getLogger("inat_m4a_to_wav")
+logger = logging.getLogger("inat_to_wav")
 
 DATA_ROOT = f"{DATA_HOME}/inaturalist/v0.1.0/raw/"
 ORIGINALS_COLUMN = "originals_path"
@@ -94,19 +113,19 @@ VERSIONS = {
 
 
 def _wav_sibling(rel: str) -> str:
-    """Return the ``.wav`` sibling of a ``.m4a`` relative path.
+    """Return the ``.wav`` sibling of a relative path.
 
     Parameters
     ----------
     rel : str
-        Path ending in ``.m4a``.
+        Path with an audio file extension.
 
     Returns
     -------
     str
         Same path with the extension replaced by ``.wav``.
     """
-    return rel[: -len(".m4a")] + ".wav"
+    return rel.rsplit(".", 1)[0] + ".wav"
 
 
 def _csv_names(version: str, output: bool = False) -> list[str]:
@@ -179,6 +198,10 @@ def _pmap(fn: Callable, items: list, n_workers: int, desc: str, threads: bool = 
 def _decode(path: str | Path) -> tuple[np.ndarray, int]:
     """Decode an audio file with `librosa.load` at its native rate and channels.
 
+    ``.wav`` files are read by librosa through soundfile. Everything else is
+    decoded through audioread's ffmpeg backend explicitly, because audioread's
+    default backend order is platform dependent (CoreAudio on macOS).
+
     Parameters
     ----------
     path : str | Path
@@ -198,7 +221,11 @@ def _decode(path: str | Path) -> tuple[np.ndarray, int]:
         # librosa warns that the audioread fallback is deprecated; it's the
         # only path that can decode AAC here.
         warnings.simplefilter("ignore")
-        y, sr = librosa.load(str(path), sr=None, mono=False)
+        if str(path).endswith(".wav"):
+            y, sr = librosa.load(str(path), sr=None, mono=False)
+        else:
+            with audioread.ffdec.FFmpegAudioFile(str(path)) as src:
+                y, sr = librosa.load(src, sr=None, mono=False)
     if y.size == 0:
         raise ValueError("decoded audio is empty")
     if not np.all(np.isfinite(y)):
@@ -291,15 +318,20 @@ def _remote_exists(rel: str) -> bool:
     return filesystem_from_path(DATA_ROOT).exists(DATA_ROOT + rel)
 
 
-def scan(work_dir: Path, n_workers: int) -> None:
-    """Find all unique ``.m4a`` originals and their GCS status.
+def _collect_targets(csv_dir: Path, extra_targets: list[Path]) -> pl.DataFrame:
+    """Return the unique target paths with a ``16khz_path`` for cross-checks.
 
     Parameters
     ----------
-    work_dir : Path
-        Work directory.
-    n_workers : int
-        Number of threads for GCS existence checks.
+    csv_dir : Path
+        Local cache of the input split CSVs.
+    extra_targets : list of Path
+        Failure CSVs (``originals_path`` column) from ``iterate_inaturalist.py``.
+
+    Returns
+    -------
+    pl.DataFrame
+        Columns ``src`` (target ``originals_path``) and `CROSSCHECK_COLUMN`.
 
     Raises
     ------
@@ -307,59 +339,84 @@ def scan(work_dir: Path, n_workers: int) -> None:
         If a v0.1.0 CSV still references an ``.m4a`` original (it was
         expected to be fully converted already).
     """
-    csv_dir = work_dir / "csv"
-    _download_csvs(csv_dir)
-
-    for name in _csv_names("0.1.0"):
-        n = _read_csv(csv_dir / name)[ORIGINALS_COLUMN].str.ends_with(".m4a").sum()
-        if n:
-            raise ValueError(f"{name} has {n} .m4a originals; expected 0")
+    targets = set()
+    for path in extra_targets:
+        targets |= set(_read_csv(path)[ORIGINALS_COLUMN].to_list())
+    logger.info("targets from failure CSVs: %d", len(targets))
 
     frames = []
-    for name in _csv_names("0.2.0"):
-        df = _read_csv(csv_dir / name).select(ORIGINALS_COLUMN, CROSSCHECK_COLUMN)
-        frames.append(df.filter(pl.col(ORIGINALS_COLUMN).str.ends_with(".m4a")))
-    m4a = pl.concat(frames).unique(ORIGINALS_COLUMN, keep="first").sort(ORIGINALS_COLUMN)
-    m4a = m4a.rename({ORIGINALS_COLUMN: "m4a"}).with_columns(
-        wav=pl.col("m4a").str.replace(r"\.m4a$", ".wav")
-    )
-    logger.info("unique .m4a originals in v0.2.0: %d", m4a.height)
+    for version in VERSIONS:
+        for name in _csv_names(version):
+            df = _read_csv(csv_dir / name).select(ORIGINALS_COLUMN, CROSSCHECK_COLUMN)
+            is_m4a = pl.col(ORIGINALS_COLUMN).str.ends_with(".m4a")
+            if version == "0.1.0" and df.select(is_m4a.any()).item():
+                raise ValueError(f"{name} has .m4a originals; expected 0")
+            frames.append(df.filter(is_m4a | pl.col(ORIGINALS_COLUMN).is_in(list(targets))))
+    out = pl.concat(frames).unique(ORIGINALS_COLUMN, keep="first").sort(ORIGINALS_COLUMN)
+    missing = targets - set(out[ORIGINALS_COLUMN].to_list())
+    if missing:
+        logger.warning("%d failure-CSV targets are not in any split CSV", len(missing))
+    return out.rename({ORIGINALS_COLUMN: "src"})
 
-    m4a_exists = _pmap(_remote_exists, m4a["m4a"].to_list(), n_workers, "m4a exists", True)
-    wav_exists = _pmap(_remote_exists, m4a["wav"].to_list(), n_workers, "wav exists", True)
-    m4a = m4a.with_columns(m4a_exists=pl.Series(m4a_exists), wav_exists=pl.Series(wav_exists))
-    m4a = m4a.with_columns(
-        status=pl.when("wav_exists")
+
+def scan(work_dir: Path, n_workers: int, extra_targets: list[Path]) -> None:
+    """Find all target originals and their GCS status.
+
+    Parameters
+    ----------
+    work_dir : Path
+        Work directory.
+    n_workers : int
+        Number of threads for GCS existence checks.
+    extra_targets : list of Path
+        Failure CSVs whose ``originals_path`` values are targets in addition
+        to every ``.m4a``.
+    """
+    csv_dir = work_dir / "csv"
+    _download_csvs(csv_dir)
+    df = _collect_targets(csv_dir, extra_targets).with_columns(
+        wav=pl.col("src").str.replace(r"\.[^./]+$", ".wav"),
+        ext=pl.col("src").str.extract(r"\.([^./]+)$"),
+    )
+    logger.info("targets by extension: %s", dict(df["ext"].value_counts().iter_rows()))
+
+    src_exists = _pmap(_remote_exists, df["src"].to_list(), n_workers, "src exists", True)
+    wav_exists = _pmap(_remote_exists, df["wav"].to_list(), n_workers, "wav exists", True)
+    df = df.with_columns(src_exists=pl.Series(src_exists), wav_exists=pl.Series(wav_exists))
+    df = df.with_columns(
+        status=pl.when(pl.col("ext") == "wav")
+        .then(pl.lit("broken_wav"))
+        .when("wav_exists")
         .then(pl.lit("wav_exists"))
-        .when("m4a_exists")
+        .when("src_exists")
         .then(pl.lit("to_convert"))
         .otherwise(pl.lit("missing"))
     )
-    _save_stage(work_dir, "scan", m4a)
+    _save_stage(work_dir, "scan", df)
 
 
 # --------------------------------------------------------------------------- convert
 
 
 def _convert_one(args: tuple[str, str]) -> dict:
-    """Download one ``.m4a`` and write its PCM_16 ``.wav`` sibling locally.
+    """Download one target and write its PCM_16 ``.wav`` sibling locally.
 
     Parameters
     ----------
     args : tuple of (str, str)
-        ``(m4a relative path, local audio root)``.
+        ``(target relative path, local audio root)``.
 
     Returns
     -------
     dict
-        ``{"m4a", "status", "message", "sr", "channels", "frames"}`` with
+        ``{"src", "status", "message", "sr", "channels", "frames"}`` with
         status ``success``, ``skipped`` (local ``.wav`` already present) or
         ``decode_error``/``download_error``.
     """
     rel, root = args
     src_local = Path(root) / rel
     dst_local = Path(root) / _wav_sibling(rel)
-    out = {"m4a": rel, "status": "skipped", "message": "", "sr": None, "channels": None,
+    out = {"src": rel, "status": "skipped", "message": "", "sr": None, "channels": None,
            "frames": None}  # fmt: skip
     if dst_local.exists():
         return out
@@ -395,11 +452,11 @@ def convert(work_dir: Path, n_workers: int, limit: int | None = None) -> None:
         stages then only see these files, so re-run without it before
         `upload`.
     """
-    todo = _load_stage(work_dir, "scan").filter(pl.col("status") == "to_convert")["m4a"]
+    todo = _load_stage(work_dir, "scan").filter(pl.col("status") == "to_convert")["src"]
     if limit is not None:
         todo = todo.head(limit)
     root = str(work_dir / "audio")
-    results = _pmap(_convert_one, [(r, root) for r in todo.to_list()], n_workers, "m4a->wav")
+    results = _pmap(_convert_one, [(r, root) for r in todo.to_list()], n_workers, "->wav")
     _save_stage(work_dir, "convert", pl.DataFrame(results, infer_schema_length=None))
 
 
@@ -409,7 +466,7 @@ def convert(work_dir: Path, n_workers: int, limit: int | None = None) -> None:
 def _crosscheck_16k(y: np.ndarray, sr: int, rel_16k: str) -> tuple[float, int]:
     """Correlate decoded audio with the existing 16 kHz resample on GCS.
 
-    A high correlation shows that the ``.m4a`` is the recording the
+    A high correlation shows that the target is the recording the
     ``16khz_path`` file was made from (i.e. the pairing is right). Decoders
     handle AAC priming differently, so the two can be offset by a few tens of
     milliseconds; the correlation is taken at the best lag within
@@ -446,37 +503,37 @@ def _crosscheck_16k(y: np.ndarray, sr: int, rel_16k: str) -> tuple[float, int]:
 
 
 def _verify_one(args: tuple[str, str, str | None]) -> dict:
-    """Check that a local ``.wav`` is a bit-exact copy of its decoded ``.m4a``.
+    """Check that a local ``.wav`` is a bit-exact copy of its decoded target.
 
     Parameters
     ----------
     args : tuple of (str, str, str or None)
-        ``(m4a relative path, local audio root, 16khz_path or None)``. If the
+        ``(target relative path, local audio root, 16khz_path or None)``. If the
         third element is given, also run `_crosscheck_16k`.
 
     Returns
     -------
     dict
-        ``{"m4a", "status", "message", "max_abs_diff", "corr_16k", "lag_16k"}`` with
+        ``{"src", "status", "message", "max_abs_diff", "corr_16k", "lag_16k"}`` with
         status ``ok`` or ``mismatch``/``error``.
     """
     rel, root, rel_16k = args
-    out = {"m4a": rel, "status": "ok", "message": "", "max_abs_diff": None, "corr_16k": None,
+    out = {"src": rel, "status": "ok", "message": "", "max_abs_diff": None, "corr_16k": None,
            "lag_16k": None}  # fmt: skip
     try:
-        y_m4a, sr_m4a = _decode(Path(root) / rel)
+        y_src, sr_src = _decode(Path(root) / rel)
         y_wav, sr_wav = _decode(Path(root) / _wav_sibling(rel))
     except Exception as exc:  # noqa: BLE001 - recorded in the report
         return out | {"status": "error", "message": f"{type(exc).__name__}: {exc}"}
-    if sr_m4a != sr_wav or y_m4a.shape != y_wav.shape:
-        msg = f"sr {sr_m4a} vs {sr_wav}, shape {y_m4a.shape} vs {y_wav.shape}"
+    if sr_src != sr_wav or y_src.shape != y_wav.shape:
+        msg = f"sr {sr_src} vs {sr_wav}, shape {y_src.shape} vs {y_wav.shape}"
         return out | {"status": "mismatch", "message": msg}
-    out["max_abs_diff"] = float(np.max(np.abs(y_m4a - y_wav)))
-    if not np.array_equal(y_m4a, y_wav):
+    out["max_abs_diff"] = float(np.max(np.abs(y_src - y_wav)))
+    if not np.array_equal(y_src, y_wav):
         out |= {"status": "mismatch", "message": "samples differ"}
     if rel_16k is not None:
         try:
-            out["corr_16k"], out["lag_16k"] = _crosscheck_16k(y_m4a, sr_m4a, rel_16k)
+            out["corr_16k"], out["lag_16k"] = _crosscheck_16k(y_src, sr_src, rel_16k)
         except Exception as exc:  # noqa: BLE001 - informational only
             out["message"] += f" crosscheck failed: {type(exc).__name__}: {exc}"
     return out
@@ -497,12 +554,12 @@ def verify(work_dir: Path, n_workers: int, crosscheck_frac: float, seed: int) ->
         Seed for choosing the cross-check subset.
     """
     conv = _load_stage(work_dir, "convert").filter(pl.col("status").is_in(["success", "skipped"]))
-    paths_16k = dict(_load_stage(work_dir, "scan").select("m4a", CROSSCHECK_COLUMN).iter_rows())
+    paths_16k = dict(_load_stage(work_dir, "scan").select("src", CROSSCHECK_COLUMN).iter_rows())
     rng = random.Random(seed)
     root = str(work_dir / "audio")
     items = [
         (rel, root, paths_16k[rel] if rng.random() < crosscheck_frac else None)
-        for rel in conv["m4a"].to_list()
+        for rel in conv["src"].to_list()
     ]
     df = pl.DataFrame(_pmap(_verify_one, items, n_workers, "verify"), infer_schema_length=None)
     _save_stage(work_dir, "verify", df)
@@ -526,12 +583,12 @@ def _upload_one(args: tuple[str, str]) -> dict:
     Parameters
     ----------
     args : tuple of (str, str)
-        ``(m4a relative path, local audio root)``.
+        ``(target relative path, local audio root)``.
 
     Returns
     -------
     dict
-        ``{"m4a", "status", "message"}`` with status ``uploaded``,
+        ``{"src", "status", "message"}`` with status ``uploaded``,
         ``exists`` or ``error``.
     """
     rel, root = args
@@ -539,11 +596,11 @@ def _upload_one(args: tuple[str, str]) -> dict:
     fs = filesystem_from_path(DATA_ROOT)
     try:
         if fs.exists(DATA_ROOT + wav):
-            return {"m4a": rel, "status": "exists", "message": ""}
+            return {"src": rel, "status": "exists", "message": ""}
         fs.put(str(Path(root) / wav), DATA_ROOT + wav)
     except Exception as exc:  # noqa: BLE001 - recorded in the report
-        return {"m4a": rel, "status": "error", "message": f"{type(exc).__name__}: {exc}"}
-    return {"m4a": rel, "status": "uploaded", "message": ""}
+        return {"src": rel, "status": "error", "message": f"{type(exc).__name__}: {exc}"}
+    return {"src": rel, "status": "uploaded", "message": ""}
 
 
 def upload(work_dir: Path, n_workers: int) -> None:
@@ -556,7 +613,7 @@ def upload(work_dir: Path, n_workers: int) -> None:
     n_workers : int
         Number of upload threads.
     """
-    ok = _load_stage(work_dir, "verify").filter(pl.col("status") == "ok")["m4a"].to_list()
+    ok = _load_stage(work_dir, "verify").filter(pl.col("status") == "ok")["src"].to_list()
     root = str(work_dir / "audio")
     results = _pmap(_upload_one, [(r, root) for r in ok], n_workers, "upload", True)
     _save_stage(work_dir, "upload", pl.DataFrame(results, infer_schema_length=None))
@@ -565,8 +622,8 @@ def upload(work_dir: Path, n_workers: int) -> None:
 # --------------------------------------------------------------------------- rewrite
 
 
-def _resolved_m4a(work_dir: Path) -> set[str]:
-    """Return the ``.m4a`` paths whose ``.wav`` sibling is now on GCS.
+def _targets_and_resolved(work_dir: Path) -> tuple[set[str], set[str]]:
+    """Return all target paths and those whose ``.wav`` sibling is on GCS.
 
     Parameters
     ----------
@@ -575,25 +632,33 @@ def _resolved_m4a(work_dir: Path) -> set[str]:
 
     Returns
     -------
-    set of str
-        Paths that already had a ``.wav`` at scan time, plus those uploaded
-        (or found already present) by the `upload` stage.
+    tuple of (set of str, set of str)
+        ``(targets, resolved)``: every scanned target, and the subset that
+        already had a ``.wav`` at scan time or was uploaded (or found already
+        present) by the `upload` stage.
     """
     scan_df = _load_stage(work_dir, "scan")
-    resolved = set(scan_df.filter(pl.col("status") == "wav_exists")["m4a"].to_list())
-    up = _load_stage(work_dir, "upload").filter(pl.col("status").is_in(["uploaded", "exists"]))
-    return resolved | set(up["m4a"].to_list())
+    targets = set(scan_df["src"].to_list())
+    resolved = set(scan_df.filter(pl.col("status") == "wav_exists")["src"].to_list())
+    if scan_df.filter(pl.col("status") == "to_convert").height:
+        up = _load_stage(work_dir, "upload").filter(pl.col("status").is_in(["uploaded", "exists"]))
+        resolved |= set(up["src"].to_list())
+    return targets, resolved
 
 
-def _rewrite_one(df: pl.DataFrame, resolved: set[str]) -> tuple[pl.DataFrame, dict]:
-    """Apply the column drop and ``.m4a`` -> ``.wav`` rewrite to one split.
+def _rewrite_one(
+    df: pl.DataFrame, targets: set[str], resolved: set[str]
+) -> tuple[pl.DataFrame, dict]:
+    """Apply the column drop and target -> ``.wav`` rewrite to one split.
 
     Parameters
     ----------
     df : pl.DataFrame
         Input split.
+    targets : set of str
+        All target ``originals_path`` values.
     resolved : set of str
-        ``.m4a`` paths with a ``.wav`` sibling on GCS.
+        Targets with a ``.wav`` sibling on GCS.
 
     Returns
     -------
@@ -601,16 +666,18 @@ def _rewrite_one(df: pl.DataFrame, resolved: set[str]) -> tuple[pl.DataFrame, di
         The rewritten split and counts of rewritten / dropped rows.
     """
     col = pl.col(ORIGINALS_COLUMN)
-    is_m4a = col.str.ends_with(".m4a")
+    is_target = col.is_in(list(targets))
     is_resolved = col.is_in(list(resolved))
     counts = {
         "rows_in": df.height,
-        "rewritten_to_wav": int(df.select((is_m4a & is_resolved).sum()).item()),
-        "dropped_unresolved_m4a": int(df.select((is_m4a & ~is_resolved).sum()).item()),
+        "rewritten_to_wav": int(df.select((is_target & is_resolved).sum()).item()),
+        "dropped_unresolved": int(df.select((is_target & ~is_resolved).sum()).item()),
     }
     out = (
-        df.filter(~is_m4a | is_resolved)
-        .with_columns(col.str.replace(r"\.m4a$", ".wav"))
+        df.filter(~is_target | is_resolved)
+        .with_columns(
+            pl.when(is_resolved).then(col.str.replace(r"\.[^./]+$", ".wav")).otherwise(col)
+        )
         .drop(DROP_COLUMNS, strict=False)
     )
     counts["rows_out"] = out.height
@@ -628,17 +695,21 @@ def rewrite(work_dir: Path) -> None:
     Raises
     ------
     ValueError
-        If an output still contains ``.m4a`` originals or a dropped column.
+        If an output still contains ``.m4a`` originals, an unresolved target
+        or a dropped column.
     """
-    resolved = _resolved_m4a(work_dir)
+    targets, resolved = _targets_and_resolved(work_dir)
+    unresolved = list(targets - resolved)
     out_dir = work_dir / "out"
     out_dir.mkdir(exist_ok=True)
     report: dict[str, dict] = {}
     for version in VERSIONS:
         for src, dst in zip(_csv_names(version), _csv_names(version, output=True), strict=True):
-            df, counts = _rewrite_one(_read_csv(work_dir / "csv" / src), resolved)
+            df, counts = _rewrite_one(_read_csv(work_dir / "csv" / src), targets, resolved)
             if df[ORIGINALS_COLUMN].str.ends_with(".m4a").any():
                 raise ValueError(f"{dst} still has .m4a originals")
+            if df[ORIGINALS_COLUMN].is_in(unresolved).any():
+                raise ValueError(f"{dst} still has unresolved targets")
             if set(DROP_COLUMNS) & set(df.columns):
                 raise ValueError(f"{dst} still has one of {DROP_COLUMNS}")
             df.write_csv(out_dir / dst)
@@ -650,24 +721,29 @@ def rewrite(work_dir: Path) -> None:
 # --------------------------------------------------------------------------- publish
 
 
-def publish(work_dir: Path) -> None:
+def publish(work_dir: Path, overwrite: bool = False) -> None:
     """Upload the rewritten CSVs from ``<work-dir>/out`` to `DATA_ROOT`.
 
     Parameters
     ----------
     work_dir : Path
         Work directory.
+    overwrite : bool, default=False
+        Replace destination CSVs that already exist on GCS.
 
     Raises
     ------
     FileExistsError
-        If any destination CSV already exists on GCS (nothing is uploaded).
+        If any destination CSV already exists on GCS and `overwrite` is
+        False (nothing is uploaded).
     """
     fs = filesystem_from_path(DATA_ROOT)
     names = [n for v in VERSIONS for n in _csv_names(v, output=True)]
     clash = [n for n in names if fs.exists(DATA_ROOT + n)]
-    if clash:
+    if clash and not overwrite:
         raise FileExistsError(f"refusing to overwrite existing CSVs: {clash}")
+    if clash:
+        logger.warning("overwriting existing CSVs: %s", clash)
     for name in names:
         logger.info("uploading %s", name)
         fs.put(str(work_dir / "out" / name), DATA_ROOT + name)
@@ -695,8 +771,18 @@ def _parse_args(argv: Iterable[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--work-dir", type=Path, required=True)
     parser.add_argument("--n-workers", type=int, default=8)
     sub = parser.add_subparsers(dest="stage", required=True)
-    for name in ["scan", "upload", "rewrite", "publish"]:
+    for name in ["upload", "rewrite"]:
         sub.add_parser(name)
+    p_scan = sub.add_parser("scan")
+    p_scan.add_argument(
+        "--extra-targets",
+        type=Path,
+        nargs="*",
+        default=[],
+        help="Failure CSVs from iterate_inaturalist.py; their originals_path are targets.",
+    )
+    p_publish = sub.add_parser("publish")
+    p_publish.add_argument("--overwrite", action="store_true")
     p_convert = sub.add_parser("convert")
     p_convert.add_argument("--limit", type=int, default=None)
     p_verify = sub.add_parser("verify")
@@ -711,7 +797,7 @@ def main() -> None:
     work_dir = args.work_dir.expanduser()
     work_dir.mkdir(parents=True, exist_ok=True)
     if args.stage == "scan":
-        scan(work_dir, max(args.n_workers, 32))
+        scan(work_dir, max(args.n_workers, 32), args.extra_targets)
     elif args.stage == "convert":
         convert(work_dir, args.n_workers, args.limit)
     elif args.stage == "verify":
@@ -721,7 +807,7 @@ def main() -> None:
     elif args.stage == "rewrite":
         rewrite(work_dir)
     else:
-        publish(work_dir)
+        publish(work_dir, args.overwrite)
 
 
 if __name__ == "__main__":

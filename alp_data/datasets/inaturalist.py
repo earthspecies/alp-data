@@ -130,15 +130,16 @@ class INaturalist(Dataset):
 
     Remarks
     -------
-    ⚠️ Original audio files in m4a format were decoded with ffmpeg (via librosa) and
+    ⚠️ Original audio files in m4a format were decoded with librosa (via audioread) and
     stored as 16-bit PCM WAV at their native sample rate, in both versions. The WAV
     samples are identical to the decoded m4a, but this does not resolve the issues with
-    m4a (lossy AAC) as a bioacoustic recording format. m4a files that could not be decoded
-    were removed from the splits
-    (see scripts/data_preprocessing_scripts/inat_m4a_to_wav.py).
+    m4a (lossy AAC) as a bioacoustic recording format.
     ⚠️ MP3 audio files that were unreadable by soundfile were also converted to WAV using librosa
-    and ffmpeg. This may introduce decoder specific metadata and potential quality issues.
-    (see scripts/data_preprocessing_scripts/inat_mp3_to_wav.py)
+    and ffmpeg, in both versions. This may introduce decoder specific metadata and potential
+    quality issues.
+    ⚠️ Rows whose original audio could not be decoded, or is missing, were removed from the
+    splits (see scripts/data_preprocessing_scripts/inat_mp3_to_wav.py and
+    scripts/data_preprocessing_scripts/inat_m4a_to_wav.py).
 
     References
     ----------
