@@ -4,14 +4,10 @@ import pandas as pd
 import polars as pl
 import pytest
 
+from alp_data import DatasetConfig
 from alp_data.backends import PandasBackend, PolarsBackend
 from alp_data.backends.protocol import DataBackend
-from alp_data.transforms import (
-    ExpandByFunction,
-    ExpandByFunctionConfig,
-    register_row_method,
-    transform_from_config,
-)
+from alp_data.transforms import ExpandByFunction, ExpandByFunctionConfig, transform_from_config
 from alp_data.transforms.expand import resolve_row_method
 from alp_data.transforms.video_sample import split_clip_by_frames
 
@@ -29,7 +25,6 @@ def _rows(backend: DataBackend) -> list[dict[str, Any]]:
 DATA = {"name": ["a", "b", "c"], "n": [0, 1, 3]}
 
 
-@register_row_method("test_expand_repeat_n")
 def repeat_n(row: dict[str, Any], label: str = "copy") -> list[dict[str, Any]]:
     """Emit `row["n"]` children, numbered with `idx`.
 
@@ -94,32 +89,55 @@ def test_expand_non_list_return_raises(bad_return: Any) -> None:  # noqa: ANN401
         ExpandByFunction(method=lambda row: bad_return)(backend)
 
 
+REPEAT_N_PATHS = [f"{__name__}.repeat_n", f"{__name__}:repeat_n"]
+
+
 def test_resolve_row_method() -> None:
-    """Test if row methods resolve from callables, registered names and import paths."""
+    """Test if row methods resolve from callables and both import path forms."""
     assert resolve_row_method(repeat_n) is repeat_n
-    assert resolve_row_method("test_expand_repeat_n") is repeat_n
-    assert resolve_row_method("split_clip_by_frames") is split_clip_by_frames
-    path = "alp_data.transforms.video_sample:split_clip_by_frames"
-    assert resolve_row_method(path) is split_clip_by_frames
+    for path in REPEAT_N_PATHS:
+        assert resolve_row_method(path) is repeat_n
+    for path in [
+        "alp_data.transforms.video_sample.split_clip_by_frames",
+        "alp_data.transforms.video_sample:split_clip_by_frames",
+    ]:
+        assert resolve_row_method(path) is split_clip_by_frames
+
+
+def test_resolve_row_method_nested_attribute() -> None:
+    """Test if the colon form resolves a dotted attribute path."""
+    path = "alp_data.transforms.expand:ExpandByFunction.from_config"
+    assert resolve_row_method(path) == ExpandByFunction.from_config
+
+
+@pytest.mark.parametrize("spec", ["split_clip_by_frames", "module:", ":function", "."])
+def test_resolve_row_method_not_an_import_path(spec: str) -> None:
+    with pytest.raises(ValueError, match="not an import path"):
+        resolve_row_method(spec)
 
 
 def test_resolve_row_method_errors() -> None:
-    with pytest.raises(KeyError, match="Unknown row method"):
-        resolve_row_method("not_registered")
     with pytest.raises(TypeError, match="must be a string or a callable"):
         resolve_row_method(42)
     with pytest.raises(TypeError, match="non-callable"):
-        resolve_row_method("alp_data.transforms.expand:_ROW_METHODS")
+        resolve_row_method("alp_data.transforms.expand.logger")
     with pytest.raises(AttributeError):
         resolve_row_method("alp_data.transforms.expand:does_not_exist")
+    with pytest.raises(ImportError):
+        resolve_row_method("alp_data.no_such_module.function")
 
 
-def test_register_row_method_conflict() -> None:
-    with pytest.raises(ValueError, match="already registered"):
-        register_row_method("test_expand_repeat_n")(lambda row: [])
-
-    # Re-registering the same function is allowed
-    assert register_row_method("test_expand_repeat_n")(repeat_n) is repeat_n
+def test_config_accepts_callable_and_import_path() -> None:
+    """Test if a dataset config accepts a row method as a callable or an import path."""
+    cfg = DatasetConfig(
+        dataset_name="mammalps",
+        transformations=[
+            {"type": "expand_by_function", "method": repeat_n},
+            {"type": "expand_by_function", "method": REPEAT_N_PATHS[0]},
+        ],
+    )
+    assert [t.method for t in cfg.transformations] == [repeat_n, REPEAT_N_PATHS[0]]
+    assert all(ExpandByFunction.from_config(t).method is repeat_n for t in cfg.transformations)
 
 
 @pytest.mark.parametrize("backend_type", ["pandas", "polars"])
@@ -128,10 +146,10 @@ def test_expand_transform_methods_equivalence(backend_type: str) -> None:
     Test that transform_from_config, manual, and from_config produce the same result.
     """
     config = ExpandByFunctionConfig(
-        type="expand_by_function", method="test_expand_repeat_n", kwargs={"label": "x"}
+        type="expand_by_function", method=REPEAT_N_PATHS[1], kwargs={"label": "x"}
     )
     transforms = [
-        ExpandByFunction(method="test_expand_repeat_n", kwargs={"label": "x"}),
+        ExpandByFunction(method=repeat_n, kwargs={"label": "x"}),
         ExpandByFunction.from_config(config),
         transform_from_config(config),
     ]

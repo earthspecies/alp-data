@@ -38,7 +38,7 @@ from typing import Any, Literal
 from pydantic import BaseModel
 
 from . import register_transform
-from .expand import ExpandByFunction, register_row_method
+from .expand import ExpandByFunction
 
 logger = logging.getLogger("alp_data")
 
@@ -124,7 +124,6 @@ def _clip_rows(
     ]
 
 
-@register_row_method()
 def split_clip_by_frames(
     row: dict[str, Any],
     clip_length: int,
@@ -180,7 +179,6 @@ def split_clip_by_frames(
     return _clip_rows(windows, stride, video_fps)
 
 
-@register_row_method()
 def split_clip_by_duration(
     row: dict[str, Any],
     clip_duration: float,
