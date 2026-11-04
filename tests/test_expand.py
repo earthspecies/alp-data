@@ -89,6 +89,41 @@ def test_expand_non_list_return_raises(bad_return: Any) -> None:  # noqa: ANN401
         ExpandByFunction(method=lambda row: bad_return)(backend)
 
 
+@pytest.mark.parametrize("bad_child", [None, 1, "x", ["n", 1]])
+def test_expand_non_dict_child_raises(bad_child: Any) -> None:  # noqa: ANN401
+    backend = _make_backend("pandas", DATA)
+    with pytest.raises(TypeError, match="list containing"):
+        ExpandByFunction(method=lambda row: [bad_child])(backend)
+
+
+@pytest.mark.parametrize(
+    "method",
+    [
+        # different keys within one row
+        pytest.param(lambda row: [{"a": 1}, {"b": 2}], id="within-row"),
+        # a subset of the keys within one row
+        pytest.param(lambda row: [{"a": 1, "b": 2}, {"a": 1}], id="subset"),
+        # unchanged `{}` for some rows, updates for others
+        pytest.param(lambda row: [{}] if row["n"] == 0 else [{"n": 1}], id="across-rows"),
+    ],
+)
+@pytest.mark.parametrize("backend_type", ["pandas", "polars"])
+def test_expand_mismatched_keys_raise(backend_type: str, method: Any) -> None:  # noqa: ANN401
+    backend = _make_backend(backend_type, DATA)
+    with pytest.raises(ValueError, match="all children must set the same keys"):
+        ExpandByFunction(method=method)(backend)
+
+
+@pytest.mark.parametrize("backend_type", ["pandas", "polars"])
+def test_expand_key_order_does_not_matter(backend_type: str) -> None:
+    """Test if children may list the same keys in a different order."""
+    backend = _make_backend(backend_type, DATA)
+    method = lambda row: [{"x": 1, "y": 2}, {"y": 3, "x": 4}]  # noqa: E731
+    out, meta = ExpandByFunction(method=method)(backend)
+    assert meta["n_out"] == 6
+    assert [(r["x"], r["y"]) for r in _rows(out)] == [(1, 2), (4, 3)] * 3
+
+
 REPEAT_N_PATHS = [f"{__name__}.repeat_n", f"{__name__}:repeat_n"]
 
 
