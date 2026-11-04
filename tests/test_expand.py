@@ -13,7 +13,7 @@ from alp_data.transforms import (
     transform_from_config,
 )
 from alp_data.transforms.expand import resolve_row_method
-from alp_data.transforms.video_sample import clip_to_num_frames
+from alp_data.transforms.video_sample import split_clip_by_frames
 
 
 def _make_backend(backend_type: str, data: dict[str, list]) -> DataBackend:
@@ -98,9 +98,9 @@ def test_resolve_row_method() -> None:
     """Test if row methods resolve from callables, registered names and import paths."""
     assert resolve_row_method(repeat_n) is repeat_n
     assert resolve_row_method("test_expand_repeat_n") is repeat_n
-    assert resolve_row_method("clip_to_num_frames") is clip_to_num_frames
-    path = "alp_data.transforms.video_sample:clip_to_num_frames"
-    assert resolve_row_method(path) is clip_to_num_frames
+    assert resolve_row_method("split_clip_by_frames") is split_clip_by_frames
+    path = "alp_data.transforms.video_sample:split_clip_by_frames"
+    assert resolve_row_method(path) is split_clip_by_frames
 
 
 def test_resolve_row_method_errors() -> None:

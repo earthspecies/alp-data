@@ -12,7 +12,7 @@ Video datasets contain the information:
 
 `SplitClip` cuts each clip into clips of either a fixed number of sampled frames
 (`clip_length`) or a fixed duration (`clip_duration`). It is a wrapper on
-`ExpandByFunction` with the row method `clip_to_num_frames` or `clip_to_num_seconds`.
+`ExpandByFunction` with the row method `split_clip_by_frames` or `split_clip_by_duration`.
 
 Examples
 --------
@@ -125,7 +125,7 @@ def _clip_rows(
 
 
 @register_row_method()
-def clip_to_num_frames(
+def split_clip_by_frames(
     row: dict[str, Any],
     clip_length: int,
     drop_last: bool = True,
@@ -181,7 +181,7 @@ def clip_to_num_frames(
 
 
 @register_row_method()
-def clip_to_num_seconds(
+def split_clip_by_duration(
     row: dict[str, Any],
     clip_duration: float,
     drop_last: bool = True,
@@ -193,7 +193,7 @@ def clip_to_num_seconds(
     videos with different frame rates give clips of the same length in time. The
     number of decoded frames per clip is `ceil(span / frame_stride)`, which can vary
     between videos of different frame rates. The stride is picked from the row's `fps`
-    as in `clip_to_num_frames`.
+    as in `split_clip_by_frames`.
 
     Parameters
     ----------
@@ -202,7 +202,7 @@ def clip_to_num_seconds(
     clip_duration : float
         Clip length in seconds.
     drop_last : bool, optional
-        As in `clip_to_num_frames`, by default True.
+        As in `split_clip_by_frames`, by default True.
     hop_duration : float | None, optional
         Distance between consecutive clip starts, in seconds. Defaults to
         `clip_duration` (non-overlapping clips).
@@ -251,8 +251,8 @@ class SplitClipConfig(BaseModel):
 class SplitClip(ExpandByFunction):
     """Cut every clip into clips of `clip_length` sampled frames or `clip_duration` seconds.
 
-    An `ExpandByFunction` with the `clip_to_num_frames` row method (when `clip_length`
-    is given) or the `clip_to_num_seconds` row method (when `clip_duration` is given);
+    An `ExpandByFunction` with the `split_clip_by_frames` row method (when `clip_length`
+    is given) or the `split_clip_by_duration` row method (when `clip_duration` is given);
     see them for the meaning of the parameters. The sampling rate is read from each
     row's `fps` column, which the dataset sets from its `frames_per_second` argument.
 
@@ -303,7 +303,7 @@ class SplitClip(ExpandByFunction):
             if hop is not None:
                 _check_positive_int("hop", hop)
             super().__init__(
-                method=clip_to_num_frames,
+                method=split_clip_by_frames,
                 kwargs={"clip_length": clip_length, "drop_last": drop_last, "hop": hop},
             )
         else:
@@ -313,7 +313,7 @@ class SplitClip(ExpandByFunction):
             if hop_duration is not None:
                 _check_positive_number("hop_duration", hop_duration)
             super().__init__(
-                method=clip_to_num_seconds,
+                method=split_clip_by_duration,
                 kwargs={
                     "clip_duration": clip_duration,
                     "drop_last": drop_last,

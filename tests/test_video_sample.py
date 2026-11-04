@@ -15,7 +15,7 @@ from alp_data.datasets import MammAlps
 from alp_data.transforms import SplitClip, SplitClipConfig, transform_from_config
 from alp_data.transforms import video_sample as video_sample_module
 from alp_data.transforms.expand import ExpandByFunction
-from alp_data.transforms.video_sample import clip_to_num_frames, clip_to_num_seconds
+from alp_data.transforms.video_sample import split_clip_by_duration, split_clip_by_frames
 
 # Local sample: 2 s, 30 fps, 64x48 clip, see tests/test_read_video.py
 SAMPLE_VIDEO = Path("tests/samples/video.mp4").resolve()
@@ -62,56 +62,56 @@ def reset_fps_warnings(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(video_sample_module, "_WARNED_FPS", set())
 
 
-# -- clip_to_num_frames ---------------------------------------------------------
+# -- split_clip_by_frames -------------------------------------------------------
 
 
-def test_clip_to_num_frames_windows() -> None:
-    assert _windows(clip_to_num_frames(_row(), clip_length=4)) == [(0, 4), (4, 8)]
-    updates = clip_to_num_frames(_row(), clip_length=4, drop_last=False)
+def test_split_clip_by_frames_windows() -> None:
+    assert _windows(split_clip_by_frames(_row(), clip_length=4)) == [(0, 4), (4, 8)]
+    updates = split_clip_by_frames(_row(), clip_length=4, drop_last=False)
     assert _windows(updates) == [(0, 4), (4, 8), (6, 10)]
-    updates = clip_to_num_frames(_row(), clip_length=4, hop=2)
+    updates = split_clip_by_frames(_row(), clip_length=4, hop=2)
     assert _windows(updates) == [(0, 4), (2, 6), (4, 8), (6, 10)]
 
 
-def test_clip_to_num_frames_within_current_clip() -> None:
+def test_split_clip_by_frames_within_current_clip() -> None:
     """Test if clipping works inside the row's current bounds, so it can be chained."""
-    updates = clip_to_num_frames(_row(start=5, end=15), clip_length=4)
+    updates = split_clip_by_frames(_row(start=5, end=15), clip_length=4)
     assert _windows(updates) == [(5, 9), (9, 13)]
 
 
-def test_clip_to_num_frames_short_clip_dropped() -> None:
-    assert clip_to_num_frames(_row(), clip_length=11) == []
+def test_split_clip_by_frames_short_clip_dropped() -> None:
+    assert split_clip_by_frames(_row(), clip_length=11) == []
 
 
-def test_clip_to_num_frames_full_length() -> None:
-    assert _windows(clip_to_num_frames(_row(), clip_length=10)) == [(0, 10)]
+def test_split_clip_by_frames_full_length() -> None:
+    assert _windows(split_clip_by_frames(_row(), clip_length=10)) == [(0, 10)]
 
 
-def test_clip_to_num_frames_row_fps_sets_stride() -> None:
+def test_split_clip_by_frames_row_fps_sets_stride() -> None:
     """Test if the row's `fps` picks the stride and spans `clip_length` sampled frames."""
-    updates = clip_to_num_frames(_row(end=30, fps=10), clip_length=4)
+    updates = split_clip_by_frames(_row(end=30, fps=10), clip_length=4)
     assert _windows(updates) == [(0, 12), (12, 24)]
     assert all(u["frame_stride"] == 3 and u["fps"] == 10 for u in updates)
 
 
-def test_clip_to_num_frames_keeps_row_stride() -> None:
+def test_split_clip_by_frames_keeps_row_stride() -> None:
     """Test if a row whose `fps` matches its stride keeps that stride."""
-    updates = clip_to_num_frames(_row(end=20, stride=2), clip_length=5)
+    updates = split_clip_by_frames(_row(end=20, stride=2), clip_length=5)
     assert _windows(updates) == [(0, 10), (10, 20)]
     assert all(u["frame_stride"] == 2 and u["fps"] == 15 for u in updates)
 
 
-def test_clip_to_num_frames_chaining_keeps_stride() -> None:
+def test_split_clip_by_frames_chaining_keeps_stride() -> None:
     """Test if re-clipping a clipped row derives the same stride from its effective fps."""
-    first = clip_to_num_frames(_row(end=60, fps=7), clip_length=5)[0]
-    second = clip_to_num_frames({**_row(end=60), **first}, clip_length=2)
+    first = split_clip_by_frames(_row(end=60, fps=7), clip_length=5)[0]
+    second = split_clip_by_frames({**_row(end=60), **first}, clip_length=2)
     assert all(u["frame_stride"] == first["frame_stride"] == 4 for u in second)
 
 
 def test_fps_not_dividing_video_fps_warns(caplog: pytest.LogCaptureFixture) -> None:
     with caplog.at_level(logging.WARNING, logger="alp_data"):
-        updates = clip_to_num_frames(_row(end=60, fps=7), clip_length=2)
-        clip_to_num_frames(_row(end=60, fps=7), clip_length=2)
+        updates = split_clip_by_frames(_row(end=60, fps=7), clip_length=2)
+        split_clip_by_frames(_row(end=60, fps=7), clip_length=2)
     assert updates[0]["frame_stride"] == 4
     assert updates[0]["fps"] == 7.5
     warnings = [r for r in caplog.records if "does not divide" in r.getMessage()]
@@ -128,48 +128,48 @@ def test_fps_not_dividing_video_fps_warns(caplog: pytest.LogCaptureFixture) -> N
         {"clip_length": 4, "hop": 0},
     ],
 )
-def test_clip_to_num_frames_invalid_arguments(kwargs: dict[str, Any]) -> None:
+def test_split_clip_by_frames_invalid_arguments(kwargs: dict[str, Any]) -> None:
     with pytest.raises(ValueError):
-        clip_to_num_frames(_row(), **kwargs)
+        split_clip_by_frames(_row(), **kwargs)
     with pytest.raises(ValueError):
         SplitClip(**kwargs)
 
 
-def test_clip_to_num_frames_invalid_row_fps() -> None:
+def test_split_clip_by_frames_invalid_row_fps() -> None:
     with pytest.raises(ValueError, match="fps"):
-        clip_to_num_frames(_row(fps=0), clip_length=4)
+        split_clip_by_frames(_row(fps=0), clip_length=4)
 
 
-# -- clip_to_num_seconds --------------------------------------------------------
+# -- split_clip_by_duration -----------------------------------------------------
 
 
-def test_clip_to_num_seconds_windows() -> None:
-    updates = clip_to_num_seconds(_row(end=60), clip_duration=0.5)
+def test_split_clip_by_duration_windows() -> None:
+    updates = split_clip_by_duration(_row(end=60), clip_duration=0.5)
     assert _windows(updates) == [(0, 15), (15, 30), (30, 45), (45, 60)]
-    updates = clip_to_num_seconds(_row(end=30), clip_duration=0.5, hop_duration=0.2)
+    updates = split_clip_by_duration(_row(end=30), clip_duration=0.5, hop_duration=0.2)
     assert _windows(updates) == [(0, 15), (6, 21), (12, 27)]
-    updates = clip_to_num_seconds(_row(end=30), clip_duration=0.4, drop_last=False)
+    updates = split_clip_by_duration(_row(end=30), clip_duration=0.4, drop_last=False)
     assert _windows(updates) == [(0, 12), (12, 24), (18, 30)]
 
 
-def test_clip_to_num_seconds_row_fps_sets_stride() -> None:
+def test_split_clip_by_duration_row_fps_sets_stride() -> None:
     """Test if the row's `fps` sets the stride without changing the clip span."""
-    updates = clip_to_num_seconds(_row(end=30, fps=10), clip_duration=0.5)
+    updates = split_clip_by_duration(_row(end=30, fps=10), clip_duration=0.5)
     assert _windows(updates) == [(0, 15), (15, 30)]
     assert all(u["frame_stride"] == 3 and u["fps"] == 10 for u in updates)
 
 
-def test_clip_to_num_seconds_same_duration_across_fps() -> None:
+def test_split_clip_by_duration_same_duration_across_fps() -> None:
     """Test if clips span the same time at different native frame rates."""
-    at_30 = clip_to_num_seconds(_row(end=60, video_fps=30.0), clip_duration=1.0)
-    at_25 = clip_to_num_seconds(_row(end=50, video_fps=25.0), clip_duration=1.0)
+    at_30 = split_clip_by_duration(_row(end=60, video_fps=30.0), clip_duration=1.0)
+    at_25 = split_clip_by_duration(_row(end=50, video_fps=25.0), clip_duration=1.0)
     assert _windows(at_30) == [(0, 30), (30, 60)]
     assert _windows(at_25) == [(0, 25), (25, 50)]
 
 
-def test_clip_to_num_seconds_shorter_than_one_frame() -> None:
+def test_split_clip_by_duration_shorter_than_one_frame() -> None:
     with pytest.raises(ValueError, match="shorter than one frame"):
-        clip_to_num_seconds(_row(), clip_duration=0.01)
+        split_clip_by_duration(_row(), clip_duration=0.01)
 
 
 @pytest.mark.parametrize(
@@ -180,9 +180,9 @@ def test_clip_to_num_seconds_shorter_than_one_frame() -> None:
         {"clip_duration": 1.0, "hop_duration": 0},
     ],
 )
-def test_clip_to_num_seconds_invalid_arguments(kwargs: dict[str, Any]) -> None:
+def test_split_clip_by_duration_invalid_arguments(kwargs: dict[str, Any]) -> None:
     with pytest.raises(ValueError):
-        clip_to_num_seconds(_row(), **kwargs)
+        split_clip_by_duration(_row(), **kwargs)
     with pytest.raises(ValueError):
         SplitClip(**kwargs)
 
@@ -208,10 +208,10 @@ def test_split_clip_invalid_combinations(kwargs: dict[str, Any], match: str) -> 
 @pytest.mark.parametrize(
     "kwargs, method, expected",
     [
-        ({"clip_length": 4, "hop": 2}, clip_to_num_frames, {"clip_length": 4, "hop": 2}),
+        ({"clip_length": 4, "hop": 2}, split_clip_by_frames, {"clip_length": 4, "hop": 2}),
         (
             {"clip_duration": 0.5, "hop_duration": 0.2},
-            clip_to_num_seconds,
+            split_clip_by_duration,
             {"clip_duration": 0.5, "hop_duration": 0.2},
         ),
     ],
