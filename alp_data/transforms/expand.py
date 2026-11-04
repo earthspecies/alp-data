@@ -116,7 +116,11 @@ class ExpandByFunction:
     The row method is called as `method(row, **kwargs)` with the row as a dict and
     returns a list of dicts, one per child row. Each dict holds only the fields to set
     or override on the child; all other fields are copied from the parent. Returning
-    `[]` drops the row, and `[{}]` keeps it unchanged.
+    `[]` drops the row.
+
+    All rows must produce children with the same keys, across the dataset. Those keys
+    correspond to the columns that get changed in the children - all other keys stay
+    with their values in the original dataset.
 
     Works with any eager backend (pandas, polars) through the `DataBackend` protocol.
 
@@ -138,8 +142,12 @@ class ExpandByFunction:
     >>> import pandas as pd
     >>> from alp_data.backends import PandasBackend
     >>> def halves(row):
-    ...     mid = (row["start_frame"] + row["end_frame"]) // 2
-    ...     return [{"end_frame": mid}, {"start_frame": mid}]
+    ...     start, end = row["start_frame"], row["end_frame"]
+    ...     mid = (start + end) // 2
+    ...     return [
+    ...         {"start_frame": start, "end_frame": mid},
+    ...         {"start_frame": mid, "end_frame": end},
+    ...     ]
     >>> backend = PandasBackend(pd.DataFrame({"start_frame": [0], "end_frame": [10]}))
     >>> expanded, meta = ExpandByFunction(method=halves)(backend)
     >>> len(expanded), meta["n_out"]
@@ -172,7 +180,9 @@ class ExpandByFunction:
         Raises
         ------
         TypeError
-            If the row method returns something other than a list.
+            If the row method returns something other than a list of dicts.
+        ValueError
+            If two children set different keys.
 
         Notes
         -----
@@ -180,8 +190,8 @@ class ExpandByFunction:
         """
         name = getattr(self.method, "__name__", repr(self.method))
         row_indices: list[int] = []
-        parents: list[dict[str, Any]] = []
-        updates: list[dict[str, Any]] = []
+        # Column values of the children, keyed by the first child's keys
+        columns: dict[str, list[Any]] | None = None
         n_in = 0
         n_dropped = 0
         for i, row in enumerate(backend):
@@ -195,20 +205,28 @@ class ExpandByFunction:
             if not children:
                 n_dropped += 1
             for child in children:
+                if not isinstance(child, dict):
+                    raise TypeError(
+                        f"Row method {name!r} must return a list of dicts, "
+                        f"got a list containing {type(child).__name__}"
+                    )
+                if columns is None:  # Set columns for the first time
+                    columns = {key: [] for key in child}
+                elif child.keys() != columns.keys():
+                    raise ValueError(
+                        f"Row method {name!r} returned a child with keys {list(child)} "
+                        f"for row {i}, but earlier children had keys {list(columns)}; "
+                        "all children must set the same keys"
+                    )
+                for key, values in columns.items():
+                    values.append(child[key])
                 row_indices.append(i)
-                parents.append(row)
-                updates.append(child)
 
         if not row_indices:
             expanded = _empty(backend)
         else:
             expanded = backend[row_indices]
-            columns = list(dict.fromkeys(key for update in updates for key in update))
-            for column in columns:
-                values = [
-                    update[column] if column in update else parent.get(column)
-                    for parent, update in zip(parents, updates, strict=True)
-                ]
+            for column, values in columns.items():
                 expanded = expanded.add_column(column, values)
 
         metadata = {"n_in": n_in, "n_out": len(row_indices), "n_dropped": n_dropped}
