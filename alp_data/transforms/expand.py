@@ -7,24 +7,36 @@ This is the template transform for e.g. making a dataset of videos into a datase
 
 Examples
 --------
->>> from alp_data.transforms import ExpandByFunction, register_row_method
->>> @register_row_method()
-... def duplicate(row, n=2):
+>>> from alp_data.transforms import ExpandByFunction
+>>> def duplicate(row, n=2):
 ...     return [{} for _ in range(n)]
->>> transform = ExpandByFunction(method="duplicate", kwargs={"n": 3})
+>>> transform = ExpandByFunction(method=duplicate, kwargs={"n": 3})
 
-The same transform in a dataset config:
+The same transform in a dataset config, given the function itself or its import path
+(`"package.module.function"` or `"package.module:function"`):
 
 >>> from alp_data import DatasetConfig
 >>> cfg = DatasetConfig(
 ...     dataset_name="mammalps",
 ...     split="benchmark-1-val",
 ...     transformations=[
-...         {"type": "expand_by_function", "method": "duplicate", "kwargs": {"n": 3}},
+...         {"type": "expand_by_function", "method": duplicate, "kwargs": {"n": 3}},
+...     ],
+... )
+>>> cfg = DatasetConfig(
+...     dataset_name="mammalps",
+...     split="benchmark-1-val",
+...     transformations=[
+...         {
+...             "type": "expand_by_function",
+...             "method": "alp_data.transforms.video_sample.split_clip_by_frames",
+...             "kwargs": {"clip_length": 16},
+...         },
 ...     ],
 ... )
 """
 
+import functools
 import importlib
 import logging
 from collections.abc import Callable
@@ -40,37 +52,6 @@ logger = logging.getLogger("alp_data")
 
 RowMethod = Callable[..., list[dict[str, Any]]]
 
-_ROW_METHODS: dict[str, RowMethod] = {}
-
-
-def register_row_method(name: str | None = None) -> Callable[[RowMethod], RowMethod]:
-    """Register a row method so that configs can refer to it by name.
-
-    Parameters
-    ----------
-    name : str | None, optional
-        Name to register under. Defaults to the function's `__name__`.
-
-    Returns
-    -------
-    Callable[[RowMethod], RowMethod]
-        A decorator that registers the function and returns it unchanged.
-
-    Notes
-    -----
-    Applying the decorator raises `ValueError` if a different function is already
-    registered under the same name.
-    """
-
-    def decorator(fn: RowMethod) -> RowMethod:
-        key = name or fn.__name__
-        if key in _ROW_METHODS and _ROW_METHODS[key] is not fn:
-            raise ValueError(f"Row method {key!r} is already registered.")
-        _ROW_METHODS[key] = fn
-        return fn
-
-    return decorator
-
 
 def resolve_row_method(spec: str | RowMethod) -> RowMethod:
     """Turn a row method specification into a callable.
@@ -78,8 +59,8 @@ def resolve_row_method(spec: str | RowMethod) -> RowMethod:
     Parameters
     ----------
     spec : str | RowMethod
-        A callable (returned as is), the name of a registered row method, or an
-        import path of the form `"package.module:function"`.
+        A callable (returned as is) or an import path, either
+        `"package.module.function"` or `"package.module:function"`.
 
     Returns
     -------
@@ -88,27 +69,31 @@ def resolve_row_method(spec: str | RowMethod) -> RowMethod:
 
     Raises
     ------
-    KeyError
-        If `spec` is a plain name that is not registered.
     TypeError
         If `spec` is neither a string nor a callable, or resolves to a non-callable.
+    ValueError
+        If `spec` is a string that is not an import path.
 
     Notes
     -----
-    For an import path, propagates `ImportError` if the module cannot be imported and
-    `AttributeError` if it has no such attribute.
+    Propagates `ImportError` if the module cannot be imported and `AttributeError` if
+    it has no such attribute.
     """
     if callable(spec):
         return spec
     if not isinstance(spec, str):
         raise TypeError(f"Row method must be a string or a callable, got {type(spec).__name__}")
     if ":" in spec:
-        module_name, attr = spec.split(":", 1)
-        fn = getattr(importlib.import_module(module_name), attr)
+        module_name, attr_path = spec.split(":", 1)
     else:
-        if spec not in _ROW_METHODS:
-            raise KeyError(f"Unknown row method {spec!r}. Registered: {sorted(_ROW_METHODS)}")
-        fn = _ROW_METHODS[spec]
+        module_name, _, attr_path = spec.rpartition(".")
+    if not module_name or not attr_path:
+        raise ValueError(
+            f"Row method {spec!r} is not an import path; expected "
+            "'package.module.function' or 'package.module:function'"
+        )
+    module = importlib.import_module(module_name)
+    fn = functools.reduce(getattr, attr_path.split("."), module)
     if not callable(fn):
         raise TypeError(f"Row method {spec!r} resolved to a non-callable {type(fn).__name__}")
     return fn
@@ -121,7 +106,7 @@ def _empty(backend: DataBackend) -> DataBackend:
 
 class ExpandByFunctionConfig(BaseModel):
     type: Literal["expand_by_function"]
-    method: str
+    method: str | RowMethod
     kwargs: dict[str, Any] = Field(default_factory=dict)
 
 
@@ -138,7 +123,8 @@ class ExpandByFunction:
     Parameters
     ----------
     method : str | RowMethod
-        The row method, or a specification accepted by `resolve_row_method`.
+        The row method, or its import path (`"package.module.function"` or
+        `"package.module:function"`); see `resolve_row_method`.
     kwargs : dict[str, Any] | None, optional
         Extra keyword arguments passed to `method` on every call.
 
