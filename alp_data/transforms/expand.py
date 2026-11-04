@@ -189,9 +189,12 @@ class ExpandByFunction:
         Propagates any exception raised by the row method.
         """
         name = getattr(self.method, "__name__", repr(self.method))
-        row_indices: list[int] = []
-        # Column values of the children, keyed by the first child's keys
-        columns: dict[str, list[Any]] | None = None
+        # Index of each child's parent row, one entry per child
+        parent_indices: list[int] = []
+        # Only the columns the children override (not the whole table): column name ->
+        # the value each child sets for it, in child order. The column names are read
+        # and fixed from the first child's columns.
+        child_values: dict[str, list[Any]] | None = None
         n_in = 0
         n_dropped = 0
         for i, row in enumerate(backend):
@@ -210,26 +213,29 @@ class ExpandByFunction:
                         f"Row method {name!r} must return a list of dicts, "
                         f"got a list containing {type(child).__name__}"
                     )
-                if columns is None:  # Set columns for the first time
-                    columns = {key: [] for key in child}
-                elif child.keys() != columns.keys():
+                if child_values is None:
+                    # Column names haven't been set yet: set them from the first child
+                    child_values = {column_name: [] for column_name in child}
+                elif child.keys() != child_values.keys():
                     raise ValueError(
                         f"Row method {name!r} returned a child with keys {list(child)} "
-                        f"for row {i}, but earlier children had keys {list(columns)}; "
+                        f"for row {i}, but earlier children had keys {list(child_values)}; "
                         "all children must set the same keys"
                     )
-                for key, values in columns.items():
-                    values.append(child[key])
-                row_indices.append(i)
+                for column_name, column_values in child_values.items():
+                    column_values.append(child[column_name])
+                parent_indices.append(i)
 
-        if not row_indices:
+        if not parent_indices:
             expanded = _empty(backend)
         else:
-            expanded = backend[row_indices]
-            for column, values in columns.items():
-                expanded = expanded.add_column(column, values)
+            # Repeat each parent row once per child; this carries over every column
+            expanded = backend[parent_indices]
+            # Then replace just the overridden columns with the children's values
+            for column_name, column_values in child_values.items():
+                expanded = expanded.add_column(column_name, column_values)
 
-        metadata = {"n_in": n_in, "n_out": len(row_indices), "n_dropped": n_dropped}
+        metadata = {"n_in": n_in, "n_out": len(parent_indices), "n_dropped": n_dropped}
         logger.info("ExpandByFunction(%s): %s", name, metadata)
         return expanded, metadata
 
