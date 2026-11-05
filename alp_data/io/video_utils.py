@@ -74,9 +74,12 @@ def decode_frames_in_range(
     path : str or AnyPathT
         Path or URI of the video.
     start_time : float | None, optional
-        Start time in seconds. If None, starts at the beginning of the stream.
+        Start time in seconds, as an offset from the beginning of the stream.
+        If None, starts at the beginning of the stream.
     end_time : float | None, optional
-        End time in seconds. If None, reads to the end of the stream.
+        End time in seconds, as an offset from the beginning of the stream.
+        Values past the end of the stream are clamped to the end of the stream.
+        If None, reads to the end of the stream.
     fps : float | None, optional
         Target frame rate. If None, the video's native frame rate is used.
     seek_mode : SeekMode, optional
@@ -93,21 +96,42 @@ def decode_frames_in_range(
     -------
     FrameBatch
         The frames played in `[start_time, end_time)`, with `.data` shaped
-        `(N, C, H, W)` and on `device`.
+        `(N, C, H, W)` and on `device`. Frame timestamps (`.pts_seconds`)
+        are the stream's absolute PTS, not offsets.
+
+    Raises
+    ------
+    ValueError
+        If `start_time` is negative, if `end_time` is less than or equal to
+        `start_time` (taken as 0.0 when None), or if `start_time` is at or
+        beyond the end of the stream.
 
     Notes
     -----
+    `start_time` and `end_time` are meant to be offsets from `begin_stream_seconds`
+    rather than absolute PTS.
+
     Opening a missing `path` raises `FileNotFoundError` and an undecodable
-    file raises `ValueError` or `RuntimeError`. A range lying outside the
-    video's stream raises `ValueError`.
+    file raises `ValueError` or `RuntimeError`.
     """
+    start_offset = 0.0 if start_time is None else start_time
+    if start_offset < 0:
+        raise ValueError(f"start_time must be non-negative, got {start_time}")
+    if end_time is not None and end_time <= start_offset:
+        raise ValueError("end_time must be greater than start_time")
+
     with filesystem_from_path(path).open(str(path), "rb") as f:
         decoder = VideoDecoder(f, seek_mode=seek_mode, device=device)
-        if start_time is None:
-            start_time = decoder.metadata.begin_stream_seconds
-        if end_time is None:
-            end_time = decoder.metadata.end_stream_seconds
-        return decoder.get_frames_played_in_range(start_time, end_time, fps)
+        meta = decoder.metadata
+        # Get start and end time of video stream
+        begin, end = meta.begin_stream_seconds, meta.end_stream_seconds
+        start_pts = begin + start_offset
+        stop_pts = end if end_time is None else min(begin + end_time, end)
+        if start_pts >= end:
+            raise ValueError(
+                f"start_time={start_time} is beyond video duration ({end - begin:.3f}s)"
+            )
+        return decoder.get_frames_played_in_range(start_pts, stop_pts, fps)
 
 
 def decode_frames_at(
