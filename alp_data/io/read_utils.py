@@ -806,9 +806,12 @@ def read_video(
         The path string or path object (e.g., Path, GSPath, R2Path) pointing
         to the video file.
     start_time : float or None, optional
-        Start time in seconds. If None, reads from the start of the file.
+        Start time in seconds, as an offset from the start of the video,
+        even if the stream's first timestamp is non-zero.
+        If None, reads from the start of the file.
     end_time : float or None, optional
-        End time in seconds. If None, reads to end of file.
+        End time in seconds, as an offset from the start of the video. Values
+        past the end are clamped to it. If None, reads to end of file.
     fps : float or None, optional
         Frame rate to read the video at. If None, the video's native frame
         rate is used. A rate above the native one duplicates frames.
@@ -822,20 +825,14 @@ def read_video(
     torch.Tensor
         The video frames as a `uint8` tensor of shape `(N, C, H, W)` on `device`.
 
-    Raises
-    ------
-    ValueError
-        If `end_time` is less than or equal to `start_time`.
-
     Notes
     -----
-    Opening a missing `file_path` raises `FileNotFoundError` and an undecodable
-    file raises `ValueError` or `RuntimeError`.
+    Invalid time ranges raise `ValueError`, as described in
+    `decode_frames_in_range`. Opening a missing `file_path` raises
+    `FileNotFoundError` and an undecodable file raises `ValueError` or
+    `RuntimeError`.
     """
     file_path = anypath(file_path)
-
-    if start_time is not None and end_time is not None and end_time <= start_time:
-        raise ValueError("end_time must be greater than start_time")
 
     if start_time is not None or end_time is not None:
         video = decode_frames_in_range(file_path, start_time, end_time, fps, device=device)

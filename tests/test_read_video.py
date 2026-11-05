@@ -17,6 +17,8 @@ from alp_data.io.video_utils import (
 VIDEO_PATH = "tests/samples/video.mp4"
 # Byte-identical copy of `VIDEO_PATH` on GCS
 REMOTE_VIDEO_PATH = "gs://esp-data-ingestion/tests/samples/video.mp4"
+# Same clip, with PTS starting at 0.5 s (`ffmpeg ... -output_ts_offset 0.5`)
+OFFSET_VIDEO_PATH = "tests/samples/video_offset_start.mp4"
 
 
 def test_read_from_file() -> None:
@@ -256,3 +258,39 @@ def test_decode_frame_at_from_gcs() -> None:
 def test_read_video_missing_from_gcs() -> None:
     with pytest.raises(FileNotFoundError):
         read_video("gs://esp-data-ingestion/tests/samples/does_not_exist.mp4")
+
+
+def test_read_video_offset_start_from_zero() -> None:
+    """Test if `start_time` is an offset from the first PTS, not absolute."""
+    assert read_video(OFFSET_VIDEO_PATH, start_time=0.0).shape == (60, 3, 48, 64)
+
+
+def test_read_video_offset_first_second() -> None:
+    assert read_video(OFFSET_VIDEO_PATH, start_time=0.0, end_time=1.0).shape == (
+        30,
+        3,
+        48,
+        64,
+    )
+
+
+def test_read_video_offset_end_at_duration() -> None:
+    duration = get_video_info(OFFSET_VIDEO_PATH)["duration"]
+    assert read_video(OFFSET_VIDEO_PATH, end_time=duration).shape == (60, 3, 48, 64)
+
+
+@pytest.mark.parametrize(
+    "kwargs, match",
+    [
+        ({"start_time": -0.1}, "start_time must be non-negative"),
+        ({"start_time": -0.1, "end_time": 1.0}, "start_time must be non-negative"),
+        ({"end_time": 0.0}, "end_time must be greater than start_time"),
+        ({"end_time": -1.0}, "end_time must be greater than start_time"),
+        ({"start_time": 2.0}, "beyond video duration"),
+        ({"start_time": 5.0, "end_time": 6.0}, "beyond video duration"),
+    ],
+)
+def test_read_video_offset_invalid_time_range(kwargs: dict[str, Any], match: str) -> None:
+    """Test if out-of-range times raise our `ValueError`, not torchcodec's."""
+    with pytest.raises(ValueError, match=match):
+        read_video(OFFSET_VIDEO_PATH, **kwargs)
