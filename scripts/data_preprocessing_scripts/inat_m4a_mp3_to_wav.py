@@ -10,10 +10,11 @@ whenever the requested sample rate is not one of the pre-resampled rates
   an earlier conversion while the CSV still points at them;
 - broken or missing ``.wav``.
 
-v0.1.0's CSVs were patched earlier for m4a and mp3 (``inat_mp3_to_wav.py``);
-v0.2.0's never were. The *targets* of this script are every ``.m4a`` in the
-v0.2.0 CSVs plus every ``originals_path`` listed in the failure CSVs written
-by ``scripts/iterate_inaturalist.py`` (``--extra-targets``).
+v0.1.0's CSVs were patched earlier for m4a and mp3 (by ``inat_mp3_to_wav.py``,
+now removed; see git history); v0.2.0's never were. This script replaces it.
+The *targets* of this script are every ``.m4a`` in the v0.2.0 CSVs plus every
+``originals_path`` listed in the failure CSVs written by
+``scripts/iterate_inaturalist.py`` (``--extra-targets``).
 
 The work is split into stages that share a work directory, so each can be
 inspected before the next runs and nothing is written to GCS until ``upload``:
@@ -57,7 +58,7 @@ CoreAudio decode and correlate with the independently made 16 kHz files
 
 Usage
 -----
-    uv run --with tqdm python scripts/data_preprocessing_scripts/inat_m4a_to_wav.py \\
+    uv run --with tqdm python scripts/data_preprocessing_scripts/inat_m4a_mp3_to_wav.py \\
         --work-dir ~/inat_m4a_work scan --extra-targets failures_0.2.0_all_srnative.csv
     ... convert --n-workers 8
     ... verify --n-workers 8 --crosscheck-frac 0.02

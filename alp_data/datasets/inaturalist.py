@@ -138,8 +138,7 @@ class INaturalist(Dataset):
     and ffmpeg, in both versions. This may introduce decoder specific metadata and potential
     quality issues.
     ⚠️ Rows whose original audio could not be decoded, or is missing, were removed from the
-    splits (see scripts/data_preprocessing_scripts/inat_mp3_to_wav.py and
-    scripts/data_preprocessing_scripts/inat_m4a_to_wav.py).
+    splits (see `scripts/data_preprocessing_scripts/inat_m4a_mp3_to_wav.py`).
 
     References
     ----------
