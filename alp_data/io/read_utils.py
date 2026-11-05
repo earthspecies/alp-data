@@ -789,6 +789,7 @@ def get_audio_info(
 
 def read_video(
     file_path: str | AnyPathT,
+    *,
     start_time: float | None = None,
     end_time: float | None = None,
     fps: float | None = None,
@@ -835,14 +836,17 @@ def read_video(
     file_path = anypath(file_path)
 
     if start_time is not None or end_time is not None:
-        video = decode_frames_in_range(file_path, start_time, end_time, fps, device=device)
+        video = decode_frames_in_range(
+            file_path, start_time=start_time, end_time=end_time, fps=fps, device=device
+        )
     else:
-        video = decode_video(file_path, fps, device=device)
+        video = decode_video(file_path, fps=fps, device=device)
     return video.data
 
 
 def read_video_at_frames(
     file_path: str | AnyPathT,
+    *,
     start_frame: int | None = None,
     end_frame: int | None = None,
     stride: int = 1,
@@ -893,9 +897,9 @@ def read_video_at_frames(
 
     video = decode_frames_at(
         file_path,
-        start_frame,
-        end_frame,
-        stride,
+        start=start_frame,
+        end=end_frame,
+        stride=stride,
         custom_frame_indices=custom_frame_indices,
         device=device,
     )
@@ -903,7 +907,7 @@ def read_video_at_frames(
 
 
 def get_video_info(
-    file_path: str | AnyPathT, seek_mode: SeekMode = "approximate"
+    file_path: str | AnyPathT, *, seek_mode: SeekMode = "approximate"
 ) -> dict[str, Any]:
     """Gets video file information without loading the data.
 

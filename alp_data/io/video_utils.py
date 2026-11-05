@@ -22,6 +22,7 @@ __all__ = [
 
 def decode_video(
     path: str | AnyPathT,
+    *,
     fps: float | None = None,
     seek_mode: SeekMode = "approximate",
     device: str | torch.device | None = None,
@@ -61,6 +62,7 @@ def decode_video(
 
 def decode_frames_in_range(
     path: str | AnyPathT,
+    *,
     start_time: float | None = None,
     end_time: float | None = None,
     fps: float | None = None,
@@ -136,6 +138,7 @@ def decode_frames_in_range(
 
 def decode_frames_at(
     path: str | AnyPathT,
+    *,
     start: int | None = None,
     end: int | None = None,
     stride: int = 1,
@@ -224,6 +227,7 @@ def decode_frames_at(
 def decode_frame_at(
     path: str | AnyPathT,
     index: int,
+    *,
     seek_mode: SeekMode = "approximate",
     device: str | torch.device | None = None,
 ) -> torch.Tensor:
