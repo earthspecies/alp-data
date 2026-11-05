@@ -943,7 +943,7 @@ def get_video_info(
     file_path = anypath(file_path)
 
     with filesystem_from_path(file_path).open(str(file_path), "rb") as f:
-        info = VideoDecoder(f, seek_mode=seek_mode).metadata
+        info = VideoDecoder(f, seek_mode=seek_mode, device="cpu").metadata
 
     return {
         "duration": info.duration_seconds,
