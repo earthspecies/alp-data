@@ -185,7 +185,6 @@ def decode_frames_at(
         If `custom_frame_indices` is empty.
         If `start` or `end` is negative, `end` is not greater than `start`, or
         `stride` is less than 1.
-        If `end` is None and the video's frame count is unknown.
     IndexError
         If `end` is None and `start` is not less than the video's frame count.
 
@@ -216,8 +215,6 @@ def decode_frames_at(
         else:
             if end is None:
                 end = decoder.metadata.num_frames
-                if end is None:
-                    raise ValueError("Video frame count is unknown; pass `end` explicitly")
                 if start >= end:
                     raise IndexError(f"start={start} is out of range for a video with {end} frames")
             indices = list(range(start, end, stride))
