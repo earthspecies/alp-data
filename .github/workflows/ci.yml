@@ -37,7 +37,7 @@ jobs:
               run: sudo apt-get update && sudo apt-get install -y ffmpeg
 
             - name: Install the project
-              run: uv sync --all-extras --dev
+              run: uv sync --all-extras --dev --group torch
 
             - name: Display Python version
               run: python -c "import sys; print(sys.version)"
@@ -81,7 +81,7 @@ jobs:
                   python-version: ${{ matrix.python-version }}
 
             - name: Install the project
-              run: uv sync --all-extras --dev
+              run: uv sync --all-extras --dev --group torch
 
             - name: Run core tests
               run: uv run pytest tests/io

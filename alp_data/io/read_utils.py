@@ -1,4 +1,4 @@
-"""This file offers functionalities necessary to read input streams, like audio."""
+"""This file offers functionalities necessary to read input streams, like audio and video."""
 
 import json
 import logging
@@ -774,3 +774,156 @@ def get_audio_info(
         "format": info.format,
         "subtype": info.subtype,
     }
+
+
+# ---- VIDEO UTILS ----
+
+
+def read_video(
+    file_path: str | AnyPathT,
+    *,
+    start_time: float | None = None,
+    end_time: float | None = None,
+    fps: float | None = None,
+    seek_mode: Literal["approximate", "exact"] = "approximate",
+    device: str | None = None,
+) -> np.ndarray:
+    """Reads video data from a file path.
+
+    Handles various path types (local, GCS, R2) via the `anypath` utility.
+    Reads the entire file by default, or a time range when `start_time` and/or
+    `end_time` is given.
+
+    Parameters
+    ----------
+    file_path : str or AnyPathT
+        The path string or path object (e.g., Path, GSPath, R2Path) pointing
+        to the video file.
+    start_time : float or None, optional
+        Start time in seconds, as an offset from the start of the video,
+        even if the stream's first timestamp is non-zero.
+        If None, reads from the start of the file.
+    end_time : float or None, optional
+        End time in seconds, as an offset from the start of the video. Values
+        past the end are clamped to it. If None, reads to end of file.
+    fps : float or None, optional
+        Frame rate to read the video at. If None, the video's native frame
+        rate is used. A rate above the native one duplicates frames.
+    seek_mode : {"approximate", "exact"}, optional
+        Decoder seek mode, by default "approximate". "exact" scans the whole
+        video first, which is slower. "approximate" falls back to "exact" when
+        the video's metadata can't be trusted (no frame count in the header,
+        an AVI container, or a variable frame rate), as described in
+        `decode_video`.
+    device : str | None, optional
+        Device to decode on, e.g. "cpu" or "cuda". If None (default), uses
+        PyTorch's default device, `torch.get_default_device()`.
+
+    Returns
+    -------
+    np.ndarray
+        The video frames as a `uint8` array of shape `(N, C, H, W)` in host
+        memory, whatever the `device`.
+
+    Raises
+    ------
+    ValueError
+        If the time range is invalid, as described in `decode_frames_in_range`,
+        or if the file cannot be decoded.
+    FileNotFoundError
+        If `file_path` does not exist.
+    RuntimeError
+        If the file cannot be decoded.
+    """  # noqa: DOC502 - raised by the `video_utils` helpers, not directly
+    from alp_data.io.video_utils import decode_frames_in_range, decode_video
+
+    file_path = anypath(file_path)
+
+    if start_time is not None or end_time is not None:
+        video = decode_frames_in_range(
+            file_path,
+            start_time=start_time,
+            end_time=end_time,
+            fps=fps,
+            seek_mode=seek_mode,
+            device=device,
+        )
+    else:
+        video = decode_video(file_path, fps=fps, seek_mode=seek_mode, device=device)
+    return video.data.cpu().numpy()
+
+
+def read_video_at_frames(
+    file_path: str | AnyPathT,
+    *,
+    start_frame: int | None = None,
+    end_frame: int | None = None,
+    stride: int = 1,
+    custom_frame_indices: list[int] | None = None,
+    seek_mode: Literal["approximate", "exact"] = "approximate",
+    device: str | None = None,
+) -> np.ndarray:
+    """Reads video frames by index from a file path.
+
+    Handles various path types (local, GCS, R2) via the `anypath` utility.
+    Reads every frame by default, the frames at `range(start_frame, end_frame,
+    stride)` when any of those is given, or exactly the frames listed in
+    `custom_frame_indices`.
+
+    Parameters
+    ----------
+    file_path : str or AnyPathT
+        The path string or path object (e.g., Path, GSPath, R2Path) pointing
+        to the video file.
+    start_frame : int or None, optional
+        First frame index, inclusive. If None, starts at the first frame.
+    end_frame : int or None, optional
+        Last frame index, exclusive. If None, reads to the last frame.
+    stride : int, optional
+        Step between frame indices, by default 1.
+    custom_frame_indices : list[int] or None, optional
+        Explicit frame indices to read, in order (repeats allowed). Negative
+        indices count from the end of the video. Cannot be combined with
+        `start_frame`, `end_frame` or `stride`. By default None.
+    seek_mode : {"approximate", "exact"}, optional
+        Decoder seek mode, by default "approximate". "exact" scans the whole
+        video first, which is slower. "approximate" falls back to "exact" when
+        the video's metadata can't be trusted (no frame count in the header,
+        an AVI container, or a variable frame rate), as described in
+        `decode_video`.
+    device : str | None, optional
+        Device to decode on, e.g. "cpu" or "cuda". If None (default), uses
+        PyTorch's default device, `torch.get_default_device()`, which is the CPU
+        unless changed with `torch.set_default_device`.
+
+    Returns
+    -------
+    np.ndarray
+        The selected frames as a `uint8` array of shape `(N, C, H, W)` in the requested order.
+
+    Raises
+    ------
+    ValueError
+        If the frame arguments are invalid, as described in `decode_frames_at`,
+        or if the file cannot be decoded.
+    IndexError
+        If a requested frame index is out of range for the video.
+    FileNotFoundError
+        If `file_path` does not exist.
+    RuntimeError
+        If the file cannot be decoded.
+    """  # noqa: DOC502 - raised by the `video_utils` helpers, not directly
+    from alp_data.io.video_utils import decode_frames_at
+
+    file_path = anypath(file_path)
+
+    video = decode_frames_at(
+        file_path,
+        start=start_frame,
+        end=end_frame,
+        stride=stride,
+        custom_frame_indices=custom_frame_indices,
+        seek_mode=seek_mode,
+        device=device,
+    )
+    return video.data.cpu().numpy()
