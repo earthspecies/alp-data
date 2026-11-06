@@ -785,6 +785,7 @@ def read_video(
     start_time: float | None = None,
     end_time: float | None = None,
     fps: float | None = None,
+    seek_mode: Literal["approximate", "exact"] = "approximate",
     device: str | None = None,
 ) -> np.ndarray:
     """Reads video data from a file path.
@@ -808,6 +809,12 @@ def read_video(
     fps : float or None, optional
         Frame rate to read the video at. If None, the video's native frame
         rate is used. A rate above the native one duplicates frames.
+    seek_mode : {"approximate", "exact"}, optional
+        Decoder seek mode, by default "approximate". "exact" scans the whole
+        video first, which is slower. "approximate" falls back to "exact" when
+        the video's metadata can't be trusted (no frame count in the header,
+        an AVI container, or a variable frame rate), as described in
+        `decode_video`.
     device : str | None, optional
         Device to decode on, e.g. "cpu" or "cuda". If None (default), uses
         PyTorch's default device, `torch.get_default_device()`.
@@ -834,10 +841,15 @@ def read_video(
 
     if start_time is not None or end_time is not None:
         video = decode_frames_in_range(
-            file_path, start_time=start_time, end_time=end_time, fps=fps, device=device
+            file_path,
+            start_time=start_time,
+            end_time=end_time,
+            fps=fps,
+            seek_mode=seek_mode,
+            device=device,
         )
     else:
-        video = decode_video(file_path, fps=fps, device=device)
+        video = decode_video(file_path, fps=fps, seek_mode=seek_mode, device=device)
     return video.data.cpu().numpy()
 
 
@@ -848,6 +860,7 @@ def read_video_at_frames(
     end_frame: int | None = None,
     stride: int = 1,
     custom_frame_indices: list[int] | None = None,
+    seek_mode: Literal["approximate", "exact"] = "approximate",
     device: str | None = None,
 ) -> np.ndarray:
     """Reads video frames by index from a file path.
@@ -872,6 +885,12 @@ def read_video_at_frames(
         Explicit frame indices to read, in order (repeats allowed). Negative
         indices count from the end of the video. Cannot be combined with
         `start_frame`, `end_frame` or `stride`. By default None.
+    seek_mode : {"approximate", "exact"}, optional
+        Decoder seek mode, by default "approximate". "exact" scans the whole
+        video first, which is slower. "approximate" falls back to "exact" when
+        the video's metadata can't be trusted (no frame count in the header,
+        an AVI container, or a variable frame rate), as described in
+        `decode_video`.
     device : str | None, optional
         Device to decode on, e.g. "cpu" or "cuda". If None (default), uses
         PyTorch's default device, `torch.get_default_device()`, which is the CPU
@@ -904,6 +923,7 @@ def read_video_at_frames(
         end=end_frame,
         stride=stride,
         custom_frame_indices=custom_frame_indices,
+        seek_mode=seek_mode,
         device=device,
     )
     return video.data.cpu().numpy()

@@ -5,6 +5,7 @@ from typing import Any
 import numpy as np
 import pytest
 import torch
+from torchcodec.decoders import VideoDecoder
 
 from alp_data.io.read_utils import read_video, read_video_at_frames
 from alp_data.io.video_utils import (
@@ -23,6 +24,29 @@ REMOTE_VIDEO_PATH = "gs://esp-data-ingestion/tests/samples/video.mp4"
 HTTPS_VIDEO_PATH = "https://pub-ad974658c4664976b92e83cd9e627e83.r2.dev/test/video.mp4"
 # Same clip, with PTS starting at 0.5 s (`ffmpeg ... -output_ts_offset 0.5`)
 OFFSET_VIDEO_PATH = "tests/samples/video_offset_start.mp4"
+# Variable frame rate: 60 frames, the first 30 at 1/30 s and the rest at 1/15 s.
+#   ffmpeg -f lavfi -i testsrc=size=64x48:rate=30:duration=2 \
+#     -vf "setpts='if(lt(N,30),N/30,N/15)/TB'" -fps_mode vfr <codec args> <out>
+# MKV (libx264): no frame count in the header, approximate mode estimates 118.
+VFR_MKV_PATH = "tests/samples/video_vfr.mkv"
+# MP4 (libx264): header count is right, but approximate seeking returns wrong frames.
+VFR_MP4_PATH = "tests/samples/video_vfr.mp4"
+# AVI (`-c:v mjpeg -q:v 31`): header claims 119 frames, consistent with duration * fps.
+VFR_AVI_PATH = "tests/samples/video_vfr.avi"
+
+# Largest allowed difference between the approximate and exact frame counts.
+MAX_FRAME_GAP = 0  # tighten/loosen as we benchmark more datasets
+
+_VFR_XFAIL = pytest.mark.xfail(
+    strict=True, reason="torchcodec's approximate mode trusts header metadata, wrong for VFR"
+)
+GAP_SAMPLES = [
+    VIDEO_PATH,
+    OFFSET_VIDEO_PATH,
+    pytest.param(VFR_MKV_PATH, marks=_VFR_XFAIL),
+    pytest.param(VFR_MP4_PATH, marks=_VFR_XFAIL),
+    pytest.param(VFR_AVI_PATH, marks=_VFR_XFAIL),
+]
 
 
 def test_read_from_file() -> None:
@@ -359,3 +383,45 @@ def test_read_video_offset_invalid_time_range(kwargs: dict[str, Any], match: str
     """Test if out-of-range times raise our `ValueError`, not torchcodec's."""
     with pytest.raises(ValueError, match=match):
         read_video(OFFSET_VIDEO_PATH, **kwargs)
+
+
+# -- Approximate vs exact seek mode ------------------------------------------------
+
+
+@pytest.mark.parametrize("path", GAP_SAMPLES)
+def test_raw_approximate_matches_exact(path: str) -> None:
+    """Measure torchcodec's own approximate-vs-exact gap, bypassing our fallback.
+
+    The VFR samples are expected to fail; `test_approximate_matches_exact`
+    checks that our readers hide the gap.
+    """
+    approx_decoder = VideoDecoder(path, seek_mode="approximate")
+    exact_decoder = VideoDecoder(path, seek_mode="exact")
+    exact = exact_decoder.metadata.num_frames
+    assert abs(approx_decoder.metadata.num_frames - exact) <= MAX_FRAME_GAP
+
+    idx = [0, exact // 2, exact - 1]
+    assert torch.equal(
+        approx_decoder.get_frames_at(idx).data, exact_decoder.get_frames_at(idx).data
+    )
+
+
+@pytest.mark.parametrize(
+    "path", [VIDEO_PATH, OFFSET_VIDEO_PATH, VFR_MKV_PATH, VFR_MP4_PATH, VFR_AVI_PATH]
+)
+def test_approximate_matches_exact(path: str) -> None:
+    """Test if the default approximate mode gives the same frames as exact mode."""
+    approx = get_video_info(path, seek_mode="approximate")["num_frames"]
+    exact = get_video_info(path, seek_mode="exact")["num_frames"]
+    assert abs(approx - exact) <= MAX_FRAME_GAP
+
+    # Reading "all frames" by index must not run past the decodable frames.
+    frames = read_video_at_frames(path)
+    assert frames.shape[0] == exact
+    np.testing.assert_array_equal(frames, read_video_at_frames(path, seek_mode="exact"))
+
+    # Same index -> same frame in both modes.
+    idx = [0, exact // 2, exact - 1]
+    a = decode_frames_at(path, custom_frame_indices=idx, seek_mode="approximate").data
+    e = decode_frames_at(path, custom_frame_indices=idx, seek_mode="exact").data
+    assert torch.equal(a, e)
