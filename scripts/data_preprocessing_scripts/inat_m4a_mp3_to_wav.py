@@ -12,9 +12,33 @@ whenever the requested sample rate is not one of the pre-resampled rates
 
 v0.1.0's CSVs were patched earlier for m4a and mp3 (by ``inat_mp3_to_wav.py``,
 now removed; see git history); v0.2.0's never were. This script replaces it.
-The *targets* of this script are every ``.m4a`` in the v0.2.0 CSVs plus every
-``originals_path`` listed in the failure CSVs written by
-``scripts/iterate_inaturalist.py`` (``--extra-targets``).
+
+The script reads and rewrites the split CSVs of *both* dataset versions. Its
+*targets* are every ``.m4a`` in either version (v0.1.0 has none; ``scan``
+raises if it finds any) plus every ``originals_path`` listed in the failure
+CSVs written by ``scripts/iterate_inaturalist.py`` (``--extra-targets``).
+
+Changes made to each version (see ``VERSIONS`` for the input/output CSV names):
+
+v0.1.0 (``*_20260201_v3.csv`` -> ``*_20260201_v4.csv``)
+    - ``relative_path`` dropped (the v3 CSVs have no ``gcs_path``), so the
+      columns match v0.2.0 minus its 7 extra GBIF columns.
+    - 1 row repointed to a newly converted ``.wav``:
+      ``audio/113/inat_113534110.mp3``, an mp3 that libsndfile cannot decode
+      and that ``inat_mp3_to_wav.py`` missed.
+    - No rows dropped; all other cells unchanged.
+v0.2.0 (``*_20260616_v1.csv`` -> ``*_20260616_v2.csv``)
+    - ``gcs_path`` and ``relative_path`` dropped.
+    - 132,008 rows in ``all`` repointed to ``.wav`` (126,004 m4a + 6,004
+      mp3). Of the unique files behind them, 41,998 were converted here and
+      89,358 already had a ``.wav`` from the earlier v0.1.0 conversion.
+    - 88 rows in ``all`` dropped (13 missing m4a, 30 missing mp3, 45 broken
+      or missing wav).
+    - All other cells unchanged.
+
+Both versions share one audio tree and CSV directory, ``DATA_ROOT``
+(``inaturalist/v0.1.0/raw``); v0.2.0 is a newer set of split CSVs over the
+same audio, so there is no separate v0.2.0 bucket path.
 
 The work is split into stages that share a work directory, so each can be
 inspected before the next runs and nothing is written to GCS until ``upload``:
@@ -41,9 +65,9 @@ inspected before the next runs and nothing is written to GCS until ``upload``:
     Upload verified ``.wav`` files to their sibling path on GCS, never
     overwriting an existing blob. Writes ``upload.parquet``.
 ``rewrite``
-    Write new split CSVs to ``<work-dir>/out``: drop the ``gcs_path`` and
-    ``relative_path`` columns (both point at the ingestion bucket and are not
-    used by the dataset class), point every resolved target's
+    Write new split CSVs to ``<work-dir>/out`` for both versions: drop the
+    ``gcs_path`` and ``relative_path`` columns where present (they point at
+    the ingestion bucket and are not used by the dataset class), point every resolved target's
     ``originals_path`` at its ``.wav`` sibling, and drop rows whose target is
     unresolved (broken wav, missing, or failed decode/verify). Writes
     ``rewrite_report.json``.
@@ -95,6 +119,8 @@ logging.basicConfig(
 )
 logger = logging.getLogger("inat_to_wav")
 
+# Shared by both dataset versions: v0.2.0's split CSVs and all audio live under
+# the v0.1.0 path too (there is no v0.2.0 directory).
 DATA_ROOT = f"{DATA_HOME}/inaturalist/v0.1.0/raw/"
 ORIGINALS_COLUMN = "originals_path"
 CROSSCHECK_COLUMN = "16khz_path"

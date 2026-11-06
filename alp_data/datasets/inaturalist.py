@@ -139,6 +139,12 @@ class INaturalist(Dataset):
     quality issues.
     ⚠️ Rows whose original audio could not be decoded, or is missing, were removed from the
     splits (see `scripts/data_preprocessing_scripts/inat_m4a_mp3_to_wav.py`).
+    ⚠️ v0.1.0 split CSVs `*_20260201_v3.csv` were replaced by `*_20260201_v4.csv`: the
+    unused `relative_path` column was dropped and one undecodable mp3 row
+    (`audio/113/inat_113534110.mp3`) now points at its WAV; no rows were dropped.
+    v0.2.0 split CSVs `*_20260616_v1.csv` were replaced by `*_20260616_v2.csv`: the
+    `gcs_path` and `relative_path` columns were dropped, m4a and undecodable mp3 rows
+    point at WAV, and 88 rows with missing or broken audio were dropped.
 
     References
     ----------
@@ -165,6 +171,7 @@ class INaturalist(Dataset):
 
     # Version registry with version-specific configurations. Both versions live
     # under the v0.1.0 path, so only the split CSVs differ (data_root is shared).
+    # See the Remarks section for what changed in v4 (0.1.0) and v2 (0.2.0).
     VERSIONS = {
         "0.1.0": {
             "split_paths": {
