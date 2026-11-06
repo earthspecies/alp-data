@@ -19,7 +19,7 @@ from alp_data.io.video_utils import (
 # 2 s, 30 fps, 64x48 h264 clip of ffmpeg's `testsrc` pattern
 VIDEO_PATH = "tests/samples/video.mp4"
 # Byte-identical copy of `VIDEO_PATH` on GCS
-REMOTE_VIDEO_PATH = "gs://esp-data-ingestion/tests/samples/video.mp4"
+REMOTE_VIDEO_PATH = "gs://esp-ci-cd-tests/esp-data-tests/video-samples/video.mp4"
 # Byte-identical copy of `VIDEO_PATH` on a public HTTPS endpoint (R2 dev URL)
 HTTPS_VIDEO_PATH = "https://pub-ad974658c4664976b92e83cd9e627e83.r2.dev/test/video.mp4"
 # Same clip, with PTS starting at 0.5 s (`ffmpeg ... -output_ts_offset 0.5`)
