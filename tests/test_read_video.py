@@ -299,7 +299,7 @@ def test_decode_frame_at_from_gcs() -> None:
 
 def test_read_video_missing_from_gcs() -> None:
     with pytest.raises(FileNotFoundError):
-        read_video("gs://esp-data-ingestion/tests/samples/does_not_exist.mp4")
+        read_video("gs://esp-ci-cd-tests/esp-data-tests/tests/samples/does_not_exist.mp4")
 
 
 # -- HTTPS -----------------------------------------------------------------------
