@@ -1,6 +1,7 @@
 """Low-level video decoding helpers built on `torchcodec`."""
 
-from typing import Any, Literal
+import logging
+from typing import IO, Any, Literal
 
 import torch
 from torchcodec import FrameBatch
@@ -8,6 +9,8 @@ from torchcodec.decoders import VideoDecoder
 
 from alp_data.io.filesystem import filesystem_from_path
 from alp_data.io.paths import AnyPathT, anypath
+
+logger = logging.getLogger("alp_data")
 
 SeekMode = Literal["exact", "approximate"]
 
@@ -18,6 +21,98 @@ __all__ = [
     "decode_frames_in_range",
     "decode_video",
 ]
+
+
+def _is_avi(f: IO[bytes]) -> bool:
+    """Check for the RIFF/AVI magic bytes, restoring the position of `f`.
+
+    The position is restored because an open `VideoDecoder` may still read from `f`.
+
+    Parameters
+    ----------
+    f : IO[bytes]
+        Seekable binary file object of the video.
+
+    Returns
+    -------
+    bool
+        True if `f` is an AVI file.
+    """
+    pos = f.tell()
+    f.seek(0)
+    head = f.read(12)
+    f.seek(pos)
+    return head[:4] == b"RIFF" and head[8:12] == b"AVI "
+
+
+def _approximate_is_unreliable(f: IO[bytes], decoder: VideoDecoder) -> str | None:
+    """Check whether approximate seeking can be trusted for a video.
+
+    Approximate mode maps frame indices to timestamps with the header frame
+    count and average frame rate, which is wrong for variable frame rate (VFR)
+    video.
+
+    Parameters
+    ----------
+    f : IO[bytes]
+        Seekable binary file object of the video.
+    decoder : VideoDecoder
+        Decoder opened on `f` in approximate mode.
+
+    Returns
+    -------
+    str | None
+        Why approximate mode is unreliable, or None if it can be trusted.
+    """
+    meta = decoder.metadata
+    n = meta.num_frames_from_header
+    if n is None:
+        # e.g. MKV/WebM: frame count would be estimated as duration * fps.
+        return "the header has no frame count"
+    if _is_avi(f):
+        # AVI stores VFR as a CFR header with a frame count derived from it.
+        return "AVI headers can misreport the frame count of VFR video"
+    duration, fps = meta.duration_seconds_from_header, meta.average_fps_from_header
+    if duration and fps and abs(n - duration * fps) > 1:
+        # e.g. VFR MP4: frame count is right, but index / fps seeks to the wrong frame.
+        return (
+            f"header frame count ({n}) disagrees with duration * fps "
+            f"({duration:.3f} s * {fps:.3f}), so the frame rate is variable"
+        )
+    return None
+
+
+def _open_decoder(
+    f: IO[bytes], *, seek_mode: SeekMode, device: str | torch.device | None
+) -> VideoDecoder:
+    """Open a `VideoDecoder`, scanning the video if approximate mode is unreliable.
+
+    In `"approximate"` mode, falls back to `"exact"` when the header has no
+    frame count (MKV/WebM), the container is AVI, or the header metadata
+    indicates a variable frame rate.
+
+    Parameters
+    ----------
+    f : IO[bytes]
+        Seekable binary file object of the video.
+    seek_mode : SeekMode
+        Requested decoder seek mode.
+    device : str | torch.device | None
+        Device to decode on.
+
+    Returns
+    -------
+    VideoDecoder
+        Decoder opened on `f`, in `"exact"` mode if the fallback applied.
+    """
+    decoder = VideoDecoder(f, seek_mode=seek_mode, device=device)
+    if seek_mode == "approximate":
+        reason = _approximate_is_unreliable(f, decoder)
+        if reason is not None:
+            logger.debug("Falling back to seek_mode='exact': %s", reason)
+            f.seek(0)
+            decoder = VideoDecoder(f, seek_mode="exact", device=device)
+    return decoder
 
 
 def decode_video(
@@ -37,9 +132,11 @@ def decode_video(
         Target frame rate. If None, the video's native frame rate is used.
     seek_mode : SeekMode, optional
         Decoder seek mode, by default "approximate".
-        "approximate" seeks to the frames to decode by relying on video metadata,
-        and returns the same result as "exact" for most videos. "exact" performs
-        a full scan of the video first, so instantiating the VideoDecoder is slower.
+        "approximate" seeks to the frames to decode by relying on video metadata.
+        "exact" performs a full scan of the video first, so instantiating the
+        VideoDecoder is slower. "approximate" falls back to "exact" when the
+        metadata can't be trusted: no frame count in the header (e.g. MKV/WebM),
+        an AVI container, or a header that indicates a variable frame rate.
     device : str | torch.device | None, optional
         Device to decode on, e.g. "cpu" or "cuda". If None (default), uses
         PyTorch's default device, `torch.get_default_device()`, which is the CPU
@@ -60,7 +157,7 @@ def decode_video(
         If the file cannot be decoded.
     """  # noqa: DOC502 - raised by `torchcodec` or the filesystem, not directly
     with filesystem_from_path(path).open(str(path), "rb") as f:
-        decoder = VideoDecoder(f, seek_mode=seek_mode, device=device)
+        decoder = _open_decoder(f, seek_mode=seek_mode, device=device)
         return decoder.get_all_frames(fps)
 
 
@@ -90,9 +187,11 @@ def decode_frames_in_range(
         Target frame rate. If None, the video's native frame rate is used.
     seek_mode : SeekMode, optional
         Decoder seek mode, by default "approximate".
-        "approximate" seeks to the frames to decode by relying on video metadata,
-        and returns the same result as "exact" for most videos. "exact" performs
-        a full scan of the video first, so instantiating the VideoDecoder is slower.
+        "approximate" seeks to the frames to decode by relying on video metadata.
+        "exact" performs a full scan of the video first, so instantiating the
+        VideoDecoder is slower. "approximate" falls back to "exact" when the
+        metadata can't be trusted: no frame count in the header (e.g. MKV/WebM),
+        an AVI container, or a header that indicates a variable frame rate.
     device : str | torch.device | None, optional
         Device to decode on, e.g. "cpu" or "cuda". If None (default), uses
         PyTorch's default device, `torch.get_default_device()`, which is the CPU
@@ -128,7 +227,7 @@ def decode_frames_in_range(
         raise ValueError("end_time must be greater than start_time")
 
     with filesystem_from_path(path).open(str(path), "rb") as f:
-        decoder = VideoDecoder(f, seek_mode=seek_mode, device=device)
+        decoder = _open_decoder(f, seek_mode=seek_mode, device=device)
         meta = decoder.metadata
         # Get start and end time of video stream
         begin, end = meta.begin_stream_seconds, meta.end_stream_seconds
@@ -169,9 +268,11 @@ def decode_frames_at(
         Step between frame indices, by default 1.
     seek_mode : SeekMode, optional
         Decoder seek mode, by default "approximate".
-        "approximate" seeks to the frames to decode by relying on video metadata,
-        and returns the same result as "exact" for most videos. "exact" performs
-        a full scan of the video first, so instantiating the VideoDecoder is slower.
+        "approximate" seeks to the frames to decode by relying on video metadata.
+        "exact" performs a full scan of the video first, so instantiating the
+        VideoDecoder is slower. "approximate" falls back to "exact" when the
+        metadata can't be trusted: no frame count in the header (e.g. MKV/WebM),
+        an AVI container, or a header that indicates a variable frame rate.
     custom_frame_indices : list[int] | None, optional
         Explicit frame indices to read, in order (repeats allowed). Negative
         indices count from the end of the video. By default None.
@@ -217,7 +318,7 @@ def decode_frames_at(
             raise ValueError("end must be greater than start")
 
     with filesystem_from_path(path).open(str(path), "rb") as f:
-        decoder = VideoDecoder(f, seek_mode=seek_mode, device=device)
+        decoder = _open_decoder(f, seek_mode=seek_mode, device=device)
         if custom_frame_indices is not None:
             indices = list(custom_frame_indices)
         else:
@@ -246,9 +347,11 @@ def decode_frame_at(
         Frame index to read.
     seek_mode : SeekMode, optional
         Decoder seek mode, by default "approximate".
-        "approximate" seeks to the frames to decode by relying on video metadata,
-        and returns the same result as "exact" for most videos. "exact" performs
-        a full scan of the video first, so instantiating the VideoDecoder is slower.
+        "approximate" seeks to the frames to decode by relying on video metadata.
+        "exact" performs a full scan of the video first, so instantiating the
+        VideoDecoder is slower. "approximate" falls back to "exact" when the
+        metadata can't be trusted: no frame count in the header (e.g. MKV/WebM),
+        an AVI container, or a header that indicates a variable frame rate.
     device : str | torch.device | None, optional
         Device to decode on, e.g. "cpu" or "cuda". If None (default), uses
         PyTorch's default device, `torch.get_default_device()`, which is the CPU
@@ -271,7 +374,7 @@ def decode_frame_at(
         If `index` is out of range for the video.
     """  # noqa: DOC502 - raised by `torchcodec` or the filesystem, not directly
     with filesystem_from_path(path).open(str(path), "rb") as f:
-        decoder = VideoDecoder(f, seek_mode=seek_mode, device=device)
+        decoder = _open_decoder(f, seek_mode=seek_mode, device=device)
         return decoder[index]
 
 
@@ -280,10 +383,10 @@ def get_video_info(
 ) -> dict[str, Any]:
     """Gets video file information without loading the data.
 
-    Under `seek_mode="approximate"` the frame count is derived from
-    `duration * average_fps`. Use `seek_mode="exact"` for a frame count
-    obtained by scanning the stream, which requires downloading the whole
-    video.
+    Under `seek_mode="approximate"` the metadata comes from the container
+    header, except for videos where the header can't be trusted (see
+    `decode_video`), which are scanned as under `seek_mode="exact"`. Scanning
+    requires downloading the whole video.
 
     Parameters
     ----------
@@ -291,7 +394,7 @@ def get_video_info(
         The path string or path object (e.g., Path, GSPath, R2Path) pointing
         to the video file.
     seek_mode : SeekMode, optional
-        Decoder seek mode, by default "approximate".
+        Decoder seek mode, by default "approximate". See `decode_video`.
 
     Returns
     -------
@@ -317,7 +420,7 @@ def get_video_info(
     file_path = anypath(file_path)
 
     with filesystem_from_path(file_path).open(str(file_path), "rb") as f:
-        info = VideoDecoder(f, seek_mode=seek_mode, device="cpu").metadata
+        info = _open_decoder(f, seek_mode=seek_mode, device="cpu").metadata
 
     return {
         "duration": info.duration_seconds,
