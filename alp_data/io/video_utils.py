@@ -1,13 +1,13 @@
 """Low-level video decoding helpers built on `torchcodec`."""
 
-from typing import Literal
+from typing import Any, Literal
 
 import torch
 from torchcodec import FrameBatch
 from torchcodec.decoders import VideoDecoder
 
 from alp_data.io.filesystem import filesystem_from_path
-from alp_data.io.paths import AnyPathT
+from alp_data.io.paths import AnyPathT, anypath
 
 SeekMode = Literal["exact", "approximate"]
 
@@ -263,3 +263,54 @@ def decode_frame_at(
     with filesystem_from_path(path).open(str(path), "rb") as f:
         decoder = VideoDecoder(f, seek_mode=seek_mode, device=device)
         return decoder[index]
+
+
+def get_video_info(
+    file_path: str | AnyPathT, *, seek_mode: SeekMode = "approximate"
+) -> dict[str, Any]:
+    """Gets video file information without loading the data.
+
+    Under `seek_mode="approximate"` the frame count is derived from
+    `duration * average_fps`. Use `seek_mode="exact"` for a frame count
+    obtained by scanning the stream, which requires downloading the whole
+    video.
+
+    Parameters
+    ----------
+    file_path : str or AnyPathT
+        The path string or path object (e.g., Path, GSPath, R2Path) pointing
+        to the video file.
+    seek_mode : SeekMode, optional
+        Decoder seek mode, by default "approximate".
+
+    Returns
+    -------
+    dict[str, Any]
+        A dictionary containing:
+        - duration (float | None): Duration of the video stream in seconds.
+        - height (int | None): Frame height in pixels.
+        - width (int | None): Frame width in pixels.
+        - num_frames (int | None): Number of frames in the stream.
+        - average_fps (float | None): Average frame rate of the stream.
+        - codec (str | None): Name of the video codec.
+        - pixel_format (str | None): Pixel format of the decoded frames.
+
+    Notes
+    -----
+    Opening a missing `file_path` raises `FileNotFoundError` and an undecodable
+    file raises `ValueError` or `RuntimeError`.
+    """
+    file_path = anypath(file_path)
+
+    with filesystem_from_path(file_path).open(str(file_path), "rb") as f:
+        info = VideoDecoder(f, seek_mode=seek_mode, device="cpu").metadata
+
+    return {
+        "duration": info.duration_seconds,
+        "height": info.height,
+        "width": info.width,
+        "num_frames": info.num_frames,
+        "average_fps": info.average_fps,
+        "codec": info.codec,
+        "pixel_format": info.pixel_format,
+    }

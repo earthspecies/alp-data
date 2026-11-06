@@ -11,20 +11,12 @@ from typing import Any, BinaryIO, Literal
 import librosa
 import numpy as np
 import soundfile as sf
-import torch
 import yaml
 from soundfile import LibsndfileError
-from torchcodec.decoders import VideoDecoder
 
 from alp_data.io.auth import GCSAuthError, get_gcs_token, get_gcs_token_if_available
 from alp_data.io.filesystem import filesystem_from_path
 from alp_data.io.paths import AnyPathT, PureGSPath, PureHTTPPath, PureHTTPSPath, anypath
-from alp_data.io.video_utils import (
-    SeekMode,
-    decode_frames_at,
-    decode_frames_in_range,
-    decode_video,
-)
 
 logger = logging.getLogger("alp_data")
 
@@ -793,7 +785,7 @@ def read_video(
     start_time: float | None = None,
     end_time: float | None = None,
     fps: float | None = None,
-    device: str | torch.device | None = None,
+    device: str | None = None,
 ) -> np.ndarray:
     """Reads video data from a file path.
 
@@ -816,7 +808,7 @@ def read_video(
     fps : float or None, optional
         Frame rate to read the video at. If None, the video's native frame
         rate is used. A rate above the native one duplicates frames.
-    device : str | torch.device | None, optional
+    device : str | None, optional
         Device to decode on, e.g. "cpu" or "cuda". If None (default), uses
         PyTorch's default device, `torch.get_default_device()`.
 
@@ -833,6 +825,8 @@ def read_video(
     `FileNotFoundError` and an undecodable file raises `ValueError` or
     `RuntimeError`.
     """
+    from alp_data.io.video_utils import decode_frames_in_range, decode_video
+
     file_path = anypath(file_path)
 
     if start_time is not None or end_time is not None:
@@ -851,7 +845,7 @@ def read_video_at_frames(
     end_frame: int | None = None,
     stride: int = 1,
     custom_frame_indices: list[int] | None = None,
-    device: str | torch.device | None = None,
+    device: str | None = None,
 ) -> np.ndarray:
     """Reads video frames by index from a file path.
 
@@ -875,7 +869,7 @@ def read_video_at_frames(
         Explicit frame indices to read, in order (repeats allowed). Negative
         indices count from the end of the video. Cannot be combined with
         `start_frame`, `end_frame` or `stride`. By default None.
-    device : str | torch.device | None, optional
+    device : str | None, optional
         Device to decode on, e.g. "cpu" or "cuda". If None (default), uses
         PyTorch's default device, `torch.get_default_device()`, which is the CPU
         unless changed with `torch.set_default_device`.
@@ -892,6 +886,8 @@ def read_video_at_frames(
     `FileNotFoundError` and an undecodable file raises `ValueError` or
     `RuntimeError`.
     """
+    from alp_data.io.video_utils import decode_frames_at
+
     file_path = anypath(file_path)
 
     video = decode_frames_at(
@@ -903,54 +899,3 @@ def read_video_at_frames(
         device=device,
     )
     return video.data.cpu().numpy()
-
-
-def get_video_info(
-    file_path: str | AnyPathT, *, seek_mode: SeekMode = "approximate"
-) -> dict[str, Any]:
-    """Gets video file information without loading the data.
-
-    Under `seek_mode="approximate"` the frame count is derived from
-    `duration * average_fps`. Use `seek_mode="exact"` for a frame count
-    obtained by scanning the stream, which requires downloading the whole
-    video.
-
-    Parameters
-    ----------
-    file_path : str or AnyPathT
-        The path string or path object (e.g., Path, GSPath, R2Path) pointing
-        to the video file.
-    seek_mode : SeekMode, optional
-        Decoder seek mode, by default "approximate".
-
-    Returns
-    -------
-    dict[str, Any]
-        A dictionary containing:
-        - duration (float | None): Duration of the video stream in seconds.
-        - height (int | None): Frame height in pixels.
-        - width (int | None): Frame width in pixels.
-        - num_frames (int | None): Number of frames in the stream.
-        - average_fps (float | None): Average frame rate of the stream.
-        - codec (str | None): Name of the video codec.
-        - pixel_format (str | None): Pixel format of the decoded frames.
-
-    Notes
-    -----
-    Opening a missing `file_path` raises `FileNotFoundError` and an undecodable
-    file raises `ValueError` or `RuntimeError`.
-    """
-    file_path = anypath(file_path)
-
-    with filesystem_from_path(file_path).open(str(file_path), "rb") as f:
-        info = VideoDecoder(f, seek_mode=seek_mode, device="cpu").metadata
-
-    return {
-        "duration": info.duration_seconds,
-        "height": info.height,
-        "width": info.width,
-        "num_frames": info.num_frames,
-        "average_fps": info.average_fps,
-        "codec": info.codec,
-        "pixel_format": info.pixel_format,
-    }
