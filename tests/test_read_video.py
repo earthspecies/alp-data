@@ -2,6 +2,7 @@
 
 from typing import Any
 
+import numpy as np
 import pytest
 import torch
 
@@ -26,9 +27,9 @@ OFFSET_VIDEO_PATH = "tests/samples/video_offset_start.mp4"
 def test_read_from_file() -> None:
     path = VIDEO_PATH
     data = read_video(path)
-    assert isinstance(data, torch.Tensor)
+    assert isinstance(data, np.ndarray)
     assert data.shape == (60, 3, 48, 64)
-    assert data.dtype == torch.uint8
+    assert data.dtype == np.uint8
 
 
 def test_read_from_file_from_time() -> None:
@@ -95,15 +96,28 @@ def test_read_video_fps_above_native_duplicates_frames() -> None:
     """Test if a frame rate above the native one duplicates frames instead of raising."""
     data = read_video(VIDEO_PATH, fps=60)
     assert data.shape == (120, 3, 48, 64)
-    torch.testing.assert_close(data[0], data[1])
+    np.testing.assert_array_equal(data[0], data[1])
 
 
 def test_read_at_frames_from_file() -> None:
     path = VIDEO_PATH
     data = read_video_at_frames(path)
-    assert isinstance(data, torch.Tensor)
+    assert isinstance(data, np.ndarray)
     assert data.shape == (60, 3, 48, 64)
-    assert data.dtype == torch.uint8
+    assert data.dtype == np.uint8
+
+
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="needs a CUDA GPU")
+def test_read_video_on_gpu_returns_numpy() -> None:
+    """Test if GPU-decoded frames are copied back to a host NumPy array."""
+    data = read_video(VIDEO_PATH, device="cuda")
+    assert isinstance(data, np.ndarray)
+    assert data.shape == (60, 3, 48, 64)
+    assert data.dtype == np.uint8
+
+    data = read_video_at_frames(VIDEO_PATH, start_frame=0, end_frame=10, device="cuda")
+    assert isinstance(data, np.ndarray)
+    assert data.shape == (10, 3, 48, 64)
 
 
 def test_read_at_frames_by_range() -> None:
@@ -112,13 +126,13 @@ def test_read_at_frames_by_range() -> None:
     full = read_video(path)
 
     data = read_video_at_frames(path, start_frame=10, end_frame=20)
-    torch.testing.assert_close(data, full[10:20])
+    np.testing.assert_array_equal(data, full[10:20])
 
     data = read_video_at_frames(path, start_frame=50)
-    torch.testing.assert_close(data, full[50:])
+    np.testing.assert_array_equal(data, full[50:])
 
     data = read_video_at_frames(path, end_frame=10)
-    torch.testing.assert_close(data, full[:10])
+    np.testing.assert_array_equal(data, full[:10])
 
 
 def test_read_at_frames_with_stride() -> None:
@@ -127,10 +141,10 @@ def test_read_at_frames_with_stride() -> None:
     full = read_video(path)
 
     data = read_video_at_frames(path, start_frame=0, end_frame=10, stride=3)
-    torch.testing.assert_close(data, full[0:10:3])
+    np.testing.assert_array_equal(data, full[0:10:3])
 
     data = read_video_at_frames(path, stride=2)
-    torch.testing.assert_close(data, full[::2])
+    np.testing.assert_array_equal(data, full[::2])
 
 
 def test_read_at_frames_custom_indices() -> None:
@@ -139,7 +153,7 @@ def test_read_at_frames_custom_indices() -> None:
     full = read_video(path)
 
     data = read_video_at_frames(path, custom_frame_indices=[-1, 0, 0, 30])
-    torch.testing.assert_close(data, full[[59, 0, 0, 30]])
+    np.testing.assert_array_equal(data, full[[59, 0, 0, 30]])
 
 
 @pytest.mark.parametrize(
@@ -226,15 +240,16 @@ def test_read_video_from_gcs() -> None:
     """Test reading a whole video from GCS."""
     data = read_video(REMOTE_VIDEO_PATH)
     assert data.shape == (60, 3, 48, 64)
-    assert data.dtype == torch.uint8
-    torch.testing.assert_close(data, read_video(VIDEO_PATH))
+    assert isinstance(data, np.ndarray)
+    assert data.dtype == np.uint8
+    np.testing.assert_array_equal(data, read_video(VIDEO_PATH))
 
 
 def test_read_video_by_time_from_gcs() -> None:
     """Test reading a video segment by time from GCS, with and without resampling."""
     data = read_video(REMOTE_VIDEO_PATH, start_time=0.5, end_time=1.0)
     assert data.shape[0] == 15
-    torch.testing.assert_close(data, read_video(VIDEO_PATH, start_time=0.5, end_time=1.0))
+    np.testing.assert_array_equal(data, read_video(VIDEO_PATH, start_time=0.5, end_time=1.0))
 
     data = read_video(REMOTE_VIDEO_PATH, start_time=1.0, fps=10)
     assert data.shape == (10, 3, 48, 64)
@@ -245,10 +260,10 @@ def test_read_at_frames_from_gcs() -> None:
     full = read_video(VIDEO_PATH)
 
     data = read_video_at_frames(REMOTE_VIDEO_PATH, start_frame=10, end_frame=40, stride=3)
-    torch.testing.assert_close(data, full[10:40:3])
+    np.testing.assert_array_equal(data, full[10:40:3])
 
     data = read_video_at_frames(REMOTE_VIDEO_PATH, custom_frame_indices=[-1, 0, 30])
-    torch.testing.assert_close(data, full[[59, 0, 30]])
+    np.testing.assert_array_equal(data, full[[59, 0, 30]])
 
 
 def test_decode_frame_at_from_gcs() -> None:
@@ -274,15 +289,16 @@ def test_read_video_from_https() -> None:
     """Test reading a whole video over HTTPS."""
     data = read_video(HTTPS_VIDEO_PATH)
     assert data.shape == (60, 3, 48, 64)
-    assert data.dtype == torch.uint8
-    torch.testing.assert_close(data, read_video(VIDEO_PATH))
+    assert isinstance(data, np.ndarray)
+    assert data.dtype == np.uint8
+    np.testing.assert_array_equal(data, read_video(VIDEO_PATH))
 
 
 def test_read_video_by_time_from_https() -> None:
     """Test reading a video segment by time over HTTPS, with and without resampling."""
     data = read_video(HTTPS_VIDEO_PATH, start_time=0.5, end_time=1.0)
     assert data.shape[0] == 15
-    torch.testing.assert_close(data, read_video(VIDEO_PATH, start_time=0.5, end_time=1.0))
+    np.testing.assert_array_equal(data, read_video(VIDEO_PATH, start_time=0.5, end_time=1.0))
 
     data = read_video(HTTPS_VIDEO_PATH, start_time=1.0, fps=10)
     assert data.shape == (10, 3, 48, 64)
@@ -293,10 +309,10 @@ def test_read_at_frames_from_https() -> None:
     full = read_video(VIDEO_PATH)
 
     data = read_video_at_frames(HTTPS_VIDEO_PATH, start_frame=10, end_frame=40, stride=3)
-    torch.testing.assert_close(data, full[10:40:3])
+    np.testing.assert_array_equal(data, full[10:40:3])
 
     data = read_video_at_frames(HTTPS_VIDEO_PATH, custom_frame_indices=[-1, 0, 30])
-    torch.testing.assert_close(data, full[[59, 0, 30]])
+    np.testing.assert_array_equal(data, full[[59, 0, 30]])
 
 
 def test_decode_frame_at_from_https() -> None:
