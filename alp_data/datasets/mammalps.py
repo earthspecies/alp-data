@@ -228,7 +228,8 @@ class MammAlps(Dataset):
         Returns
         -------
         dict[str, Any]
-            The row with the decoded clip under `video`.
+            The row with the decoded clip under `video`, a `uint8` `np.ndarray` of
+            shape `(num_frames, 3, height, width)`.
         """
         row["video"] = read_video_at_frames(
             self.data_root / row["video_path"],
@@ -262,7 +263,8 @@ class MammAlps(Dataset):
         Returns
         -------
         dict[str, Any]
-            A dictionary containing the sample, with the decoded clip under `video`.
+            A dictionary containing the sample, with the decoded clip under `video`,
+            a `uint8` `np.ndarray` of shape `(num_frames, 3, height, width)`.
 
         Raises
         ------

@@ -5,9 +5,9 @@ import random
 import shutil
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 import pytest
-import torch
 
 from alp_data import DatasetConfig
 from alp_data.datasets import MammAlps
@@ -48,7 +48,7 @@ EXPECTED_LEN = {
 #   import hashlib
 #   from alp_data.datasets import MammAlps
 #   video = MammAlps(split="benchmark-1-train", backend="pandas")[0]["video"]
-#   print(hashlib.sha256(video.contiguous().numpy().tobytes()).hexdigest())
+#   print(hashlib.sha256(np.ascontiguousarray(video).tobytes()).hexdigest())
 EXPECTED_FIRST_ITEM_VIDEO_SHA256 = (
     "5807ef673d8d62165c7be4635811bd949c198fbc3548c11a30ba6e49e5204e4f"
 )
@@ -151,9 +151,9 @@ def test_load_from_config_frames_per_second(local_split: str) -> None:
 def test_getitem(local_split: str, backend: str) -> None:
     ds = MammAlps(split=local_split, backend=backend)
     item = ds[0]
-    assert isinstance(item["video"], torch.Tensor)
+    assert isinstance(item["video"], np.ndarray)
     assert item["video"].shape == (60, 3, 48, 64)
-    assert item["video"].dtype == torch.uint8
+    assert item["video"].dtype == np.uint8
     assert item["species"] == "red_deer"
 
 
@@ -181,9 +181,9 @@ def test_edited_clip_columns_are_respected(local_split: str, backend: str) -> No
     ds._data = ds._data.add_column("end_frame", [20, 60, 60])
     ds._data = ds._data.add_column("frame_stride", [1, 3, 5])
 
-    torch.testing.assert_close(ds[0]["video"], full[10:20])
-    torch.testing.assert_close(ds[1]["video"], full[0:60:3])
-    torch.testing.assert_close(ds[2]["video"], full[50:60:5])
+    np.testing.assert_array_equal(ds[0]["video"], full[10:20])
+    np.testing.assert_array_equal(ds[1]["video"], full[0:60:3])
+    np.testing.assert_array_equal(ds[2]["video"], full[50:60:5])
 
 
 def test_output_take_and_give(local_split: str) -> None:
@@ -264,7 +264,7 @@ def test_check_video(ds_val: MammAlps) -> None:
     for idx in rng.sample(range(len(ds_val)), 3):
         item = ds_val[idx]
         assert item["video"].shape == (item["num_frames"], 3, 256, 256)
-        assert item["video"].dtype == torch.uint8
+        assert item["video"].dtype == np.uint8
 
 
 def test_load_from_config_gcs() -> None:
@@ -287,9 +287,9 @@ def test_reference_item_stability() -> None:
     # Defensive checks, so a hash failure is easier to interpret
     assert "video" in item, "[0] missing 'video' key"
     video = item["video"]
-    assert isinstance(video, torch.Tensor), "[0] video is not a torch.Tensor"
-    assert video.dtype == torch.uint8, f"[0] video dtype is {video.dtype}, expected uint8"
+    assert isinstance(video, np.ndarray), "[0] video is not a np.ndarray"
+    assert video.dtype == np.uint8, f"[0] video dtype is {video.dtype}, expected uint8"
     assert video.shape == (item["num_frames"], 3, 256, 256)
 
-    h = hashlib.sha256(video.contiguous().numpy().tobytes()).hexdigest()
+    h = hashlib.sha256(np.ascontiguousarray(video).tobytes()).hexdigest()
     assert h == EXPECTED_FIRST_ITEM_VIDEO_SHA256, f"[0] video sha256 mismatch: {h}"
