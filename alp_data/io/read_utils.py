@@ -818,13 +818,16 @@ def read_video(
         The video frames as a `uint8` array of shape `(N, C, H, W)` in host
         memory, whatever the `device`.
 
-    Notes
-    -----
-    Invalid time ranges raise `ValueError`, as described in
-    `decode_frames_in_range`. Opening a missing `file_path` raises
-    `FileNotFoundError` and an undecodable file raises `ValueError` or
-    `RuntimeError`.
-    """
+    Raises
+    ------
+    ValueError
+        If the time range is invalid, as described in `decode_frames_in_range`,
+        or if the file cannot be decoded.
+    FileNotFoundError
+        If `file_path` does not exist.
+    RuntimeError
+        If the file cannot be decoded.
+    """  # noqa: DOC502 - raised by the `video_utils` helpers, not directly
     from alp_data.io.video_utils import decode_frames_in_range, decode_video
 
     file_path = anypath(file_path)
@@ -879,13 +882,18 @@ def read_video_at_frames(
     np.ndarray
         The selected frames as a `uint8` array of shape `(N, C, H, W)` in the requested order.
 
-    Notes
-    -----
-    Invalid frame arguments raise `ValueError` or `IndexError`, as described
-    in `decode_frames_at`. Opening a missing `file_path` raises
-    `FileNotFoundError` and an undecodable file raises `ValueError` or
-    `RuntimeError`.
-    """
+    Raises
+    ------
+    ValueError
+        If the frame arguments are invalid, as described in `decode_frames_at`,
+        or if the file cannot be decoded.
+    IndexError
+        If a requested frame index is out of range for the video.
+    FileNotFoundError
+        If `file_path` does not exist.
+    RuntimeError
+        If the file cannot be decoded.
+    """  # noqa: DOC502 - raised by the `video_utils` helpers, not directly
     from alp_data.io.video_utils import decode_frames_at
 
     file_path = anypath(file_path)
