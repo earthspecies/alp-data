@@ -50,11 +50,15 @@ def decode_video(
     FrameBatch
         All frames, with `.data` shaped `(N, C, H, W)` and on `device`.
 
-    Notes
-    -----
-    Opening a missing `path` raises `FileNotFoundError` and an undecodable
-    file raises `ValueError` or `RuntimeError`.
-    """
+    Raises
+    ------
+    FileNotFoundError
+        If `path` does not exist.
+    ValueError
+        If the file cannot be decoded.
+    RuntimeError
+        If the file cannot be decoded.
+    """  # noqa: DOC502 - raised by `torchcodec` or the filesystem, not directly
     with filesystem_from_path(path).open(str(path), "rb") as f:
         decoder = VideoDecoder(f, seek_mode=seek_mode, device=device)
         return decoder.get_all_frames(fps)
@@ -106,16 +110,17 @@ def decode_frames_in_range(
     ValueError
         If `start_time` is negative, if `end_time` is less than or equal to
         `start_time` (taken as 0.0 when None), or if `start_time` is at or
-        beyond the end of the stream.
+        beyond the end of the stream. Also if the file cannot be decoded.
+    FileNotFoundError
+        If `path` does not exist.
+    RuntimeError
+        If the file cannot be decoded.
 
     Notes
     -----
     `start_time` and `end_time` are meant to be offsets from `begin_stream_seconds`
     rather than absolute PTS.
-
-    Opening a missing `path` raises `FileNotFoundError` and an undecodable
-    file raises `ValueError` or `RuntimeError`.
-    """
+    """  # noqa: DOC502 - raised by `torchcodec` or the filesystem, not directly
     start_offset = 0.0 if start_time is None else start_time
     if start_offset < 0:
         raise ValueError(f"start_time must be non-negative, got {start_time}")
@@ -188,15 +193,15 @@ def decode_frames_at(
         If `custom_frame_indices` is empty.
         If `start` or `end` is negative, `end` is not greater than `start`, or
         `stride` is less than 1.
+        If the file cannot be decoded.
     IndexError
-        If `end` is None and `start` is not less than the video's frame count.
-
-    Notes
-    -----
-    Opening a missing `path` raises `FileNotFoundError` and an undecodable
-    file raises `ValueError` or `RuntimeError`. The decoder raises `IndexError`
-    if any requested index is out of range for the video.
-    """
+        If `end` is None and `start` is not less than the video's frame count,
+        or if any requested index is out of range for the video.
+    FileNotFoundError
+        If `path` does not exist.
+    RuntimeError
+        If the file cannot be decoded.
+    """  # noqa: DOC502 - raised by `torchcodec` or the filesystem, not directly
     if custom_frame_indices is not None:
         if start is not None or end is not None or stride != 1:
             raise ValueError("custom_frame_indices cannot be combined with start, end or stride")
@@ -254,12 +259,17 @@ def decode_frame_at(
     torch.Tensor
         The frame, shaped `(C, H, W)` and on `device`.
 
-    Notes
-    -----
-    Opening a missing `path` raises `FileNotFoundError` and an undecodable
-    file raises `ValueError` or `RuntimeError`; the decoder raises `IndexError`
-    if `index` is out of range for the video.
-    """
+    Raises
+    ------
+    FileNotFoundError
+        If `path` does not exist.
+    ValueError
+        If the file cannot be decoded.
+    RuntimeError
+        If the file cannot be decoded.
+    IndexError
+        If `index` is out of range for the video.
+    """  # noqa: DOC502 - raised by `torchcodec` or the filesystem, not directly
     with filesystem_from_path(path).open(str(path), "rb") as f:
         decoder = VideoDecoder(f, seek_mode=seek_mode, device=device)
         return decoder[index]
@@ -295,11 +305,15 @@ def get_video_info(
         - codec (str | None): Name of the video codec.
         - pixel_format (str | None): Pixel format of the decoded frames.
 
-    Notes
-    -----
-    Opening a missing `file_path` raises `FileNotFoundError` and an undecodable
-    file raises `ValueError` or `RuntimeError`.
-    """
+    Raises
+    ------
+    FileNotFoundError
+        If `file_path` does not exist.
+    ValueError
+        If the file cannot be decoded.
+    RuntimeError
+        If the file cannot be decoded.
+    """  # noqa: DOC502 - raised by `torchcodec` or the filesystem, not directly
     file_path = anypath(file_path)
 
     with filesystem_from_path(file_path).open(str(file_path), "rb") as f:
