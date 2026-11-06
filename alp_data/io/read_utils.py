@@ -794,7 +794,7 @@ def read_video(
     end_time: float | None = None,
     fps: float | None = None,
     device: str | torch.device | None = None,
-) -> torch.Tensor:
+) -> np.ndarray:
     """Reads video data from a file path.
 
     Handles various path types (local, GCS, R2) via the `anypath` utility.
@@ -818,13 +818,13 @@ def read_video(
         rate is used. A rate above the native one duplicates frames.
     device : str | torch.device | None, optional
         Device to decode on, e.g. "cpu" or "cuda". If None (default), uses
-        PyTorch's default device, `torch.get_default_device()`, which is the CPU
-        unless changed with `torch.set_default_device`.
+        PyTorch's default device, `torch.get_default_device()`.
 
     Returns
     -------
-    torch.Tensor
-        The video frames as a `uint8` tensor of shape `(N, C, H, W)` on `device`.
+    np.ndarray
+        The video frames as a `uint8` array of shape `(N, C, H, W)` in host
+        memory, whatever the `device`.
 
     Notes
     -----
@@ -841,7 +841,7 @@ def read_video(
         )
     else:
         video = decode_video(file_path, fps=fps, device=device)
-    return video.data
+    return video.data.cpu().numpy()
 
 
 def read_video_at_frames(
@@ -852,7 +852,7 @@ def read_video_at_frames(
     stride: int = 1,
     custom_frame_indices: list[int] | None = None,
     device: str | torch.device | None = None,
-) -> torch.Tensor:
+) -> np.ndarray:
     """Reads video frames by index from a file path.
 
     Handles various path types (local, GCS, R2) via the `anypath` utility.
@@ -882,9 +882,8 @@ def read_video_at_frames(
 
     Returns
     -------
-    torch.Tensor
-        The selected frames as a `uint8` tensor of shape `(N, C, H, W)` on
-        `device`, in the requested order.
+    np.ndarray
+        The selected frames as a `uint8` array of shape `(N, C, H, W)` in the requested order.
 
     Notes
     -----
@@ -903,7 +902,7 @@ def read_video_at_frames(
         custom_frame_indices=custom_frame_indices,
         device=device,
     )
-    return video.data
+    return video.data.cpu().numpy()
 
 
 def get_video_info(
