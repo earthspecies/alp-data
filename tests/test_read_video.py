@@ -6,12 +6,13 @@ import numpy as np
 import pytest
 import torch
 
-from alp_data.io.read_utils import get_video_info, read_video, read_video_at_frames
+from alp_data.io.read_utils import read_video, read_video_at_frames
 from alp_data.io.video_utils import (
     decode_frame_at,
     decode_frames_at,
     decode_frames_in_range,
     decode_video,
+    get_video_info,
 )
 
 # 2 s, 30 fps, 64x48 h264 clip of ffmpeg's `testsrc` pattern

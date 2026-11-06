@@ -20,11 +20,13 @@ dependencies = [
     "s3fs>=2025.12.0",
     "semver",
     "soundfile>=0.13.1",
-    "torch>=2.9.1,<2.12",
-    "torchcodec>=0.17.0",
 ]
 
 [dependency-groups]
+torch = [
+    "torch>=2.9.1,<2.12",
+    "torchcodec>=0.17.0",
+]
 benchmark = [
     "matplotlib>=3.10.7",
     "memory-profiler>=0.61.0",
@@ -144,3 +146,5 @@ ignore = ["DEP003"]
 
 [tool.deptry.per_rule_ignores]
 DEP002 = ["resampy"]
+# Imported only by `alp_data.io.video_utils` (loaded lazily); declared in the `torch` group.
+DEP004 = ["torch", "torchcodec"]

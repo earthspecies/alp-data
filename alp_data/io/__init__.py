@@ -13,7 +13,6 @@ from alp_data.io.paths import (
 from alp_data.io.read_utils import (
     audio_stereo_to_mono,
     get_audio_info,
-    get_video_info,
     read_audio,
     read_json,
     read_text,
@@ -37,7 +36,7 @@ __all__ = [
     "get_audio_info",
     "read_video",
     "read_video_at_frames",
-    "get_video_info",
+    "get_video_info",  # noqa: F822 (lazy, see `__getattr__`)
     "filesystem",
     "filesystem_from_path",
     "exists",
@@ -45,3 +44,28 @@ __all__ = [
     "read_json",
     "read_yaml",
 ]
+
+
+def __getattr__(name: str) -> object:
+    """Imports `get_video_info` on first access, so `torch` loads only for video.
+
+    Parameters
+    ----------
+    name : str
+        Attribute name looked up on `alp_data.io`.
+
+    Returns
+    -------
+    object
+        The requested attribute.
+
+    Raises
+    ------
+    AttributeError
+        If `name` is not a lazily exported attribute.
+    """
+    if name == "get_video_info":
+        from alp_data.io.video_utils import get_video_info
+
+        return get_video_info
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
