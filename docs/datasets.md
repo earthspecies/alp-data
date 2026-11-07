@@ -110,8 +110,11 @@ logging.getLogger("alp_data.datasets.infant_marmosets_vox").setLevel(logging.DEB
 
 Native-rate metadata and resampling diagnostics are currently populated for
 InfantMarmosetsVox. Other loaders can adopt them as their source rates are verified.
-Concatenated and chained datasets do not yet aggregate native rates; their metadata
-leaves this field as `None` even when individual source datasets document rates.
+Concatenated and chained datasets combine documented native rates into a sorted,
+duplicate-free list when every source documents its rates. If any source has
+unknown rates, the combined field remains `None` rather than implying that a
+partial list is complete. This also applies to nested combinations. The metadata
+describes source recordings, not the requested or returned sample rate.
 
 ### Dataset Configuration
 

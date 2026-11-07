@@ -8,7 +8,9 @@ import pytest
 import soundfile as sf
 from pydantic import ValidationError
 
-from alp_data.dataset import DatasetInfo
+from alp_data.chain import ChainedDataset
+from alp_data.concat import ConcatenatedDataset, _merge_dataset_info
+from alp_data.dataset import DatasetInfo, _merge_native_sample_rates
 from alp_data.datasets.infant_marmosets_vox import InfantMarmosetsVox
 
 
@@ -113,3 +115,94 @@ def test_resampling_diagnostics(local_marmosets, backend, streaming, requested_r
             dtype="float32",
         )
         np.testing.assert_array_equal(sample["audio"], original)
+
+
+@pytest.mark.parametrize(
+    "source_rates,expected",
+    [
+        ([], None),
+        ([None], None),
+        ([[44100]], [44100]),
+        ([[48000, 44100, 48000], [16000, 44100]], [16000, 44100, 48000]),
+        ([[44100], None], None),
+        ([None, [44100]], None),
+        ([None, None], None),
+    ],
+)
+def test_merge_native_rate_metadata(source_rates, expected):
+    infos = [make_info(native_sample_rates=rates) for rates in source_rates]
+    before = [info.model_dump() for info in infos]
+    assert _merge_native_sample_rates(infos) == expected
+    if infos:
+        merged = _merge_dataset_info(infos)
+        assert merged.native_sample_rates == expected
+        assert (
+            DatasetInfo.model_validate_json(merged.model_dump_json()).native_sample_rates
+            == expected
+        )
+        if expected:
+            merged.native_sample_rates.append(96000)
+    assert [info.model_dump() for info in infos] == before
+
+
+@pytest.mark.parametrize("backend", ["pandas", "polars"])
+@pytest.mark.parametrize("combine", [ConcatenatedDataset, ChainedDataset])
+@pytest.mark.parametrize("unknown", [False, True])
+def test_combined_native_rates_preserve_samples(local_marmosets, backend, combine, unknown):
+    sources = [
+        InfantMarmosetsVox(data_root=local_marmosets, backend=backend, sample_rate=16000)
+        for _ in range(2)
+    ]
+    # Deliberately distinct metadata tests the union without claiming new source rates.
+    for ds, rates in zip(sources, [[44100], None if unknown else [48000, 44100]], strict=True):
+        ds.info = ds.info.model_copy(update={"native_sample_rates": rates})
+    before = [ds[0] for ds in sources]
+    combined = combine(sources)
+    expected = None if unknown else [44100, 48000]
+    assert combined.info.native_sample_rates == expected
+    assert len(combined) == 2
+    for sample, original in zip(combined, before, strict=True):
+        assert sample["sample_rate"] == original["sample_rate"] == 16000
+        np.testing.assert_array_equal(sample["audio"], original["audio"])
+    # Unknown metadata propagates through nesting; known lists remain independent.
+    nested = combine([combined, sources[0]])
+    assert nested.info.native_sample_rates == expected
+    if expected:
+        nested.info.native_sample_rates.append(96000)
+        assert combined.info.native_sample_rates == [44100, 48000]
+        assert sources[0].info.native_sample_rates == [44100]
+    assert ChainedDataset.info.native_sample_rates is None
+    assert ConcatenatedDataset.info.native_sample_rates is None
+
+
+def test_streaming_chain_native_rates(local_marmosets):
+    source = InfantMarmosetsVox(data_root=local_marmosets, backend="polars", streaming=True)
+    combined = ChainedDataset([source, source])
+    assert combined.info.native_sample_rates == [44100]
+    assert sum(1 for _ in combined) == 2
+    unknown = source.info.model_copy(update={"native_sample_rates": None})
+    source.info = unknown
+    second = ChainedDataset([source])
+    assert second.info.native_sample_rates is None
+    assert combined.info.native_sample_rates == [44100]
+
+
+@pytest.mark.parametrize("combine", [ConcatenatedDataset, ChainedDataset])
+def test_single_source_native_rates_are_copied(local_marmosets, combine):
+    source = InfantMarmosetsVox(data_root=local_marmosets)
+    source.info = source.info.model_copy(update={"native_sample_rates": [48000, 44100, 48000]})
+    combined = combine([source])
+    assert combined.info.native_sample_rates == [44100, 48000]
+    combined.info.native_sample_rates.append(96000)
+    assert source.info.native_sample_rates == [48000, 44100, 48000]
+
+
+def test_chain_of_concat_native_rates(local_marmosets):
+    source = InfantMarmosetsVox(data_root=local_marmosets)
+    concatenated = ConcatenatedDataset([source, source])
+    chained = ChainedDataset([concatenated, source])
+    assert chained.info.native_sample_rates == [44100]
+    assert len(chained) == 3
+    unknown = InfantMarmosetsVox(data_root=local_marmosets)
+    unknown.info = unknown.info.model_copy(update={"native_sample_rates": None})
+    assert ChainedDataset([concatenated, unknown]).info.native_sample_rates is None

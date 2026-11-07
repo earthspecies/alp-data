@@ -298,6 +298,27 @@ class DatasetInfo(BaseModel):
         return v
 
 
+def _merge_native_sample_rates(dataset_infos: list[DatasetInfo]) -> list[int] | None:
+    """Return sorted native rates only when every source documents its rates.
+
+    Parameters
+    ----------
+    dataset_infos : list[DatasetInfo]
+        Source metadata, independent of requested or returned audio rates.
+
+    Returns
+    -------
+    list[int] or None
+        Sorted unique native rates, or None for absent or incomplete metadata.
+    """
+    rates: set[int] = set()
+    for info in dataset_infos:
+        if info.native_sample_rates is None:
+            return None
+        rates.update(info.native_sample_rates)
+    return sorted(rates) or None
+
+
 class Dataset(ABC):
     """Abstract base class defining the interface for ESP datasets.
 
