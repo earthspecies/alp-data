@@ -3,6 +3,7 @@
 Infant marmoset vocalizations dataset for call type and caller identification.
 """
 
+import logging
 from typing import Any, Dict, Iterator
 
 import librosa
@@ -11,6 +12,8 @@ import numpy as np
 from alp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from alp_data.backends import BackendType
 from alp_data.io import DATA_HOME, AnyPathT, anypath, audio_stereo_to_mono, read_audio
+
+logger = logging.getLogger(__name__)
 
 # Call type mapping (0-10, excluding 11=silence and 12=noise)
 CALLTYPE_NAMES = {
@@ -105,6 +108,7 @@ class InfantMarmosetsVox(Dataset):
         ),
         sources=["Zenodo"],
         license="CC-BY-4.0",
+        native_sample_rates=[44100],
     )
 
     # Mapping of sample rates to audio subdirectory names
@@ -131,8 +135,10 @@ class InfantMarmosetsVox(Dataset):
         output_take_and_give : dict[str, str]
             A dictionary mapping the original column names to the new column names.
             It acts as a filter as well.
-        sample_rate : int
-            The sample rate to which audio files should be resampled.
+        sample_rate : int | None
+            Target sample rate in Hz. None keeps the native 44100 Hz audio.
+            A pre-resampled copy is used when available; otherwise resampling
+            happens on the fly and is logged at DEBUG level.
         data_root : str | AnyPathT, optional
             The root directory for the dataset audio files.
             If None, defaults to parent directory of the split CSV.
@@ -286,6 +292,13 @@ class InfantMarmosetsVox(Dataset):
                 orig_sr=sample_rate,
                 target_sr=self.sample_rate,
                 res_type="kaiser_best",
+            )
+            logger.debug(
+                "%s: resampled audio on the fly from %s Hz to %s Hz (%s)",
+                self.info.name,
+                sample_rate,
+                self.sample_rate,
+                audio_path,
             )
             sample_rate = self.sample_rate
 
