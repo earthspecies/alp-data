@@ -11,6 +11,7 @@ import pytest
 
 from alp_data import DatasetConfig
 from alp_data.datasets import MammAlps
+from alp_data.datasets.mammalps import MammAlpsConfig
 from alp_data.io import exists
 
 # Local sample: 2 s, 30 fps, 64x48 clip, see tests/test_read_video.py
@@ -221,6 +222,31 @@ def test_load_from_config(local_split: str) -> None:
     assert isinstance(ds, MammAlps)
     assert meta == {}
     assert len(ds) == 3
+
+
+def test_from_config_with_transformations(local_split: str) -> None:
+    """Test if a `MammAlpsConfig` with transformations loads and labels samples."""
+    cfg = MammAlpsConfig(
+        split=local_split,
+        frames_per_second=10,
+        transformations=[
+            {
+                "type": "label_from_feature",
+                "feature": "species",
+                "output_feature": "label",
+            }
+        ],
+    )
+    ds, metadata = MammAlps.from_config(cfg)
+
+    assert isinstance(ds, MammAlps)
+    assert metadata
+    assert "label" in ds.columns
+
+    sample = ds[0]
+    assert sample["species"] == "red_deer"
+    assert sample["label"] == 0
+    assert sample["video"].shape[0] == 20
 
 
 def test_load_from_config_streaming_unsupported(local_split: str) -> None:

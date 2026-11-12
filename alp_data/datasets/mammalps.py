@@ -1,12 +1,50 @@
 from typing import Any, Iterator
 
+from pydantic import Field
+
 from alp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from alp_data.backends import BackendType
+from alp_data.dataset import register_config
 from alp_data.io import AnyPathT, anypath, read_video_at_frames
 
 # Paths in the split tables are relative to the bucket root
 _ROOT = "gs://esp-data-ingestion"
 _V010_ROOT = f"{_ROOT}/mammalps/v0.1.0"
+
+
+@register_config
+class MammAlpsConfig(DatasetConfig):
+    """Configuration for the MammAlps dataset.
+
+    Parameters
+    ----------
+    dataset_name : str
+        The name of the dataset. Must be "mammalps".
+    split : str
+        The split to load. One of `MammAlps.info.split_paths` keys, by default
+        "benchmark-1-train".
+    output_take_and_give : dict[str, str] | None
+        A dictionary mapping the original column names to the new column names.
+        It acts as a filter as well.
+    data_root : str | AnyPathT | None
+        The root directory for the dataset. Paths in the split table are
+        relative to it. If None, uses the bucket root.
+    frames_per_second : float | None
+        Frame rate to sample videos at. If None, videos are read at their native
+        frame rate. Must be > 0.
+    backend : BackendType
+        The backend to use ("pandas" or "polars"), by default "polars".
+    streaming : bool
+        Whether to use streaming mode, by default False. Not supported.
+    """
+
+    dataset_name: str = "mammalps"
+    split: str = "benchmark-1-train"
+    output_take_and_give: dict[str, str] | None = None
+    data_root: str | AnyPathT | None = None
+    frames_per_second: float | None = Field(default=None, gt=0)
+    backend: BackendType = "polars"
+    streaming: bool = False
 
 
 @register_dataset
@@ -180,14 +218,16 @@ class MammAlps(Dataset):
         self._data = data
 
     @classmethod
-    def from_config(cls, dataset_config: DatasetConfig) -> tuple["MammAlps", dict[str, Any]]:
+    def from_config(cls, dataset_config: MammAlpsConfig) -> tuple["MammAlps", dict[str, Any]]:
         """Create a Dataset instance from a configuration.
 
         Parameters
         ----------
-        dataset_config : DatasetConfig
+        dataset_config : MammAlpsConfig
             Configuration for the dataset. Its `split` must be one of
-            `info.split_paths` keys.
+            `info.split_paths` keys. A plain `DatasetConfig` (e.g. inside a
+            concat or chain config) also works; `frames_per_second` is then read
+            from its extra fields.
 
         Returns
         -------
