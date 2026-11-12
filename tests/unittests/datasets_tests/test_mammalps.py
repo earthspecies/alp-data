@@ -11,6 +11,7 @@ import pytest
 
 from alp_data import DatasetConfig
 from alp_data.datasets import MammAlps
+from alp_data.io import exists
 
 # Local sample: 2 s, 30 fps, 64x48 clip, see tests/test_read_video.py
 SAMPLE_VIDEO = Path("tests/samples/video.mp4").resolve()
@@ -247,6 +248,12 @@ def test_info_property() -> None:
     assert MammAlps.info.name == "mammalps"
     assert MammAlps.info.version == "0.1.0"
     assert set(EXPECTED_LEN) <= set(MammAlps.info.split_paths)
+
+
+@pytest.mark.parametrize("split", list(MammAlps.info.split_paths))
+def test_available_splits_exist(split: str) -> None:
+    """Test if every split's table exists at its path."""
+    assert exists(MammAlps.info.split_paths[split])
 
 
 @pytest.mark.parametrize("split", list(EXPECTED_LEN))
