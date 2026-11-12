@@ -1,17 +1,19 @@
 import logging
 import random
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterator
 
 import pandas as pd
 import polars as pl
 import pytest
 from pydantic import BaseModel
 
-from alp_data import DatasetConfig
+import alp_data.dataset as alp_data_dataset
+from alp_data import Dataset, DatasetConfig, DatasetInfo, dataset_from_config, register_dataset
 from alp_data.backends import PandasBackend, PolarsBackend
 from alp_data.backends.protocol import DataBackend
 from alp_data.datasets import MammAlps
+from alp_data.io import read_video_at_frames
 from alp_data.transforms import SplitClip, SplitClipConfig, transform_from_config
 from alp_data.transforms import video_sample as video_sample_module
 from alp_data.transforms.expand import ExpandByFunction
@@ -278,6 +280,132 @@ def test_transform_methods_equivalence(config: BaseModel, backend_type: str) -> 
         list(t(_make_backend(backend_type, [30.0, 25.0], [10.0, 10.0]))[0]) for t in transforms
     ]
     assert results[0] == results[1] == results[2]
+
+
+# -- Registered dataset from YAML (local sample video) -------------------------
+
+EXAMPLE_DATASET = "example_video_dataset"
+EXAMPLE_SPLIT = "example_split"
+
+
+@pytest.fixture
+def example_video_dataset(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> type[Dataset]:
+    """Register a minimal video dataset with one row pointing at the sample video.
+
+    It is registered in a copy of the dataset registry, so it is gone after the test.
+
+    Returns
+    -------
+    type[Dataset]
+        The registered dataset class.
+    """
+    csv_path = tmp_path / f"{EXAMPLE_SPLIT}.csv"
+    pd.DataFrame(
+        [
+            {
+                "video_path": str(SAMPLE_VIDEO),
+                "label": "red_deer",
+                "start_frame": 0,
+                "end_frame": 60,
+                "video_fps": 30.0,
+                "frame_stride": 1,
+                "fps": 30.0,
+            }
+        ]
+    ).to_csv(csv_path, index=False)
+    monkeypatch.setattr(
+        "alp_data.dataset._dataset_registry", dict(alp_data_dataset._dataset_registry)
+    )
+
+    @register_dataset
+    class ExampleVideoDataset(Dataset):
+        info = DatasetInfo(
+            name=EXAMPLE_DATASET,
+            owner="test",
+            split_paths={EXAMPLE_SPLIT: str(csv_path)},
+            version="0.1.0",
+            description="One-row video dataset for tests.",
+            sources=["tests/samples/video.mp4"],
+            license="none",
+        )
+
+        def __init__(self, split: str = EXAMPLE_SPLIT, backend: str = "polars") -> None:
+            super().__init__(backend=backend)
+            self.split = split
+            self._load()
+
+        @property
+        def available_splits(self) -> list[str]:
+            return list(self.info.split_paths)
+
+        @property
+        def columns(self) -> list[str]:
+            return list(self._data.columns)
+
+        def _load(self) -> None:
+            self._data = self._backend_class.from_csv(self.info.split_paths[self.split])
+
+        @classmethod
+        def from_config(cls, cfg: DatasetConfig) -> tuple["ExampleVideoDataset", dict[str, Any]]:
+            ds = cls(split=cfg.split, backend=cfg.backend)
+            if cfg.transformations:
+                return ds, ds.apply_transformations(cfg.transformations)
+            return ds, {}
+
+        def __len__(self) -> int:
+            return len(self._data)
+
+        def __getitem__(self, idx: int) -> dict[str, Any]:
+            return self._process(self._data[idx])
+
+        def __iter__(self) -> Iterator[dict[str, Any]]:
+            for row in self._data:
+                yield self._process(row)
+
+        def __str__(self) -> str:
+            return EXAMPLE_DATASET
+
+        def _process(self, row: dict[str, Any]) -> dict[str, Any]:
+            row["video"] = read_video_at_frames(
+                row["video_path"],
+                start_frame=int(row["start_frame"]),
+                end_frame=int(row["end_frame"]),
+                stride=int(row["frame_stride"]),
+            )
+            return row
+
+    return ExampleVideoDataset
+
+
+@pytest.mark.parametrize("backend", ["pandas", "polars"])
+def test_from_yaml_with_transformations(
+    example_video_dataset: type[Dataset], tmp_path: Path, backend: str
+) -> None:
+    """Test if a registered dataset loaded from YAML applies `split_clip`."""
+    yaml_path = tmp_path / "config.yaml"
+    yaml_path.write_text(
+        f"""
+dataset:
+    dataset_name: {EXAMPLE_DATASET}
+    split: {EXAMPLE_SPLIT}
+    backend: {backend}
+    transformations:
+        - type: split_clip
+          clip_duration: 0.1
+"""
+    )
+    ds, metadata = dataset_from_config(yaml_path)
+
+    # 0.1 s at 30 fps is 3 frames, so the 60-frame clip gives 20 clips
+    assert isinstance(ds, example_video_dataset)
+    assert metadata
+    assert len(ds) == 20
+    full = read_video_at_frames(str(SAMPLE_VIDEO), start_frame=0, end_frame=60)
+    for i, item in enumerate(ds):
+        assert (item["start_frame"], item["end_frame"]) == (3 * i, 3 * i + 3)
+        assert item["label"] == "red_deer"
+        assert item["video"].shape == (3, 3, 48, 64)
+        assert (item["video"] == full[3 * i : 3 * i + 3]).all()
 
 
 # -- MammAlps integration (local sample video) ----------------------------------
