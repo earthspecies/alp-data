@@ -1,0 +1,6 @@
+# FASD13, all subsets, using the presampled 32 kHz files so nothing is resampled on the fly.
+dataset:
+  dataset_name: fasd13
+  split: all
+  sample_rate: 32000
+  backend: polars

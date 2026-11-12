@@ -9,6 +9,7 @@ from .dataset import (
     dataset_class_from_name,
     dataset_from_config,
     list_registered_datasets,
+    load_config,
     print_registered_datasets,
     register_config,
     register_dataset,
@@ -48,9 +49,15 @@ from .datasets import (
     XenoCantoAnnotatedJeantet23,
     ZebraFinchJulieElie,
 )
+from .export import PackedDataset, PackedDatasetConfig, pack, to_hf
 
 __all__ = [
+    "pack",
+    "to_hf",
+    "PackedDataset",
+    "PackedDatasetConfig",
     "dataset_from_config",
+    "load_config",
     "Dataset",
     "DatasetInfo",
     "DatasetConfig",

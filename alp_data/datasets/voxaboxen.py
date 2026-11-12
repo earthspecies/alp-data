@@ -641,9 +641,9 @@ class VoxaboxenEvents(Dataset):
         self,
         split: str = "Anuraset_train",
         output_take_and_give: dict[str, str] | None = None,
-        sample_rate: int = 16000,
+        sample_rate: int | None = 16000,
         data_root: str | AnyPathT | None = None,
-        stereo_or_mono: Literal["stereo", "mono"] = "stereo",
+        stereo_or_mono: Literal["stereo", "mono"] = "mono",
         mono_method: Literal["average", "keep_first"] = "average",
         clip_duration: float = 10.0,
         clip_hop: float = 5.0,
@@ -664,12 +664,16 @@ class VoxaboxenEvents(Dataset):
         output_take_and_give : dict[str, str]
             A dictionary mapping the original column names to the new column names.
             It acts as a filter as well.
-        sample_rate : int
-            The sample rate to which audio files should be resampled.
+        sample_rate : int, optional
+            The sample rate to which audio files should be resampled. With None the
+            audio is kept at its native rate and annotations are built on that rate.
         data_root : str | AnyPathT, optional
             The root directory for the dataset. This is optionally appended to the
             path item of a sample in the dataset.
             If None, the default is the parent directory of the split path.
+        stereo_or_mono : {"stereo", "mono"}, optional
+            With "mono", stereo files are mixed down with `mono_method`. With "stereo"
+            the audio keeps the `(frames, channels)` layout returned by `read_audio`.
         mono_method : str, optional
             The method to convert stereo audio to mono. Defaults to "average".
             Other options are "average" and "keep_first"
@@ -794,7 +798,8 @@ class VoxaboxenEvents(Dataset):
             output_take_and_give=cfg["output_take_and_give"],
             data_root=cfg["data_root"],
             sample_rate=cfg["sample_rate"],
-            mono_method=cfg["mono_method", "average"],
+            stereo_or_mono=cfg.get("stereo_or_mono", "mono"),
+            mono_method=cfg.get("mono_method", "average"),
             clip_duration=cfg["clip_duration"],
             clip_hop=cfg["clip_hop"],
             clip_start_offset=cfg["clip_start_offset"],
@@ -985,7 +990,10 @@ class VoxaboxenEvents(Dataset):
         return proportions
 
     def _get_annotation(
-        self, pos_intervals: list[tuple[float, float, int]], audio: np.ndarray
+        self,
+        pos_intervals: list[tuple[float, float, int]],
+        audio: np.ndarray,
+        sample_rate: int,
     ) -> tuple[
         np.ndarray,  # anchor_annos
         np.ndarray,  # regression_annos
@@ -1002,7 +1010,9 @@ class VoxaboxenEvents(Dataset):
         pos_intervals : list
             List of (start, end, label_idx) tuples
         audio : np.ndarray
-            Input audio tensor
+            Input audio, shape `(frames,)` or `(frames, channels)`
+        sample_rate : int
+            Sample rate of `audio`, used to place the intervals on the sample grid.
 
         Returns
         -------
@@ -1016,7 +1026,7 @@ class VoxaboxenEvents(Dataset):
             - rev_class_annos: Reverse class probabilities
         """
 
-        raw_seq_len = audio.shape[-1]
+        raw_seq_len = audio.shape[0]
         seq_len = int(math.ceil(raw_seq_len / self.scale_factor))
 
         regression_annos = np.zeros((seq_len,))
@@ -1037,14 +1047,13 @@ class VoxaboxenEvents(Dataset):
         for iv in pos_intervals:
             start, end, class_idx = iv
             dur = end - start
-            dur_samples = np.ceil(dur * self.sample_rate)
 
-            start_idx = int(math.floor(start * self.sample_rate))
+            start_idx = int(math.floor(start * sample_rate))
             start_idx = max(min(start_idx, seq_len - 1), 0)
 
-            end_idx = int(math.ceil(end * self.sample_rate))
+            end_idx = int(math.ceil(end * sample_rate))
             end_idx = max(min(end_idx, seq_len - 1), 0)
-            dur_samples = int(np.ceil(dur * self.sample_rate))
+            dur_samples = int(np.ceil(dur * sample_rate))
 
             anchor_anno = _get_anchor_anno(start_idx, dur_samples, seq_len)
             anchor_annos.append(anchor_anno)
@@ -1103,8 +1112,8 @@ class VoxaboxenEvents(Dataset):
         IndexError
             If the index is out of bounds.
         """
-        if idx >= len(self._data):
-            raise IndexError(f"Index {idx} out of bounds for dataset of length {len(self._data)}.")
+        if idx >= len(self):
+            raise IndexError(f"Index {idx} out of bounds for dataset of length {len(self)}.")
 
         fn, audio_fp, start, end = self._metadata[idx]
 
@@ -1114,19 +1123,20 @@ class VoxaboxenEvents(Dataset):
 
         if self.stereo_or_mono == "mono":
             audio = audio_stereo_to_mono(audio, mono_method=self.mono_method)
-        else:
-            channel_dim = np.argmin(audio.shape)
-            if channel_dim != 0:
-                audio = audio.T
+        # Otherwise keep the `(frames, channels)` layout returned by `read_audio`.
 
         if self.sample_rate is not None and sr != self.sample_rate:
+            # librosa resamples along the last axis, so put time last for stereo.
             audio = librosa.resample(
-                y=audio,
+                y=audio.T if audio.ndim == 2 else audio,
                 orig_sr=sr,
                 target_sr=self.sample_rate,
                 scale=True,
                 res_type="kaiser_best",
             )
+            if audio.ndim == 2:
+                audio = np.ascontiguousarray(audio.T)
+            sr = self.sample_rate
 
         pos_intervals = self._get_pos_intervals(fn, start, end)
         (
@@ -1136,10 +1146,11 @@ class VoxaboxenEvents(Dataset):
             rev_anchor_anno,
             rev_regression_anno,
             rev_class_anno,
-        ) = self._get_annotation(pos_intervals, audio)
+        ) = self._get_annotation(pos_intervals, audio, sr)
 
         row = {
             "audio": audio,
+            "sample_rate": int(sr),
             "fn": fn,
             "audio_fp": audio_fp,
             "start": start,

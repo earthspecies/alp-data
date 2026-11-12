@@ -1,0 +1,7 @@
+# AudioSet v0.2.0 eval split: 17 k ten-second clips, presampled 32 kHz files.
+dataset:
+  dataset_name: audioset
+  version: "0.2.0"
+  split: validation
+  sample_rate: 32000
+  backend: polars

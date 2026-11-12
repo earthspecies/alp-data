@@ -1,0 +1,340 @@
+"""Export to Hugging Face style parquet.
+
+The Hub's native audio layout is parquet with the encoded audio embedded in a
+struct of `bytes` and `path`, and the column declared as an `Audio` feature in
+the parquet schema metadata. `to_hf` writes that shape either from a dataset
+config, through the shared export loop, or from an existing pack, by copying
+its blobs without decoding.
+"""
+
+from __future__ import annotations
+
+import json
+import math
+from dataclasses import dataclass, field
+from os import PathLike
+from typing import Any
+
+import pyarrow as pa
+import pyarrow.compute as pc
+import pyarrow.parquet as pq
+import yaml
+from fsspec import AbstractFileSystem
+
+from alp_data.dataset import ChainedDatasetConfig
+from alp_data.export.columns import (
+    AUDIO_FORMAT_COL,
+    BOOKKEEPING_COLS,
+    OFFSET_COL,
+    SHARD_COL,
+    SIZE_COL,
+    SOURCE_INDEX_COL,
+)
+from alp_data.export.packed_dataset import PackedDataset
+from alp_data.export.runner import (
+    ExportConfig,
+    ExportJob,
+    FinaliseContext,
+    OnError,
+    join,
+    read_shard_metadata,
+    run_export,
+    shard_metadata,
+)
+from alp_data.export.serializers import AudioFormat
+from alp_data.export.shards import member_name
+from alp_data.io import AnyPathT, anypath, filesystem_from_path
+from alp_data.io.paths import PureCloudPath
+
+README_FILE = "README.md"
+ERRORS_FILE = "export_errors.jsonl"
+
+AUDIO_TYPE = pa.struct([("bytes", pa.binary()), ("path", pa.string())])
+
+# Parquet's plain `binary` type, which the Hub's Audio feature expects, holds at
+# most 2 GiB per array, and pyarrow cannot reassemble a struct whose child had
+# to be chunked. Keeping row groups under this many audio bytes avoids that and
+# also bounds how much a reader decodes per batch.
+ROW_GROUP_BYTES = 256 * 1024**2
+
+
+def write_hf_parquet(fs: AbstractFileSystem, path: str, table: pa.Table, audio_key: str) -> None:
+    """Write one Hub-style parquet file with row groups sized by audio bytes.
+
+    Parameters
+    ----------
+    fs : AbstractFileSystem
+        Filesystem for `path`.
+    path : str
+        Destination file.
+    table : pa.Table
+        The table, with the audio struct column under `audio_key`.
+    audio_key : str
+        Name of the audio column.
+    """
+    rows = table.num_rows
+    if rows:
+        # Per chunk: concatenating chunks of more than 2 GiB overflows the offsets.
+        audio_bytes = sum(
+            int(pc.sum(pc.binary_length(chunk.field("bytes"))).as_py() or 0)
+            for chunk in table.column(audio_key).chunks
+        )
+        per_row = max(1, audio_bytes // rows)
+        row_group_size = max(1, min(rows, ROW_GROUP_BYTES // per_row))
+    else:
+        row_group_size = 1
+    with fs.open(path, "wb") as f:
+        pq.write_table(table, f, row_group_size=row_group_size)
+
+
+def to_hf(
+    source: ExportConfig | ChainedDatasetConfig | str | PathLike | AnyPathT,
+    out_dir: str | AnyPathT,
+    *,
+    samples_per_shard: int = 1000,
+    audio_format: AudioFormat = "flac",
+    num_workers: int = 1,
+    on_error: OnError = "raise",
+    audio_key: str | None = None,
+    sample_rate_key: str | None = None,
+) -> AnyPathT:
+    """Write a dataset as Hugging Face style parquet files.
+
+    Parameters
+    ----------
+    source : DatasetConfig | ConcatConfig | ChainedDatasetConfig | path
+        A dataset config, exported through the same loop as `pack`, or the
+        path of an existing pack, whose blobs are copied without decoding.
+    out_dir : str | AnyPathT
+        Destination directory. Files are named `<split>-NNNNN-of-MMMMM.parquet`.
+        A `README.md` records the source config and provenance.
+    samples_per_shard : int
+        Rows per parquet file.
+    audio_format : {"flac", "wav"}
+        Blob encoding when exporting from a config. Ignored for a pack, whose
+        encoding is kept.
+    num_workers : int
+        Spawned worker processes when exporting from a config.
+    on_error : {"raise", "skip"}
+        What to do when a row fails. `"skip"` records it in `export_errors.jsonl`,
+        a name the Hub's parquet loader ignores.
+    audio_key, sample_rate_key : str | None
+        Output keys, as for `pack`.
+
+    Returns
+    -------
+    AnyPathT
+        `out_dir`, as an `anypath`.
+
+    Notes
+    -----
+    The parquet metadata declares only the audio column as an `Audio`
+    feature; every other column is inferred by the reader. Opaque columns
+    (TSV strings, array structs) are passed through unchanged. Nothing here
+    imports the `datasets` library.
+    """
+    if isinstance(source, (str, PathLike, PureCloudPath)):
+        return _pack_to_hf(source, out_dir, samples_per_shard)
+    return run_export(
+        source,
+        out_dir,
+        HFSink(),
+        samples_per_shard=samples_per_shard,
+        audio_format=audio_format,
+        num_workers=num_workers,
+        on_error=on_error,
+        audio_key=audio_key,
+        sample_rate_key=sample_rate_key,
+    )
+
+
+def file_name(split: str, shard: int, num_shards: int) -> str:
+    """Name of one parquet file in the Hub convention.
+
+    Parameters
+    ----------
+    split : str
+        Split name.
+    shard, num_shards : int
+        This file's number and the total.
+
+    Returns
+    -------
+    str
+        A name such as `"train-00002-of-00010.parquet"`.
+    """
+    return f"{split}-{shard:05d}-of-{num_shards:05d}.parquet"
+
+
+def _audio_metadata(audio_key: str, sample_rate: int | None) -> dict[bytes, bytes]:
+    feature: dict[str, Any] = {"_type": "Audio"}
+    if sample_rate is not None:
+        feature["sampling_rate"] = int(sample_rate)
+    return {b"huggingface": json.dumps({"info": {"features": {audio_key: feature}}}).encode()}
+
+
+def _to_arrow(rows: list[dict[str, Any]], audio_key: str, sample_rate: int | None) -> pa.Table:
+    """Build the parquet table for one file from row dicts.
+
+    Rows may have different key sets; missing keys become nulls. The audio
+    column is cast to the exact `struct<bytes: binary, path: string>` type the
+    Hub's `Audio` feature expects.
+
+    Parameters
+    ----------
+    rows : list[dict[str, Any]]
+        Encoded rows, each holding the audio blob dict under `audio_key`.
+    audio_key : str
+        Name of the audio column.
+    sample_rate : int | None
+        Sample rate to declare in the `Audio` feature, if known.
+
+    Returns
+    -------
+    pa.Table
+        The table with Hub metadata attached.
+    """
+    if rows:
+        table = pa.Table.from_pylist(rows)
+    else:
+        table = pa.table({audio_key: pa.array([], type=AUDIO_TYPE)})
+    idx = table.schema.get_field_index(audio_key)
+    table = table.set_column(idx, audio_key, table.column(idx).cast(AUDIO_TYPE))
+    return table.replace_schema_metadata(_audio_metadata(audio_key, sample_rate))
+
+
+@dataclass
+class HFSink:
+    """Export sink that writes Hub-native parquet files."""
+
+    errors_file: str = ERRORS_FILE
+
+    def is_complete(self, fs: AbstractFileSystem, out: AnyPathT) -> bool:
+        return fs.exists(join(out, README_FILE))
+
+    def prepare(self, fs: AbstractFileSystem, out: AnyPathT) -> None:
+        fs.makedirs(str(out), exist_ok=True)
+
+    def shard_is_finished(self, fs: AbstractFileSystem, out: AnyPathT, job: ExportJob) -> bool:
+        return fs.exists(join(out, file_name(_split_name(job.config), job.shard, job.num_shards)))
+
+    def open_shard(self, fs: AbstractFileSystem, out: AnyPathT, job: ExportJob) -> _HFShard:
+        return _HFShard(fs, out, job)
+
+    def finalise(self, fs: AbstractFileSystem, out: AnyPathT, ctx: FinaliseContext) -> None:
+        opaque: dict[str, str] = {}
+        split = _split_name(ctx.config)
+        by_shard = {r.shard: r for r in ctx.results}
+
+        # A shard whose rows were all skipped is a zero-row parquet file, which
+        # the Hub's reader cannot open. Drop such files and renumber the rest.
+        kept: list[str] = []
+        num_rows = 0
+        fallback = 0
+        for s in range(ctx.num_shards):
+            name = file_name(split, s, ctx.num_shards)
+            if s in by_shard:
+                opaque.update(by_shard[s].opaque_columns)
+                info = by_shard[s].info
+            else:
+                kinds, info = read_shard_metadata(fs, join(out, name))
+                opaque.update(kinds)
+            rows = int(info["num_rows"])
+            fallback += int(info.get("num_lossless_fallback", 0))
+            if rows == 0:
+                fs.rm(join(out, name))
+            else:
+                kept.append(name)
+                num_rows += rows
+        if len(kept) < ctx.num_shards:
+            renamed = []
+            for i, name in enumerate(kept):
+                new_name = file_name(split, i, len(kept))
+                fs.mv(join(out, name), join(out, new_name))
+                renamed.append(new_name)
+            kept = renamed
+
+        meta = ctx.provenance(opaque, num_rows, fallback)
+        meta["files"] = [{"name": n, "size": fs.size(join(out, n))} for n in kept]
+        _write_readme(fs, out, meta)
+
+
+def _split_name(config: ExportConfig) -> str:
+    return getattr(config, "split", None) or "train"
+
+
+def _write_readme(fs: AbstractFileSystem, out: AnyPathT, meta: dict[str, Any]) -> None:
+    body = (
+        f"---\npretty_name: {meta.get('name')}\n---\n\n"
+        f"# {meta.get('name')}\n\n"
+        f"Exported from `alp_data` with `alp_data.export.to_hf`. "
+        f'Load with `datasets.load_dataset("parquet", data_dir=<this directory>)`.\n\n'
+        "## Provenance\n\n```yaml\n" + yaml.safe_dump(meta, sort_keys=False) + "```\n"
+    )
+    with fs.open(join(out, README_FILE), "w") as f:
+        f.write(body)
+
+
+@dataclass
+class _HFShard:
+    fs: AbstractFileSystem
+    out: AnyPathT
+    job: ExportJob
+    rows: list[dict[str, Any]] = field(default_factory=list)
+
+    def __post_init__(self) -> None:
+        self.name = file_name(_split_name(self.job.config), self.job.shard, self.job.num_shards)
+
+    def add(self, source_index: int, row: dict[str, Any], audio: bytes, ext: str) -> None:
+        blob = {"bytes": audio, "path": member_name(source_index, ext)}
+        self.rows.append({self.job.audio_key: blob, **row})
+
+    def close(self, opaque_columns: dict[str, str], stats: dict[str, Any]) -> dict[str, Any]:
+        table = _to_arrow(self.rows, self.job.audio_key, self.job.declared_sample_rate)
+        info = {"name": self.name, "num_rows": len(self.rows), **stats}
+        metadata = dict(table.schema.metadata or {})
+        metadata.update(shard_metadata(opaque_columns, info))
+        table = table.replace_schema_metadata(metadata)
+        final = join(self.out, self.name)
+        tmp = final + ".tmp"
+        write_hf_parquet(self.fs, tmp, table, self.job.audio_key)
+        self.fs.mv(tmp, final)
+        return info
+
+    def abort(self) -> None:
+        pass
+
+
+def _pack_to_hf(pack_path: Any, out_dir: str | AnyPathT, rows_per_file: int) -> AnyPathT:  # noqa: ANN401
+    ds = PackedDataset(pack_path)
+    out = anypath(str(out_dir))
+    fs = filesystem_from_path(out)
+    fs.makedirs(str(out), exist_ok=True)
+
+    default_ext = ds.pack_config["audio_format"]
+    sample_rate = ds.pack_config.get("sample_rate")
+    num_rows = len(ds._data)
+    num_files = math.ceil(num_rows / rows_per_file)
+    files = []
+    for file_idx in range(num_files):
+        start, stop = file_idx * rows_per_file, min((file_idx + 1) * rows_per_file, num_rows)
+        rows: list[dict[str, Any]] = []
+        for row_idx in range(start, stop):
+            row = ds._data[row_idx]
+            data = ds._store.read(int(row[SHARD_COL]), int(row[OFFSET_COL]), int(row[SIZE_COL]))
+            ext = row.get(AUDIO_FORMAT_COL) or default_ext
+            blob = {"bytes": data, "path": member_name(int(row[SOURCE_INDEX_COL]), ext)}
+            rows.append(
+                {ds.audio_key: blob, **{k: v for k, v in row.items() if k not in BOOKKEEPING_COLS}}
+            )
+        name = file_name(ds.split, file_idx, num_files)
+        table = _to_arrow(rows, ds.audio_key, sample_rate)
+        write_hf_parquet(fs, join(out, name), table, ds.audio_key)
+        files.append({"name": name, "size": fs.size(join(out, name))})
+
+    meta = dict(ds.pack_config)
+    meta.pop("shards", None)
+    meta["files"] = files
+    meta["converted_from_pack"] = str(ds.path)
+    _write_readme(fs, out, meta)
+    return out

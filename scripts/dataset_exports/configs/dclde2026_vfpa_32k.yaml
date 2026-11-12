@@ -1,0 +1,6 @@
+# DCLDE 2026 standard subset: windowed rows with selection tables, presampled 32 kHz.
+dataset:
+  dataset_name: dclde2026
+  split: vfpa_srkw_standard
+  sample_rate: 32000
+  backend: polars
