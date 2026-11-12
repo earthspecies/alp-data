@@ -107,6 +107,12 @@ class INaturalist(Dataset):
         - ``source``, ``data_source``: Origin of the data
         - ``identifier``: iNaturalist observation identifier
 
+    **v0.2.0 adds:**
+        - ``stateProvince``, ``county``, ``municipality``: Finer-grained location names
+        - ``publishingCountry``: GBIF publishing country code
+        - ``references``: iNaturalist observation URL
+        - ``publishingOrgKey``, ``Associated Taxa``: GBIF fields, currently empty
+
     Available Splits
     ----------------
     - ``train``: Training set (random split)
@@ -124,14 +130,21 @@ class INaturalist(Dataset):
 
     Remarks
     -------
-    ⚠️ Some original audio files in m4a format were converted to WAV. This does not
-    resolve the issues with m4a as a bioacoustic recording format,
-    and the conversion to WAV via soundfile.write
-    (see scripts/data_preprocessing_scripts/inat_m4a_to_wav.py) may introduce decoder specific
-    metadata.
+    ⚠️ Original audio files in m4a format were decoded with librosa (via audioread) and
+    stored as 16-bit PCM WAV at their native sample rate, in both versions. The WAV
+    samples are identical to the decoded m4a, but this does not resolve the issues with
+    m4a (lossy AAC) as a bioacoustic recording format.
     ⚠️ MP3 audio files that were unreadable by soundfile were also converted to WAV using librosa
-    and ffmpeg. This may introduce decoder specific metadata and potential quality issues.
-    (see scripts/data_preprocessing_scripts/inat_mp3_to_wav.py)
+    and ffmpeg, in both versions. This may introduce decoder specific metadata and potential
+    quality issues.
+    ⚠️ Rows whose original audio could not be decoded, or is missing, were removed from the
+    splits (see `scripts/data_preprocessing_scripts/inat_m4a_mp3_to_wav.py`).
+    ⚠️ v0.1.0 split CSVs `*_20260201_v3.csv` were replaced by `*_20260201_v4.csv`: the
+    unused `relative_path` column was dropped and one undecodable mp3 row
+    (`audio/113/inat_113534110.mp3`) now points at its WAV; no rows were dropped.
+    v0.2.0 split CSVs `*_20260616_v1.csv` were replaced by `*_20260616_v2.csv`: the
+    `gcs_path` and `relative_path` columns were dropped, m4a and undecodable mp3 rows
+    point at WAV, and 88 rows with missing or broken audio were dropped.
 
     References
     ----------
@@ -158,26 +171,27 @@ class INaturalist(Dataset):
 
     # Version registry with version-specific configurations. Both versions live
     # under the v0.1.0 path, so only the split CSVs differ (data_root is shared).
+    # See the Remarks section for what changed in v4 (0.1.0) and v2 (0.2.0).
     VERSIONS = {
         "0.1.0": {
             "split_paths": {
-                "train": f"{_RAW_ROOT}/train_20260201_v3.csv",
-                "train_unseen": f"{_RAW_ROOT}/train_unseen_20260201_v3.csv",
-                "val": f"{_RAW_ROOT}/val_20260201_v3.csv",
-                "val_unseen": f"{_RAW_ROOT}/val_unseen_20260201_v3.csv",
-                "all": f"{_RAW_ROOT}/all_20260201_v3.csv",
-                "all_unseen": f"{_RAW_ROOT}/all_unseen_20260201_v3.csv",
+                "train": f"{_RAW_ROOT}/train_20260201_v4.csv",
+                "train_unseen": f"{_RAW_ROOT}/train_unseen_20260201_v4.csv",
+                "val": f"{_RAW_ROOT}/val_20260201_v4.csv",
+                "val_unseen": f"{_RAW_ROOT}/val_unseen_20260201_v4.csv",
+                "all": f"{_RAW_ROOT}/all_20260201_v4.csv",
+                "all_unseen": f"{_RAW_ROOT}/all_unseen_20260201_v4.csv",
             },
             "data_root": f"{_RAW_ROOT}/",
         },
         "0.2.0": {
             "split_paths": {
-                "train": f"{_RAW_ROOT}/train_20260616_v1.csv",
-                "train_unseen": f"{_RAW_ROOT}/train_unseen_20260616_v1.csv",
-                "val": f"{_RAW_ROOT}/val_20260616_v1.csv",
-                "val_unseen": f"{_RAW_ROOT}/val_unseen_20260616_v1.csv",
-                "all": f"{_RAW_ROOT}/all_20260616_v1.csv",
-                "all_unseen": f"{_RAW_ROOT}/all_unseen_20260616_v1.csv",
+                "train": f"{_RAW_ROOT}/train_20260616_v2.csv",
+                "train_unseen": f"{_RAW_ROOT}/train_unseen_20260616_v2.csv",
+                "val": f"{_RAW_ROOT}/val_20260616_v2.csv",
+                "val_unseen": f"{_RAW_ROOT}/val_unseen_20260616_v2.csv",
+                "all": f"{_RAW_ROOT}/all_20260616_v2.csv",
+                "all_unseen": f"{_RAW_ROOT}/all_unseen_20260616_v2.csv",
             },
             "data_root": f"{_RAW_ROOT}/",
         },

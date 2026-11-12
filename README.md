@@ -99,6 +99,12 @@ or with pip:
 pip install alp-data
 ```
 
+If you want to install the (currently beta) video decoding tooling, run:
+
+```sh
+uv sync --group torch
+```
+
 ## Documentation
 
 Full documentation: https://projects.earthspecies.org/alp-data/latest/
