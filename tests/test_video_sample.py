@@ -311,6 +311,12 @@ def local_split(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> str:
             "average_fps": 30.0,
             "width": 64,
             "height": 48,
+            # Columns added by `mammalps_frame_info.py`
+            "start_frame": 0,
+            "end_frame": 60,
+            "video_fps": 30.0,
+            "frame_stride": 1,
+            "fps": 30.0,
         }
         for species in ["red_deer", "chamois"]
     ]
