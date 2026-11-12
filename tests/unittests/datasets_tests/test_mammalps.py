@@ -73,10 +73,16 @@ def _write_split(path: Path, video_paths: list[str]) -> None:
             "average_fps": 30.0,
             "width": 64,
             "height": 48,
+            # Columns added by `mammalps_frame_info.py`
+            "start_frame": 0,
+            "end_frame": 60,
+            "video_fps": 30.0,
+            "frame_stride": 1,
+            "fps": 30.0,
         }
         for video_path in video_paths
     ]
-    pd.DataFrame(rows, columns=CSV_COLUMNS).to_csv(path, index=False)
+    pd.DataFrame(rows, columns=CSV_COLUMNS + CLIP_COLUMNS).to_csv(path, index=False)
 
 
 @pytest.fixture
@@ -102,8 +108,8 @@ def local_split(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> str:
 
 
 @pytest.mark.parametrize("backend", ["pandas", "polars"])
-def test_clip_columns_added(local_split: str, backend: str) -> None:
-    """Test if loading adds clip columns covering each whole clip."""
+def test_default_clip_columns(local_split: str, backend: str) -> None:
+    """Test if, without `frames_per_second`, the clip columns are loaded as stored."""
     ds = MammAlps(split=local_split, backend=backend)
     assert set(CSV_COLUMNS + CLIP_COLUMNS) <= set(ds.columns)
 

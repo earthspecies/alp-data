@@ -80,6 +80,12 @@ class MammAlps(Dataset):
         - ``num_frames``, ``average_fps``: total number of frames, frames per second
         - ``width``, ``height``: video width and height in pixels
 
+    **Frame Sampling:**
+        - ``start_frame``, ``end_frame``: frame range to decode, by default the whole clip
+        - ``video_fps``: native frame rate of the clip
+        - ``frame_stride``, ``fps``: decoding stride and resulting frame rate, by default
+        1 and ``video_fps``; overwritten when ``frames_per_second`` is set
+
     **Split:**
         - ``split``: one of "train", "val", or "test"
 
@@ -186,7 +192,10 @@ class MammAlps(Dataset):
         return list(self.info.split_paths.keys())
 
     def _load(self) -> None:
-        """Read the split's table into the backend and add the clip columns.
+        """Read the split's table into the backend.
+
+        If `frames_per_second` was set, `frame_stride` and `fps` are overwritten to
+        sample each clip at that rate.
 
         Raises
         ------
@@ -202,19 +211,13 @@ class MammAlps(Dataset):
         data = self._backend_class.from_csv(
             location, keep_default_na=False, na_values=[""], null_values=[]
         )
-        table = data.unwrap
 
-        # Add columns to prepare for any video sampling transforms
-        data = data.add_column("start_frame", 0)
-        data = data.add_column("end_frame", list(table["num_frames"]))
-        video_fps = [float(f) for f in table["average_fps"]]
-        if self.fps is None:
-            strides = [1] * len(video_fps)
-        else:
+        # The tables default to native frame rate (`frame_stride` 1, `fps` = `video_fps`)
+        if self.fps is not None:
+            video_fps = [float(f) for f in data.unwrap["video_fps"]]
             strides = [max(1, round(f / self.fps)) for f in video_fps]
-        data = data.add_column("frame_stride", strides)
-        data = data.add_column("video_fps", video_fps)
-        data = data.add_column("fps", [f / s for f, s in zip(video_fps, strides, strict=True)])
+            data = data.add_column("frame_stride", strides)
+            data = data.add_column("fps", [f / s for f, s in zip(video_fps, strides, strict=True)])
         self._data = data
 
     @classmethod
