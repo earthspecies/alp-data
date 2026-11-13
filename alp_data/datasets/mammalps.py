@@ -5,10 +5,10 @@ from pydantic import Field
 from alp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from alp_data.backends import BackendType
 from alp_data.dataset import register_config
-from alp_data.io import AnyPathT, anypath, read_video_at_frames
+from alp_data.io import DATA_HOME, AnyPathT, anypath, read_video_at_frames
 
 # Paths in the split tables are relative to the bucket root
-_ROOT = "gs://esp-data-ingestion"
+_ROOT = DATA_HOME
 _V010_ROOT = f"{_ROOT}/mammalps/v0.1.0"
 
 
