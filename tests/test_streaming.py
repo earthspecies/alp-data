@@ -1,12 +1,16 @@
 """Tests for streaming mode in backends."""
 
 import tempfile
+import urllib.error
+import urllib.request
 from pathlib import Path
 
 import pandas as pd
 import polars as pl
 import pytest
+from google.auth.exceptions import DefaultCredentialsError
 
+import alp_data.backends.polars_backend as polars_backend
 from alp_data.backends import PandasBackend, PolarsBackend
 
 
@@ -390,3 +394,178 @@ class TestPolarsStreaming:
             fname, streaming=False, row_index_name="idx"
         )
         assert "idx" in backend_eager.columns
+
+
+POLARS_STREAMING_READERS = [
+    ("from_csv", "scan_csv", {}),
+    ("from_json", "scan_ndjson", {"lines": True}),
+    ("from_parquet", "scan_parquet", {}),
+]
+
+
+def _stub_polars_scan(monkeypatch, scan_name):
+    captured = {}
+
+    def scan(source, *, storage_options=None, **kwargs):
+        captured["path"] = source
+        captured["kwargs"] = {**kwargs}
+        if storage_options is not None:
+            captured["kwargs"]["storage_options"] = storage_options
+        return pl.LazyFrame({"a": [1]})
+
+    monkeypatch.setattr(polars_backend.pl, scan_name, scan)
+    return captured
+
+
+@pytest.mark.parametrize(("method", "scan_name", "extra_kwargs"), POLARS_STREAMING_READERS)
+@pytest.mark.parametrize(
+    ("anonymous", "credentials_available", "expected_skip_signature"),
+    [
+        (None, False, "true"),
+        (None, True, None),
+        (True, True, "true"),
+        (False, False, None),
+    ],
+)
+def test_polars_gcs_streaming_auth_options(
+    monkeypatch,
+    method,
+    scan_name,
+    extra_kwargs,
+    anonymous,
+    credentials_available,
+    expected_skip_signature,
+):
+    captured = _stub_polars_scan(monkeypatch, scan_name)
+    default_calls = []
+
+    def default_credentials():
+        default_calls.append(None)
+        if not credentials_available:
+            raise DefaultCredentialsError("no credentials")
+        return object(), "project"
+
+    monkeypatch.setattr(polars_backend.google.auth, "default", default_credentials)
+    reader = getattr(PolarsBackend, method)
+    reader("gs://bucket/data", streaming=True, anonymous=anonymous, **extra_kwargs)
+
+    storage_options = captured["kwargs"].get("storage_options", {})
+    if expected_skip_signature is None:
+        assert "skip_signature" not in storage_options
+    else:
+        assert storage_options["skip_signature"] == expected_skip_signature
+    assert len(default_calls) == (1 if anonymous is None else 0)
+
+
+@pytest.mark.parametrize(("method", "scan_name", "extra_kwargs"), POLARS_STREAMING_READERS)
+def test_polars_gcs_streaming_merges_storage_options_without_mutating_input(
+    monkeypatch, method, scan_name, extra_kwargs
+):
+    captured = _stub_polars_scan(monkeypatch, scan_name)
+    options = {"user_option": "value"}
+
+    def no_credentials():
+        raise DefaultCredentialsError("no credentials")
+
+    monkeypatch.setattr(polars_backend.google.auth, "default", no_credentials)
+    reader = getattr(PolarsBackend, method)
+    reader("gs://bucket/data", streaming=True, storage_options=options, **extra_kwargs)
+
+    assert captured["kwargs"]["storage_options"] == {
+        "user_option": "value",
+        "skip_signature": "true",
+    }
+    assert captured["kwargs"]["storage_options"] is not options
+    assert options == {"user_option": "value"}
+
+
+@pytest.mark.parametrize(("method", "scan_name", "extra_kwargs"), POLARS_STREAMING_READERS)
+def test_polars_gcs_streaming_respects_explicit_skip_signature(
+    monkeypatch, method, scan_name, extra_kwargs
+):
+    captured = _stub_polars_scan(monkeypatch, scan_name)
+    options = {"skip_signature": "false"}
+
+    def unexpected_credentials_check():
+        pytest.fail("explicit storage options should bypass credential detection")
+
+    monkeypatch.setattr(polars_backend.google.auth, "default", unexpected_credentials_check)
+    reader = getattr(PolarsBackend, method)
+    reader(
+        "gs://bucket/data",
+        streaming=True,
+        anonymous=True,
+        storage_options=options,
+        **extra_kwargs,
+    )
+
+    assert captured["kwargs"]["storage_options"] == options
+    assert options == {"skip_signature": "false"}
+
+
+@pytest.mark.parametrize("path", ["local.csv", "https://example.com/data.csv"])
+def test_polars_gcs_options_do_not_change_other_paths(monkeypatch, path):
+    captured = _stub_polars_scan(monkeypatch, "scan_csv")
+    options = {"user_option": "value"}
+
+    def unexpected_credentials_check():
+        pytest.fail("non-GCS paths should not check for GCS credentials")
+
+    monkeypatch.setattr(polars_backend.google.auth, "default", unexpected_credentials_check)
+    PolarsBackend.from_csv(
+        path,
+        streaming=True,
+        anonymous=True,
+        storage_options=options,
+    )
+
+    assert captured["kwargs"]["storage_options"] is options
+    assert options == {"user_option": "value"}
+
+
+@pytest.mark.parametrize(
+    ("path", "expected_skip_signature"),
+    [
+        (Path("gs://bucket/data.csv"), "true"),
+        (["gs://bucket/data.csv", "gs://bucket/other.csv"], "true"),
+    ],
+)
+def test_polars_gcs_streaming_detects_path_objects_and_lists(
+    monkeypatch, path, expected_skip_signature
+):
+    captured = _stub_polars_scan(monkeypatch, "scan_csv")
+
+    def no_credentials():
+        raise DefaultCredentialsError("no credentials")
+
+    monkeypatch.setattr(polars_backend.google.auth, "default", no_credentials)
+    PolarsBackend.from_csv(path, streaming=True)
+
+    assert captured["path"] == path
+    assert captured["kwargs"]["storage_options"]["skip_signature"] == expected_skip_signature
+
+
+@pytest.mark.network
+def test_public_gcs_csv_streaming_without_adc(tmp_path, monkeypatch):
+    path = "gs://esp-data-274503/giant_otters/v0.1.0/raw/giant_otters_annotations_test.csv"
+    url = "https://storage.googleapis.com/esp-data-274503/giant_otters/v0.1.0/raw/"
+    url += "giant_otters_annotations_test.csv"
+    request = urllib.request.Request(url, headers={"Range": "bytes=0-0"})
+
+    try:
+        with urllib.request.urlopen(request, timeout=20):
+            pass
+    except (urllib.error.URLError, TimeoutError) as exc:
+        pytest.skip(f"public GCS object is unreachable: {exc}")
+
+    monkeypatch.setenv("CLOUDSDK_CONFIG", str(tmp_path))
+    monkeypatch.delenv("GOOGLE_APPLICATION_CREDENTIALS", raising=False)
+    try:
+        polars_backend.google.auth.default()
+    except DefaultCredentialsError:
+        pass
+    else:
+        pytest.skip("ambient GCS credentials are available")
+
+    backend = PolarsBackend.from_csv(path, streaming=True)
+    assert next(iter(backend), None) is not None
