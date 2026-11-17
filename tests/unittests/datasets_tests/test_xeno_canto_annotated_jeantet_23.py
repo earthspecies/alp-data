@@ -55,6 +55,11 @@ def test_get_available_labels(ds: XenoCantoAnnotatedJeantet23):
         assert isinstance(label, str), f"Species label for {label} should be string"
 
 
+def test_sample_rate(ds: XenoCantoAnnotatedJeantet23) -> None:
+    """Loaded items should include the effective audio sample rate."""
+    assert ds[0]["sample_rate"] == 16000
+
+
 def test_check_audio(ds: XenoCantoAnnotatedJeantet23, sample_indices: List[int]):
     """Basic audio integrity checks on a few random items."""
     for idx in sample_indices:

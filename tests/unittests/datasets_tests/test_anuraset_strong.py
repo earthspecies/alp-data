@@ -55,6 +55,11 @@ def test_ds_not_empty(ds: AnuraSetStrong):
     assert len(ds) > 0, "Dataset appears empty"
 
 
+def test_sample_rate(ds: AnuraSetStrong) -> None:
+    """Loaded items should include the effective audio sample rate."""
+    assert ds[0]["sample_rate"] == 16000
+
+
 def test_check_audio(ds: AnuraSetStrong, sample_indices: List[int]):
     """Basic audio integrity checks on a few random items."""
     for idx in sample_indices:
