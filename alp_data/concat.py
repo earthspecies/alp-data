@@ -10,6 +10,7 @@ from alp_data.dataset import (
     ConcatConfig,
     Dataset,
     DatasetInfo,
+    _merge_native_sample_rates,
     dataset_from_config,
     register_dataset,
 )
@@ -158,7 +159,7 @@ def _merge_output_take_and_give(otags: list[dict | None]) -> dict | None:
 
 
 def _merge_dataset_info(dataset_infos: list[DatasetInfo]) -> DatasetInfo:
-    """Merge multiple DatasetInfo objects.
+    """Merge metadata, retaining native rates only if all sources document them.
 
     Parameters
     ----------
@@ -190,6 +191,7 @@ def _merge_dataset_info(dataset_infos: list[DatasetInfo]) -> DatasetInfo:
             sources=info.sources,
             license=info.license,
             changelog=info.changelog,
+            native_sample_rates=_merge_native_sample_rates(dataset_infos),
         )
 
     # Merge names
@@ -248,6 +250,7 @@ def _merge_dataset_info(dataset_infos: list[DatasetInfo]) -> DatasetInfo:
         sources=merged_sources,
         license=merged_license,
         changelog=merged_changelog,
+        native_sample_rates=_merge_native_sample_rates(dataset_infos),
     )
 
 
@@ -296,7 +299,9 @@ def concatenate_datasets(
         ds = datasets[0]
         return (
             ds._data.copy(),
-            ds.info,
+            ds.info.model_copy(
+                update={"native_sample_rates": _merge_native_sample_rates([ds.info])}
+            ),
             datasets,
             ds.sample_rate,
             ds.output_take_and_give,

@@ -4,6 +4,7 @@ from alp_data.dataset import (
     ChainedDatasetConfig,
     Dataset,
     DatasetInfo,
+    _merge_native_sample_rates,
     dataset_from_config,
     register_dataset,
 )
@@ -20,6 +21,7 @@ class ChainedDataset(Dataset):
     """Helper class to chain multiple datasets for iteration and indexing.
 
     This class allows iterating over multiple datasets as if they were a single dataset.
+    Native rates are combined only when every source documents them.
 
     Parameters
     ----------
@@ -69,6 +71,9 @@ class ChainedDataset(Dataset):
         # _backend_class doesn't matter here since we override all data access methods
         super().__init__(streaming=_streaming)
 
+        self.info = self.info.model_copy(
+            update={"native_sample_rates": _merge_native_sample_rates([ds.info for ds in datasets])}
+        )
         self._source_datasets = datasets
         try:
             self._lengths = [len(ds) for ds in datasets]
