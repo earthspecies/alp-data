@@ -155,6 +155,33 @@ def test_multilabel_from_features_with_extra_labels() -> None:
     assert df_out.unwrap["label"].to_list() == [[1], [0], [1], [2]]
 
 
+def test_multilabel_from_features_rejects_null_typed_list() -> None:
+    data = PolarsBackend(pl.DataFrame({"col1": [[None]]}))
+    t = MultiLabelFromFeatures(
+        features=["col1"],
+        label_map={"Minke whale": 0},
+    )
+
+    with pytest.raises(
+        ValueError,
+        match=r"Column 'col1' has dtype List\(Null\); every list element is null",
+    ):
+        t(data)
+
+
+def test_multilabel_from_features_allows_nulls_in_string_list() -> None:
+    data = PolarsBackend(pl.DataFrame({"col1": [["Minke whale", None]]}))
+    t = MultiLabelFromFeatures(
+        features=["col1"],
+        label_map={"Minke whale": 0},
+    )
+
+    df_out, meta = t(data)
+
+    assert df_out.unwrap["label"].to_list() == [[0]]
+    assert meta["label_map"] == {"Minke whale": 0}
+
+
 def test_multilabel_from_features_with_noncontiguous_indices() -> None:
     df = {"col1": ["banana", "apple", "banana", "orange"]}
     label_map = {"apple": 100, "banana": 101, "orange": 102}
