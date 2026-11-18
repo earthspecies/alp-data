@@ -594,7 +594,8 @@ def read_audio(
 
     Handles various path types (local, GCS, R2) via the `anypath` utility.
     Reads the entire file by default, or a time range when `start_time` (and
-    optionally `end_time`) is given.
+    optionally `end_time`) is given. A range that lies entirely past the end of
+    the file returns an empty array and logs a warning.
 
     When a time range is requested on a GCS (``gs://``) path or an
     ``http://``/``https://`` URL, the segment is streamed directly via ffmpeg
@@ -648,15 +649,26 @@ def read_audio(
         if end_time is not None and end_time <= start_time:
             raise ValueError("end_time must be greater than start_time")
 
+        audio = None
         if isinstance(file_path, (PureGSPath, PureHTTPSPath, PureHTTPPath)):
             try:
-                return _read_audio_ffmpeg(
+                audio, sample_rate = _read_audio_ffmpeg(
                     file_path, start_time, end_time, input_sr=input_sr, anonymous=anonymous
                 )
             except FFmpegSegmentError as e:
                 _warn_ffmpeg_fallback_once(e.cause)
                 logger.debug("ffmpeg segment read failed (%s): %s", e.cause, e)
-        return _read_audio_by_time(file_path, start_time, end_time, input_sr)
+        if audio is None:
+            audio, sample_rate = _read_audio_by_time(file_path, start_time, end_time, input_sr)
+        if audio.shape[0] == 0:
+            logger.warning(
+                "Time range %s-%s s of %s holds no samples; the range starts at or after "
+                "the end of the file. Check the start time against the file, not the series.",
+                start_time,
+                end_time,
+                file_path,
+            )
+        return audio, sample_rate
 
     try:
         fs = filesystem_from_path(file_path)

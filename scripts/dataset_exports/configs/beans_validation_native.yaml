@@ -1,0 +1,7 @@
+# BEANS validation at native sample rates (no resampling), for the benchmark:
+# the live side then measures IO and decode, not librosa.
+dataset:
+  dataset_name: beans
+  split: validation
+  sample_rate: null
+  backend: polars
