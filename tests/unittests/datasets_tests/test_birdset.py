@@ -68,9 +68,23 @@ def test_check_audio(ds: BirdSet, sample_indices: List[int]):
 def test_available_splits(ds: BirdSet) -> None:
     """Test if available_splits returns correct split names."""
     expected_splits = [
+        "HSN-train",
         "HSN-test", "HSN-test_5s",
+        "NBP-train",
+        "NBP-test", "NBP-test_5s",
+        "NES-train",
+        "NES-test", "NES-test_5s",
+        "PER-train",
         "PER-test", "PER-test_5s",
+        "POW-train",
         "POW-test", "POW-test_5s",
+        "SSW-train",
+        "SSW-test", "SSW-test_5s",
+        "SNE-train",
+        "SNE-test", "SNE-test_5s",
+        "UHH-train",
+        "UHH-test", "UHH-test_5s",
+        "XCM",
         "all",
     ]
     assert all(split in ds.available_splits for split in expected_splits)
