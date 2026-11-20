@@ -14,7 +14,7 @@ from alp_data.backends import PandasBackend, PolarsBackend
 from alp_data.backends.protocol import DataBackend
 from alp_data.datasets import MammAlps
 from alp_data.io import read_video_at_frames
-from alp_data.transforms import SplitClip, SplitClipConfig, transform_from_config
+from alp_data.transforms import SplitClip, SplitClipConfig, SubsampleConfig, transform_from_config
 from alp_data.transforms import video_sample as video_sample_module
 from alp_data.transforms.expand import ExpandByFunction
 from alp_data.transforms.video_sample import split_clip_by_duration, split_clip_by_frames
@@ -280,6 +280,55 @@ def test_transform_methods_equivalence(config: BaseModel, backend_type: str) -> 
         list(t(_make_backend(backend_type, [30.0, 25.0], [10.0, 10.0]))[0]) for t in transforms
     ]
     assert results[0] == results[1] == results[2]
+
+
+@pytest.mark.parametrize(
+    "config",
+    [
+        SplitClipConfig(type="split_clip", clip_length=10),
+        SplitClipConfig(type="split_clip", clip_length=10, hop=5, drop_last=False),
+        SplitClipConfig(type="split_clip", clip_duration=0.25),
+        SplitClipConfig(type="split_clip", clip_duration=0.25, hop_duration=0.1),
+    ],
+)
+@pytest.mark.parametrize("backend_type", ["pandas", "polars"])
+def test_split_clip_then_subsample(config: SplitClipConfig, backend_type: str) -> None:
+    """Test that sampling by label after `SplitClip` keeps the requested share of clips.
+
+    Regression test: pandas used to give all clips of a video the parent's index label,
+    so label-based sampling picked a label and got every clip of that video.
+    """
+    data = {
+        "video": ["a", "b"],
+        "label": ["x", "x"],
+        "start_frame": [0, 0],
+        "end_frame": [40, 40],
+        "frame_stride": [1, 1],
+        "video_fps": [30.0, 30.0],
+        "fps": [30.0, 30.0],
+    }
+    backend = (
+        PandasBackend(pd.DataFrame(data))
+        if backend_type == "pandas"
+        else (PolarsBackend(pl.DataFrame(data)))
+    )
+    clips, _ = transform_from_config(config)(backend)
+    n_clips = len(clips)
+
+    subsampled, _ = transform_from_config(
+        SubsampleConfig(type="subsample", property="label", ratios={"x": 0.25})
+    )(clips)
+    rows = list(subsampled)
+    assert len(rows) == int(n_clips * 0.25)
+    # Sampling without replacement must give distinct clips
+    assert len({(r["video"], r["start_frame"]) for r in rows}) == len(rows)
+
+    upsampled = clips.upsample_by_column("label", {"x": 2 * n_clips})
+    assert len(upsampled) == 2 * n_clips
+    # A target below the group size samples without replacement: clips must be distinct
+    downsampled = list(clips.upsample_by_column("label", {"x": n_clips // 2}))
+    assert len(downsampled) == n_clips // 2
+    assert len({(r["video"], r["start_frame"]) for r in downsampled}) == len(downsampled)
 
 
 # -- Registered dataset from YAML (local sample video) -------------------------
