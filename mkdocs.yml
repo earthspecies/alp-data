@@ -15,6 +15,7 @@ nav:
       - Datasets:
           - Overview: datasets.md
           - Available Datasets: datasets-available.md
+          - Dataset Conventions: datasets-schema.md
           - Using Your Own Dataset: datasets-custom.md
       - IO: io.md
       - Transforms: transforms.md
