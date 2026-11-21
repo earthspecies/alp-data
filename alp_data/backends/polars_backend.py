@@ -7,11 +7,52 @@ import logging
 import warnings
 from typing import Any, Callable, Iterator, Literal
 
+import google.auth
 import polars as pl
+from google.auth.exceptions import DefaultCredentialsError
+
+from alp_data.io.paths import PureGSPath, anypath
 
 from .protocol import DataBackend
 
 logger = logging.getLogger("alp_data")
+
+
+def _has_gcs_path(path: str) -> bool:
+    """Return whether a path is a GCS URI.
+
+    Returns
+    -------
+    bool
+        Whether the path is a GCS URI.
+    """
+    return isinstance(anypath(path), PureGSPath)
+
+
+def _set_anonymous_storage_options(
+    path: str,
+    kwargs: dict[str, Any],
+    valid_params: set[str],
+    anonymous: bool | None,
+) -> None:
+    """Add anonymous GCS options when requested or ambient credentials are absent."""
+    if "storage_options" not in valid_params or not _has_gcs_path(path):
+        return
+
+    storage_options = kwargs.get("storage_options")
+    if storage_options is not None and "skip_signature" in storage_options:
+        return
+    if anonymous is False:
+        return
+    if anonymous is None:
+        try:
+            google.auth.default()
+        except DefaultCredentialsError:
+            pass
+        else:
+            return
+
+    kwargs["storage_options"] = {**(storage_options or {}), "skip_signature": "true"}
 
 
 class PolarsBackend(DataBackend):
@@ -90,7 +131,14 @@ class PolarsBackend(DataBackend):
             self._streaming = True
 
     @classmethod
-    def from_csv(cls, path: str, *, streaming: bool = False, **kwargs: Any) -> "PolarsBackend":
+    def from_csv(
+        cls,
+        path: str,
+        *,
+        streaming: bool = False,
+        anonymous: bool | None = None,
+        **kwargs: Any,
+    ) -> "PolarsBackend":
         """Read a CSV file and return a wrapped DataFrame backend.
 
         Parameters
@@ -99,6 +147,9 @@ class PolarsBackend(DataBackend):
             Path to the CSV file (supports local and cloud paths via cloudpathlib)
         streaming : bool, optional
             If True, use streaming mode with LazyFrame, by default False
+        anonymous : bool or None, optional
+            True forces anonymous access, False requires credentials, and None
+            uses anonymous access only when ambient credentials are absent.
         **kwargs : Any
             Additional polars-specific arguments
 
@@ -114,6 +165,7 @@ class PolarsBackend(DataBackend):
             valid_params = set(inspect.signature(pl.read_csv).parameters.keys())
 
         filtered_kwargs = {k: v for k, v in kwargs.items() if k in valid_params}
+        _set_anonymous_storage_options(path, filtered_kwargs, valid_params, anonymous)
         if streaming:
             # Use scan_csv for lazy/streaming mode
             df = pl.scan_csv(path, **filtered_kwargs)
@@ -129,6 +181,7 @@ class PolarsBackend(DataBackend):
         *,
         lines: bool = False,
         streaming: bool = False,
+        anonymous: bool | None = None,
         **kwargs: Any,
     ) -> "PolarsBackend":
         """Read a JSON file and return a wrapped DataFrame backend.
@@ -141,6 +194,9 @@ class PolarsBackend(DataBackend):
             If True, read file as JSON lines (one JSON object per line), by default False
         streaming : bool, optional
             If True, use streaming mode with LazyFrame, by default False
+        anonymous : bool or None, optional
+            True forces anonymous access, False requires credentials, and None
+            uses anonymous access only when ambient credentials are absent.
         **kwargs : Any
             Additional polars-specific arguments
 
@@ -158,6 +214,7 @@ class PolarsBackend(DataBackend):
         elif not streaming and not lines:
             valid_params = set(inspect.signature(pl.read_json).parameters.keys())
         filtered_kwargs = {k: v for k, v in kwargs.items() if k in valid_params}
+        _set_anonymous_storage_options(path, filtered_kwargs, valid_params, anonymous)
 
         if streaming:
             if lines:
@@ -177,7 +234,14 @@ class PolarsBackend(DataBackend):
             return cls(df, streaming=False)
 
     @classmethod
-    def from_parquet(cls, path: str, *, streaming: bool = False, **kwargs: Any) -> "PolarsBackend":
+    def from_parquet(
+        cls,
+        path: str,
+        *,
+        streaming: bool = False,
+        anonymous: bool | None = None,
+        **kwargs: Any,
+    ) -> "PolarsBackend":
         """Read a Parquet file and return a wrapped DataFrame backend.
 
         Parameters
@@ -186,6 +250,9 @@ class PolarsBackend(DataBackend):
             Path to the Parquet file
         streaming : bool, optional
             If True, use streaming mode with LazyFrame, by default False
+        anonymous : bool or None, optional
+            True forces anonymous access, False requires credentials, and None
+            uses anonymous access only when ambient credentials are absent.
         **kwargs : Any
             Additional polars-specific arguments
 
@@ -200,6 +267,7 @@ class PolarsBackend(DataBackend):
         else:
             valid_params = set(inspect.signature(pl.read_parquet).parameters.keys())
         filtered_kwargs = {k: v for k, v in kwargs.items() if k in valid_params}
+        _set_anonymous_storage_options(path, filtered_kwargs, valid_params, anonymous)
         if streaming:
             # Use scan_parquet for lazy/streaming mode
             df = pl.scan_parquet(path, **filtered_kwargs)
