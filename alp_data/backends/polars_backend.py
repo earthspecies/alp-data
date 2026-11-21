@@ -5,34 +5,32 @@ from __future__ import annotations
 import inspect
 import logging
 import warnings
-from pathlib import Path
 from typing import Any, Callable, Iterator, Literal
 
 import google.auth
 import polars as pl
 from google.auth.exceptions import DefaultCredentialsError
 
+from alp_data.io.paths import PureGSPath, anypath
+
 from .protocol import DataBackend
 
 logger = logging.getLogger("alp_data")
 
 
-def _has_gcs_path(path: str | Path | list[str | Path]) -> bool:
-    """Return whether a path or path list contains a GCS URI.
+def _has_gcs_path(path: str) -> bool:
+    """Return whether a path is a GCS URI.
 
     Returns
     -------
     bool
-        Whether the path or path list contains a GCS URI.
+        Whether the path is a GCS URI.
     """
-    if isinstance(path, list):
-        return any(_has_gcs_path(item) for item in path)
-    path_str = str(path).replace("\\", "/").lower()
-    return path_str.startswith("gs://") or (isinstance(path, Path) and path_str.startswith("gs:/"))
+    return isinstance(anypath(path), PureGSPath)
 
 
 def _set_anonymous_storage_options(
-    path: str | Path | list[str | Path],
+    path: str,
     kwargs: dict[str, Any],
     valid_params: set[str],
     anonymous: bool | None,
@@ -135,7 +133,7 @@ class PolarsBackend(DataBackend):
     @classmethod
     def from_csv(
         cls,
-        path: str | Path | list[str | Path],
+        path: str,
         *,
         streaming: bool = False,
         anonymous: bool | None = None,
@@ -145,7 +143,7 @@ class PolarsBackend(DataBackend):
 
         Parameters
         ----------
-        path : str | Path | list[str | Path]
+        path : str
             Path to the CSV file (supports local and cloud paths via cloudpathlib)
         streaming : bool, optional
             If True, use streaming mode with LazyFrame, by default False
@@ -179,7 +177,7 @@ class PolarsBackend(DataBackend):
     @classmethod
     def from_json(
         cls,
-        path: str | Path | list[str | Path],
+        path: str,
         *,
         lines: bool = False,
         streaming: bool = False,
@@ -190,7 +188,7 @@ class PolarsBackend(DataBackend):
 
         Parameters
         ----------
-        path : str | Path | list[str | Path]
+        path : str
             Path to the JSON file
         lines : bool, optional
             If True, read file as JSON lines (one JSON object per line), by default False
@@ -238,7 +236,7 @@ class PolarsBackend(DataBackend):
     @classmethod
     def from_parquet(
         cls,
-        path: str | Path | list[str | Path],
+        path: str,
         *,
         streaming: bool = False,
         anonymous: bool | None = None,
@@ -248,7 +246,7 @@ class PolarsBackend(DataBackend):
 
         Parameters
         ----------
-        path : str | Path | list[str | Path]
+        path : str
             Path to the Parquet file
         streaming : bool, optional
             If True, use streaming mode with LazyFrame, by default False

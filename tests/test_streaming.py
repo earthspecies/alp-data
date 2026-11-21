@@ -286,7 +286,7 @@ class TestPolarsStreaming:
         """
         df = pl.DataFrame({"a": list(range(10)), "b": ["x"] * 10})
         df.write_csv(tmp_path / "test.csv")
-        backend = PolarsBackend.from_csv(tmp_path / "test.csv", streaming=True)
+        backend = PolarsBackend.from_csv(str(tmp_path / "test.csv"), streaming=True)
 
         # Underlying must still be a LazyFrame after constructing the iterator
         # (calling iter itself should not coerce the backend to eager).
@@ -307,7 +307,7 @@ class TestPolarsStreaming:
         df = pl.DataFrame({"a": list(range(50))})
         fname = tmp_path / "test.csv"
         df.write_csv(fname)
-        backend = PolarsBackend.from_csv(fname, streaming=True)
+        backend = PolarsBackend.from_csv(str(fname), streaming=True)
 
         batches = list(backend.iter_batches(batch_size=10))
 
@@ -386,12 +386,12 @@ class TestPolarsStreaming:
         # for scan_csv. With the bug it would be silently dropped; with the
         # fix it actually gets applied.
         backend_stream = PolarsBackend.from_parquet(
-            fname, streaming=True, row_index_name="idx"
+            str(fname), streaming=True, row_index_name="idx"
         )
         assert "idx" in backend_stream.columns
 
         backend_eager = PolarsBackend.from_parquet(
-            fname, streaming=False, row_index_name="idx"
+            str(fname), streaming=False, row_index_name="idx"
         )
         assert "idx" in backend_eager.columns
 
@@ -523,16 +523,8 @@ def test_polars_gcs_options_do_not_change_other_paths(monkeypatch, path):
     assert options == {"user_option": "value"}
 
 
-@pytest.mark.parametrize(
-    ("path", "expected_skip_signature"),
-    [
-        (Path("gs://bucket/data.csv"), "true"),
-        (["gs://bucket/data.csv", "gs://bucket/other.csv"], "true"),
-    ],
-)
-def test_polars_gcs_streaming_detects_path_objects_and_lists(
-    monkeypatch, path, expected_skip_signature
-):
+def test_polars_gcs_streaming_detects_gcs_paths(monkeypatch):
+    path = "gs://bucket/data.csv"
     captured = _stub_polars_scan(monkeypatch, "scan_csv")
 
     def no_credentials():
@@ -542,7 +534,7 @@ def test_polars_gcs_streaming_detects_path_objects_and_lists(
     PolarsBackend.from_csv(path, streaming=True)
 
     assert captured["path"] == path
-    assert captured["kwargs"]["storage_options"]["skip_signature"] == expected_skip_signature
+    assert captured["kwargs"]["storage_options"]["skip_signature"] == "true"
 
 
 @pytest.mark.network
