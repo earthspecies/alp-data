@@ -5,10 +5,12 @@ Video datasets contain the information:
 
 - `start_frame`, `end_frame`: frame indices, by default referring to native video start/end.
 - `frame_stride`: number of native frames to step between the frames to decode.
-- `video_fps`: native frame rate of the video (read only).
-- `fps`: sampling rate. The dataset sets it from its `frames_per_second` argument
-  (defaulting to `video_fps`). The clipping row methods read it to pick the stride and
-  write back the effective rate `video_fps / frame_stride`.
+- `native_fps`: native frame rate of the video (read only).
+- `sampled_fps`: frame rate of decoded video, `native_fps / frame_stride`.
+
+The dataset sets `frame_stride` and `sampled_fps` from its `frames_per_second` argument (by
+default stride 1 and `sampled_fps = native_fps`). The clipping row methods use the row's
+`frame_stride` as is and only change `start_frame` and `end_frame`.
 
 `SplitClip` cuts each clip into clips of either a fixed number of sampled frames
 (`clip_length`) or a fixed duration (`clip_duration`). It is a wrapper on
@@ -32,17 +34,12 @@ Or in Python, applied to a dataset's backend:
 >>> transform = SplitClip(clip_duration=2.0)
 """
 
-import logging
 from typing import Any, Literal
 
 from pydantic import BaseModel
 
 from . import register_transform
 from .expand import ExpandByFunction
-
-logger = logging.getLogger("alp_data")
-
-_WARNED_FPS: set[tuple[float, float]] = set()
 
 
 def _check_positive_int(name: str, value: Any) -> None:  # noqa: ANN401
@@ -53,45 +50,6 @@ def _check_positive_int(name: str, value: Any) -> None:  # noqa: ANN401
 def _check_positive_number(name: str, value: Any) -> None:  # noqa: ANN401
     if isinstance(value, bool) or not isinstance(value, (int, float)) or value <= 0:
         raise ValueError(f"{name} must be a number > 0, got {value!r}")
-
-
-def _stride_for_fps(video_fps: float, fps: float) -> int:
-    """Return the decode stride that brings `video_fps` closest to `fps`.
-
-    A warning is logged, once per `(video_fps, fps)` pair, when the resulting rate
-    misses `fps` by more than 1%.
-
-    Parameters
-    ----------
-    video_fps : float
-        Native frame rate of the video.
-    fps : float
-        Target sampling rate.
-
-    Returns
-    -------
-    int
-        The stride, at least 1.
-
-    Raises
-    ------
-    ValueError
-        If `fps` is not positive.
-    """
-    if fps <= 0:
-        raise ValueError(f"fps must be > 0, got {fps!r}")
-    stride = max(1, round(video_fps / fps))
-    effective = video_fps / stride
-    if abs(effective - fps) > 1e-2 * fps and (video_fps, fps) not in _WARNED_FPS:
-        _WARNED_FPS.add((video_fps, fps))
-        logger.warning(
-            "Requested fps=%s does not divide video_fps=%s; sampling at %.4g fps (stride %d)",
-            fps,
-            video_fps,
-            effective,
-            stride,
-        )
-    return stride
 
 
 def _cut_windows(
@@ -115,13 +73,8 @@ def _cut_windows(
     return windows
 
 
-def _clip_rows(
-    windows: list[tuple[int, int]], stride: int, video_fps: float
-) -> list[dict[str, Any]]:
-    fps = video_fps / stride
-    return [
-        {"start_frame": s, "end_frame": e, "frame_stride": stride, "fps": fps} for s, e in windows
-    ]
+def _clip_rows(windows: list[tuple[int, int]]) -> list[dict[str, Any]]:
+    return [{"start_frame": s, "end_frame": e} for s, e in windows]
 
 
 def split_clip_by_frames(
@@ -133,15 +86,16 @@ def split_clip_by_frames(
     """Cut a row's clip into consecutive clips of `clip_length` sampled frames.
 
     Works within the row's current `[start_frame, end_frame)`, so it can be chained
-    after other clipping transforms. The stride is `round(video_fps / fps)` from the
-    row's `video_fps` and `fps` columns; a warning is logged when the resulting rate
-    misses `fps` by more than 1%. Each output clip decodes exactly `clip_length`
-    frames. Set `clip_length=1` to turn a video dataset into an image dataset.
+    after other clipping transforms. Frames are sampled with a stride equal to the
+    row's `frame_stride`, so each output clip spans `clip_length * frame_stride`
+    native frames, and `clip_length` frames are decoded in the final clip.
+
+    Set `clip_length=1` to turn a video dataset into an image dataset.
 
     Parameters
     ----------
     row : dict[str, Any]
-        Row carrying the clip columns, including `video_fps` and `fps`.
+        Row carrying the clip columns.
     clip_length : int
         Number of sampled frames per clip.
     drop_last : bool, optional
@@ -155,20 +109,25 @@ def split_clip_by_frames(
     Returns
     -------
     list[dict[str, Any]]
-        Updates for each clip: `start_frame`, `end_frame`, `frame_stride` and `fps`
-        (the effective rate `video_fps / frame_stride`). Empty if the row's clip is
-        shorter than one output clip.
+        Updated frame bounds for each clip: the new, calculated `start_frame` and `end_frame`.
+        Empty (row dropped) if the row's existing clip is shorter than one requested output clip.
+
+    Raises
+    ------
+    ValueError
+        If the row's `frame_stride` is less than 1.
 
     Notes
     -----
-    Raises `ValueError` (from its argument checks) if `clip_length` or `hop` is not a
-    positive integer, or the row's `fps` is not positive.
+    Also raises `ValueError` (from its argument checks) if `clip_length` or `hop` is
+    not a positive integer.
     """
     _check_positive_int("clip_length", clip_length)
     if hop is not None:
         _check_positive_int("hop", hop)
-    video_fps = float(row["video_fps"])
-    stride = _stride_for_fps(video_fps, float(row["fps"]))
+    stride = int(row["frame_stride"])
+    if stride < 1:
+        raise ValueError(f"frame_stride must be >= 1, got {row['frame_stride']!r}")
     windows = _cut_windows(
         int(row["start_frame"]),
         int(row["end_frame"]),
@@ -176,7 +135,7 @@ def split_clip_by_frames(
         hop=(hop or clip_length) * stride,
         drop_last=drop_last,
     )
-    return _clip_rows(windows, stride, video_fps)
+    return _clip_rows(windows)
 
 
 def split_clip_by_duration(
@@ -187,16 +146,15 @@ def split_clip_by_duration(
 ) -> list[dict[str, Any]]:
     """Cut a row's clip into consecutive clips of `clip_duration` seconds.
 
-    Durations are converted to native frames with `round(seconds * video_fps)`, so
+    Durations are converted to native frames with `round(seconds * native_fps)`, so
     videos with different frame rates give clips of the same length in time. The
     number of decoded frames per clip is `ceil(span / frame_stride)`, which can vary
-    between videos of different frame rates. The stride is picked from the row's `fps`
-    as in `split_clip_by_frames`.
+    between videos of different frame rates.
 
     Parameters
     ----------
     row : dict[str, Any]
-        Row carrying the clip columns, including `video_fps` and `fps`.
+        Row carrying the clip columns.
     clip_duration : float
         Clip length in seconds.
     drop_last : bool, optional
@@ -208,8 +166,8 @@ def split_clip_by_duration(
     Returns
     -------
     list[dict[str, Any]]
-        Updates for each clip: `start_frame`, `end_frame`, `frame_stride` and `fps`.
-        Empty if the row's clip is shorter than one output clip.
+        Updated frame bounds for each clip: the new, calculated `start_frame` and `end_frame`.
+        Empty (row dropped) if the row's existing clip is shorter than one requested output clip.
 
     Raises
     ------
@@ -218,23 +176,22 @@ def split_clip_by_duration(
 
     Notes
     -----
-    Also raises `ValueError` (from its argument checks) if `clip_duration`,
-    `hop_duration` or the row's `fps` is not positive.
+    Also raises `ValueError` (from its argument checks) if `clip_duration` or
+    `hop_duration` is not positive.
     """
     _check_positive_number("clip_duration", clip_duration)
     if hop_duration is not None:
         _check_positive_number("hop_duration", hop_duration)
-    video_fps = float(row["video_fps"])
-    stride = _stride_for_fps(video_fps, float(row["fps"]))
-    span = round(clip_duration * video_fps)
-    hop = round((hop_duration or clip_duration) * video_fps)
+    native_fps = float(row["native_fps"])
+    span = round(clip_duration * native_fps)
+    hop = round((hop_duration or clip_duration) * native_fps)
     if span < 1 or hop < 1:
         raise ValueError(
             f"clip_duration={clip_duration} / hop_duration={hop_duration} is shorter "
-            f"than one frame at {video_fps} fps"
+            f"than one frame at {native_fps} fps"
         )
     windows = _cut_windows(int(row["start_frame"]), int(row["end_frame"]), span, hop, drop_last)
-    return _clip_rows(windows, stride, video_fps)
+    return _clip_rows(windows)
 
 
 class SplitClipConfig(BaseModel):
@@ -250,9 +207,9 @@ class SplitClip(ExpandByFunction):
     """Cut every clip into clips of `clip_length` sampled frames or `clip_duration` seconds.
 
     An `ExpandByFunction` with the `split_clip_by_frames` row method (when `clip_length`
-    is given) or the `split_clip_by_duration` row method (when `clip_duration` is given);
-    see them for the meaning of the parameters. The sampling rate is read from each
-    row's `fps` column, which the dataset sets from its `frames_per_second` argument.
+    is given) or the `split_clip_by_duration` row method (when `clip_duration` is given).
+    Frames are sampled with each row's `frame_stride`, which the dataset sets from its
+    `frames_per_second` argument.
 
     Parameters
     ----------

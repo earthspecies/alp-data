@@ -1,6 +1,7 @@
 """Test suite for the MammAlps camera-trap video dataset."""
 
 import hashlib
+import logging
 import random
 import shutil
 from pathlib import Path
@@ -33,7 +34,7 @@ CSV_COLUMNS = [
     "width",
     "height",
 ]
-CLIP_COLUMNS = ["start_frame", "end_frame", "frame_stride", "video_fps", "fps"]
+CLIP_COLUMNS = ["start_frame", "end_frame", "frame_stride", "native_fps", "sampled_fps"]
 
 # --- Dataset snapshot (GCS) ---
 # To regenerate:
@@ -76,9 +77,9 @@ def _write_split(path: Path, video_paths: list[str]) -> None:
             # Columns added by `mammalps_frame_info.py`
             "start_frame": 0,
             "end_frame": 60,
-            "video_fps": 30.0,
+            "native_fps": 30.0,
             "frame_stride": 1,
-            "fps": 30.0,
+            "sampled_fps": 30.0,
         }
         for video_path in video_paths
     ]
@@ -117,8 +118,8 @@ def test_default_clip_columns(local_split: str, backend: str) -> None:
     assert row["start_frame"] == 0
     assert row["end_frame"] == 60
     assert row["frame_stride"] == 1
-    assert row["video_fps"] == 30.0
-    assert row["fps"] == 30.0
+    assert row["native_fps"] == 30.0
+    assert row["sampled_fps"] == 30.0
 
 
 @pytest.mark.parametrize("backend", ["pandas", "polars"])
@@ -138,9 +139,23 @@ def test_frames_per_second_sets_stride(
     ds = MammAlps(split=local_split, frames_per_second=frames_per_second, backend=backend)
     row = ds._data[0]
     assert row["frame_stride"] == stride
-    assert row["fps"] == fps
-    assert row["video_fps"] == 30.0
+    assert row["sampled_fps"] == fps
+    assert row["native_fps"] == 30.0
     assert ds[0]["video"].shape[0] == n_frames
+
+
+@pytest.mark.parametrize("frames_per_second, warns", [(10, False), (7, True), (60, True)])
+def test_frames_per_second_rounding_warns(
+    local_split: str,
+    caplog: pytest.LogCaptureFixture,
+    frames_per_second: float,
+    warns: bool,
+) -> None:
+    """Test if a warning is logged only when `frames_per_second` does not divide `native_fps`."""
+    with caplog.at_level(logging.WARNING, logger="alp_data"):
+        MammAlps(split=local_split, frames_per_second=frames_per_second)
+    warnings = [r for r in caplog.records if "does not divide" in r.getMessage()]
+    assert len(warnings) == int(warns)
 
 
 @pytest.mark.parametrize("frames_per_second", [0, -1.0, True, "10"])

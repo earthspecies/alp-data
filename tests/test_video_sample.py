@@ -1,4 +1,3 @@
-import logging
 import random
 from pathlib import Path
 from typing import Any, Iterator
@@ -15,7 +14,6 @@ from alp_data.backends.protocol import DataBackend
 from alp_data.datasets import MammAlps
 from alp_data.io import read_video_at_frames
 from alp_data.transforms import SplitClip, SplitClipConfig, SubsampleConfig, transform_from_config
-from alp_data.transforms import video_sample as video_sample_module
 from alp_data.transforms.expand import ExpandByFunction
 from alp_data.transforms.video_sample import split_clip_by_duration, split_clip_by_frames
 
@@ -28,15 +26,15 @@ def _row(
     start: int = 0,
     end: int = 10,
     stride: int = 1,
-    video_fps: float = 30.0,
-    fps: float | None = None,
+    native_fps: float = 30.0,
+    sampled_fps: float | None = None,
 ) -> dict:
     return {
         "start_frame": start,
         "end_frame": end,
         "frame_stride": stride,
-        "video_fps": video_fps,
-        "fps": video_fps / stride if fps is None else fps,
+        "native_fps": native_fps,
+        "sampled_fps": native_fps / stride if sampled_fps is None else sampled_fps,
     }
 
 
@@ -44,24 +42,18 @@ def _windows(updates: list[dict[str, Any]]) -> list[tuple[int, int]]:
     return [(u["start_frame"], u["end_frame"]) for u in updates]
 
 
-def _make_backend(backend_type: str, video_fps: list[float], fps: list[float]) -> DataBackend:
-    n = len(video_fps)
+def _make_backend(backend_type: str, native_fps: list[float], strides: list[int]) -> DataBackend:
+    n = len(native_fps)
     data = {
         "start_frame": [0] * n,
         "end_frame": [60] * n,
-        "frame_stride": [1] * n,
-        "video_fps": video_fps,
-        "fps": fps,
+        "frame_stride": strides,
+        "native_fps": native_fps,
+        "sampled_fps": [f / s for f, s in zip(native_fps, strides, strict=True)],
     }
     if backend_type == "pandas":
         return PandasBackend(pd.DataFrame(data))
     return PolarsBackend(pl.DataFrame(data))
-
-
-@pytest.fixture(autouse=True)
-def reset_fps_warnings(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Let every test see the once-per-pair fps warning afresh."""
-    monkeypatch.setattr(video_sample_module, "_WARNED_FPS", set())
 
 
 # -- split_clip_by_frames -------------------------------------------------------
@@ -89,35 +81,22 @@ def test_split_clip_by_frames_full_length() -> None:
     assert _windows(split_clip_by_frames(_row(), clip_length=10)) == [(0, 10)]
 
 
-def test_split_clip_by_frames_row_fps_sets_stride() -> None:
-    """Test if the row's `fps` picks the stride and spans `clip_length` sampled frames."""
-    updates = split_clip_by_frames(_row(end=30, fps=10), clip_length=4)
+def test_split_clip_by_frames_row_stride() -> None:
+    """Test if clips span `clip_length` frames sampled at the row's `frame_stride`."""
+    updates = split_clip_by_frames(_row(end=30, stride=3), clip_length=4)
     assert _windows(updates) == [(0, 12), (12, 24)]
-    assert all(u["frame_stride"] == 3 and u["fps"] == 10 for u in updates)
 
 
-def test_split_clip_by_frames_keeps_row_stride() -> None:
-    """Test if a row whose `fps` matches its stride keeps that stride."""
+def test_split_clip_by_frames_only_updates_bounds() -> None:
+    """Test if the row method leaves `frame_stride` and `sampled_fps` to the parent row."""
     updates = split_clip_by_frames(_row(end=20, stride=2), clip_length=5)
-    assert _windows(updates) == [(0, 10), (10, 20)]
-    assert all(u["frame_stride"] == 2 and u["fps"] == 15 for u in updates)
+    assert all(u.keys() == {"start_frame", "end_frame"} for u in updates)
 
 
-def test_split_clip_by_frames_chaining_keeps_stride() -> None:
-    """Test if re-clipping a clipped row derives the same stride from its effective fps."""
-    first = split_clip_by_frames(_row(end=60, fps=7), clip_length=5)[0]
-    second = split_clip_by_frames({**_row(end=60), **first}, clip_length=2)
-    assert all(u["frame_stride"] == first["frame_stride"] == 4 for u in second)
-
-
-def test_fps_not_dividing_video_fps_warns(caplog: pytest.LogCaptureFixture) -> None:
-    with caplog.at_level(logging.WARNING, logger="alp_data"):
-        updates = split_clip_by_frames(_row(end=60, fps=7), clip_length=2)
-        split_clip_by_frames(_row(end=60, fps=7), clip_length=2)
-    assert updates[0]["frame_stride"] == 4
-    assert updates[0]["fps"] == 7.5
-    warnings = [r for r in caplog.records if "does not divide" in r.getMessage()]
-    assert len(warnings) == 1
+def test_split_clip_by_frames_ignores_row_fps() -> None:
+    """Test if the stride comes from `frame_stride`, not from recomputing it from `sampled_fps`."""
+    updates = split_clip_by_frames(_row(end=30, stride=1, sampled_fps=10), clip_length=4)
+    assert _windows(updates) == [(0, 4), (4, 8), (8, 12), (12, 16), (16, 20), (20, 24), (24, 28)]
 
 
 @pytest.mark.parametrize(
@@ -137,9 +116,10 @@ def test_split_clip_by_frames_invalid_arguments(kwargs: dict[str, Any]) -> None:
         SplitClip(**kwargs)
 
 
-def test_split_clip_by_frames_invalid_row_fps() -> None:
-    with pytest.raises(ValueError, match="fps"):
-        split_clip_by_frames(_row(fps=0), clip_length=4)
+@pytest.mark.parametrize("stride", [0, -1])
+def test_split_clip_by_frames_invalid_row_stride(stride: int) -> None:
+    with pytest.raises(ValueError, match="frame_stride"):
+        split_clip_by_frames(_row(stride=stride, sampled_fps=30.0), clip_length=4)
 
 
 # -- split_clip_by_duration -----------------------------------------------------
@@ -154,17 +134,17 @@ def test_split_clip_by_duration_windows() -> None:
     assert _windows(updates) == [(0, 12), (12, 24), (18, 30)]
 
 
-def test_split_clip_by_duration_row_fps_sets_stride() -> None:
-    """Test if the row's `fps` sets the stride without changing the clip span."""
-    updates = split_clip_by_duration(_row(end=30, fps=10), clip_duration=0.5)
+def test_split_clip_by_duration_independent_of_stride() -> None:
+    """Test if the row's `frame_stride` does not change the clip span."""
+    updates = split_clip_by_duration(_row(end=30, stride=3), clip_duration=0.5)
     assert _windows(updates) == [(0, 15), (15, 30)]
-    assert all(u["frame_stride"] == 3 and u["fps"] == 10 for u in updates)
+    assert all(u.keys() == {"start_frame", "end_frame"} for u in updates)
 
 
 def test_split_clip_by_duration_same_duration_across_fps() -> None:
     """Test if clips span the same time at different native frame rates."""
-    at_30 = split_clip_by_duration(_row(end=60, video_fps=30.0), clip_duration=1.0)
-    at_25 = split_clip_by_duration(_row(end=50, video_fps=25.0), clip_duration=1.0)
+    at_30 = split_clip_by_duration(_row(end=60, native_fps=30.0), clip_duration=1.0)
+    at_25 = split_clip_by_duration(_row(end=50, native_fps=25.0), clip_duration=1.0)
     assert _windows(at_30) == [(0, 30), (30, 60)]
     assert _windows(at_25) == [(0, 25), (25, 50)]
 
@@ -230,15 +210,15 @@ def test_split_clip_dispatch(
 
 
 @pytest.mark.parametrize("backend_type", ["pandas", "polars"])
-def test_split_clip_reads_fps_per_row(backend_type: str) -> None:
-    """Test if each row's own `fps` picks its stride."""
-    backend = _make_backend(backend_type, video_fps=[30.0, 25.0], fps=[5.0, 5.0])
+def test_split_clip_reads_stride_per_row(backend_type: str) -> None:
+    """Test if each row is clipped with its own `frame_stride`, which is kept."""
+    backend = _make_backend(backend_type, native_fps=[30.0, 25.0], strides=[6, 5])
     out, meta = SplitClip(clip_length=4)(backend)
     rows = list(out)
     assert meta == {"n_in": 2, "n_out": 5, "n_dropped": 0}
-    assert {r["frame_stride"] for r in rows if r["video_fps"] == 30.0} == {6}
-    assert {r["frame_stride"] for r in rows if r["video_fps"] == 25.0} == {5}
-    assert all(r["fps"] == 5.0 for r in rows)
+    assert {r["frame_stride"] for r in rows if r["native_fps"] == 30.0} == {6}
+    assert {r["frame_stride"] for r in rows if r["native_fps"] == 25.0} == {5}
+    assert all(r["sampled_fps"] == 5.0 for r in rows)
 
 
 # -- Config wiring --------------------------------------------------------------
@@ -276,9 +256,7 @@ def test_transform_methods_equivalence(config: BaseModel, backend_type: str) -> 
         SplitClip.from_config(config),
         transform_from_config(config),
     ]
-    results = [
-        list(t(_make_backend(backend_type, [30.0, 25.0], [10.0, 10.0]))[0]) for t in transforms
-    ]
+    results = [list(t(_make_backend(backend_type, [30.0, 25.0], [3, 2]))[0]) for t in transforms]
     assert results[0] == results[1] == results[2]
 
 
@@ -304,8 +282,8 @@ def test_split_clip_then_subsample(config: SplitClipConfig, backend_type: str) -
         "start_frame": [0, 0],
         "end_frame": [40, 40],
         "frame_stride": [1, 1],
-        "video_fps": [30.0, 30.0],
-        "fps": [30.0, 30.0],
+        "native_fps": [30.0, 30.0],
+        "sampled_fps": [30.0, 30.0],
     }
     backend = (
         PandasBackend(pd.DataFrame(data))
@@ -356,9 +334,9 @@ def example_video_dataset(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> ty
                 "label": "red_deer",
                 "start_frame": 0,
                 "end_frame": 60,
-                "video_fps": 30.0,
+                "native_fps": 30.0,
                 "frame_stride": 1,
-                "fps": 30.0,
+                "sampled_fps": 30.0,
             }
         ]
     ).to_csv(csv_path, index=False)
@@ -491,9 +469,9 @@ def local_split(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> str:
             # Columns added by `mammalps_frame_info.py`
             "start_frame": 0,
             "end_frame": 60,
-            "video_fps": 30.0,
+            "native_fps": 30.0,
             "frame_stride": 1,
-            "fps": 30.0,
+            "sampled_fps": 30.0,
         }
         for species in ["red_deer", "chamois"]
     ]
