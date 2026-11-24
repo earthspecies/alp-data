@@ -1,0 +1,7 @@
+# BEANS validation split, frozen at 16 kHz. Loadable by `dataset_from_config`
+# and by scripts/dataset_exports/export_dataset.py alike.
+dataset:
+  dataset_name: beans
+  split: validation
+  sample_rate: 16000
+  backend: polars

@@ -679,12 +679,49 @@ def dataset_from_config(
 
     KeyError
         If the specified key does not match any dataset configuration in the data.
-    """
+    """  # noqa: DOC502 -- raised by load_config, which this delegates to
     if isinstance(dataset_config, (DatasetConfig, ConcatConfig, ChainedDatasetConfig)):
         # If a DatasetConfig is passed, we can directly create the dataset
         return _make_dataset_from_config(dataset_config)
 
-    data = read_yaml(dataset_config)
+    return _make_dataset_from_config(load_config(dataset_config, key=key))
+
+
+def load_config(
+    source: dict[str, Any] | AnyPathT | str, key: str | None = None
+) -> DatasetConfig | ConcatConfig | ChainedDatasetConfig:
+    """Load a dataset configuration from a YAML file or a mapping, without building the dataset.
+
+    Two mapping shapes are accepted, so both a config file and a frozen config
+    (for example the `source` block of a pack's `config.yaml`) can be loaded:
+
+    - wrapped, as in a YAML file: a dict with exactly one of the keys `dataset`,
+      `concat`, or `chain`;
+    - flat: a dict with `dataset_name`, where `"concatenated_dataset"` and
+      `"chained_dataset"` give the collection configs and any other name gives
+      the config class registered for it, falling back to `DatasetConfig`.
+
+    Parameters
+    ----------
+    source : dict[str, Any] | AnyPathT | str
+        A mapping, or the path of a YAML file holding one.
+    key : str | None, optional
+        If the mapping holds several configurations under top-level keys, the
+        key to select. Default is None.
+
+    Returns
+    -------
+    DatasetConfig | ConcatConfig | ChainedDatasetConfig
+        The validated configuration.
+
+    Raises
+    ------
+    ValueError
+        If the selected data is neither a wrapped nor a flat configuration.
+    KeyError
+        If `key` is given and not present.
+    """
+    data = source if isinstance(source, dict) else read_yaml(source)
 
     if key is not None:
         if key not in data:
@@ -692,35 +729,29 @@ def dataset_from_config(
         data = data[key]
 
     if isinstance(data, dict):
-        if "dataset" in data or "concat" in data or "chain" in data:
-            if sum(k in data for k in ("concat", "dataset", "chain")) > 1:
-                raise ValueError("Configuration cannot contain multiple dataset types at once.")
-
-            if "dataset" in data:
-                cfg = data["dataset"]
-                cfg_class = _custom_config_registry.get(cfg["dataset_name"], DatasetConfig)
-                return _make_dataset_from_config(cfg_class.model_validate(cfg))
-
-            elif "concat" in data:
-                cfg = data["concat"]
-                return _make_dataset_from_config(ConcatConfig.model_validate(cfg))
-
-            elif "chain" in data:
-                cfg = data["chain"]
-                return _make_dataset_from_config(ChainedDatasetConfig.model_validate(cfg))
-
-            else:
-                raise ValueError(
-                    "Configuration must contain either 'dataset','concat' or 'chain' key."
-                )
-        else:
-            raise ValueError(
-                "Invalid dataset configurations found. Please provide a specific key to select one."
-            )
+        wrappers = [k for k in ("dataset", "concat", "chain") if k in data]
+        if len(wrappers) > 1:
+            raise ValueError("Configuration cannot contain multiple dataset types at once.")
+        if wrappers == ["concat"]:
+            return ConcatConfig.model_validate(data["concat"])
+        if wrappers == ["chain"]:
+            return ChainedDatasetConfig.model_validate(data["chain"])
+        flat = data["dataset"] if wrappers == ["dataset"] else data
+        if "dataset_name" in flat:
+            name = flat["dataset_name"]
+            if name == "concatenated_dataset":
+                return ConcatConfig.model_validate(flat)
+            if name == "chained_dataset":
+                return ChainedDatasetConfig.model_validate(flat)
+            return _custom_config_registry.get(name, DatasetConfig).model_validate(flat)
+        raise ValueError(
+            "Invalid dataset configurations found. Please provide a specific key to select one."
+        )
 
     raise ValueError("""Invalid configuration format.
     Your configuration must either be:
     1. A DatasetConfig represented as the value of a dict with a single 'dataset' key
+       (or a flat mapping with 'dataset_name')
     2. A ConcatConfig represented as the value of a dict with a single 'concat' key
     3. A ChainedDatasetConfig represented as the value of a dict with a single 'chain' key
     """)
