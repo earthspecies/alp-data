@@ -158,6 +158,33 @@ def test_frames_per_second_rounding_warns(
     assert len(warnings) == int(warns)
 
 
+def test_frames_per_second_rounding_warns_once_per_rate(
+    local_split: str, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Test if native rates that differ only by float noise give a single warning."""
+    csv_path = MammAlps.info.split_paths[local_split]
+    df = pd.read_csv(csv_path)
+    df["native_fps"] = [29.999999999999996, 30.0, 30.000000000000004]
+    df.to_csv(csv_path, index=False)
+    with caplog.at_level(logging.WARNING, logger="alp_data"):
+        MammAlps(split=local_split, frames_per_second=7)
+    warnings = [r.getMessage() for r in caplog.records if "does not divide" in r.getMessage()]
+    assert warnings == [
+        "frames_per_second=7 does not divide native_fps=30; sampling at 7.5 fps (stride 4)"
+    ]
+
+
+@pytest.mark.parametrize("backend", ["pandas", "polars"])
+def test_invalid_table_raises(local_split: str, backend: str) -> None:
+    """Test if loading a split whose table fails `validate_video_table` raises."""
+    csv_path = MammAlps.info.split_paths[local_split]
+    df = pd.read_csv(csv_path)
+    df.loc[1, "start_frame"] = 60
+    df.to_csv(csv_path, index=False)
+    with pytest.raises(ValueError, match="row 1: need 0 <= start_frame < end_frame"):
+        MammAlps(split=local_split, backend=backend)
+
+
 @pytest.mark.parametrize("frames_per_second", [0, -1.0, True, "10"])
 def test_invalid_frames_per_second(local_split: str, frames_per_second: object) -> None:
     with pytest.raises(ValueError, match="frames_per_second"):

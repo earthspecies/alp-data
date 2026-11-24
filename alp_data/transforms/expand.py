@@ -73,11 +73,12 @@ def resolve_row_method(spec: str | RowMethod) -> RowMethod:
         If `spec` is neither a string nor a callable, or resolves to a non-callable.
     ValueError
         If `spec` is a string that is not an import path.
-
-    Notes
-    -----
-    Propagates `ImportError` if the module cannot be imported and `AttributeError` if
-    it has no such attribute.
+    ModuleNotFoundError
+        If the module in the import path does not exist.
+    ImportError
+        If the module in the import path exists but fails to import.
+    AttributeError
+        If the module has no attribute with the given name.
     """
     if callable(spec):
         return spec
@@ -92,8 +93,23 @@ def resolve_row_method(spec: str | RowMethod) -> RowMethod:
             f"Row method {spec!r} is not an import path; expected "
             "'package.module.function' or 'package.module:function'"
         )
-    module = importlib.import_module(module_name)
-    fn = functools.reduce(getattr, attr_path.split("."), module)
+    try:
+        module = importlib.import_module(module_name)
+    except ModuleNotFoundError as e:
+        raise ModuleNotFoundError(
+            f"Module {module_name!r} for row method {spec!r} not found: {e}", name=e.name
+        ) from e
+    except ImportError as e:
+        raise ImportError(
+            f"Could not import module {module_name!r} for row method {spec!r}: {e}",
+            name=e.name,
+        ) from e
+    try:
+        fn = functools.reduce(getattr, attr_path.split("."), module)
+    except AttributeError as e:
+        raise AttributeError(
+            f"Module {module_name!r} has no attribute {attr_path!r} for row method {spec!r}"
+        ) from e
     if not callable(fn):
         raise TypeError(f"Row method {spec!r} resolved to a non-callable {type(fn).__name__}")
     return fn
@@ -132,10 +148,16 @@ class ExpandByFunction:
     kwargs : dict[str, Any] | None, optional
         Extra keyword arguments passed to `method` on every call.
 
-    Notes
-    -----
-    Construction propagates the exceptions of `resolve_row_method` if `method`
-    cannot be resolved.
+    Raises
+    ------
+    TypeError
+        If `method` is neither a string nor a callable, or resolves to a non-callable.
+    ValueError
+        If `method` is a string that is not an import path.
+    ImportError
+        If the module in `method`'s import path cannot be imported.
+    AttributeError
+        If the module in `method`'s import path has no such attribute.
 
     Examples
     --------

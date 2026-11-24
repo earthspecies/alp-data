@@ -13,7 +13,13 @@ from alp_data.backends import PandasBackend, PolarsBackend
 from alp_data.backends.protocol import DataBackend
 from alp_data.datasets import MammAlps
 from alp_data.io import read_video_at_frames
-from alp_data.transforms import SplitClip, SplitClipConfig, SubsampleConfig, transform_from_config
+from alp_data.transforms import (
+    SplitClip,
+    SplitClipConfig,
+    SubsampleConfig,
+    transform_from_config,
+    validate_video_table,
+)
 from alp_data.transforms.expand import ExpandByFunction
 from alp_data.transforms.video_sample import split_clip_by_duration, split_clip_by_frames
 
@@ -45,6 +51,7 @@ def _windows(updates: list[dict[str, Any]]) -> list[tuple[int, int]]:
 def _make_backend(backend_type: str, native_fps: list[float], strides: list[int]) -> DataBackend:
     n = len(native_fps)
     data = {
+        "video_path": [f"video_{i}.mp4" for i in range(n)],
         "start_frame": [0] * n,
         "end_frame": [60] * n,
         "frame_stride": strides,
@@ -109,17 +116,9 @@ def test_split_clip_by_frames_ignores_row_fps() -> None:
         {"clip_length": 4, "hop": 0},
     ],
 )
-def test_split_clip_by_frames_invalid_arguments(kwargs: dict[str, Any]) -> None:
-    with pytest.raises(ValueError):
-        split_clip_by_frames(_row(), **kwargs)
+def test_split_clip_invalid_frame_arguments(kwargs: dict[str, Any]) -> None:
     with pytest.raises(ValueError):
         SplitClip(**kwargs)
-
-
-@pytest.mark.parametrize("stride", [0, -1])
-def test_split_clip_by_frames_invalid_row_stride(stride: int) -> None:
-    with pytest.raises(ValueError, match="frame_stride"):
-        split_clip_by_frames(_row(stride=stride, sampled_fps=30.0), clip_length=4)
 
 
 # -- split_clip_by_duration -----------------------------------------------------
@@ -162,9 +161,7 @@ def test_split_clip_by_duration_shorter_than_one_frame() -> None:
         {"clip_duration": 1.0, "hop_duration": 0},
     ],
 )
-def test_split_clip_by_duration_invalid_arguments(kwargs: dict[str, Any]) -> None:
-    with pytest.raises(ValueError):
-        split_clip_by_duration(_row(), **kwargs)
+def test_split_clip_invalid_duration_arguments(kwargs: dict[str, Any]) -> None:
     with pytest.raises(ValueError):
         SplitClip(**kwargs)
 
@@ -219,6 +216,107 @@ def test_split_clip_reads_stride_per_row(backend_type: str) -> None:
     assert {r["frame_stride"] for r in rows if r["native_fps"] == 30.0} == {6}
     assert {r["frame_stride"] for r in rows if r["native_fps"] == 25.0} == {5}
     assert all(r["sampled_fps"] == 5.0 for r in rows)
+
+
+# -- validate_video_table -------------------------------------------------------
+
+
+def _table(backend_type: str, **overrides: list[Any]) -> DataBackend:
+    """Build a valid 2-row video table, with `overrides` replacing whole columns.
+
+    Returns
+    -------
+    DataBackend
+        The table, in a backend of type `backend_type`.
+    """
+    data: dict[str, list[Any]] = {
+        "video_path": ["a.mp4", "b.mp4"],
+        "start_frame": [0, 10],
+        "end_frame": [60, 40],
+        "frame_stride": [1, 2],
+        "native_fps": [30.0, 30.0],
+        "sampled_fps": [30.0, 15.0],
+        **overrides,
+    }
+    if backend_type == "pandas":
+        return PandasBackend(pd.DataFrame(data))
+    return PolarsBackend(pl.DataFrame(data))
+
+
+@pytest.mark.parametrize("backend_type", ["pandas", "polars"])
+def test_validate_video_table_valid(backend_type: str) -> None:
+    validate_video_table(_table(backend_type))
+
+
+@pytest.mark.parametrize("backend_type", ["pandas", "polars"])
+@pytest.mark.parametrize(
+    "column", ["start_frame", "end_frame", "frame_stride", "native_fps", "sampled_fps"]
+)
+def test_validate_video_table_missing_column(backend_type: str, column: str) -> None:
+    backend = _table(backend_type).select_columns(
+        [c for c in _table(backend_type).columns if c != column]
+    )
+    with pytest.raises(ValueError, match=f"missing columns \\['{column}'\\]"):
+        validate_video_table(backend)
+
+
+@pytest.mark.parametrize("backend_type", ["pandas", "polars"])
+@pytest.mark.parametrize(
+    "column, values",
+    [
+        ("start_frame", [0, None]),
+        ("end_frame", [60, None]),
+        ("frame_stride", [1, None]),
+        ("native_fps", [30.0, None]),
+        ("sampled_fps", [30.0, float("nan")]),
+    ],
+)
+def test_validate_video_table_nulls(backend_type: str, column: str, values: list[Any]) -> None:
+    """Test if nulls are caught, whether they arrive as `None` or NaN."""
+    with pytest.raises(ValueError, match=f"row 1 has nulls in \\['{column}'\\]"):
+        validate_video_table(_table(backend_type, **{column: values}))
+
+
+@pytest.mark.parametrize("backend_type", ["pandas", "polars"])
+@pytest.mark.parametrize(
+    "overrides, match",
+    [
+        ({"native_fps": [30.0, 0.0]}, "native_fps must be > 0"),
+        ({"native_fps": [30.0, -30.0]}, "native_fps must be > 0"),
+        ({"frame_stride": [1, 0]}, "frame_stride must be >= 1"),
+        ({"start_frame": [0, -1]}, "need 0 <= start_frame < end_frame"),
+        ({"start_frame": [0, 40]}, "need 0 <= start_frame < end_frame"),
+        ({"start_frame": [0, 50]}, "need 0 <= start_frame < end_frame"),
+    ],
+)
+def test_validate_video_table_out_of_range(
+    backend_type: str, overrides: dict[str, list[Any]], match: str
+) -> None:
+    with pytest.raises(ValueError, match=f"row 1: {match}"):
+        validate_video_table(_table(backend_type, **overrides))
+
+
+@pytest.mark.parametrize("backend_type", ["pandas", "polars"])
+def test_validate_video_table_rejects_non_video_table(backend_type: str) -> None:
+    """Test if a table without `video_path` is rejected before its other columns."""
+    backend = _table(backend_type).select_columns(["start_frame", "end_frame"])
+    with pytest.raises(ValueError, match="can only be applied to video datasets"):
+        validate_video_table(backend)
+    with pytest.raises(ValueError, match="can only be applied to video datasets"):
+        SplitClip(clip_length=4)(backend)
+
+
+@pytest.mark.parametrize("backend_type", ["pandas", "polars"])
+def test_split_clip_validates_table(backend_type: str) -> None:
+    """Test if `SplitClip` rejects an invalid table before cutting any clips."""
+    with pytest.raises(ValueError, match="missing columns \\['sampled_fps'\\]"):
+        SplitClip(clip_length=4)(
+            _table(backend_type).select_columns(
+                ["video_path", "start_frame", "end_frame", "frame_stride", "native_fps"]
+            )
+        )
+    with pytest.raises(ValueError, match="frame_stride must be >= 1"):
+        SplitClip(clip_duration=0.5)(_table(backend_type, frame_stride=[1, 0]))
 
 
 # -- Config wiring --------------------------------------------------------------
@@ -278,6 +376,7 @@ def test_split_clip_then_subsample(config: SplitClipConfig, backend_type: str) -
     """
     data = {
         "video": ["a", "b"],
+        "video_path": ["a.mp4", "b.mp4"],
         "label": ["x", "x"],
         "start_frame": [0, 0],
         "end_frame": [40, 40],

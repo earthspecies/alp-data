@@ -12,6 +12,9 @@ The dataset sets `frame_stride` and `sampled_fps` from its `frames_per_second` a
 default stride 1 and `sampled_fps = native_fps`). The clipping row methods use the row's
 `frame_stride` as is and only change `start_frame` and `end_frame`.
 
+`validate_video_table` checks that a table has these columns with valid values. Video
+datasets call it when loading, and `SplitClip` before cutting clips.
+
 `SplitClip` cuts each clip into clips of either a fixed number of sampled frames
 (`clip_length`) or a fixed duration (`clip_duration`). It is a wrapper on
 `ExpandByFunction` with the row method `split_clip_by_frames` or `split_clip_by_duration`.
@@ -34,20 +37,91 @@ Or in Python, applied to a dataset's backend:
 >>> transform = SplitClip(clip_duration=2.0)
 """
 
+import math
 from typing import Any, Literal
 
 from pydantic import BaseModel
 
+from alp_data.backends.protocol import DataBackend
+
 from . import register_transform
 from .expand import ExpandByFunction
 
+VIDEO_COLUMNS = ("start_frame", "end_frame", "frame_stride", "native_fps", "sampled_fps")
+
+
+def _is_null(value: Any) -> bool:  # noqa: ANN401
+    return value is None or (isinstance(value, float) and math.isnan(value))
+
+
+def validate_video_table(backend: DataBackend) -> None:
+    """Check that `backend` is a valid table of video clips ready for any
+    video sampling transform.
+
+    First, check that a `video_path` column exists. The table must also have the `VIDEO_COLUMNS`
+    (`start_frame`, `end_frame`, `frame_stride`, `native_fps` and `sampled_fps`) with no null
+    values, and every row must have `native_fps > 0`, `frame_stride >= 1` and
+    `0 <= start_frame < end_frame`.
+
+    Parameters
+    ----------
+    backend : DataBackend
+        The table to check.
+
+    Raises
+    ------
+    ValueError
+        If the table has no `video_path` column, if one of `VIDEO_COLUMNS` is
+        missing, or if a row has a null in one of them or values out of range. The
+        message names the first offending row.
+    """
+    if not backend.column_exists("video_path"):
+        raise ValueError(
+            "Table has no `video_path` column; video clip transforms "
+            "can only be applied to video datasets."
+        )
+    missing = [c for c in VIDEO_COLUMNS if not backend.column_exists(c)]
+    if missing:
+        raise ValueError(f"Video table is missing columns {missing}")
+    for i, row in enumerate(backend):
+        nulls = [c for c in VIDEO_COLUMNS if _is_null(row[c])]
+        if nulls:
+            raise ValueError(f"Video table row {i} has nulls in {nulls}")
+        if not row["native_fps"] > 0:
+            raise ValueError(
+                f"Video table row {i}: native_fps must be > 0, got {row['native_fps']!r}"
+            )
+        if not row["frame_stride"] >= 1:
+            raise ValueError(
+                f"Video table row {i}: frame_stride must be >= 1, got {row['frame_stride']!r}"
+            )
+        if not 0 <= row["start_frame"] < row["end_frame"]:
+            raise ValueError(
+                f"Video table row {i}: need 0 <= start_frame < end_frame, got "
+                f"start_frame={row['start_frame']!r}, end_frame={row['end_frame']!r}"
+            )
+
 
 def _check_positive_int(name: str, value: Any) -> None:  # noqa: ANN401
+    """Check that `value`, the argument called `name`, is an integer >= 1.
+
+    Raises
+    ------
+    ValueError
+        If `value` is not an integer >= 1 (booleans are rejected).
+    """
     if isinstance(value, bool) or not isinstance(value, int) or value < 1:
         raise ValueError(f"{name} must be an integer >= 1, got {value!r}")
 
 
 def _check_positive_number(name: str, value: Any) -> None:  # noqa: ANN401
+    """Check that `value`, the argument called `name`, is a number > 0.
+
+    Raises
+    ------
+    ValueError
+        If `value` is not an int or float > 0 (booleans are rejected).
+    """
     if isinstance(value, bool) or not isinstance(value, (int, float)) or value <= 0:
         raise ValueError(f"{name} must be a number > 0, got {value!r}")
 
@@ -112,22 +186,12 @@ def split_clip_by_frames(
         Updated frame bounds for each clip: the new, calculated `start_frame` and `end_frame`.
         Empty (row dropped) if the row's existing clip is shorter than one requested output clip.
 
-    Raises
-    ------
-    ValueError
-        If the row's `frame_stride` is less than 1.
-
     Notes
     -----
-    Also raises `ValueError` (from its argument checks) if `clip_length` or `hop` is
-    not a positive integer.
+    Neither the arguments nor the row's values are checked here; `SplitClip` checks
+    the arguments when it is created and the table with `validate_video_table`.
     """
-    _check_positive_int("clip_length", clip_length)
-    if hop is not None:
-        _check_positive_int("hop", hop)
     stride = int(row["frame_stride"])
-    if stride < 1:
-        raise ValueError(f"frame_stride must be >= 1, got {row['frame_stride']!r}")
     windows = _cut_windows(
         int(row["start_frame"]),
         int(row["end_frame"]),
@@ -176,12 +240,9 @@ def split_clip_by_duration(
 
     Notes
     -----
-    Also raises `ValueError` (from its argument checks) if `clip_duration` or
-    `hop_duration` is not positive.
+    `clip_duration` and `hop_duration` are not checked to be positive here; `SplitClip`
+    checks them when it is created.
     """
-    _check_positive_number("clip_duration", clip_duration)
-    if hop_duration is not None:
-        _check_positive_number("hop_duration", hop_duration)
     native_fps = float(row["native_fps"])
     span = round(clip_duration * native_fps)
     hop = round((hop_duration or clip_duration) * native_fps)
@@ -235,6 +296,14 @@ class SplitClip(ExpandByFunction):
         given with `clip_duration` or `hop_duration` with `clip_length`, if
         `clip_length` or `hop` is not a positive integer, or if `clip_duration` or
         `hop_duration` is not a positive number.
+
+    Notes
+    _____
+    - Only the start_frame and end_frame columns change per clip. Labels, duration, and path columns
+    are inherited for each clip from the whole video.
+    - If SplitClip is chained with a subsequent sampling transform, the subsequent transform
+    reads the backend *after* each row is cut into clips, so longer videos contribute more clips
+    as input to resampling.
     """
 
     def __init__(
@@ -275,6 +344,29 @@ class SplitClip(ExpandByFunction):
                     "hop_duration": hop_duration,
                 },
             )
+
+    def __call__(self, backend: DataBackend) -> tuple[DataBackend, dict]:
+        """Validate `backend` with `validate_video_table`, then cut its clips.
+
+        Parameters
+        ----------
+        backend : DataBackend
+            The table of video clips to cut.
+
+        Returns
+        -------
+        tuple[DataBackend, dict]
+            As in `ExpandByFunction.__call__`.
+
+        Raises
+        ------
+        ValueError
+            If `backend` fails `validate_video_table` or, with `clip_duration`, if
+            `clip_duration` or `hop_duration` is shorter than one frame of some row's
+            `native_fps`.
+        """  # noqa: DOC502 - raised by `validate_video_table` and the row methods
+        validate_video_table(backend)
+        return super().__call__(backend)
 
     @classmethod
     def from_config(cls, cfg: SplitClipConfig) -> "SplitClip":

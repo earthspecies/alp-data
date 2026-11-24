@@ -7,6 +7,7 @@ from alp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from alp_data.backends import BackendType
 from alp_data.dataset import register_config
 from alp_data.io import DATA_HOME, AnyPathT, anypath, read_video_at_frames
+from alp_data.transforms import validate_video_table
 
 logger = logging.getLogger("alp_data")
 
@@ -154,11 +155,10 @@ class MammAlps(Dataset):
         Raises
         ------
         ValueError
-            If `frames_per_second` is not a positive number.
-
-        Notes
-        -----
-        Loading raises `LookupError` if `split` is not a key of `info.split_paths`.
+            If `frames_per_second` is not a positive number, or the split's table
+            fails `validate_video_table`.
+        LookupError
+            If `split` is not a key of `info.split_paths`.
         """
         if frames_per_second is not None and (
             isinstance(frames_per_second, bool)
@@ -166,6 +166,8 @@ class MammAlps(Dataset):
             or frames_per_second <= 0
         ):
             raise ValueError(f"frames_per_second must be a number > 0, got {frames_per_second!r}")
+        if split not in self.info.split_paths:
+            raise LookupError(f"Invalid split: {split}. Expected one of {self.available_splits}")
         super().__init__(output_take_and_give, backend=backend)
         self.split = split
         self.data_root = anypath(_ROOT if data_root is None else data_root)
@@ -205,13 +207,9 @@ class MammAlps(Dataset):
 
         Raises
         ------
-        LookupError
-            If `self.split` is not a key of `info.split_paths`.
-        """
-        if self.split not in self.info.split_paths:
-            raise LookupError(
-                f"Invalid split: {self.split}. Expected one of {self.available_splits}"
-            )
+        ValueError
+            If the loaded table fails `validate_video_table`.
+        """  # noqa: DOC502 - raised by `validate_video_table`, not directly
         location = self.info.split_paths[self.split]
         # Read empty strings as nulls but keep literal values such as "None"
         data = self._backend_class.from_csv(
@@ -223,14 +221,16 @@ class MammAlps(Dataset):
             native_fps = [float(f) for f in data.unwrap["native_fps"]]
             strides = [max(1, round(f / self.fps)) for f in native_fps]
             effective = [f / s for f, s in zip(native_fps, strides, strict=True)]
+            # One warning per native rate; rounding merges rates that differ only by
+            # float noise in the table (e.g. 29.999999999999996 and 30.0)
             rounded = {
-                (f, s, e)
+                (round(f, 6), s, round(e, 6))
                 for f, s, e in zip(native_fps, strides, effective, strict=True)
                 if abs(e - self.fps) > 1e-2 * self.fps
             }
             for f, s, e in sorted(rounded):
                 logger.warning(
-                    "frames_per_second=%s does not divide native_fps=%s; sampling at %.4g fps "
+                    "frames_per_second=%s does not divide native_fps=%.6g; sampling at %.4g fps "
                     "(stride %d)",
                     self.fps,
                     f,
@@ -239,6 +239,7 @@ class MammAlps(Dataset):
                 )
             data = data.add_column("frame_stride", strides)
             data = data.add_column("sampled_fps", effective)
+        validate_video_table(data)
         self._data = data
 
     @classmethod

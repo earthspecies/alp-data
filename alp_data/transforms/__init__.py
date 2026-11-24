@@ -13,7 +13,7 @@ from .multilabel_from_features import (
 )
 from .select_columns import SelectColumns, SelectColumnsConfig
 from .subsample import Subsample, SubsampleConfig
-from .video_sample import SplitClip, SplitClipConfig
+from .video_sample import SplitClip, SplitClipConfig, validate_video_table
 
 __all__ = [
     "BalancedSample",
@@ -38,4 +38,5 @@ __all__ = [
     "SubsampleConfig",
     "register_transform",
     "transform_from_config",
+    "validate_video_table",
 ]
