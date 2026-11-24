@@ -215,7 +215,7 @@ class MammAlps(Dataset):
         data = self._backend_class.from_csv(
             location, keep_default_na=False, na_values=[""], null_values=[]
         )
-
+        validate_video_table(data)
         # The tables default to native frame rate (`frame_stride` 1, `sampled_fps` = `native_fps`)
         if self.fps is not None:
             native_fps = [float(f) for f in data.unwrap["native_fps"]]
@@ -239,7 +239,6 @@ class MammAlps(Dataset):
                 )
             data = data.add_column("frame_stride", strides)
             data = data.add_column("sampled_fps", effective)
-        validate_video_table(data)
         self._data = data
 
     @classmethod
