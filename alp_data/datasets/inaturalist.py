@@ -9,6 +9,7 @@ import polars as pl
 from alp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from alp_data.backends import BackendType
 from alp_data.io import AnyPathT, anypath, audio_stereo_to_mono, read_audio
+from alp_data.io.paths import env_setting
 
 
 @register_dataset
@@ -270,8 +271,21 @@ class INaturalist(Dataset):
             A tuple containing the dataset instance and metadata.
             If the dataset_config contains transformations, they will be applied
             and the metadata will be returned as dict, otherwise an empty dict.
+            With `ALP_DATA_XC_INAT_VERSION` set (for example `0.2.0`), a
+            `INaturalistVersioned` of that version is returned instead.
         """
         cfg = dataset_config.model_dump(exclude={"dataset_name", "transformations"})
+
+        version = env_setting("XC_INAT_VERSION")
+        if version:
+            # Opt-in to the v1.11.1 class (version registry, data under `DATA_HOME`). The
+            # config's own `version` key is not used: existing configs carry values this
+            # class has always ignored. Imported here: that module imports this package.
+            from alp_data.datasets.inaturalist_versioned import INaturalistVersioned
+
+            return INaturalistVersioned.from_config(
+                dataset_config.model_copy(update={"version": version})
+            )
 
         ds = cls(
             split=cfg["split"],

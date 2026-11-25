@@ -116,7 +116,13 @@ def chain_cache_signature(chain_config: ChainedDatasetConfig) -> str:
     ).hexdigest()[:16]
     code = _alp_data_code_version()
     data_ver = env_setting("CHAIN_CACHE_DATA_VERSION", "0")
-    combined = hashlib.sha256(f"{config_hash}|{code}|{data_ver}".encode()).hexdigest()[:12]
+    key = f"{config_hash}|{code}|{data_ver}"
+    # `ALP_DATA_XC_INAT_VERSION` swaps the Xeno-canto and iNaturalist classes without
+    # changing the config, so it has to key the cache. Unset, the signature is unchanged.
+    xc_inat_version = env_setting("XC_INAT_VERSION")
+    if xc_inat_version:
+        key += f"|xc_inat={xc_inat_version}"
+    combined = hashlib.sha256(key.encode()).hexdigest()[:12]
     return f"{config_hash}_{combined}"
 
 
