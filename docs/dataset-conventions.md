@@ -1,6 +1,6 @@
 # Dataset Conventions
 
-This page sets out what an official ALP dataset is expected to look like. It covers three types of dataset:
+This page sets out what an official ALP audio dataset is expected to look like. It covers three types of dataset:
 
 | Type | One row is | Output | Required metadata | Reference implementation |
 |------|------------|--------|-------------------|--------------------------|
@@ -21,7 +21,7 @@ Everything in this section applies to all three types.
 
 - Put the dataset in its own module, `alp_data/datasets/<dataset_name>.py`, with one `Dataset` subclass named in CamelCase (e.g. `SapsuckerWoods` in `sapsucker_woods.py`).
 - Decorate the class with `@register_dataset` so it can be loaded by name from a config.
-- Import the class in `alp_data/datasets/__init__.py` **and** add it to `__all__` there. The [Available Datasets](datasets-available.md) page is generated from `alp_data.datasets`, so a dataset missing from `__all__` won't appear in the documentation.
+- Import the class in `alp_data/datasets/__init__.py` **and** add it to `__all__` there. The [Available Datasets](datasets-available.md) page is generated from `alp_data.datasets`, so a dataset missing from `__all__` won't appear in the documentation. Similarly, add it to `alp_data/__init__.py`.
 - Store the split CSVs and audio under `{DATA_HOME}/<dataset_name>/v<version>/`, and define the root as a module-level constant (e.g. `_RAW_ROOT`).
 
 ### `DatasetInfo`
