@@ -205,11 +205,15 @@ class ExpandByFunction:
             If the row method returns something other than a list of dicts.
         ValueError
             If two children set different keys.
+        ValueError
+            If backend has streaming=True.
 
         Notes
         -----
         Propagates any exception raised by the row method.
         """
+        if backend.is_streaming():
+            raise ValueError("ExpandByFunction requires an eager (non-streaming) backend")
         name = getattr(self.method, "__name__", repr(self.method))
         # Index of each child's parent row, one entry per child
         parent_indices: list[int] = []
