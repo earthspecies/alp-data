@@ -2,6 +2,8 @@
 
 If you’d like to contribute your own dataset, please consider: is this new dataset relatively stable and potentially useful to others? If yes, you **should [submit this form](https://docs.google.com/forms/d/e/1FAIpQLScfkafLGUY-4s8nP2U39oueCAZxkMLKl5spnhqU66CCBGKOgQ/viewform) to ESP's engineering team** to add it as an official ALP Dataset. If not, just follow the next steps!
 
+Official ALP datasets should also follow the [Dataset Conventions](dataset-conventions.md) for classification, detection and soundscape datasets.
+
 To create a new dataset, you need to subclass the base `Dataset` class and implement several key components. Here's a step-by-step guide:
 
 ## 1. Basic Structure
