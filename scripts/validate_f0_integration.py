@@ -15,8 +15,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "esp-research" / "projects" / "NatureLM-audio-v1.5"))
 import data.transforms  # noqa: F401 — registers custom transforms
 
-from esp_data.datasets.f0_bioacoustic import F0Bioacoustic, TAXA
-from esp_data.transforms import transform_from_config
+from alp_data.datasets.f0_bioacoustic import F0Bioacoustic, TAXA
+from alp_data.transforms import transform_from_config
 
 from data.transforms.f0_features import F0Features, F0FeaturesConfig
 from data.transforms.make_chat import MakeChat, MakeChatConfig

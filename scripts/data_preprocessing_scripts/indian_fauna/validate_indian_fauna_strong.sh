@@ -36,7 +36,7 @@ PY
 echo "=== 2. dataset smoke-load ==="
 uv run python - <<'PY'
 import numpy as np
-from esp_data.datasets import IndianFaunaStrong
+from alp_data.datasets import IndianFaunaStrong
 COLS=["Selection","Begin Time (s)","End Time (s)","Low Freq (Hz)","High Freq (Hz)","Species"]
 for sr in [16000,32000]:
     ds=IndianFaunaStrong(split="all",sample_rate=sr)

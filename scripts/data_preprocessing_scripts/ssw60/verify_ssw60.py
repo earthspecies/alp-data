@@ -16,8 +16,8 @@ from __future__ import annotations
 
 import numpy as np
 
-from esp_data.datasets import SSW60
-from esp_data.io import filesystem
+from alp_data.datasets import SSW60
+from alp_data.io import filesystem
 
 GCS_ROOT = "gs://esp-data-ingestion/ssw60/v0.1.0"
 

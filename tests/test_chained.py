@@ -1,9 +1,9 @@
 import pytest
 import pandas as pd
 
-from esp_data import ConcatenatedDataset, ChainedDataset, dataset_from_config
-from esp_data.datasets import HawaiianBirds, NocturnalBirdMigration
-from esp_data.concat import MergeException
+from alp_data import ConcatenatedDataset, ChainedDataset, dataset_from_config
+from alp_data.datasets import HawaiianBirds, NocturnalBirdMigration
+from alp_data.concat import MergeException
 
 
 def test_concat_of_selection_table_datasets() -> None:

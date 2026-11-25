@@ -11,7 +11,7 @@ import random
 import numpy as np
 import pytest
 
-from esp_data.datasets import PIFSCPipan
+from alp_data.datasets import PIFSCPipan
 
 # --- snapshot (fill after pifsc_pipan_*.csv are uploaded) ---
 EXPECTED_LEN_ALL = 38857

@@ -23,8 +23,8 @@ from collections import Counter
 import data.transforms  # noqa: F401  registers project transforms
 from pydantic import TypeAdapter  # noqa: E402
 
-from esp_data.datasets import DORI  # noqa: E402
-from esp_data.transforms.registry import RegisteredTransformConfigs  # noqa: E402
+from alp_data.datasets import DORI  # noqa: E402
+from alp_data.transforms.registry import RegisteredTransformConfigs  # noqa: E402
 
 
 def _validate(tfs: list[dict]) -> list:

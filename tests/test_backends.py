@@ -4,7 +4,7 @@ import pandas as pd
 import polars as pl
 import pytest
 
-from esp_data.backends import PandasBackend, PolarsBackend, get_backend
+from alp_data.backends import PandasBackend, PolarsBackend, get_backend
 
 
 class TestPandasBackend:

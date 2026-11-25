@@ -3,7 +3,7 @@ Generate a txt file listing available datasets for benchmarking.
 This used when running loading_time benchmarks over all datasets (see job 'lt.sh').
 """
 
-from esp_data import list_registered_datasets
+from alp_data import list_registered_datasets
 
 
 def main() -> None:

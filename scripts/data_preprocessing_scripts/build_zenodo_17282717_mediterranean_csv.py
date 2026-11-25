@@ -41,7 +41,7 @@ from pathlib import Path
 import pandas as pd
 import soundfile as sf
 
-from esp_data.discover.gbif_taxonomy import GBIFConverter
+from alp_data.discover.gbif_taxonomy import GBIFConverter
 
 GCS_DST_PREFIX = "zenodo_17282717"  # audio_path / 16khz_path / 32khz_path prefix
 GCS_ROOT = "gs://esp-data-ingestion/superwhale/v0.1.0/raw"

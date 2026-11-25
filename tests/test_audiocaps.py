@@ -18,12 +18,12 @@ from typing import List
 import numpy as np
 import pytest
 
-from esp_data.datasets import AudioCaps
+from alp_data.datasets import AudioCaps
 
 # --- Dataset snapshot ----------------------------------------------------
 # Regenerate with:
 #   import hashlib
-#   from esp_data.datasets import AudioCaps
+#   from alp_data.datasets import AudioCaps
 #   ds = AudioCaps(split="test", sample_rate=32000, backend="pandas")
 #   audio0 = ds[0]["audio"]
 #   print("audio sha256:", hashlib.sha256(audio0.tobytes()).hexdigest())

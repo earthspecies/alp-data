@@ -6,7 +6,7 @@ the DRASDIC paper: 13 bioacoustics sub-datasets, 109 recordings, ~143 h, each
 recording paired with a DCASE-style CSV marking onsets/offsets of a single
 predetermined target category.
 
-Not to be confused with ``esp_data.datasets.drasdic`` -- that is the *synthetic
+Not to be confused with ``alp_data.datasets.drasdic`` -- that is the *synthetic
 training* corpus from the same paper. FASD13 shares no audio with it.
 
 Source layout (per sub-dataset zip)::
@@ -807,7 +807,7 @@ def _support_one(args: tuple[str, str, str, str, float, list[float]]) -> tuple[l
     import numpy as np
     import soundfile as sf
 
-    from esp_data.io import anypath, read_audio
+    from alp_data.io import anypath, read_audio
 
     anno_fp, audio_root, out_root, rel, support_end, shot_starts = args
     code, stem = rel.split("/", 1)

@@ -12,11 +12,11 @@ from pathlib import Path
 
 import polars as pl
 
-from esp_data import dataset_from_config
-from esp_data.backends.polars_backend import PolarsBackend
-from esp_data.chain import ChainedDataset
-from esp_data.dataset import ChainedDatasetConfig, DatasetConfig
-from esp_data.io import AnyPathT, filesystem_from_path, read_yaml
+from alp_data import dataset_from_config
+from alp_data.backends.polars_backend import PolarsBackend
+from alp_data.chain import ChainedDataset
+from alp_data.dataset import ChainedDatasetConfig, DatasetConfig
+from alp_data.io import AnyPathT, filesystem_from_path, read_yaml
 
 ROOT = Path(__file__).resolve().parent.parent
 NATURELM_PROJECT = ROOT / "esp-research" / "projects" / "NatureLM-audio-v1.5"

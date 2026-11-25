@@ -16,7 +16,7 @@ import importlib.util
 import numpy as np
 import pytest
 
-from esp_data.datasets import MammAlps
+from alp_data.datasets import MammAlps
 
 EXPECTED_NUM_ACTIVITIES = 11
 _HAS_AV = importlib.util.find_spec("av") is not None

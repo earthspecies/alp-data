@@ -13,7 +13,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from esp_data.datasets import CEB
+from alp_data.datasets import CEB
 
 EXPECTED_LENS = {
     "train_xenocanto": 2210,

@@ -1,4 +1,4 @@
-"""Resample audio files from esp_data datasets with configurable resampling backends.
+"""Resample audio files from alp_data datasets with configurable resampling backends.
 
 This script provides multiple resampling methods:
 1. librosa: High-quality resampling with various filter types (default: kaiser_best)
@@ -127,8 +127,8 @@ import soundfile as sf
 from pydantic import BaseModel, ConfigDict, Field
 from tqdm import tqdm
 
-from esp_data import dataset_class_from_name, list_registered_datasets
-from esp_data.io import anypath, exists, filesystem_from_path
+from alp_data import dataset_class_from_name, list_registered_datasets
+from alp_data.io import anypath, exists, filesystem_from_path
 
 
 class LibrosaResamplerConfig(BaseModel):
@@ -563,7 +563,7 @@ def process_dataset(
     ValueError
         If the path column is not found in the dataset.
     """
-    from esp_data.io import audio_stereo_to_mono, read_audio
+    from alp_data.io import audio_stereo_to_mono, read_audio
 
     total_start_time = time.time()
 
@@ -726,7 +726,7 @@ def load_config_from_yaml(config_path: str) -> ResampleTaskConfig:
     ResampleTaskConfig
         The validated configuration object.
     """
-    from esp_data.io import read_yaml
+    from alp_data.io import read_yaml
 
     config_dict = read_yaml(config_path)
     return ResampleTaskConfig.model_validate(config_dict)
@@ -735,7 +735,7 @@ def load_config_from_yaml(config_path: str) -> ResampleTaskConfig:
 def main() -> None:
     """Main entry point for the resampling script."""
     parser = argparse.ArgumentParser(
-        description="Resample audio files from esp_data datasets with configurable backends.",
+        description="Resample audio files from alp_data datasets with configurable backends.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:

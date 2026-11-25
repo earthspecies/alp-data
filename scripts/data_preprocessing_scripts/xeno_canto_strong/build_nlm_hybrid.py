@@ -37,7 +37,7 @@ from collections import defaultdict
 import numpy as np
 import pandas as pd
 
-from esp_data.discover.gbif_taxonomy import GBIFConverter
+from alp_data.discover.gbif_taxonomy import GBIFConverter
 
 META = os.environ["META_UNSEEN"]
 SHARDS = os.environ["SHARDS40"]

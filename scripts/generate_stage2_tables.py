@@ -704,7 +704,7 @@ def generate_table2(
 
 
 def generate_bibtex() -> str:
-    """Hard-coded BibTeX entries from esp_data dataset docstrings."""
+    """Hard-coded BibTeX entries from alp_data dataset docstrings."""
     return textwrap.dedent(r"""
     @misc{xenocanto,
       title   = {Xeno-canto: Sharing Bird Sounds from Around the World},

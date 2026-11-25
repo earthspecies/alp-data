@@ -23,7 +23,7 @@ from pathlib import Path
 import pandas as pd
 import soundfile as sf
 
-from esp_data.io.read_utils import read_audio, read_text
+from alp_data.io.read_utils import read_audio, read_text
 
 GCS_ROOT = "gs://spanish-carrion-crows/flying_with_annotations"
 TEST_INFO_CSV = f"{GCS_ROOT}/test_info.csv"

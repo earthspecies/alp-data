@@ -15,11 +15,11 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from esp_data.datasets import DartmouthAvianSoundscapes
+from alp_data.datasets import DartmouthAvianSoundscapes
 
 # # --- Dataset snapshot ---
 # # Code to regenerate the snapshot constants below:
-# from esp_data.datasets import DartmouthAvianSoundscapes
+# from alp_data.datasets import DartmouthAvianSoundscapes
 # ds = DartmouthAvianSoundscapes(split="all", sample_rate=16000, backend="pandas")
 # print("len(ds) =", len(ds))
 # audio0 = ds[0]["audio"]

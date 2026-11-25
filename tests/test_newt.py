@@ -13,7 +13,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from esp_data.datasets import NeWT
+from alp_data.datasets import NeWT
 
 # NeWT is a benchmark of 164 binary tasks (visipedia/newt).
 EXPECTED_NUM_TASKS = 164

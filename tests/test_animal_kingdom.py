@@ -16,7 +16,7 @@ import importlib.util
 import numpy as np
 import pytest
 
-from esp_data.datasets import AnimalKingdom
+from alp_data.datasets import AnimalKingdom
 
 # Animal Kingdom AR has 140 action classes; a split may not contain all of them.
 MIN_ACTIONS = 100

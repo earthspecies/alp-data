@@ -4,7 +4,7 @@ import zipfile
 import pandas as pd
 from sklearn.model_selection import train_test_split
 
-from esp_data.io import anypath
+from alp_data.io import anypath
 
 """
 This is a public domain dataset containing macaque vocalizations.

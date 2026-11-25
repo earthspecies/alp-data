@@ -189,7 +189,7 @@ def stage_montage(species: list[str] | None, per_type: int, seed: int) -> None:
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
-    from esp_data.io import anypath, audio_stereo_to_mono, read_audio
+    from alp_data.io import anypath, audio_stereo_to_mono, read_audio
 
     rng = random.Random(seed)
     ext = pl.read_parquet(_EXT_PARQUET)

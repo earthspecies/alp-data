@@ -4,7 +4,7 @@ Resolve Weldy NW dawn-chorus species (eBird codes -> GBIF canonical names).
 Reads ``annotation_metadata.tsv`` (label vocabulary; columns include
 ``eBird_2021``, ``scientific_name``, ``common_name``). For each unique eBird
 code with a real binomial scientific name, resolves it against the GBIF animals
-backbone via ``esp_data.discover.gbif_taxonomy.GBIFConverter``.
+backbone via ``alp_data.discover.gbif_taxonomy.GBIFConverter``.
 
 Aggregates (``Aves``, ``Insecta``, ``... spp.``) and non-species sounds (rain,
 engine, etc.) are kept as common-name only with empty ``canonical_name``.
@@ -19,7 +19,7 @@ import os
 
 import pandas as pd
 
-from esp_data.discover.gbif_taxonomy import GBIFConverter
+from alp_data.discover.gbif_taxonomy import GBIFConverter
 
 TAXONOMY_RANKS = ["kingdom", "phylum", "class", "order", "family", "genus"]
 UNKNOWN_LABEL = "Unknown"

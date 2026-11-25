@@ -3,7 +3,7 @@ Resolve PteroSet species codes -> GBIF canonical names.
 
 Reads ``species.csv`` (columns: code, species, identification, type) and
 resolves each ``species`` (scientific name) against the GBIF animals backbone
-via ``esp_data.discover.gbif_taxonomy.GBIFConverter``.
+via ``alp_data.discover.gbif_taxonomy.GBIFConverter``.
 
 Writes ``pteroset_species_taxonomy.csv`` with columns:
 
@@ -26,7 +26,7 @@ import os
 
 import pandas as pd
 
-from esp_data.discover.gbif_taxonomy import GBIFConverter
+from alp_data.discover.gbif_taxonomy import GBIFConverter
 
 UNKNOWN_LABEL = "Unknown"
 TAXONOMY_RANKS = ["kingdom", "phylum", "class", "order", "family", "genus"]

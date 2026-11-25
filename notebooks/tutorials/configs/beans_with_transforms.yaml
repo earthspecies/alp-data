@@ -1,0 +1,15 @@
+dataset:
+  dataset_name: beans
+  split: dogs_test
+  sample_rate: 16000
+  output_take_and_give:
+    audio: raw_wav
+    label: label
+  transformations:
+    - type: deduplicate
+      subset: ["file_name", "label"]
+      keep_first: true
+    - type: label_from_feature
+      feature: label
+      output_feature: label
+      override: true

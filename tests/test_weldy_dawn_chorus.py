@@ -15,7 +15,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from esp_data.datasets import WeldyDawnChorus
+from alp_data.datasets import WeldyDawnChorus
 
 EXPECTED_LEN_ALL = 1575
 EXPECTED_FIRST_ITEM_AUDIO_SHA256 = (

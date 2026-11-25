@@ -7,7 +7,7 @@ import librosa
 import pandas as pd
 import soundfile as sf
 
-from esp_data.io import anypath, audio_stereo_to_mono, read_audio
+from alp_data.io import anypath, audio_stereo_to_mono, read_audio
 
 # Suppress warnings from librosa about resampling
 warnings.filterwarnings("ignore", category=FutureWarning, module="librosa")

@@ -24,10 +24,10 @@ from typing import Any
 import numpy as np
 import polars as pl
 
-# Add the parent directory to the path so we can import esp_data
+# Add the parent directory to the path so we can import alp_data
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from esp_data.io import anypath, read_audio, audio_stereo_to_mono
+from alp_data.io import anypath, read_audio, audio_stereo_to_mono
 
 logging.basicConfig(
     level=logging.INFO,

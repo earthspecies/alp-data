@@ -161,7 +161,7 @@ def _resample_one(args: tuple[str, str]) -> tuple[str, float, str]:
     """Re-encode one recording to clean 16 kHz + 32 kHz WAV mirrors.
 
     The source FLACs trip a libsndfile decoder bug (``LibsndfileError`` on
-    ``sf.read`` for ~2/3 of files), and ``esp_data.read_audio`` uses soundfile
+    ``sf.read`` for ~2/3 of files), and ``alp_data.read_audio`` uses soundfile
     too — so we decode with a soundfile->librosa(ffmpeg) fallback and re-encode
     to WAV (which libsndfile reads reliably) rather than serving the raw FLAC.
 

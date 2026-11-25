@@ -2,7 +2,7 @@
 Fixes source typos, resolves GBIF canonicalName + common + ranks, writes
 species_taxonomy.csv for the (Slurm) build step to join."""
 import pandas as pd
-from esp_data.discover.gbif_taxonomy import GBIFConverter
+from alp_data.discover.gbif_taxonomy import GBIFConverter
 
 SCI_NAME_FIX = {
     "Globicephala macrorhyncus": "Globicephala macrorhynchus",

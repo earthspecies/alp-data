@@ -27,8 +27,8 @@ import numpy as np
 import requests
 import soundfile as sf
 
-from esp_data import dataset_from_config
-from esp_data.dataset import ChainedDatasetConfig, DatasetConfig
+from alp_data import dataset_from_config
+from alp_data.dataset import ChainedDatasetConfig, DatasetConfig
 
 # ---------------------------------------------------------------------------
 # Prompt definitions

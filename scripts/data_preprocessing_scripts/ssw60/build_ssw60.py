@@ -3,7 +3,7 @@
 Given a locally-extracted SSW60 tarball (``--src``), this script:
 
 1. GBIF-links the 60 ``taxa.csv`` species on ``scientific_name`` via
-   ``esp_data.discover.gbif_taxonomy.GBIFConverter`` and writes
+   ``alp_data.discover.gbif_taxonomy.GBIFConverter`` and writes
    ``taxa_gbif.csv``.
 2. Resamples each ``audio_ml/<asset_id>.wav`` (22.05 kHz mono) to 16 kHz
    and 32 kHz mirrors under ``<out>/audio_16k`` / ``<out>/audio_32k``
@@ -33,7 +33,7 @@ import librosa
 import pandas as pd
 import soundfile as sf
 
-from esp_data.discover.gbif_taxonomy import GBIFConverter
+from alp_data.discover.gbif_taxonomy import GBIFConverter
 
 GCS_ROOT_DEFAULT = "gs://esp-data-ingestion/ssw60/v0.1.0"
 TAXONOMY_RANKS = ["kingdom", "phylum", "class", "order", "family", "genus"]

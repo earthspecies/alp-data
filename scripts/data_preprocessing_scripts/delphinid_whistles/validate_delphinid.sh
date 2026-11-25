@@ -35,7 +35,7 @@ PY
 echo "=== 2. dataset smoke-load ==="
 uv run python - <<'PY'
 import numpy as np
-from esp_data.datasets import DelphinidWhistles
+from alp_data.datasets import DelphinidWhistles
 COLS=["Selection","Begin Time (s)","End Time (s)","Low Freq (Hz)","High Freq (Hz)","Species"]
 for split in ["test","val","train"]:
     for sr in [16000,32000]:

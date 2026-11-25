@@ -14,7 +14,7 @@ from typing import List
 import numpy as np
 import pytest
 
-from esp_data.datasets import DORI
+from alp_data.datasets import DORI
 
 # --- snapshot (fill after the split CSVs + audio are built) ---
 EXPECTED_LEN_ALL = 27255

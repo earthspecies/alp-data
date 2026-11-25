@@ -5,7 +5,7 @@ Drops Watkins marine-mammal clips onto annotated-as-empty windows of DCLDE
 negatives. Writes 32 kHz mono WAV clips and a manifest CSV to
 ``gs://foundation-model-data/synthetic/whales/v0.1.0/``.
 
-See ``esp_data/datasets/whales.py`` for the dataset class that consumes
+See ``alp_data/datasets/whales.py`` for the dataset class that consumes
 the manifest.
 """
 
@@ -26,9 +26,9 @@ import numpy as np
 import pandas as pd
 import soundfile as sf
 
-from esp_data.datasets.dclde2026 import DCLDE2026
-from esp_data.datasets.watkins import Watkins
-from esp_data.io import audio_stereo_to_mono, filesystem_from_path, read_audio
+from alp_data.datasets.dclde2026 import DCLDE2026
+from alp_data.datasets.watkins import Watkins
+from alp_data.io import audio_stereo_to_mono, filesystem_from_path, read_audio
 
 logger = logging.getLogger("build_whales_synthetic")
 

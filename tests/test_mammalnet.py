@@ -16,7 +16,7 @@ import importlib.util
 import numpy as np
 import pytest
 
-from esp_data.datasets import MammalNet
+from alp_data.datasets import MammalNet
 
 EXPECTED_NUM_BEHAVIORS = 12
 _HAS_AV = importlib.util.find_spec("av") is not None

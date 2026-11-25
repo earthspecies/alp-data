@@ -60,8 +60,8 @@ PY
 echo "=== 2. dataset smoke-load ==="
 uv run python - <<'PY'
 import numpy as np, pandas as pd
-from esp_data.datasets import FASD13
-from esp_data.datasets.fasd13 import SUBDATASET_CODES
+from alp_data.datasets import FASD13
+from alp_data.datasets.fasd13 import SUBDATASET_CODES
 
 ST=["Selection","Begin Time (s)","End Time (s)","Q","Label","event_index"]
 for sr in (16000,32000):

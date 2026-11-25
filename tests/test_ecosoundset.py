@@ -13,7 +13,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from esp_data.datasets import EcoSoundSet
+from alp_data.datasets import EcoSoundSet
 
 EXPECTED_LENS = {"train": 25351, "val": 9653, "test": 6879}
 ST_REQUIRED = {

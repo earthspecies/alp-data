@@ -14,7 +14,7 @@ from typing import List
 import numpy as np
 import pytest
 
-from esp_data.datasets import Clotho
+from alp_data.datasets import Clotho
 
 # --- Dataset snapshot ----------------------------------------------------
 EXPECTED_LEN_TEST = 1045

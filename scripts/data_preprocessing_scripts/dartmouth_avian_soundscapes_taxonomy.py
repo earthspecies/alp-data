@@ -4,7 +4,7 @@ Resolve Dartmouth Avian Soundscapes AOU species codes -> GBIF canonical names.
 Reads ``species_metadata.csv`` (AOU_Code, IsBird, Common_Name, Scientific_Name,
 Family, N_*) and resolves each ``Scientific_Name`` (eBird checklist 2021)
 against the GBIF animals backbone via
-``esp_data.discover.gbif_taxonomy.GBIFConverter``.
+``alp_data.discover.gbif_taxonomy.GBIFConverter``.
 
 Writes ``species_taxonomy.csv`` with columns:
 
@@ -27,7 +27,7 @@ import os
 
 import pandas as pd
 
-from esp_data.discover.gbif_taxonomy import GBIFConverter
+from alp_data.discover.gbif_taxonomy import GBIFConverter
 
 UNKNOWN_LABEL = "Unknown"
 TAXONOMY_RANKS = ["kingdom", "phylum", "class", "order", "family", "genus"]

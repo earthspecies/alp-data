@@ -1,14 +1,14 @@
-# `esp_data.backends` Module
+# `alp_data.backends` Module
 
 ## What are data backends?
 
-A `DataBackend` is a Python `Protocol` that defines an interface for any library that is used to read data and perform common operations on data. It's an abstraction that allows `esp-data` to support multiple data libraries without being tightly coupled to any specific one.
+A `DataBackend` is a Python `Protocol` that defines an interface for any library that is used to read data and perform common operations on data. It's an abstraction that allows `alp-data` to support multiple data libraries without being tightly coupled to any specific one.
 
-An example of such a library is `pandas` and so the corresponding backend class is `esp_data.backends.PandasBackend`. All the `Dataset` and `Transform` classes in `esp-data` up to version 1.3.0 used `pandas` to load the underlying annotation csv / jsonl files. This required implementing functions like `pd.read_csv` and pandas based dataframe manipulation directly within class methods. We want to reduce this dependence on `pandas` and allow ourselves the freedom to use other libraries like `polars`, `duckdb`, `pyarrow`, `webdataset` etc. to load and manipulate data because each library has its own strengths and weaknesses for different ML use-cases.
+An example of such a library is `pandas` and so the corresponding backend class is `alp_data.backends.PandasBackend`. All the `Dataset` and `Transform` classes in `alp-data` up to version 1.3.0 used `pandas` to load the underlying annotation csv / jsonl files. This required implementing functions like `pd.read_csv` and pandas based dataframe manipulation directly within class methods. We want to reduce this dependence on `pandas` and allow ourselves the freedom to use other libraries like `polars`, `duckdb`, `pyarrow`, `webdataset` etc. to load and manipulate data because each library has its own strengths and weaknesses for different ML use-cases.
 
 ## Available Backends
 
-Currently, `esp-data` provides two backend implementations:
+Currently, `alp-data` provides two backend implementations:
 
 | Backend | Class | Description |
 |---------|-------|-------------|
@@ -22,7 +22,7 @@ Currently, `esp-data` provides two backend implementations:
 When loading a dataset, you can specify which backend to use via the `backend` parameter:
 
 ```python
-from esp_data.datasets import BirdSet
+from alp_data.datasets import BirdSet
 
 # Use polars backend (default)
 dataset = BirdSet(split="HSN-train", backend="polars")
@@ -46,7 +46,7 @@ dataset:
 You can also use backends directly for standalone data operations:
 
 ```python
-from esp_data.backends import PandasBackend, PolarsBackend
+from alp_data.backends import PandasBackend, PolarsBackend
 
 # Load data with PandasBackend
 backend = PandasBackend.from_csv("path/to/data.csv")
@@ -63,7 +63,7 @@ row = backend[0]  # Get first row as dict
 Both backends support streaming mode for memory-efficient processing of large datasets:
 
 ```python
-from esp_data.datasets import BirdSet
+from alp_data.datasets import BirdSet
 
 # Enable streaming mode
 dataset = BirdSet(split="HSN-train", backend="polars", streaming=True)
@@ -81,7 +81,7 @@ for sample in dataset:
 If you need to perform library-specific operations, use the `unwrap` property to access the underlying data object:
 
 ```python
-from esp_data.backends import PandasBackend
+from alp_data.backends import PandasBackend
 
 backend = PandasBackend.from_csv("data.csv")
 df = backend.unwrap  # Returns pd.DataFrame
@@ -104,7 +104,7 @@ For more details, see [Accessing the Underlying Data](#accessing-the-underlying-
 If you need to perform operations not covered by the backend interface, use the `unwrap` property:
 
 ```python
-from esp_data.backends import PandasBackend, PolarsBackend
+from alp_data.backends import PandasBackend, PolarsBackend
 
 # Pandas backend
 pandas_backend = PandasBackend.from_csv("data.csv")
@@ -124,7 +124,7 @@ df.select(pl.col("species").value_counts())
 
 ## The DataBackend Protocol
 
-The `DataBackend` protocol defines a common interface that all backend implementations must follow. This enables `esp-data` to work uniformly with different data libraries.
+The `DataBackend` protocol defines a common interface that all backend implementations must follow. This enables `alp-data` to work uniformly with different data libraries.
 
 ### Core Interface
 
@@ -178,14 +178,14 @@ The protocol defines these key operations:
 | `apply_fn(fn, fn_kwargs, apply_kwargs)` | Apply a custom function to the data |
 | `multilabel_from_features(input_features, output_feature, ...)` | Create multilabel column from multiple features |
 
-## Backend Integration in esp-data
+## Backend Integration in alp-data
 
 ### Integration with Datasets
 
 All dataset classes use backends internally to manage their data. The backend is selected at instantiation time:
 
 ```python
-# esp_data/dataset.py
+# alp_data/dataset.py
 class Dataset(ABC):
     def __init__(
         self,
@@ -210,8 +210,8 @@ self._data = self._backend_class.from_json(
 Transforms operate directly on backend instances rather than raw DataFrames. This makes transforms backend-agnostic:
 
 ```python
-from esp_data.transforms import Filter
-from esp_data.backends import PandasBackend
+from alp_data.transforms import Filter
+from alp_data.backends import PandasBackend
 
 # Create backend
 backend = PandasBackend.from_csv("data.csv")
@@ -224,7 +224,7 @@ filtered_backend, metadata = filter_transform(backend)
 Transforms use the backend's methods rather than library-specific operations:
 
 ```python
-# esp_data/transforms/filter.py
+# alp_data/transforms/filter.py
 class Filter:
     def __call__(self, backend: DataBackend) -> tuple[DataBackend, dict]:
         # Uses backend.filter_isin() instead of pandas-specific code
@@ -238,8 +238,8 @@ class Filter:
 The `ConcatenatedDataset` class uses backend operations to merge multiple datasets:
 
 ```python
-from esp_data.datasets import InsectSet459, BirdSet
-from esp_data.concat import ConcatenatedDataset
+from alp_data.datasets import InsectSet459, BirdSet
+from alp_data.concat import ConcatenatedDataset
 
 dataset1 = InsectSet459(split="validation", backend="polars")
 dataset2 = BirdSet(split="HSN-test", backend="polars")
@@ -252,26 +252,26 @@ The concatenation uses the backend's `concat` class method internally.
 
 ## API Reference
 
-::: esp_data.backends.protocol.DataBackend
+::: alp_data.backends.protocol.DataBackend
     handler: python
     options:
         show_root_heading: true
         show_source: false
         members_order: source
 
-::: esp_data.backends.PandasBackend
+::: alp_data.backends.PandasBackend
     handler: python
     options:
         show_root_heading: true
         show_source: false
 
-::: esp_data.backends.PolarsBackend
+::: alp_data.backends.PolarsBackend
     handler: python
     options:
         show_root_heading: true
         show_source: false
 
-::: esp_data.backends.get_backend
+::: alp_data.backends.get_backend
     handler: python
     options:
         show_root_heading: true

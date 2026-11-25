@@ -13,7 +13,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from esp_data.datasets import NABirds
+from alp_data.datasets import NABirds
 
 # NABirds has ~400 species; the exact count depends on the category->species
 # roll-up, so we assert a sane range rather than a brittle exact value.

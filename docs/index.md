@@ -1,143 +1,19 @@
-# Getting Started
+# alp-data
 
-## What is esp-data?
+### What is alp-data?
 
-`esp-data` is an internal Python package that helps with all data-related tasks at ESP. It aims to make working with datasets easier, regardless of where they are stored and in which format.
+`alp-data` (<a href="https://earthspecies.org/2026/04/02/animal-language-processing-an-ai-convergence-in-animal-communication/" target="_blank" rel="noopener">Animal Language Processing</a> data) is a <a href="https://pypi.org/project/alp-data/" target="_blank" rel="noopener">Python package</a> that provides access to 35+ bioacoustic datasets behind one unified interface. Designed to support machine learning across species, the current datasets cover birds, marine mammals, primates, insects, anurans, and multi-taxon benchmarks.
 
-Key features:
-- Unified dataset interface: Access datasets stored locally, on cloud storage (e.g., Google Cloud Storage), or in various formats (e.g., CSV, JSON, Parquet) through a consistent API.
-- Iterate or random access: Easily iterate over dataset samples or access them randomly using indexing.
-- Streaming support: Work with large datasets that don't fit into memory by streaming data on-the-fly.
-- On-the-fly data transformations: Apply transformations such as filtering rows / columns, create label
-- (beta) Concatenation and merging of multiple datasets: Combine datasets into a single unified dataset for training or evaluation.
+This is the first piece of shared infrastructure for Animal Language Processing (ALP), an AI-powered, data-driven, and species-agnostic approach to studying animal communication introduced in <a href="https://earthspecies.org/2026/04/02/animal-language-processing-an-ai-convergence-in-animal-communication/" target="_blank" rel="noopener">April 2026</a>. ALP's promise of working across taxa depends on being able to access ML-friendly data across taxa through a single interface. That access layer is what `alp-data` provides.
 
 
-## Getting started
-```python
-from esp_data import Beans
+### Why alp-data?
 
-# Load 'train' split of BEANS dataset at 16kHz sample rate
-# Resampling is done on the fly with librosa.resample
-beans = Beans(split="train", sample_rate=16000)
+Today, bioacoustic datasets are distributed across many repositories — Zenodo, OSF, GBIF, and institutional archives — and each arrives with its own conventions for format, structure, sampling rate, and licensing. As a result, researchers working across multiple datasets must typically invest considerable effort in preprocessing: writing a custom loader for each dataset, then a separate step to combine them, before any of the data can be used together.
 
-print(len(beans))
+`alp-data` handles this overhead, letting you combine datasets and work through a single consistent interface from the start:
 
-# Iterate over all samples
-for sample in beans:
-    print(sample["audio"].shape)
-    break
-
-# Fetch a single sample
-sample = beans[0]
-print(sample["audio"].shape)
-
-# Streaming only
-beans_streaming = Beans(split="train", streaming=True)  # loads faster
-print(len(beans_streaming))  # Throws an error since length is unknown in streaming mode
-
-# Iterate over all samples in streaming mode
-for sample in beans_streaming:
-    print(sample["audio"].shape)
-    break
-```
-Check out the datasets documentation for more details [here](./datasets.md).
-
-## Installation
-
-`esp-data` is currently a private package, hosted on ESP's internal Python package repository. Because it isn't available on the public PyPI index, you'll need to configure your project to use ESP's private package index in order to install and update `esp-data`:
-
-### 1. Install `keyring` (one-time setup)
-
-To authenticate and interact with Python repositories hosted on Artifact Registry, you'll need to install the `keyring` library system-wide (not inside a virtual environment), along with the Google Artifact Registry backend. This step is required only once per system, typically when setting up your VM or laptop (not needed on Slurm compute nodes):
-
-```sh
-uv tool install keyring --with keyrings.google-artifactregistry-auth
-```
-
-!!! success "Slurm"
-    This step is **NOT** required for Slurm jobs. All nodes on the cluster already have this package installed.
-
-!!! info
-    You only need to do this step once on your system.
-
-!!! tip
-    `uv tool` allows you to install Python packages that provide command-line interfaces for system-wide use. The dependencies are installed in an isolated virtual environment, separate from your current project.
-
-### 2. Set up Google Cloud to access `esp-data` package
-
-This step is required if you haven't set up Google Cloud on your device yet. If Google Cloud isn't properly set up the following steps will fail.
-
-- Install the Google Cloud SDK by following the steps on https://cloud.google.com/sdk/docs/install
-
-- Initialize Google Cloud :
-    ```sh
-    gcloud init
-    ```
-
-    You will be prompted to sign in. Type `Y` to open a browser window for authentication and log in with your account.
-
-    Select the project to use; follow the instructions to choose project `okapi-274503`.
-
-    Configure a default Compute region and zone. It is recommended to use the same region and zone as your VM.
-
-    Then run :
-    ```sh
-    gcloud auth application-default login
-    ```
-    This will open a browser for authentication again.
-
-- Verify your active account :
-    ```sh
-    gcloud auth list
-    ```
-
-    Example output :
-    ```sh
-            Credentialed Accounts
-    ACTIVE  ACCOUNT
-    *       youremailaddress@example.com
-    ```
-
-- Confirm your active project :
-    ```sh
-    gcloud config list
-    ```
-    Example output :
-    ```sh
-        [core]
-    account = youremailaddress@example.com
-    disable_usage_reporting = True
-    project = okapi274503
-    ```
-
-
-### 3. Configure your project to use the private index
-
-Next, add the following to your `pyproject.toml` to configure your project to use the private package index:
-
-```toml
-[[tool.uv.index]]
-name = "esp-pypi"
-url = "https://oauth2accesstoken@us-central1-python.pkg.dev/okapi-274503/esp-pypi/simple/"
-explicit = true
-
-[tool.uv.sources]
-esp-data = { index = "esp-pypi" }
-
-[tool.uv]
-keyring-provider = "subprocess"
-```
-
-### 4. Add `esp-data` as a dependency
-
-You can now add `esp-data` to your project by running:
-
-```sh
-uv add esp-data
-```
-
-Alternatively, you can manually update the `dependencies` section of your `pyproject.toml` and then run:
-
-```sh
-uv sync
-```
+- **Unified dataset interface**: access datasets stored locally, on cloud storage, or in various formats (CSV, JSON, Parquet) through a consistent API, with iteration and random-access indexing.
+- **Streaming support**: work with large datasets that don't fit into memory by streaming samples as you go.
+- **Transformations**: apply transforms such as row/column filtering and label creation per sample.
+- **Combinations**: concatenate or chain multiple datasets into a single unified dataset for training or evaluation.

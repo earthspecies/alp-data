@@ -32,7 +32,7 @@ import numpy as np  # noqa: E402
 REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT))
 
-from esp_data.datasets.roots import ROOTS  # noqa: E402
+from alp_data.datasets.roots import ROOTS  # noqa: E402
 
 
 def pick_indices(jsonl: Path, n: int, seed: int = 0) -> list[int]:

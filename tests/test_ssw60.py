@@ -16,7 +16,7 @@ import importlib.util
 import numpy as np
 import pytest
 
-from esp_data.datasets import SSW60
+from alp_data.datasets import SSW60
 
 # --- snapshot (source counts from visipedia/ssw60) ---
 EXPECTED_AUDIO_ALL = 3861

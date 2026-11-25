@@ -16,7 +16,7 @@
 #
 # Watkins (train_unseen, leakage-safe) + DCLDE 2026 (all) → 32 kHz mono WAV clips written to
 # gs://foundation-model-data/synthetic/whales/v0.1.0/ plus a manifest
-# CSV consumed by `esp_data.datasets.Whales`.
+# CSV consumed by `alp_data.datasets.Whales`.
 #
 # Pure CPU job — no GPU. Sized to stay inside ONE t4 GPU slot
 # (≤14 CPUs, ≤14 GB RAM, no --gres) so it does not block GPU jobs from

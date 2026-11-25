@@ -8,7 +8,7 @@ Inputs (on GCS):
 
 For each new row, this script:
   1. Parses the selection_table TSV.
-  2. GBIF-links each non-empty Species via ``esp_data.discover.gbif_taxonomy.GBIFConverter``
+  2. GBIF-links each non-empty Species via ``alp_data.discover.gbif_taxonomy.GBIFConverter``
      (cached per species), adding ``canonical_name, genus, family, species_common, gbifID``
      columns to the TSV.
   3. Re-serialises the selection_table.
@@ -38,7 +38,7 @@ from io import StringIO
 
 import pandas as pd
 
-from esp_data.discover.gbif_taxonomy import GBIFConverter
+from alp_data.discover.gbif_taxonomy import GBIFConverter
 
 GCS_ROOT = "gs://esp-data-ingestion/superwhale/v0.1.0/raw"
 EXISTING = f"{GCS_ROOT}/superwhale_detection.csv"

@@ -19,7 +19,7 @@ import re
 
 import polars as pl
 
-from esp_data.backends.polars_backend import PolarsBackend
+from alp_data.backends.polars_backend import PolarsBackend
 
 RAW = "gs://esp-data-ingestion/xeno-canto/v0.1.0/raw"
 STRONG = f"{RAW}/train_strong_unseen_top100_bgdet.csv"

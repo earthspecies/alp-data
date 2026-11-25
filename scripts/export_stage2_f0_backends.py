@@ -2,7 +2,7 @@
 
 This script extracts only the two 16kHz `f0_bioacoustic` entries from
 `stage2_train_v1.yml` (templates `f0_summary` and `f0_species`), materializes
-them with `esp_data.dataset_from_config`, and saves CSV/JSONL backends.
+them with `alp_data.dataset_from_config`, and saves CSV/JSONL backends.
 """
 
 from __future__ import annotations
@@ -13,9 +13,9 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from esp_data import dataset_from_config
-from esp_data.dataset import DatasetConfig
-from esp_data.io import read_yaml
+from alp_data import dataset_from_config
+from alp_data.dataset import DatasetConfig
+from alp_data.io import read_yaml
 
 ROOT = Path(__file__).resolve().parent.parent
 NATURELM_PROJECT = ROOT / "esp-research" / "projects" / "NatureLM-audio-v1.5"

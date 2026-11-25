@@ -13,7 +13,7 @@ tree), this script:
 2. Resolves each species' English common name to a GBIF canonical scientific
    name — via a manual ``COMMON_TO_SCI`` crosswalk first, else the GBIF
    vernacular search API — and then canonicalises it (and pulls higher-rank
-   taxonomy) through ``esp_data.discover.gbif_taxonomy.GBIFConverter``,
+   taxonomy) through ``alp_data.discover.gbif_taxonomy.GBIFConverter``,
    exactly as the SSW60 builder does. Fails loudly on any unresolved species
    so the manifest never ships partial taxonomy.
 3. Builds per-split (train/test) + unified manifest CSVs with absolute
@@ -43,7 +43,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from esp_data.discover.gbif_taxonomy import GBIFConverter
+from alp_data.discover.gbif_taxonomy import GBIFConverter
 
 GCS_ROOT_DEFAULT = "gs://esp-data-ingestion/nabirds/v0.1.0"
 TAXONOMY_RANKS = ["kingdom", "phylum", "class", "order", "family", "genus"]

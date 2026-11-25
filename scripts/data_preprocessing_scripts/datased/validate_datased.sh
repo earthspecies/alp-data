@@ -22,7 +22,7 @@ uv run python scripts/data_preprocessing_scripts/datased/validate_audio_present.
 echo "=== 2. dataset smoke-load ==="
 uv run python - <<'PY'
 import numpy as np
-from esp_data.datasets import DataSED
+from alp_data.datasets import DataSED
 
 labels = None
 for split in ["poly_val", "mono_val"]:

@@ -11,7 +11,7 @@ import random
 import numpy as np
 import pytest
 
-from esp_data.datasets import InsectSound, MosquitoSound
+from alp_data.datasets import InsectSound, MosquitoSound
 
 # --- Snapshots (fill once after GCS upload completes) ---
 EXPECTED_MOSQUITO_TOTAL = 279566

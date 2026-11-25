@@ -55,11 +55,11 @@ except ImportError:
     exit(1)
 
 try:
-    from esp_data.datasets import BirdSet
-    from esp_data.io import anypath
+    from alp_data.datasets import BirdSet
+    from alp_data.io import anypath
 except ImportError as e:
-    print(f"Error: Could not import esp_data modules: {e}")
-    print("Make sure you're in the correct environment and esp_data is installed.")
+    print(f"Error: Could not import alp_data modules: {e}")
+    print("Make sure you're in the correct environment and alp_data is installed.")
     exit(1)
 
 # Thread-safe counter for progress reporting

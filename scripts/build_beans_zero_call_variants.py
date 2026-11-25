@@ -38,7 +38,7 @@ from urllib.request import urlopen
 REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT))
 
-from esp_data.io import filesystem_from_path
+from alp_data.io import filesystem_from_path
 
 
 logging.basicConfig(
@@ -213,7 +213,7 @@ def load_candidate_rows(max_rows: int | None = None) -> list[CandidateRow]:
         Candidate rows with parsed linkage keys.
     """
 
-    from esp_data.datasets import BeansZero
+    from alp_data.datasets import BeansZero
 
     dataset = BeansZero(split="call-type", sample_rate=None, backend="polars", streaming=False)
     raw_rows = list(dataset._data)
@@ -262,7 +262,7 @@ def build_beans_zero_audio_lookup() -> dict[str, CandidateRow]:
 def build_beans_zero_unseen_audio_lookup() -> dict[str, CandidateRow]:
     """Index BEANS-Zero unseen-sci rows by BEANS id for audio-path reuse."""
 
-    from esp_data.datasets import BeansZero
+    from alp_data.datasets import BeansZero
 
     rows_by_id: dict[str, CandidateRow] = {}
     for split in ("unseen-species-sci", "unseen-genus-sci", "unseen-family-sci"):

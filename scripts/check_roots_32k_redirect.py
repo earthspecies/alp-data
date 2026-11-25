@@ -20,7 +20,7 @@ import sys
 
 sys.path.insert(0, ".")
 
-from esp_data.datasets.roots import ROOTS  # noqa: E402
+from alp_data.datasets.roots import ROOTS  # noqa: E402
 
 EXPECTED_MARKERS: dict[str, tuple[str, ...]] = {
     # T1 v2 splits that previously live-resampled

@@ -31,7 +31,7 @@ import soundfile as sf
 REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT))
 
-from esp_data.io import filesystem_from_path, read_audio  # noqa: E402
+from alp_data.io import filesystem_from_path, read_audio  # noqa: E402
 
 logging.basicConfig(
     level=logging.INFO,

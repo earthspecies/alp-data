@@ -3,7 +3,7 @@
 Reads ``annotated_audio_segments.csv`` and, for every unique BIOTIC ``label``
 (target Orthoptera/Cicadidae + background animals; abiotic wind/car/... skipped),
 resolves the binomial (first two tokens of the label) against the GBIF animals
-backbone via ``esp_data.discover.gbif_taxonomy.GBIFConverter``. Writes
+backbone via ``alp_data.discover.gbif_taxonomy.GBIFConverter``. Writes
 ``ecosoundset_species_taxonomy.csv`` mapping each verbatim label to its GBIF
 canonical name + higher ranks, keeping the full (possibly trinomial) label as
 ``label_verbatim``. Falls back to the raw binomial when GBIF has no match.
@@ -21,7 +21,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from esp_data.discover.gbif_taxonomy import GBIFConverter
+from alp_data.discover.gbif_taxonomy import GBIFConverter
 
 ROOT = "gs://esp-data-ingestion/ecosoundset/v0.1.0"
 RANKS = ["kingdom", "phylum", "class", "order", "family", "genus"]

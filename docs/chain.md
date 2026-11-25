@@ -1,8 +1,8 @@
-# `esp_data.chain` Module
+# `alp_data.chain` Module
 
 ## What is Dataset chaining?
 
-The `chain` module provides a lightweight way to **iterate over multiple ESP datasets** as if they were a single dataset. Unlike `ConcatenatedDataset`, chaining does not merge DataFrames or support transformations on the combined data—it simply yields items from each source dataset in sequence.
+The `chain` module provides a lightweight way to **iterate over multiple ALP datasets** as if they were a single dataset. Unlike `ConcatenatedDataset`, chaining does not merge DataFrames or support transformations on the combined data—it simply yields items from each source dataset in sequence.
 
 Use `ChainedDataset` when you:
 
@@ -10,15 +10,15 @@ Use `ChainedDataset` when you:
 - Want to support streaming mode across multiple datasets
 - Prefer a lightweight approach that doesn't create a merged DataFrame
 
-For combining datasets with transformation support, see [concatenate.md](concatenate.md).
+For combining datasets with transformation support, see [Concatenate Datasets](concatenate.md).
 
 ## How can I chain datasets?
 
 ### Basic Usage
 
 ```python
-from esp_data.datasets import InsectSet459, BirdSet
-from esp_data.chain import ChainedDataset
+from alp_data.datasets import InsectSet459, BirdSet
+from alp_data.chain import ChainedDataset
 
 # Load individual datasets
 dataset1 = InsectSet459(split="validation")
@@ -92,7 +92,7 @@ chain:
 Load the configuration in Python:
 
 ```python
-from esp_data import dataset_from_config
+from alp_data import dataset_from_config
 
 chained_dataset, metadata = dataset_from_config("path/to/chain_config.yaml")
 ```
@@ -149,12 +149,12 @@ for item in chained:
 
 ## Function Reference
 
-::: esp_data.chain.ChainedDataset
+::: alp_data.chain.ChainedDataset
     handler: python
     options:
         show_source: true
 
-::: esp_data.chain.ChainException
+::: alp_data.chain.ChainException
     handler: python
     options:
         show_source: true

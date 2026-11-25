@@ -13,7 +13,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from esp_data.datasets import IDLEOOCameraTraps
+from alp_data.datasets import IDLEOOCameraTraps
 
 # BioCLIP 2's IDLE-OO Camera Traps benchmark: ~2,590 images, 119 species.
 EXPECTED_NUM_SPECIES = 119

@@ -1,6 +1,6 @@
 import pytest
 
-from esp_data.utils import (
+from alp_data.utils import (
     cached_class_property,
     increment_version,
     make_id,
