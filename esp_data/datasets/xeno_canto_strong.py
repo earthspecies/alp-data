@@ -130,6 +130,10 @@ class XenoCantoStrong(Dataset):
 
     _sample_rate_paths: dict[int, str] = {16000: "16khz_path", 32000: "32khz_path"}
     _originals_path_column = "audio_fp"
+    _support_paths_columns: dict[int, str] = {
+        16000: "support_16khz_paths",
+        32000: "support_32khz_paths",
+    }
 
     def __init__(
         self,
@@ -280,6 +284,13 @@ class XenoCantoStrong(Dataset):
         row["audio"] = audio
         row["sample_rate"] = sr
 
+        supports, support_paths = self._read_support_clips(row)
+        if supports:
+            # Few-shot episode: support clips first, the query window last.
+            row["audios"] = [*supports, audio]
+            row["audio_paths"] = [*support_paths, str(audio_path)]
+            del row["audio"]
+
         raw_st = row.get("selection_table")
         if raw_st is not None:
             if isinstance(raw_st, str):
@@ -296,6 +307,64 @@ class XenoCantoStrong(Dataset):
         if self.output_take_and_give:
             return {new: row[old] for old, new in self.output_take_and_give.items()}
         return row
+
+    def _read_support_clips(self, row: dict[str, Any]) -> tuple[list[np.ndarray], list[str]]:
+        """Read the support clips of a few-shot episode row.
+
+        A few-shot episode transform (``soundscape_fewshot_episode`` in
+        esp-research) names windows of other rows of this dataset as support
+        examples: ``support_32khz_paths`` / ``support_16khz_paths`` (paths
+        relative to the data root) with ``support_window_starts`` and
+        ``support_window_ends`` in seconds. The mirror matching
+        ``sample_rate`` is preferred; the other one is resampled on read.
+
+        Parameters
+        ----------
+        row : dict[str, Any]
+            A single manifest row.
+
+        Returns
+        -------
+        tuple[list[np.ndarray], list[str]]
+            Mono float32 clips at ``sample_rate`` and their paths; two empty
+            lists for a row without support clips.
+
+        Raises
+        ------
+        ValueError
+            If the window lists do not match the paths in length.
+        """
+        paths: list[str] = []
+        for candidate in sorted(self._support_paths_columns, key=lambda r: r != self.sample_rate):
+            raw = row.get(self._support_paths_columns[candidate])
+            if raw is not None and len(raw):
+                paths = raw.split("|") if isinstance(raw, str) else [str(p) for p in raw]
+                paths = [p for p in paths if p]
+                break
+        if not paths:
+            return [], []
+        starts = row.get("support_window_starts")
+        ends = row.get("support_window_ends")
+        if starts is None or ends is None or not len(starts) == len(ends) == len(paths):
+            raise ValueError(
+                "support_window_starts / support_window_ends must give one value per support path"
+            )
+        clips = []
+        for path, start, end in zip(paths, starts, ends, strict=True):
+            clip, sr = read_audio(
+                anypath(self.data_root) / path, start_time=float(start), end_time=float(end)
+            )
+            clip = audio_stereo_to_mono(clip, mono_method="average").astype(np.float32)
+            if self.sample_rate is not None and sr != self.sample_rate:
+                clip = librosa.resample(
+                    y=clip,
+                    orig_sr=sr,
+                    target_sr=self.sample_rate,
+                    scale=True,
+                    res_type="kaiser_best",
+                )
+            clips.append(clip)
+        return clips, paths
 
     def __getitem__(self, idx: int) -> dict[str, Any]:
         """Return a single processed row.

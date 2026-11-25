@@ -80,6 +80,7 @@ from .voxaboxen import Voxaboxen, VoxaboxenEvents
 from .wabad import WABAD
 from .watkins import Watkins
 from .watkins_soundscapes import WatkinsSoundscapes
+from .wavcaps import WavCaps
 from .weldy_dawn_chorus import WeldyDawnChorus
 from .whales import Whales
 from .wytham_great_tit import WythamGreatTit
@@ -175,6 +176,7 @@ __all__ = [
     "DCASEFewshotVal",
     "EcoSoundSet",
     "Watkins",
+    "WavCaps",
     "WeldyDawnChorus",
     "WatkinsSoundscapes",
     "Whales",

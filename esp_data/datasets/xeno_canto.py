@@ -184,6 +184,20 @@ class XenoCanto(Dataset):
             # v2: expanded pool (m9fsv open-det, 204k recs -> 320,630 windows), same schema/recipe
             "train_strong_unseen_nlmbc_geo_v2": "gs://esp-data-ingestion/xeno-canto/v0.1.0/raw/train_strong_unseen_nlmbc_geo_v2.csv",
             "train_single_clean_unseen_logitneg15_focal95": "gs://esp-data-ingestion/xeno-canto/v0.1.0/raw/train_single_clean_unseen_logitneg15_focal95.csv",
+            # NLM 2 call-type pseudolabels on BirdCODE events (species-diverse 10% samples,
+            # train_unseen recordings only). One event per row: canonical_name (the BirdCODE
+            # label the question names), behavior (the answer), event_role (focal or background), and
+            # window_start_sec/window_end_sec (the labelling crop, lazy audio crop).
+            # `_raw`: every event of any species, labelled on raw audio. `_denoised`: focal
+            # events, labelled on the denoised track but loaded here from the raw recording.
+            # Built by NatureLM-audio-v1.5 scripts/build_xc_calltype_pseudolabel_splits.py.
+            "train_unseen_calltype_pseudo_nlm2_s10_raw": "gs://esp-data-ingestion/xeno-canto/v0.1.0/raw/train_unseen_calltype_pseudo_nlm2_s10_raw.csv",
+            "train_unseen_calltype_pseudo_nlm2_s10_denoised": "gs://esp-data-ingestion/xeno-canto/v0.1.0/raw/train_unseen_calltype_pseudo_nlm2_s10_denoised.csv",
+            # Focal events of the two splits above, each once, for species classification on
+            # short event crops: canonical_name / species_common are the recording's own, and
+            # window_start_sec/window_end_sec the event window (lazy audio crop). Built by
+            # NatureLM-audio-v1.5 scripts/build_xc_focal_event_species_split.py.
+            "train_unseen_focal_event_species_s10": "gs://esp-data-ingestion/xeno-canto/v0.1.0/raw/train_unseen_focal_event_species_s10.csv",
         },
         version="0.1.0",
         description="Xeno-canto audio dataset with taxonomic metadata. "

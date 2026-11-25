@@ -61,6 +61,14 @@ class SubsegPseudolabel(Dataset):
             "sedsubseg_indian_fauna_freq_gpt": f"{_RAW}/train_sedsubseg_indian_fauna_freq_gpt.csv",
             "sedsubseg_xcstrong_freq_gpt": f"{_RAW}/train_sedsubseg_xcstrong_freq_gpt.csv",
             "sedsubseg_ecosoundset_freq_gpt": f"{_RAW}/train_sedsubseg_ecosoundset_freq_gpt.csv",
+            # *_freq_gptonly: the windows of the tables above whose every event GPT labelled (events
+            # GPT could not label keep model-made units and would mix labellers in one window).
+            # Built by NatureLM-audio-v1.5 scripts/build_sedsubseg_gpt_only.py.
+            "sedsubseg_pteroset_freq_gptonly": f"{_RAW}/train_sedsubseg_pteroset_freq_gptonly.csv",
+            "sedsubseg_dartmouth_freq_gptonly": f"{_RAW}/train_sedsubseg_dartmouth_freq_gptonly.csv",
+            "sedsubseg_indian_fauna_freq_gptonly": f"{_RAW}/train_sedsubseg_indian_fauna_freq_gptonly.csv",
+            "sedsubseg_xcstrong_freq_gptonly": f"{_RAW}/train_sedsubseg_xcstrong_freq_gptonly.csv",
+            "sedsubseg_ecosoundset_freq_gptonly": f"{_RAW}/train_sedsubseg_ecosoundset_freq_gptonly.csv",
             # clipextract_*: per-event EXTRACTED CLIPS exploded from the freq_gpt windows —
             # real-audio analogue of synthetic subseg_v9 mode C. box_start/box_end crop each
             # event; units_json is clip-relative (time+freq). Feeds

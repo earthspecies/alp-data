@@ -250,6 +250,25 @@ _SPLITS: dict[str, str] = {
     # parallel ``audio_windows`` (long source recordings decoded as ~10 s spans). Built offline by
     # scripts/gen_icl_episodes.py + jobs/build_icl_episodes.sh. See configs/icl_axes.yml.
     "icl-episodes-v1": "gs://foundation-model-data/synthetic/icl-episodes/v1/train.jsonl",
+    # Few-shot same-species episodes: 1-5 reference clips of one species, then "is the following
+    # recording the same species?" (Yes/No, 50/50; a No query is a random other species or one
+    # of the same genus). Train-split recordings only: Xeno-canto focal-call windows of
+    # train_unseen and iNaturalist train_unseen (first 10 s). Absolute gs:// audio_paths with
+    # audio_windows, in the in-context episode format. 2M episodes over 874k recordings and
+    # 8,276 species. Replaces drasdic `same_species`. Built by NatureLM-audio-v1.5
+    # scripts/build_same_species_v2.py.
+    "same-species-v2": "gs://foundation-model-data/synthetic/multi-audio/same_species_v2/train.jsonl",
+    # Species tasks on clean event crops of the strongly annotated soundscape sets of the training
+    # mixture (Xeno-canto strong labels less the file-name-7 holdout, PteroSet, Indian fauna
+    # strong, Dartmouth, ECOSoundSet train): same-species (Yes/No, 1-5 references) and species
+    # MCQ whose options pair example crops with species names. Built by NatureLM-audio-v1.5
+    # scripts/build_soundscape_species_v1.py.
+    "soundscape-same-species-v1": (
+        "gs://foundation-model-data/synthetic/multi-audio/soundscape_species_v1/same_species.jsonl"
+    ),
+    "soundscape-species-mcq-labeled-v1": (
+        "gs://foundation-model-data/synthetic/multi-audio/soundscape_species_v1/species_mcq_labeled.jsonl"
+    ),
     # SYNTHETIC ICL episodes: worked-example / class-match / multi-axis episodes over structural
     # acoustic properties, with PRE-CUT 32 kHz clips (no windowing needed) and exact synthetic
     # labels. 199,975 rows / 2-26 clips each / 53 tasks ``icl_synth_<family>_<axis>``. This points
@@ -307,6 +326,12 @@ _SPLITS: dict[str, str] = {
     # otherwise push 170 s of padded audio through BEATs for ~7 s of content.
     "calltype-desc-v1": (
         "gs://foundation-model-data/synthetic/multi-audio/calltype_desc_v1/train.jsonl"
+    ),
+    # Single-audio captioning from the same GPT call-type descriptions: one clip per row, the
+    # description of its call-type class as the answer, one fixed prompt (task
+    # calltype_acoustic_caption). Built by NatureLM-audio-v1.5 scripts/build_calltype_caption.py.
+    "calltype-caption-v1": (
+        "gs://foundation-model-data/synthetic/multi-audio/calltype_caption_v1/train.jsonl"
     ),
     # F0 contour self-review: is this pitch trace correct, and if not why / what should it be.
     # Corruptions are real tracker failure modes (flat-mean, octave errors, octave jump,
@@ -417,6 +442,11 @@ _AUDIO_ROOT_OVERRIDES: dict[str, str] = {
     # ICL episode audio_paths are already absolute gs:// URIs (see _load_audio's passthrough),
     # so this root is only a nominal default and is never joined onto a path.
     "icl-episodes-v1": "gs://esp-ml-datasets/xeno-canto/v0.1.0/raw/audio_32k/",
+    # same-species-v2 audio_paths are absolute gs:// URIs too; the root is nominal.
+    "same-species-v2": "gs://esp-ml-datasets/xeno-canto/v0.1.0/raw/audio_32k/",
+    # soundscape species audio_paths are absolute gs:// URIs too; the root is nominal.
+    "soundscape-same-species-v1": "gs://esp-ml-datasets/xeno-canto/v0.1.0/raw/audio_32k/",
+    "soundscape-species-mcq-labeled-v1": "gs://esp-ml-datasets/xeno-canto/v0.1.0/raw/audio_32k/",
     # Same as above: synthetic-ICL audio_paths are absolute gs:// URIs, so this root is nominal
     # and never joined onto a path.
     "synthetic-icl-v1": (
@@ -433,6 +463,7 @@ _AUDIO_ROOT_OVERRIDES: dict[str, str] = {
     "cascade-review-v1": "gs://foundation-model-data/synthetic/multi-audio/cascade_review_v1/",
     "cascade-review-fit-v1": "gs://foundation-model-data/synthetic/multi-audio/cascade_review_fit_v1/",
     "calltype-desc-v1": "gs://foundation-model-data/synthetic/multi-audio/",
+    "calltype-caption-v1": "gs://foundation-model-data/synthetic/multi-audio/",
 }
 
 
