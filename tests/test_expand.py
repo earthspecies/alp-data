@@ -1,15 +1,28 @@
+import functools
+import importlib
+import sys
+import textwrap
+import uuid
+from collections.abc import Callable, Iterator
+from pathlib import Path
 from typing import Any
 
 import pandas as pd
 import polars as pl
 import pytest
+from pydantic import ValidationError
 
 from alp_data import DatasetConfig
 from alp_data.backends import PandasBackend, PolarsBackend
 from alp_data.backends.protocol import DataBackend
-from alp_data.transforms import ExpandByFunction, ExpandByFunctionConfig, transform_from_config
-from alp_data.transforms.expand import resolve_row_method
-from alp_data.transforms.video_sample import split_clip_by_frames
+from alp_data.transforms import (
+    ExpandByFunction,
+    ExpandByFunctionConfig,
+    expand,
+    register_row_method,
+    transform_from_config,
+)
+from alp_data.transforms.video_sample import split_clip_by_duration, split_clip_by_frames
 
 
 def _make_backend(backend_type: str, data: dict[str, list]) -> DataBackend:
@@ -20,6 +33,39 @@ def _make_backend(backend_type: str, data: dict[str, list]) -> DataBackend:
 
 def _rows(backend: DataBackend) -> list[dict[str, Any]]:
     return list(backend)
+
+
+@pytest.fixture(autouse=True)
+def _isolated_registry(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Give each test a copy of the row method registry, so registrations don't leak."""
+    monkeypatch.setattr(expand, "_ROW_METHOD_REGISTRY", dict(expand._ROW_METHOD_REGISTRY))
+
+
+@pytest.fixture
+def write_module(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Callable[[str], str]]:
+    """Return a factory that writes a module, standing in for another user script.
+
+    The factory takes the module source and returns a unique module name, importable
+    but not yet imported. The modules are removed from `sys.modules` on teardown.
+
+    Yields
+    ------
+    Callable[[str], str]
+        The module factory.
+    """
+    monkeypatch.syspath_prepend(str(tmp_path))
+    names: list[str] = []
+
+    def factory(source: str) -> str:
+        name = f"user_rows_{uuid.uuid4().hex[:8]}"
+        (tmp_path / f"{name}.py").write_text(textwrap.dedent(source))
+        names.append(name)
+        return name
+
+    yield factory
+
+    for name in names:
+        sys.modules.pop(name, None)
 
 
 DATA = {"name": ["a", "b", "c"], "n": [0, 1, 3]}
@@ -124,55 +170,207 @@ def test_expand_key_order_does_not_matter(backend_type: str) -> None:
     assert [(r["x"], r["y"]) for r in _rows(out)] == [(1, 2), (4, 3)] * 3
 
 
-REPEAT_N_PATHS = [f"{__name__}.repeat_n", f"{__name__}:repeat_n"]
+def test_builtin_row_methods_registered() -> None:
+    assert expand._get_row_method("split_clip_by_frames") is split_clip_by_frames
+    assert expand._get_row_method("split_clip_by_duration") is split_clip_by_duration
 
 
-def test_resolve_row_method() -> None:
-    """Test if row methods resolve from callables and both import path forms."""
-    assert resolve_row_method(repeat_n) is repeat_n
-    for path in REPEAT_N_PATHS:
-        assert resolve_row_method(path) is repeat_n
-    for path in [
-        "alp_data.transforms.video_sample.split_clip_by_frames",
-        "alp_data.transforms.video_sample:split_clip_by_frames",
-    ]:
-        assert resolve_row_method(path) is split_clip_by_frames
+def test_register_bare_decorator_uses_function_name() -> None:
+    assert register_row_method(repeat_n) is repeat_n
+    assert expand._get_row_method("repeat_n") is repeat_n
 
 
-def test_resolve_row_method_nested_attribute() -> None:
-    """Test if the colon form resolves a dotted attribute path."""
-    path = "alp_data.transforms.expand:ExpandByFunction.from_config"
-    assert resolve_row_method(path) == ExpandByFunction.from_config
+@pytest.mark.parametrize(
+    "call",
+    [lambda: register_row_method("custom"), lambda: register_row_method(name="custom")],
+    ids=["positional", "keyword"],
+)
+def test_register_with_explicit_name(call: Callable[[], Any]) -> None:
+    assert call()(repeat_n) is repeat_n
+    assert expand._get_row_method("custom") is repeat_n
+    assert "repeat_n" not in expand._ROW_METHOD_REGISTRY
 
 
-@pytest.mark.parametrize("spec", ["split_clip_by_frames", "module:", ":function", "."])
-def test_resolve_row_method_not_an_import_path(spec: str) -> None:
-    with pytest.raises(ValueError, match="not an import path"):
-        resolve_row_method(spec)
+def test_register_empty_call_uses_function_name() -> None:
+    register_row_method()(repeat_n)
+    assert expand._get_row_method("repeat_n") is repeat_n
 
 
-def test_resolve_row_method_errors() -> None:
-    with pytest.raises(TypeError, match="must be a string or a callable"):
-        resolve_row_method(42)
-    with pytest.raises(TypeError, match="non-callable"):
-        resolve_row_method("alp_data.transforms.expand.logger")
-    with pytest.raises(AttributeError):
-        resolve_row_method("alp_data.transforms.expand:does_not_exist")
-    with pytest.raises(ImportError):
-        resolve_row_method("alp_data.no_such_module.function")
+def test_register_any_function_in_script() -> None:
+    """Test if a function defined in the calling script can be registered and used by name."""
+
+    def tag(row: dict[str, Any], value: str = "x") -> list[dict[str, Any]]:
+        return [{"tag": value}]
+
+    register_row_method(tag)
+    cfg = DatasetConfig(
+        dataset_name="mammalps",
+        transformations=[{"type": "expand_by_function", "method": "tag", "kwargs": {"value": "y"}}],
+    )
+    out, _ = transform_from_config(cfg.transformations[0])(_make_backend("pandas", DATA))
+    assert {r["tag"] for r in _rows(out)} == {"y"}
 
 
-def test_config_accepts_callable_and_import_path() -> None:
-    """Test if a dataset config accepts a row method as a callable or an import path."""
+def test_register_duplicate_in_same_script_raises() -> None:
+    register_row_method(repeat_n)
+    with pytest.raises(ValueError, match="'repeat_n' is already registered"):
+        register_row_method("repeat_n")(lambda row: [])
+    assert expand._get_row_method("repeat_n") is repeat_n
+
+
+@pytest.mark.parametrize(
+    "decorator",
+    [register_row_method(overwrite=True), register_row_method("repeat_n", overwrite=True)],
+    ids=["function-name", "explicit-name"],
+)
+def test_register_overwrite_replaces(decorator: Callable[[Any], Any]) -> None:
+    """Test if `overwrite=True` replaces an existing registration, as when re-running a cell."""
+    register_row_method(repeat_n)
+
+    def repeat_n_v2(row: dict[str, Any]) -> list[dict[str, Any]]:
+        return [{}]
+
+    repeat_n_v2.__name__ = "repeat_n"
+    assert decorator(repeat_n_v2) is repeat_n_v2
+    assert expand._get_row_method("repeat_n") is repeat_n_v2
+
+
+def test_register_overwrite_new_name() -> None:
+    """Test if `overwrite=True` also registers a name that isn't taken yet."""
+    register_row_method("fresh", overwrite=True)(repeat_n)
+    assert expand._get_row_method("fresh") is repeat_n
+
+
+def test_register_duplicate_of_builtin_raises() -> None:
+    """Test if a user function can't take over a name alp-data registered in another module."""
+
+    def split_clip_by_frames(row: dict[str, Any]) -> list[dict[str, Any]]:
+        return [{}]
+
+    with pytest.raises(ValueError, match="'split_clip_by_frames' is already registered"):
+        register_row_method(split_clip_by_frames)
+    assert expand._get_row_method("split_clip_by_frames") is not split_clip_by_frames
+
+
+def test_register_duplicate_across_modules_raises(write_module: Callable[[str], str]) -> None:
+    """Test if two modules registering the same name clash on the second import."""
+    source = """
+        from alp_data.transforms import register_row_method
+
+
+        @register_row_method("shared_name")
+        def fn(row):
+            return [{}]
+    """
+    first = importlib.import_module(write_module(source))
+    with pytest.raises(ValueError, match="'shared_name' is already registered"):
+        importlib.import_module(write_module(source))
+    assert expand._get_row_method("shared_name") is first.fn
+
+
+def test_registered_in_other_module_after_import(write_module: Callable[[str], str]) -> None:
+    """Test if a row method registered in another module is usable once it is imported."""
+    name = write_module("""
+        from alp_data.transforms import register_row_method
+
+
+        @register_row_method
+        def from_other_script(row):
+            return [{"source": "other"}]
+    """)
+    with pytest.raises(ValidationError, match="No row method registered"):
+        ExpandByFunctionConfig(type="expand_by_function", method="from_other_script")
+    importlib.import_module(name)
+    config = ExpandByFunctionConfig(type="expand_by_function", method="from_other_script")
+    out, _ = transform_from_config(config)(_make_backend("pandas", DATA))
+    assert {r["source"] for r in _rows(out)} == {"other"}
+
+
+def test_config_does_not_import_modules(write_module: Callable[[str], str]) -> None:
+    """Test if naming a module in a config neither imports it nor runs its code."""
+    name = write_module("raise RuntimeError('imported!')\n\n\ndef fn(row):\n    return [{}]\n")
+    for method in [f"{name}.fn", f"{name}:fn"]:
+        with pytest.raises(ValidationError, match="Import paths are not supported"):
+            ExpandByFunctionConfig(type="expand_by_function", method=method)
+    assert name not in sys.modules
+
+
+@pytest.mark.parametrize("name", ["", "has space", "pkg.module.fn", "pkg:fn", "1st"])
+def test_register_invalid_name_raises(name: str) -> None:
+    with pytest.raises(ValueError, match="valid Python identifier"):
+        register_row_method(name)(repeat_n)
+
+
+def test_register_lambda_needs_explicit_name() -> None:
+    with pytest.raises(ValueError, match="valid Python identifier"):
+        register_row_method(lambda row: [])
+    fn = register_row_method("named_lambda")(lambda row: [])
+    assert expand._get_row_method("named_lambda") is fn
+
+
+def test_register_nameless_callable_needs_explicit_name() -> None:
+    partial = functools.partial(repeat_n, label="p")
+    with pytest.raises(TypeError, match="no __name__"):
+        register_row_method(partial)
+    register_row_method("partial_repeat")(partial)
+    assert expand._get_row_method("partial_repeat") is partial
+
+
+def test_register_non_callable_raises() -> None:
+    with pytest.raises(TypeError, match="must be callable"):
+        register_row_method("not_callable")(42)
+
+
+def test_unregistered_name_raises() -> None:
+    with pytest.raises(ValueError, match="No row method registered under 'nope'"):
+        ExpandByFunction(method="nope")
+
+
+@pytest.mark.parametrize("path", [f"{__name__}.repeat_n", f"{__name__}:repeat_n"])
+def test_import_path_rejected_with_hint(path: str) -> None:
+    """Test if import paths are not resolved and the error points to the registry."""
+    with pytest.raises(ValueError, match="Import paths are not supported"):
+        ExpandByFunction(method=path)
+
+
+def test_non_string_non_callable_method_raises() -> None:
+    with pytest.raises(TypeError, match="registered name or a callable"):
+        ExpandByFunction(method=42)
+
+
+def test_config_accepts_callable_and_registered_name() -> None:
+    """Test if a dataset config accepts a row method as a callable or a registered name."""
+    register_row_method(repeat_n)
     cfg = DatasetConfig(
         dataset_name="mammalps",
         transformations=[
             {"type": "expand_by_function", "method": repeat_n},
-            {"type": "expand_by_function", "method": REPEAT_N_PATHS[0]},
+            {"type": "expand_by_function", "method": "repeat_n"},
         ],
     )
-    assert [t.method for t in cfg.transformations] == [repeat_n, REPEAT_N_PATHS[0]]
+    assert [t.method for t in cfg.transformations] == [repeat_n, "repeat_n"]
     assert all(ExpandByFunction.from_config(t).method is repeat_n for t in cfg.transformations)
+
+
+@pytest.mark.parametrize("method", ["not_registered", f"{__name__}.repeat_n"])
+def test_config_rejects_unregistered_name(method: str) -> None:
+    """Test if an unknown name fails when the config is validated, not when it is built."""
+    with pytest.raises(ValidationError, match="No row method registered"):
+        ExpandByFunctionConfig(type="expand_by_function", method=method)
+    with pytest.raises(ValidationError, match="No row method registered"):
+        DatasetConfig(
+            dataset_name="mammalps",
+            transformations=[{"type": "expand_by_function", "method": method}],
+        )
+
+
+def test_config_round_trips_registered_name() -> None:
+    """Test if a config with a registered name serializes and reloads."""
+    register_row_method(repeat_n)
+    config = ExpandByFunctionConfig(type="expand_by_function", method="repeat_n")
+    dumped = config.model_dump()
+    assert dumped["method"] == "repeat_n"
+    assert ExpandByFunctionConfig(**dumped) == config
 
 
 @pytest.mark.parametrize("backend_type", ["pandas", "polars"])
@@ -180,8 +378,9 @@ def test_expand_transform_methods_equivalence(backend_type: str) -> None:
     """
     Test that transform_from_config, manual, and from_config produce the same result.
     """
+    register_row_method(repeat_n)
     config = ExpandByFunctionConfig(
-        type="expand_by_function", method=REPEAT_N_PATHS[1], kwargs={"label": "x"}
+        type="expand_by_function", method="repeat_n", kwargs={"label": "x"}
     )
     transforms = [
         ExpandByFunction(method=repeat_n, kwargs={"label": "x"}),

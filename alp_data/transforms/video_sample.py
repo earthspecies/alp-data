@@ -17,7 +17,8 @@ datasets call it when loading, and `SplitClip` before cutting clips.
 
 `SplitClip` cuts each clip into clips of either a fixed number of sampled frames
 (`clip_length`) or a fixed duration (`clip_duration`). It is a wrapper on
-`ExpandByFunction` with the row method `split_clip_by_frames` or `split_clip_by_duration`.
+`ExpandByFunction` with the row method `split_clip_by_frames` or `split_clip_by_duration`,
+which are also registered under those names for use in `expand_by_function` configs.
 
 Examples
 --------
@@ -45,7 +46,7 @@ from pydantic import BaseModel
 from alp_data.backends.protocol import DataBackend
 
 from . import register_transform
-from .expand import ExpandByFunction
+from .expand import ExpandByFunction, register_row_method
 
 VIDEO_COLUMNS = ("start_frame", "end_frame", "frame_stride", "native_fps", "sampled_fps")
 
@@ -151,6 +152,7 @@ def _clip_rows(windows: list[tuple[int, int]]) -> list[dict[str, Any]]:
     return [{"start_frame": s, "end_frame": e} for s, e in windows]
 
 
+@register_row_method
 def split_clip_by_frames(
     row: dict[str, Any],
     clip_length: int,
@@ -202,6 +204,7 @@ def split_clip_by_frames(
     return _clip_rows(windows)
 
 
+@register_row_method
 def split_clip_by_duration(
     row: dict[str, Any],
     clip_duration: float,
