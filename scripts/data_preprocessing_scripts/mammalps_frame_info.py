@@ -5,11 +5,12 @@ values that read every clip whole at its native frame rate:
 
 - `start_frame`: 0
 - `end_frame`: `num_frames`
-- `video_fps`: `average_fps`
+- `native_fps`: `average_fps`
 - `frame_stride`: 1
-- `fps`: `video_fps`
+- `sampled_fps`: `native_fps`
 
-`MammAlps(frames_per_second=...)` overwrites `frame_stride` and `fps` at load time.
+`MammAlps(frames_per_second=...)` overwrites `frame_stride` and `sampled_fps` at load time.
+The columns' old names, `video_fps` and `fps`, are dropped if present.
 
 By default the tables in `SPLIT_CSVS` are overwritten in place. Re-running is
 safe: existing frame columns are reset to the defaults above. Writes to GCS go
@@ -37,6 +38,8 @@ _V010_ROOT = "gs://esp-data-ingestion/mammalps/v0.1.0"
 SPLIT_CSVS = [
     f"{_V010_ROOT}/benchmark_1/metadata/{name}.csv" for name in ("all", "train", "val", "test")
 ]
+# Earlier names of `native_fps` and `sampled_fps`
+_OLD_COLUMNS = ["video_fps", "fps"]
 
 
 def add_frame_info(df: pd.DataFrame) -> pd.DataFrame:
@@ -50,15 +53,16 @@ def add_frame_info(df: pd.DataFrame) -> pd.DataFrame:
     Returns
     -------
     pd.DataFrame
-        A copy of `df` with `start_frame`, `end_frame`, `video_fps`,
-        `frame_stride` and `fps` columns.
+        A copy of `df` with `start_frame`, `end_frame`, `native_fps`,
+        `frame_stride` and `sampled_fps` columns, and without the old `video_fps`
+        and `fps` columns.
     """
-    df = df.copy()
+    df = df.drop(columns=_OLD_COLUMNS, errors="ignore")
     df["start_frame"] = 0
     df["end_frame"] = df["num_frames"].astype(int)
-    df["video_fps"] = df["average_fps"].astype(float)
+    df["native_fps"] = df["average_fps"].astype(float)
     df["frame_stride"] = 1
-    df["fps"] = df["video_fps"]
+    df["sampled_fps"] = df["native_fps"]
     return df
 
 

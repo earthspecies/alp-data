@@ -265,7 +265,7 @@ class PandasBackend(DataBackend):
         elif isinstance(key, (list, slice)):
             # Return multiple rows as new backend (not streaming)
             # .iloc handles both list and slice
-            return PandasBackend(self._df.iloc[key], streaming=False)
+            return PandasBackend(self._df.iloc[key].reset_index(drop=True), streaming=False)
         else:
             raise TypeError(f"Unsupported index type: {type(key)}")
 

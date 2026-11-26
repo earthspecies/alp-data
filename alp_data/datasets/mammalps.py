@@ -1,3 +1,4 @@
+import logging
 from typing import Any, Iterator
 
 from pydantic import Field
@@ -6,6 +7,9 @@ from alp_data import Dataset, DatasetConfig, DatasetInfo, register_dataset
 from alp_data.backends import BackendType
 from alp_data.dataset import register_config
 from alp_data.io import DATA_HOME, AnyPathT, anypath, read_video_at_frames
+from alp_data.transforms import validate_video_table
+
+logger = logging.getLogger("alp_data")
 
 # Paths in the split tables are relative to the bucket root
 _ROOT = DATA_HOME
@@ -82,9 +86,10 @@ class MammAlps(Dataset):
 
     **Frame Sampling:**
         - ``start_frame``, ``end_frame``: frame range to decode, by default the whole clip
-        - ``video_fps``: native frame rate of the clip
-        - ``frame_stride``, ``fps``: decoding stride and resulting frame rate, by default
-        1 and ``video_fps``; overwritten when ``frames_per_second`` is set
+        - ``native_fps``: native frame rate of the clip
+        - ``frame_stride``, ``sampled_fps``: stride between frames to decode and resulting frame
+        rate. By default, stride is 1 and sampled fps is ``native_fps``; these get overwritten when
+        ``frames_per_second`` is set.
 
     **Split:**
         - ``split``: one of "train", "val", or "test"
@@ -141,20 +146,19 @@ class MammAlps(Dataset):
             Dataset root.
         frames_per_second : float | None, optional
             Frame rate to sample videos at. Each video's `frame_stride` is set to
-            `max(1, round(video_fps / frames_per_second))` and its `fps` column to
-            the resulting rate `video_fps / frame_stride`. If None, videos are read
-            at their native frame rate.
+            `max(1, round(native_fps / frames_per_second))` and its `sampled_fps` column to
+            the resulting rate `native_fps / frame_stride`. If None, videos are read at their
+            native frame rate.
         backend : BackendType, optional
             The backend to use ("pandas" or "polars"), by default "polars".
 
         Raises
         ------
         ValueError
-            If `frames_per_second` is not a positive number.
-
-        Notes
-        -----
-        Loading raises `LookupError` if `split` is not a key of `info.split_paths`.
+            If `frames_per_second` is not a positive number, or the split's table
+            fails `validate_video_table`.
+        LookupError
+            If `split` is not a key of `info.split_paths`.
         """
         if frames_per_second is not None and (
             isinstance(frames_per_second, bool)
@@ -162,6 +166,8 @@ class MammAlps(Dataset):
             or frames_per_second <= 0
         ):
             raise ValueError(f"frames_per_second must be a number > 0, got {frames_per_second!r}")
+        if split not in self.info.split_paths:
+            raise LookupError(f"Invalid split: {split}. Expected one of {self.available_splits}")
         super().__init__(output_take_and_give, backend=backend)
         self.split = split
         self.data_root = anypath(_ROOT if data_root is None else data_root)
@@ -194,30 +200,45 @@ class MammAlps(Dataset):
     def _load(self) -> None:
         """Read the split's table into the backend.
 
-        If `frames_per_second` was set, `frame_stride` and `fps` are overwritten to
-        sample each clip at that rate.
+        If `frames_per_second` was set, `frame_stride` and `sampled_fps` are overwritten to
+        sample each clip at that rate. A warning is logged for each native frame rate
+        that `frames_per_second` does not divide, i.e. where the frame rate of the decoded
+        video is off from `frames_per_second` by more than 1%.
 
         Raises
         ------
-        LookupError
-            If `self.split` is not a key of `info.split_paths`.
-        """
-        if self.split not in self.info.split_paths:
-            raise LookupError(
-                f"Invalid split: {self.split}. Expected one of {self.available_splits}"
-            )
+        ValueError
+            If the loaded table fails `validate_video_table`.
+        """  # noqa: DOC502 - raised by `validate_video_table`, not directly
         location = self.info.split_paths[self.split]
         # Read empty strings as nulls but keep literal values such as "None"
         data = self._backend_class.from_csv(
             location, keep_default_na=False, na_values=[""], null_values=[]
         )
-
-        # The tables default to native frame rate (`frame_stride` 1, `fps` = `video_fps`)
+        validate_video_table(data)
+        # The tables default to native frame rate (`frame_stride` 1, `sampled_fps` = `native_fps`)
         if self.fps is not None:
-            video_fps = [float(f) for f in data.unwrap["video_fps"]]
-            strides = [max(1, round(f / self.fps)) for f in video_fps]
+            native_fps = [float(f) for f in data.unwrap["native_fps"]]
+            strides = [max(1, round(f / self.fps)) for f in native_fps]
+            effective = [f / s for f, s in zip(native_fps, strides, strict=True)]
+            # One warning per native rate; rounding merges rates that differ only by
+            # float noise in the table (e.g. 29.999999999999996 and 30.0)
+            rounded = {
+                (round(f, 6), s, round(e, 6))
+                for f, s, e in zip(native_fps, strides, effective, strict=True)
+                if abs(e - self.fps) > 1e-2 * self.fps
+            }
+            for f, s, e in sorted(rounded):
+                logger.warning(
+                    "frames_per_second=%s does not divide native_fps=%.6g; sampling at %.4g fps "
+                    "(stride %d)",
+                    self.fps,
+                    f,
+                    e,
+                    s,
+                )
             data = data.add_column("frame_stride", strides)
-            data = data.add_column("fps", [f / s for f, s in zip(video_fps, strides, strict=True)])
+            data = data.add_column("sampled_fps", effective)
         self._data = data
 
     @classmethod
