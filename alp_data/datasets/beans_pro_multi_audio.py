@@ -40,6 +40,8 @@ from __future__ import annotations
 
 import json
 import logging
+import os
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Iterator
 
 import librosa
@@ -52,6 +54,32 @@ from alp_data.backends.polars_backend import PolarsBackend
 from alp_data.io import AnyPathT, anypath, audio_stereo_to_mono, filesystem_from_path, read_audio
 
 logger = logging.getLogger(__name__)
+
+# ALP_DATA_CLIP_THREADS=N (> 1) loads the clips of one multi-audio row in a pool of N
+# threads. The reads are network-latency bound, so threads overlap them; processes are not
+# used (their semaphores live in /dev/shm, which other jobs on a node can wipe). One pool per
+# process, created lazily so each dataloader worker gets its own after fork.
+_pool: ThreadPoolExecutor | None = None
+_pool_pid: int | None = None
+
+
+def _clip_pool() -> ThreadPoolExecutor | None:
+    """Return this process's clip-loading thread pool, or None when it is off.
+
+    Returns
+    -------
+    ThreadPoolExecutor or None
+        A pool of ``ALP_DATA_CLIP_THREADS`` threads, or None if that is unset or <= 1.
+    """
+    global _pool, _pool_pid  # noqa: PLW0603
+    n = int(os.environ.get("ALP_DATA_CLIP_THREADS", "1") or 1)
+    if n <= 1:
+        return None
+    if _pool is None or _pool_pid != os.getpid():
+        _pool = ThreadPoolExecutor(max_workers=n, thread_name_prefix="alp-clip")
+        _pool_pid = os.getpid()
+    return _pool
+
 
 # ── Split configuration ──────────────────────────────────────────────────
 
@@ -635,11 +663,14 @@ class BeansProMultiAudio(Dataset):
                     f"'audio_windows' must be None or parallel to 'audio_paths' "
                     f"({len(audio_paths)} paths, got {windows!r}) in row {row.get('id', '<unknown>')!r}"
                 )
-            audios = [
-                self._load_audio(str(path), windows[i]) for i, path in enumerate(audio_paths)
-            ]
+            jobs = [(str(path), windows[i]) for i, path in enumerate(audio_paths)]
         else:
-            audios = [self._load_audio(str(path)) for path in audio_paths]
+            jobs = [(str(path), None) for path in audio_paths]
+        pool = _clip_pool() if len(jobs) > 1 else None
+        if pool is None:
+            audios = [self._load_audio(path, window) for path, window in jobs]
+        else:
+            audios = list(pool.map(lambda job: self._load_audio(*job), jobs))
         row["audios"] = audios
         row["task"] = row.get("task", self.split)
 
