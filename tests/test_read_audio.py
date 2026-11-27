@@ -392,3 +392,121 @@ def test_read_audio_ffmpeg_input_sr_mismatch_warns(monkeypatch, caplog) -> None:
     with caplog.at_level("WARNING", logger="alp_data"):
         _read_audio_ffmpeg("gs://bucket/file.wav", 0.0, 1.0, input_sr=44100, anonymous=True)
     assert any("doesn't match" in r.message for r in caplog.records)
+
+
+class _LocalFS:
+    """Stand-in for a GCS filesystem that opens a fixed local file."""
+
+    def __init__(self, local_path: str) -> None:
+        self.local_path = local_path
+        self.open_kwargs: dict[str, object] = {}
+
+    def open(self, path: str, mode: str = "rb", **kwargs: object) -> object:
+        self.open_kwargs = kwargs
+        return open(self.local_path, mode)  # noqa: SIM115 - closed by the caller's with
+
+
+@pytest.mark.parametrize(
+    ("start_time", "end_time", "expected"),
+    [
+        (0.0, 1.0, (0, 1000)),
+        (0.25, 0.5, (250, 500)),
+        (1.5, None, (1500, 2000)),
+        (1.5, 5.0, (1500, 2000)),  # end past EOF is clipped
+        (3.0, 4.0, (2000, 2000)),  # start past EOF gives an empty read
+    ],
+)
+def test_read_audio_sfseek_frame_math(
+    tmp_path, monkeypatch, start_time, end_time, expected
+) -> None:
+    """`_read_audio_sfseek` returns the same frames as slicing the decoded file."""
+    sr = 1000
+    data = np.linspace(-1, 1, 2 * sr, dtype=np.float32)
+    local = tmp_path / "ramp.wav"
+    sf.write(local, data, sr, subtype="FLOAT")
+    fake_fs = _LocalFS(str(local))
+    monkeypatch.setattr(read_utils, "filesystem_from_path", lambda _p: fake_fs)
+
+    audio, out_sr = read_utils._read_audio_sfseek(
+        read_utils.anypath("gs://bucket/ramp.wav"), start_time, end_time
+    )
+
+    assert out_sr == sr
+    assert audio.dtype == np.float32
+    np.testing.assert_array_equal(audio, data[expected[0] : expected[1]])
+    assert fake_fs.open_kwargs == {"block_size": 2**18, "cache_type": "readahead"}
+
+
+def test_read_audio_sfseek_stereo(tmp_path, monkeypatch) -> None:
+    """Multi-channel segments come back as `(frames, channels)`."""
+    sr = 1000
+    data = np.random.default_rng(0).uniform(-1, 1, (sr, 2)).astype(np.float32)
+    local = tmp_path / "stereo.wav"
+    sf.write(local, data, sr, subtype="FLOAT")
+    monkeypatch.setattr(read_utils, "filesystem_from_path", lambda _p: _LocalFS(str(local)))
+
+    audio, _ = read_utils._read_audio_sfseek(read_utils.anypath("gs://b/s.wav"), 0.1, 0.2)
+
+    np.testing.assert_array_equal(audio, data[100:200])
+
+
+def _route_spies(monkeypatch, sfseek_error: Exception | None = None) -> dict[str, int]:
+    """Replace the sfseek and ffmpeg readers with counters; return the counts."""
+    calls = {"sfseek": 0, "ffmpeg": 0}
+
+    def _sfseek(*args: object, **kwargs: object) -> tuple[np.ndarray, int]:
+        calls["sfseek"] += 1
+        if sfseek_error is not None:
+            raise sfseek_error
+        return np.zeros(10, dtype=np.float32), 1
+
+    def _ffmpeg(*args: object, **kwargs: object) -> tuple[np.ndarray, int]:
+        calls["ffmpeg"] += 1
+        return np.ones(10, dtype=np.float32), 2
+
+    monkeypatch.setattr(read_utils, "_read_audio_sfseek", _sfseek)
+    monkeypatch.setattr(read_utils, "_read_audio_ffmpeg", _ffmpeg)
+    return calls
+
+
+def test_read_audio_segment_reader_default_is_ffmpeg(monkeypatch) -> None:
+    """Without the env flag, gs:// segment reads go to ffmpeg only."""
+    monkeypatch.delenv("ALP_DATA_SEGMENT_READER", raising=False)
+    calls = _route_spies(monkeypatch)
+
+    _, sr = read_audio("gs://bucket/a.wav", start_time=0.0, end_time=1.0)
+
+    assert sr == 2
+    assert calls == {"sfseek": 0, "ffmpeg": 1}
+
+
+def test_read_audio_segment_reader_sfseek(monkeypatch) -> None:
+    """With `ALP_DATA_SEGMENT_READER=sfseek`, gs:// WAV segments use sfseek."""
+    monkeypatch.setenv("ALP_DATA_SEGMENT_READER", "sfseek")
+    calls = _route_spies(monkeypatch)
+
+    _, sr = read_audio("gs://bucket/a.WAV", start_time=0.0, end_time=1.0)
+
+    assert sr == 1
+    assert calls == {"sfseek": 1, "ffmpeg": 0}
+
+
+def test_read_audio_segment_reader_sfseek_skips_other_formats(monkeypatch) -> None:
+    """Formats outside WAV/FLAC/OGG stay on ffmpeg even with the flag set."""
+    monkeypatch.setenv("ALP_DATA_SEGMENT_READER", "sfseek")
+    calls = _route_spies(monkeypatch)
+
+    read_audio("gs://bucket/a.mp3", start_time=0.0, end_time=1.0)
+
+    assert calls == {"sfseek": 0, "ffmpeg": 1}
+
+
+def test_read_audio_segment_reader_sfseek_falls_back(monkeypatch) -> None:
+    """Any sfseek failure falls back to the ffmpeg path."""
+    monkeypatch.setenv("ALP_DATA_SEGMENT_READER", "sfseek")
+    calls = _route_spies(monkeypatch, sfseek_error=RuntimeError("boom"))
+
+    _, sr = read_audio("gs://bucket/a.flac", start_time=0.0, end_time=1.0)
+
+    assert sr == 2
+    assert calls == {"sfseek": 1, "ffmpeg": 1}
