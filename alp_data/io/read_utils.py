@@ -2,6 +2,7 @@
 
 import json
 import logging
+import os
 import subprocess
 import tempfile
 import urllib.parse
@@ -19,6 +20,55 @@ from alp_data.io.filesystem import filesystem_from_path
 from alp_data.io.paths import AnyPathT, PureGSPath, PureHTTPPath, PureHTTPSPath, anypath
 
 logger = logging.getLogger("alp_data")
+
+# Segment reads of `gs://` files: "ffmpeg" (default) streams the range through one
+# ffmpeg process per read; "sfseek" opens the object with a block cache and seeks with
+# libsndfile (WAV/FLAC/OGG only, ffmpeg for anything else or on any error). Read per call so
+# a job can set it before the dataloader workers start.
+_SEGMENT_READER_ENV = "ALP_DATA_SEGMENT_READER"
+_SFSEEK_SUFFIXES = frozenset({".wav", ".flac", ".ogg"})
+
+
+def _read_audio_sfseek(
+    file_path: PureGSPath, start_time: float, end_time: float | None
+) -> tuple[np.ndarray, int]:
+    """Read an audio segment from GCS by seeking with libsndfile over a block-cached handle.
+
+    Only the header and the blocks that cover the segment are fetched (256 KiB read-ahead
+    blocks), with no subprocess. Output follows the `soundfile.read` convention, float32.
+
+    Parameters
+    ----------
+    file_path : PureGSPath
+        GCS path of a WAV, FLAC or OGG file.
+    start_time : float
+        Start time in seconds.
+    end_time : float or None
+        End time in seconds; None reads to the end of the file.
+
+    Returns
+    -------
+    tuple[np.ndarray, int]
+        Audio data, shape `(frames,)` for mono or `(frames, channels)`, and the
+        sample rate in Hz.
+
+    Notes
+    -----
+    Errors from opening the object or from libsndfile propagate to the caller;
+    `read_audio` catches them and falls back to the ffmpeg path.
+    """
+    fs = filesystem_from_path(file_path)
+    with (
+        fs.open(str(file_path), "rb", block_size=2**18, cache_type="readahead") as f,
+        sf.SoundFile(f) as snd,
+    ):
+        sr = snd.samplerate
+        start = min(max(int(round(start_time * sr)), 0), snd.frames)
+        stop = snd.frames if end_time is None else min(int(round(end_time * sr)), snd.frames)
+        if start:
+            snd.seek(start)
+        audio = snd.read(max(stop - start, 0), dtype="float32", always_2d=False)
+    return audio, sr
 
 
 # ---- FFMPEG READ UTILS -----
@@ -598,10 +648,13 @@ def read_audio(
 
     When a time range is requested on a GCS (``gs://``) path or an
     ``http://``/``https://`` URL, the segment is streamed directly via ffmpeg
-    HTTP range requests, avoiding a full-file download. If ffmpeg is unavailable
-    (binary missing, no credentials, or a decode error), the read falls back to
-    downloading the file and decoding the segment, logging a warning once per
-    distinct cause.
+    HTTP range requests, avoiding a full-file download. With
+    `ALP_DATA_SEGMENT_READER=sfseek` set, WAV/FLAC/OGG segments of `gs://`
+    paths are read instead by seeking with libsndfile over a block-cached GCS
+    handle (no subprocess), falling back to ffmpeg on any error. If ffmpeg is
+    unavailable (binary missing, no credentials, or a decode error), the read
+    falls back to downloading the file and decoding the segment, logging a
+    warning once per distinct cause.
 
     Parameters
     ----------
@@ -649,6 +702,15 @@ def read_audio(
             raise ValueError("end_time must be greater than start_time")
 
         if isinstance(file_path, (PureGSPath, PureHTTPSPath, PureHTTPPath)):
+            if (
+                isinstance(file_path, PureGSPath)
+                and os.environ.get(_SEGMENT_READER_ENV) == "sfseek"
+                and file_path.suffix.lower() in _SFSEEK_SUFFIXES
+            ):
+                try:
+                    return _read_audio_sfseek(file_path, start_time, end_time)
+                except Exception as e:  # noqa: BLE001 - any failure falls back to ffmpeg
+                    logger.debug("sfseek segment read failed for %s: %s", file_path, e)
             try:
                 return _read_audio_ffmpeg(
                     file_path, start_time, end_time, input_sr=input_sr, anonymous=anonymous
